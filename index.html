@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>英文單字遊戲主機</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: #f8fafc;
+      font-family: Arial, "Noto Sans TC", sans-serif;
+      background:
+        radial-gradient(circle at 15% 12%, rgba(250, 204, 21, 0.22), transparent 24rem),
+        radial-gradient(circle at 86% 18%, rgba(45, 212, 191, 0.2), transparent 26rem),
+        linear-gradient(145deg, #182034 0%, #111827 48%, #171717 100%);
+    }
+    main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0; }
+    header { margin-bottom: 28px; }
+    h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 52px); line-height: 1.05; }
+    p { margin: 0; color: #cbd5e1; font-size: 17px; line-height: 1.6; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 24px; }
+    .game-card {
+      display: block; border: 1px solid rgba(255,255,255,0.16); border-radius: 12px;
+      padding: 20px; color: inherit; text-decoration: none;
+      background: rgba(15,23,42,0.78); box-shadow: 0 18px 40px rgba(0,0,0,0.22);
+      transition: transform .15s ease, border-color .15s ease;
+    }
+    .game-card:hover { transform: translateY(-3px); border-color: rgba(250,204,21,0.6); }
+    .game-card h2 { margin: 0 0 8px; font-size: 22px; }
+    .game-card span { color: #cbd5e1; font-size: 14px; line-height: 1.5; }
+    .note { margin-top: 28px; color: #94a3b8; font-size: 13px; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>🎮 英文單字遊戲主機</h1>
+      <p>五款單字遊戲共用主機。學生頁面會把該單元的單字傳進來，自動換成最新段考單字。</p>
+    </header>
+    <section class="grid">
+      <a class="game-card" href="./games/miner.html"><h2>單字挖金礦</h2><span>聽發音，抓正確金塊。</span></a>
+      <a class="game-card" href="./games/bomb.html"><h2>炸彈英文</h2><span>駕駛飛機，炸掉目標單字。</span></a>
+      <a class="game-card" href="./games/tank.html"><h2>單字坦克</h2><span>找出樹上正確的單字，射下來。</span></a>
+      <a class="game-card" href="./games/ship.html"><h2>海岸狙擊手</h2><span>瞄準意思正確的船艦擊沉。</span></a>
+      <a class="game-card" href="./games/runner.html"><h2>英文跑酷</h2><span>邊跑邊選正確答案閃避障礙。</span></a>
+    </section>
+    <p class="note">※ 直接點進遊戲會用內建示範單字；由學生頁面開啟時，會自動帶入該單元的單字。</p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單字挖金礦</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #120d0a;
+            --panel: rgba(28, 23, 19, 0.88);
+            --panel-strong: rgba(51, 38, 28, 0.92);
+            --gold: #ffd54a;
+            --gold-dark: #9c5a0c;
+            --cyan: #42d8ff;
+            --green: #73d447;
+            --red: #ff5b4f;
+            --cream: #fff3cf;
+            --ink: #1b130d;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            overscroll-behavior: none;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: 18px;
+            color: var(--cream);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            font-family: Arial, "Noto Sans TC", sans-serif;
+            background:
+                radial-gradient(circle at 20% 8%, rgba(255, 191, 72, 0.2), transparent 28rem),
+                radial-gradient(circle at 80% 12%, rgba(42, 166, 181, 0.16), transparent 24rem),
+                linear-gradient(180deg, #21150f 0%, #0b0706 100%);
+            overflow-x: hidden;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .shell {
+            width: min(1180px, 100%);
+            display: grid;
+            gap: 12px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            padding: 14px 16px;
+            border: 1px solid rgba(255, 213, 74, 0.26);
+            border-radius: 8px;
+            background: linear-gradient(180deg, rgba(49, 36, 28, 0.92), rgba(21, 16, 14, 0.92));
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(24px, 3vw, 38px);
+            line-height: 1;
+            color: var(--gold);
+            text-shadow: 0 3px 0 rgba(91, 45, 6, 0.9), 0 0 20px rgba(255, 201, 79, 0.38);
+            letter-spacing: 0;
+            white-space: nowrap;
+        }
+
+        .hud {
+            display: grid;
+            grid-template-columns: 1.3fr auto auto auto auto;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .panel {
+            min-height: 58px;
+            padding: 10px 14px;
+            border: 1px solid rgba(255, 218, 120, 0.28);
+            border-radius: 8px;
+            background: var(--panel);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 10px 18px rgba(0, 0, 0, 0.22);
+        }
+
+        .panel-label {
+            display: block;
+            margin-bottom: 5px;
+            color: rgba(255, 243, 207, 0.72);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .panel-value {
+            color: white;
+            font-size: 22px;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .score-value {
+            color: var(--gold);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        button {
+            min-height: 48px;
+            border: 0;
+            border-radius: 8px;
+            padding: 0 16px;
+            color: #221406;
+            font: 800 17px/1 Arial, "Noto Sans TC", sans-serif;
+            cursor: pointer;
+            background: linear-gradient(180deg, #ffe27a, #f7a928 54%, #c76f13);
+            box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), 0 5px 0 #7a3f08, 0 12px 20px rgba(0, 0, 0, 0.28);
+            transition: transform 0.14s ease, filter 0.14s ease;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        button:hover {
+            filter: brightness(1.06);
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(3px);
+            box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.32), 0 2px 0 #7a3f08, 0 7px 14px rgba(0, 0, 0, 0.25);
+        }
+
+        button.secondary {
+            color: #eefaff;
+            background: linear-gradient(180deg, #34c6f3, #1685bd 58%, #0d4f7d);
+            box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.38), 0 5px 0 #06334f, 0 12px 20px rgba(0, 0, 0, 0.28);
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            filter: grayscale(0.55) brightness(0.7);
+            transform: none;
+            opacity: 0.72;
+        }
+
+        .game-wrap {
+            position: relative;
+            display: grid;
+            place-items: center;
+            padding: 12px;
+            border: 1px solid rgba(255, 213, 74, 0.28);
+            border-radius: 8px;
+            background: linear-gradient(180deg, rgba(70, 46, 27, 0.9), rgba(28, 18, 13, 0.96));
+            box-shadow: 0 24px 56px rgba(0, 0, 0, 0.45);
+            touch-action: none;
+        }
+
+        canvas {
+            width: min(100%, 1080px);
+            aspect-ratio: 16 / 10;
+            display: block;
+            border-radius: 8px;
+            border: 3px solid rgba(255, 231, 162, 0.8);
+            background: #2b1a12;
+            box-shadow: inset 0 0 0 2px rgba(74, 36, 14, 0.75);
+            touch-action: none;
+        }
+
+        .hint {
+            text-align: center;
+            color: rgba(255, 243, 207, 0.74);
+            font-size: 14px;
+        }
+
+        .touch-controls {
+            display: none;
+        }
+
+        @media (max-width: 860px) {
+            body {
+                min-height: 100svh;
+                padding: 8px 8px calc(104px + env(safe-area-inset-bottom));
+                gap: 8px;
+                overflow-y: auto;
+            }
+
+            .shell {
+                gap: 8px;
+                width: 100%;
+            }
+
+            header {
+                position: sticky;
+                top: 0;
+                z-index: 4;
+                display: grid;
+                grid-template-columns: auto 1fr;
+                align-items: center;
+                gap: 10px;
+                padding: 8px;
+                backdrop-filter: blur(10px);
+            }
+
+            h1 {
+                max-width: 5.2em;
+                white-space: normal;
+                font-size: 24px;
+                line-height: 0.95;
+            }
+
+            .controls {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px;
+            }
+
+            .desktop-play-control {
+                display: none;
+            }
+
+            button {
+                min-height: 54px;
+                padding: 0 10px;
+                font-size: 16px;
+            }
+
+            .hud {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 7px;
+            }
+
+            .hud .panel:first-child {
+                grid-column: 1 / -1;
+            }
+
+            .panel {
+                min-height: 52px;
+                padding: 8px 10px;
+            }
+
+            .panel-label {
+                margin-bottom: 3px;
+                font-size: 12px;
+            }
+
+            .panel-value {
+                font-size: 19px;
+            }
+
+            #target-word {
+                font-size: 20px;
+            }
+
+            .game-wrap {
+                padding: 6px;
+            }
+
+            canvas {
+                width: 100%;
+                border-width: 2px;
+            }
+
+            .hint {
+                display: none;
+            }
+
+            .touch-controls {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 20;
+                display: grid;
+                grid-template-columns: 1fr 1.25fr 1fr;
+                gap: 8px;
+                padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+                background: linear-gradient(180deg, rgba(18, 13, 10, 0.2), rgba(18, 13, 10, 0.96) 28%);
+                backdrop-filter: blur(10px);
+            }
+
+            .touch-controls button {
+                min-height: 72px;
+                font-size: 24px;
+            }
+
+            #touch-fire-btn {
+                font-size: 20px;
+            }
+
+            @media (orientation: landscape) {
+                body {
+                    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+                }
+
+                header {
+                    grid-template-columns: auto 1fr;
+                }
+
+                h1 {
+                    font-size: 21px;
+                    max-width: none;
+                    white-space: nowrap;
+                }
+
+                .hud {
+                    grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr));
+                }
+
+                .hud .panel:first-child {
+                    grid-column: auto;
+                }
+
+                .touch-controls button {
+                    min-height: 60px;
+                }
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="shell">
+        <header>
+            <h1>單字挖金礦</h1>
+            <div class="controls">
+                <button class="secondary desktop-play-control" id="move-left-btn" type="button">←</button>
+                <button class="secondary" id="play-sound-btn" type="button">聽發音</button>
+                <button id="start-game-btn" type="button">開始挑戰</button>
+                <button class="desktop-play-control" id="fire-btn" type="button">發射鉤子</button>
+                <button class="secondary desktop-play-control" id="move-right-btn" type="button">→</button>
+            </div>
+        </header>
+
+        <section class="hud" aria-label="遊戲狀態">
+            <div class="panel">
+                <span class="panel-label">任務</span>
+                <span class="panel-value" id="target-word">聽英文，抓英文單字或中文意思</span>
+            </div>
+            <div class="panel">
+                <span class="panel-label">時間</span>
+                <span class="panel-value" id="time-left">60</span>
+            </div>
+            <div class="panel">
+                <span class="panel-label">分數</span>
+                <span class="panel-value score-value" id="score">0</span>
+            </div>
+            <div class="panel">
+                <span class="panel-label">連續答對</span>
+                <span class="panel-value" id="streak">0</span>
+            </div>
+            <div class="panel">
+                <span class="panel-label">狀態</span>
+                <span class="panel-value" id="status">準備中</span>
+            </div>
+        </section>
+
+        <section class="game-wrap">
+            <canvas id="gameCanvas" width="1080" height="675"></canvas>
+        </section>
+
+        <div class="hint">← → 或 A/D 移動礦車，空白鍵發射，R 重聽。題型會混合英文單字與中文意思，抓對加 20 分，抓錯扣 5 秒。</div>
+    </main>
+
+    <section class="touch-controls" aria-label="手機操作">
+        <button class="secondary" id="touch-left-btn" type="button" aria-label="礦車往左">←</button>
+        <button id="touch-fire-btn" type="button">發射</button>
+        <button class="secondary" id="touch-right-btn" type="button" aria-label="礦車往右">→</button>
+    </section>
+    <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"></div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const targetWordEl = document.getElementById("target-word");
+    const timeLeftEl = document.getElementById("time-left");
+    const scoreEl = document.getElementById("score");
+    const streakEl = document.getElementById("streak");
+    const statusEl = document.getElementById("status");
+    const startGameBtn = document.getElementById("start-game-btn");
+    const moveLeftBtn = document.getElementById("move-left-btn");
+    const playSoundBtn = document.getElementById("play-sound-btn");
+    const fireBtn = document.getElementById("fire-btn");
+    const moveRightBtn = document.getElementById("move-right-btn");
+    const touchLeftBtn = document.getElementById("touch-left-btn");
+    const touchFireBtn = document.getElementById("touch-fire-btn");
+    const touchRightBtn = document.getElementById("touch-right-btn");
+
+    const bgImage = new Image();
+    bgImage.src = "../assets/miner-visual-concept.png";
+
+    const GAME_SECONDS = 60;
+    const WRONG_TIME_PENALTY = 5;
+    const CORRECT_POINTS = 20;
+    const BOMB_PENALTY = 10;
+    const CART_SPEED = 430;
+    const CART_MIN_X = 125;
+    const CART_MAX_X = canvas.width - 125;
+
+    const DEFAULT_GOLD_WORDS = [
+        { word: "costume", chinese: "特殊場合的服裝" },
+        { word: "ability", chinese: "才能" },
+        { word: "weakness", chinese: "弱點" },
+        { word: "protect", chinese: "保護" },
+        { word: "emotion", chinese: "情緒" },
+        { word: "normal", chinese: "一般的" },
+        { word: "crime", chinese: "犯罪" },
+        { word: "anger", chinese: "憤怒" }
+    ];
+
+    const OBSTACLES = [
+        { word: "bomb", type: "bomb", radius: 31 },
+        { word: "bomb", type: "bomb", radius: 31 },
+        { word: "rock", type: "rock", radius: 52 },
+        { word: "rock", type: "rock", radius: 47 }
+    ];
+
+    let availableVoices = [];
+    let vocabulary = DEFAULT_GOLD_WORDS;
+    let currentUnitTitle = "示範題庫";
+
+    const origin = { x: canvas.width / 2, y: 84 };
+    const particles = [];
+    let angle = -Math.PI / 3.6;
+    let angleDir = 1;
+    let angleSpeed = 0.018;
+    let hookLength = 70;
+    let defaultHookLength = 70;
+    let hookSpeed = 13;
+    let state = "IDLE";
+    let gamePhase = "READY";
+    let caughtItem = null;
+    let score = 0;
+    let streak = 0;
+    let bestStreak = 0;
+    let round = 0;
+    let correctCount = 0;
+    let wrongCount = 0;
+    let bombCount = 0;
+    let rockCount = 0;
+    let timeLeft = GAME_SECONDS;
+    let lastFrameTime = performance.now();
+    let pendingNextRoundTimer = null;
+    let items = [];
+    let targetWordObj = null;
+    let currentQuestionMode = "english";
+    let message = { text: "聽發音，找到正確的金塊", tone: "info", timer: 180 };
+    const input = {
+        left: false,
+        right: false
+    };
+    const cavePebbles = Array.from({ length: 9 }, (_, i) => ({
+        x: 70 + i * 118,
+        y: canvas.height - (18 + (i * 17) % 34),
+        r: 10 + (i * 9) % 18,
+        rot: -0.4 + (i % 5) * 0.2
+    }));
+
+    function loadVoices() {
+        if (!("speechSynthesis" in window)) return;
+        availableVoices = window.speechSynthesis.getVoices();
+    }
+
+    function pickEnglishVoice() {
+        return availableVoices.find((voice) => /^en[-_]?US/i.test(voice.lang))
+            || availableVoices.find((voice) => /^en/i.test(voice.lang))
+            || null;
+    }
+
+    function speechTextFor(word) {
+        return String(word || "")
+            .replace(/\bA\b/g, "something")
+            .replace(/\bB\b/g, "something")
+            .replace(/\s*\/\s*/g, " or ")
+            .replace(/[()]/g, " ")
+            .replace(/…|\.\.\./g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    loadVoices();
+    if ("speechSynthesis" in window) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    function rand(min, max) {
+        return min + Math.random() * (max - min);
+    }
+
+    function shuffle(list) {
+        return [...list].sort(() => Math.random() - 0.5);
+    }
+
+    function setStatus(text) {
+        statusEl.textContent = text;
+    }
+
+    function setMessage(text, tone = "info", timer = 160) {
+        message = { text, tone, timer };
+    }
+
+    function getEntryWord(entry) {
+        return String(entry?.word || entry?.phrase || "").trim();
+    }
+
+    function getEntryChinese(entry) {
+        return String(entry?.chinese || entry?.meaning || entry?.translation || entry?.definition || "").trim();
+    }
+
+    function labelLength(text) {
+        return [...String(text || "")].reduce((sum, char) => sum + (/[\u3400-\u9fff]/.test(char) ? 1.35 : 1), 0);
+    }
+
+    function isCompactLayout() {
+        return window.matchMedia("(max-width: 860px)").matches;
+    }
+
+    function makeGoldItem(entry, index = 0, mode = "english") {
+        const word = getEntryWord(entry);
+        const chinese = getEntryChinese(entry);
+        const label = mode === "chinese" && chinese ? chinese : word;
+        const compact = isCompactLayout();
+        const baseRadius = compact ? 54 : 36;
+        const maxRadius = compact ? 88 : 58;
+        const labelScale = compact ? 1.7 : 1.08;
+        return {
+            word,
+            chinese,
+            label,
+            mode,
+            type: "gold",
+            radius: Math.max(baseRadius, Math.min(maxRadius, 34 + labelLength(label) * labelScale + (index % 3) * 2))
+        };
+    }
+
+    function normalizeMinerWords(words) {
+        const seen = new Set();
+        return (words || [])
+            .map(item => ({
+                word: getEntryWord(item),
+                chinese: getEntryChinese(item)
+            }))
+            .filter(item => item.word)
+            .filter(item => {
+                const word = item.word;
+                const key = word.toLowerCase();
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+    }
+
+    function applyMinerData(payload) {
+        const nextWords = normalizeMinerWords(payload?.words);
+        if (nextWords.length > 0) {
+            vocabulary = nextWords;
+            currentUnitTitle = payload?.unitTitle || "目前 Level";
+        } else {
+            vocabulary = DEFAULT_GOLD_WORDS;
+            currentUnitTitle = "示範題庫";
+        }
+        if (gamePhase !== "PLAYING") {
+            round = 0;
+            initLevel(false);
+            setMessage(`已載入 ${currentUnitTitle}：${vocabulary.length} 個單字`, "info", 180);
+        }
+        document.getElementById("miner-data-status").textContent = `${currentUnitTitle}:${vocabulary.length}`;
+    }
+
+    function readLessonDataFromHash() {
+        const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
+        if (!hash) return null;
+        const params = new URLSearchParams(hash);
+        const raw = params.get("lessonData");
+        if (!raw) return null;
+        try {
+            return JSON.parse(raw);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function displayWord(word) {
+        if (!word) return "";
+        return word.charAt(0).toUpperCase() + word.slice(1);
+    }
+
+    function displayAnswer(item) {
+        if (!item) return "";
+        return item.mode === "chinese" ? item.label : displayWord(item.label || item.word);
+    }
+
+    function pickQuestionMode() {
+        const hasChinese = vocabulary.some(entry => getEntryChinese(entry));
+        if (!hasChinese) return "english";
+        return round % 2 === 1 ? "chinese" : "english";
+    }
+
+    function buildRoundGolds(mode) {
+        const source = mode === "chinese"
+            ? vocabulary.filter(entry => getEntryChinese(entry))
+            : vocabulary;
+        const candidates = source.length > 0 ? source : vocabulary;
+        const seenLabels = new Set();
+        const golds = [];
+
+        shuffle(candidates).forEach((entry) => {
+            if (golds.length >= (isCompactLayout() ? 4 : 5)) return;
+            const item = makeGoldItem(entry, golds.length, source.length > 0 ? mode : "english");
+            const labelKey = item.label.toLowerCase();
+            if (!item.word || !item.label || seenLabels.has(labelKey)) return;
+            seenLabels.add(labelKey);
+            golds.push(item);
+        });
+
+        return golds.length > 0 ? golds : DEFAULT_GOLD_WORDS.map((entry, index) => makeGoldItem(entry, index, "english"));
+    }
+
+    function buildItemSlots() {
+        if (isCompactLayout()) {
+            const compactSlots = [
+                { x: 178, y: 252 }, { x: 540, y: 250 }, { x: 902, y: 252 },
+                { x: 222, y: 382 }, { x: 540, y: 394 }, { x: 858, y: 382 },
+                { x: 178, y: 514 }, { x: 540, y: 520 }, { x: 902, y: 514 }
+            ];
+
+            return shuffle(compactSlots).map(slot => ({
+                x: slot.x + rand(-18, 18),
+                y: slot.y + rand(-14, 14)
+            }));
+        }
+
+        const slots = [
+            { x: 145, y: 245 }, { x: 335, y: 248 }, { x: 535, y: 260 }, { x: 745, y: 248 }, { x: 935, y: 272 },
+            { x: 205, y: 345 }, { x: 430, y: 360 }, { x: 650, y: 345 }, { x: 850, y: 370 },
+            { x: 180, y: 465 }, { x: 390, y: 510 }, { x: 610, y: 480 }, { x: 830, y: 515 }
+        ];
+
+        return shuffle(slots).map(slot => ({
+            x: slot.x + rand(-34, 34),
+            y: slot.y + rand(-26, 26)
+        }));
+    }
+
+    function updateControls() {
+        const playing = gamePhase === "PLAYING";
+        startGameBtn.textContent = playing ? "重新開始" : gamePhase === "ENDED" ? "再玩一次" : "開始挑戰";
+        startGameBtn.disabled = false;
+        moveLeftBtn.disabled = !playing;
+        moveRightBtn.disabled = !playing;
+        playSoundBtn.disabled = !playing;
+        fireBtn.disabled = !playing || state !== "IDLE";
+        touchLeftBtn.disabled = !playing;
+        touchRightBtn.disabled = !playing;
+        touchFireBtn.disabled = !playing || state !== "IDLE";
+    }
+
+    function resetStats() {
+        score = 0;
+        streak = 0;
+        bestStreak = 0;
+        round = 0;
+        correctCount = 0;
+        wrongCount = 0;
+        bombCount = 0;
+        rockCount = 0;
+        timeLeft = GAME_SECONDS;
+        origin.x = canvas.width / 2;
+        particles.length = 0;
+    }
+
+    function startGame() {
+        if (pendingNextRoundTimer) clearTimeout(pendingNextRoundTimer);
+        resetStats();
+        gamePhase = "PLAYING";
+        setStatus("挑戰開始");
+        setMessage("60 秒挑戰開始，聽英文抓正確金塊", "good", 170);
+        initLevel(true);
+        updateHud();
+        updateControls();
+    }
+
+    function finishGame() {
+        if (gamePhase === "ENDED") return;
+        if (pendingNextRoundTimer) clearTimeout(pendingNextRoundTimer);
+        gamePhase = "ENDED";
+        state = "IDLE";
+        caughtItem = null;
+        timeLeft = 0;
+        setStatus("時間到");
+        setMessage("時間到！看看這次挖到多少分", "neutral", 220);
+        window.speechSynthesis?.cancel();
+        updateHud();
+        updateControls();
+    }
+
+    function addTime(seconds) {
+        timeLeft = Math.max(0, Math.min(GAME_SECONDS, timeLeft + seconds));
+        if (timeLeft <= 0) finishGame();
+        updateHud();
+    }
+
+    function updateCartPosition(dt) {
+        if (state !== "IDLE") return;
+
+        const direction = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+        if (direction === 0) return;
+
+        origin.x = Math.max(CART_MIN_X, Math.min(CART_MAX_X, origin.x + direction * CART_SPEED * dt));
+    }
+
+    function speakWord(word) {
+        if (!("speechSynthesis" in window)) {
+            setMessage("這個瀏覽器不支援語音播放", "bad", 160);
+            return;
+        }
+
+        const voice = pickEnglishVoice();
+        const msg = new SpeechSynthesisUtterance(speechTextFor(word));
+        if (voice) msg.voice = voice;
+        msg.lang = voice?.lang || "en-US";
+        msg.rate = 0.82;
+        msg.pitch = 1;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(msg);
+    }
+
+    function initLevel(autoSpeak = true) {
+        round += 1;
+        items = [];
+        caughtItem = null;
+        state = "IDLE";
+        hookLength = defaultHookLength;
+        angle = rand(-Math.PI / 3.8, Math.PI / 3.8);
+        angleDir = Math.random() > 0.5 ? 1 : -1;
+
+        currentQuestionMode = pickQuestionMode();
+        const golds = buildRoundGolds(currentQuestionMode);
+        targetWordObj = golds[Math.floor(Math.random() * golds.length)];
+        const obstacles = shuffle(OBSTACLES).slice(0, isCompactLayout() ? 3 : 4);
+        const spawn = shuffle([...golds, ...obstacles]);
+        const slots = buildItemSlots();
+
+        spawn.forEach((item, index) => {
+            const slot = slots[index % slots.length];
+            items.push({
+                ...item,
+                x: slot.x + rand(-28, 28),
+                y: slot.y + rand(-22, 22),
+                active: true,
+                bump: 0,
+                bumpAngle: 0,
+                spin: rand(0, Math.PI * 2),
+                wobble: rand(0.6, 1.2)
+            });
+        });
+
+        const taskText = currentQuestionMode === "chinese" ? "聽英文，抓中文意思" : "聽英文，抓英文單字";
+        targetWordEl.textContent = gamePhase === "PLAYING" ? taskText : "按開始挑戰，限時 60 秒";
+        setStatus(gamePhase === "PLAYING" ? `第 ${round} 題` : "準備中");
+        setMessage(gamePhase === "PLAYING" ? `${taskText}，瞄準對應的金塊` : "按開始挑戰後會播放第一題發音", "info", 170);
+        updateHud();
+
+        if (autoSpeak && gamePhase === "PLAYING") {
+            setTimeout(() => speakWord(targetWordObj.word), 450);
+        }
+    }
+
+    function updateHud() {
+        timeLeftEl.textContent = Math.ceil(timeLeft);
+        scoreEl.textContent = score;
+        streakEl.textContent = streak;
+        updateControls();
+    }
+
+    function shoot() {
+        if (gamePhase === "PLAYING" && state === "IDLE") {
+            state = "SHOOTING";
+            setStatus("鉤子發射");
+            updateControls();
+        }
+    }
+
+    function addSparkles(x, y, tone = "gold", count = 18) {
+        for (let i = 0; i < count; i += 1) {
+            particles.push({
+                x,
+                y,
+                vx: rand(-4.4, 4.4),
+                vy: rand(-5.2, 1.5),
+                life: rand(28, 56),
+                maxLife: 56,
+                size: rand(2, 6),
+                tone
+            });
+        }
+    }
+
+    function updateParticles(timeScale) {
+        for (let i = particles.length - 1; i >= 0; i -= 1) {
+            const p = particles[i];
+            p.x += p.vx * timeScale;
+            p.y += p.vy * timeScale;
+            p.vy += 0.14 * timeScale;
+            p.life -= 1 * timeScale;
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+    }
+
+    function update() {
+        const now = performance.now();
+        const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+        lastFrameTime = now;
+        const timeScale = dt * 60;
+
+        updateParticles(timeScale);
+        if (message.timer > 0) message.timer -= 1 * timeScale;
+
+        items.forEach(item => {
+            if (item.bump > 0) item.bump *= Math.pow(0.82, timeScale);
+            if (item.bump < 0.4) item.bump = 0;
+        });
+
+        if (gamePhase === "PLAYING") {
+            timeLeft -= dt;
+            if (timeLeft <= 0) {
+                finishGame();
+                return;
+            }
+            timeLeftEl.textContent = Math.ceil(timeLeft);
+        } else {
+            return;
+        }
+
+        updateCartPosition(dt);
+
+        if (state === "IDLE") {
+            angle += angleSpeed * angleDir * timeScale;
+            if (angle > Math.PI / 2.65 || angle < -Math.PI / 2.65) {
+                angleDir *= -1;
+            }
+            return;
+        }
+
+        if (state === "SHOOTING") {
+            hookLength += hookSpeed * timeScale;
+            const tip = getHookTip();
+
+            if (tip.x < 32 || tip.x > canvas.width - 32 || tip.y > canvas.height - 26) {
+                state = "RETRACTING";
+                setStatus("收回中");
+                return;
+            }
+
+            for (const item of items) {
+                if (!item.active) continue;
+                const dist = Math.hypot(tip.x - item.x, tip.y - item.y);
+                if (dist <= item.radius + 18) {
+                    if (item.type === "rock") {
+                        rockCount += 1;
+                        item.bump = 28;
+                        item.bumpAngle = Math.atan2(item.y - tip.y, item.x - tip.x);
+                        caughtItem = null;
+                        setMessage("撞到石頭了，鉤子彈開收回", "neutral", 110);
+                        addSparkles(item.x, item.y, "dust", 14);
+                    } else {
+                        item.active = false;
+                        caughtItem = item;
+                        addSparkles(item.x, item.y, item.type === "gold" ? "gold" : "dust", 12);
+                    }
+                    state = "RETRACTING";
+                    setStatus("收回中");
+                    updateHud();
+                    break;
+                }
+            }
+            return;
+        }
+
+        if (state === "RETRACTING") {
+            let speed = hookSpeed * 1.05;
+            if (caughtItem) {
+                if (caughtItem.type === "gold") speed = hookSpeed * 0.52;
+                if (caughtItem.type === "bomb") speed = hookSpeed * 0.75;
+            }
+
+            hookLength -= speed * timeScale;
+
+            if (hookLength <= defaultHookLength) {
+                hookLength = defaultHookLength;
+                if (caughtItem) {
+                    handleCaughtItem(caughtItem);
+                } else {
+                    state = "IDLE";
+                    setStatus(`第 ${round} 題`);
+                    updateControls();
+                }
+            }
+        }
+    }
+
+    function handleCaughtItem(item) {
+        const isCorrect = item.type === "gold" && item.word === targetWordObj.word;
+        let shouldAdvanceRound = false;
+
+        if (item.type === "bomb") {
+            bombCount += 1;
+            score = Math.max(0, score - BOMB_PENALTY);
+            streak = 0;
+            setMessage(`炸彈爆開了，扣 ${BOMB_PENALTY} 分`, "bad", 150);
+            addSparkles(origin.x, origin.y + 58, "bad", 28);
+        } else if (isCorrect) {
+            correctCount += 1;
+            score += CORRECT_POINTS + Math.min(streak * 3, 12);
+            streak += 1;
+            bestStreak = Math.max(bestStreak, streak);
+            shouldAdvanceRound = true;
+            setMessage(`答對了！${displayAnswer(item)} 加分`, "good", 170);
+            addSparkles(origin.x, origin.y + 58, "gold", 36);
+        } else {
+            wrongCount += 1;
+            streak = 0;
+            setMessage(`你抓到的是 ${displayAnswer(item)}，答案是 ${displayAnswer(targetWordObj)}，扣 ${WRONG_TIME_PENALTY} 秒`, "bad", 210);
+            addTime(-WRONG_TIME_PENALTY);
+            addSparkles(origin.x, origin.y + 58, "bad", 20);
+        }
+
+        updateHud();
+        caughtItem = null;
+
+        if (gamePhase !== "PLAYING") return;
+
+        if (shouldAdvanceRound) {
+            pendingNextRoundTimer = setTimeout(() => {
+                pendingNextRoundTimer = null;
+                if (gamePhase === "PLAYING") initLevel(true);
+            }, 1050);
+        } else {
+            state = "IDLE";
+            setStatus(`第 ${round} 題`);
+            updateControls();
+        }
+    }
+
+    function getHookTip() {
+        return {
+            x: origin.x + hookLength * Math.sin(angle),
+            y: origin.y + hookLength * Math.cos(angle)
+        };
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawBackground();
+        drawCaveFrame();
+        drawTrack();
+        drawItems();
+        drawHookSystem();
+        drawParticles();
+        drawMessage();
+        drawGameOverlay();
+        requestAnimationFrame(loop);
+    }
+
+    function drawBackground() {
+        if (bgImage.complete && bgImage.naturalWidth > 0) {
+            const q = bgImage.naturalWidth / 2;
+            ctx.drawImage(bgImage, q, 0, q, q, 0, 0, canvas.width, canvas.height);
+        } else {
+            const grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grd.addColorStop(0, "#2d1c15");
+            grd.addColorStop(0.55, "#4b2b16");
+            grd.addColorStop(1, "#1a100c");
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        const shade = ctx.createRadialGradient(canvas.width / 2, 260, 100, canvas.width / 2, 300, 740);
+        shade.addColorStop(0, "rgba(255, 206, 93, 0.16)");
+        shade.addColorStop(0.55, "rgba(30, 15, 8, 0.18)");
+        shade.addColorStop(1, "rgba(3, 2, 1, 0.62)");
+        ctx.fillStyle = shade;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.32)";
+        ctx.fillRect(0, canvas.height - 86, canvas.width, 86);
+    }
+
+    function drawCaveFrame() {
+        drawTimber(42, 92, 34, 520, -0.05);
+        drawTimber(canvas.width - 76, 96, 34, 520, 0.06);
+        drawTimber(58, 106, 240, 30, -0.12);
+        drawTimber(canvas.width - 300, 104, 240, 30, 0.12);
+
+        cavePebbles.forEach(pebble => drawPebble(pebble.x, pebble.y, pebble.r, pebble.rot, "rgba(20, 17, 15, 0.64)"));
+    }
+
+    function drawTimber(x, y, w, h, rot) {
+        ctx.save();
+        ctx.translate(x + w / 2, y + h / 2);
+        ctx.rotate(rot);
+        const grd = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
+        grd.addColorStop(0, "#5c351f");
+        grd.addColorStop(0.5, "#9b6331");
+        grd.addColorStop(1, "#432514");
+        roundRect(-w / 2, -h / 2, w, h, 6);
+        ctx.fillStyle = grd;
+        ctx.fill();
+        ctx.strokeStyle = "rgba(32, 14, 6, 0.82)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawTrack() {
+        ctx.save();
+        ctx.strokeStyle = "#27211d";
+        ctx.lineWidth = 12;
+        ctx.beginPath();
+        ctx.moveTo(0, 86);
+        ctx.lineTo(canvas.width, 86);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#9a948c";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(0, 78);
+        ctx.lineTo(canvas.width, 78);
+        ctx.moveTo(0, 100);
+        ctx.lineTo(canvas.width, 100);
+        ctx.stroke();
+
+        for (let x = -8; x < canvas.width; x += 62) {
+            ctx.save();
+            ctx.translate(x, 89);
+            ctx.rotate(-0.08);
+            roundRect(-18, -7, 48, 14, 3);
+            ctx.fillStyle = "#6e3f22";
+            ctx.fill();
+            ctx.restore();
+        }
+        ctx.restore();
+
+        drawMineCart(origin.x, 60);
+    }
+
+    function drawMineCart(x, y) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+        ctx.shadowBlur = 14;
+        ctx.shadowOffsetY = 8;
+
+        roundRect(-78, -34, 156, 56, 8);
+        const wood = ctx.createLinearGradient(0, -34, 0, 22);
+        wood.addColorStop(0, "#b87939");
+        wood.addColorStop(1, "#4e2c19");
+        ctx.fillStyle = wood;
+        ctx.fill();
+        ctx.strokeStyle = "#251813";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        roundRect(-86, -44, 172, 18, 6);
+        ctx.fillStyle = "#9fa5a8";
+        ctx.fill();
+        ctx.strokeStyle = "#33383a";
+        ctx.stroke();
+
+        ctx.fillStyle = "#d3d8d7";
+        for (let i = -58; i <= 58; i += 29) {
+            ctx.beginPath();
+            ctx.arc(i, -35, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        drawWheel(-52, 28, 17);
+        drawWheel(52, 28, 17);
+
+        ctx.restore();
+    }
+
+    function drawWheel(x, y, r) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fillStyle = "#24292b";
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#aeb4b5";
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
+        ctx.fillStyle = "#6d7476";
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawHookSystem() {
+        const tip = getHookTip();
+
+        ctx.save();
+        ctx.strokeStyle = "#2a170d";
+        ctx.lineWidth = 9;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(origin.x, origin.y);
+        ctx.lineTo(tip.x, tip.y);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#c78b43";
+        ctx.lineWidth = 5;
+        ctx.setLineDash([10, 8]);
+        ctx.beginPath();
+        ctx.moveTo(origin.x, origin.y);
+        ctx.lineTo(tip.x, tip.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+
+        drawHook(tip.x, tip.y, -angle);
+
+        if (caughtItem) {
+            drawItem({ ...caughtItem, x: tip.x, y: tip.y + caughtItem.radius + 10, spin: caughtItem.spin + 0.04 });
+        }
+    }
+
+    function drawHook(x, y, rot) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+        ctx.shadowBlur = 8;
+        ctx.shadowOffsetY = 4;
+
+        const metal = ctx.createLinearGradient(-20, -24, 24, 24);
+        metal.addColorStop(0, "#f3f8f7");
+        metal.addColorStop(0.45, "#9aa3a7");
+        metal.addColorStop(1, "#333a3d");
+        ctx.strokeStyle = metal;
+        ctx.lineWidth = 9;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(0, -18);
+        ctx.lineTo(0, 0);
+        ctx.arc(0, 8, 24, -Math.PI / 2, Math.PI * 0.82);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#202528";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, -22, 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawItems() {
+        items.forEach(item => {
+            if (item.active) drawItem(item);
+        });
+    }
+
+    function drawItem(item) {
+        if (item.type === "gold") drawGold(item);
+        if (item.type === "rock") drawRock(item);
+        if (item.type === "bomb") drawBomb(item);
+    }
+
+    function drawGold(item) {
+        ctx.save();
+        ctx.translate(item.x, item.y);
+        ctx.rotate(Math.sin(Date.now() / 800 + item.wobble) * 0.035);
+        ctx.shadowColor = "rgba(255, 206, 69, 0.66)";
+        ctx.shadowBlur = 22;
+        drawNuggetPath(item.radius);
+
+        const grd = ctx.createRadialGradient(-item.radius * 0.35, -item.radius * 0.45, item.radius * 0.1, 0, 0, item.radius);
+        grd.addColorStop(0, "#fff6a8");
+        grd.addColorStop(0.3, "#ffd94b");
+        grd.addColorStop(0.72, "#d88a13");
+        grd.addColorStop(1, "#7f4307");
+        ctx.fillStyle = grd;
+        ctx.fill();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = "#5f3308";
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.45;
+        ctx.fillStyle = "#fff7c4";
+        drawFacet(-item.radius * 0.3, -item.radius * 0.28, item.radius * 0.34);
+        drawFacet(item.radius * 0.1, item.radius * 0.04, item.radius * 0.28);
+        ctx.globalAlpha = 1;
+
+        drawLabel(item.label, item.radius);
+        ctx.restore();
+    }
+
+    function drawNuggetPath(r) {
+        ctx.beginPath();
+        for (let i = 0; i < 14; i += 1) {
+            const a = (i / 14) * Math.PI * 2;
+            const wobble = 0.82 + (i % 3) * 0.08 + Math.sin(i * 1.7) * 0.08;
+            const x = Math.cos(a) * r * wobble;
+            const y = Math.sin(a) * r * (0.72 + (i % 2) * 0.08);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+    }
+
+    function drawFacet(x, y, size) {
+        ctx.beginPath();
+        ctx.moveTo(x, y - size * 0.6);
+        ctx.lineTo(x + size * 0.55, y - size * 0.1);
+        ctx.lineTo(x + size * 0.25, y + size * 0.55);
+        ctx.lineTo(x - size * 0.55, y + size * 0.2);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    function drawRock(item) {
+        ctx.save();
+        const bumpX = Math.cos(item.bumpAngle || 0) * (item.bump || 0);
+        const bumpY = Math.sin(item.bumpAngle || 0) * (item.bump || 0);
+        ctx.translate(item.x + bumpX, item.y + bumpY);
+        ctx.rotate(item.spin * 0.05);
+        ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+        ctx.shadowBlur = 14;
+        ctx.shadowOffsetY = 8;
+        drawRockPath(item.radius);
+        const grd = ctx.createLinearGradient(-item.radius, -item.radius, item.radius, item.radius);
+        grd.addColorStop(0, "#b7b0a7");
+        grd.addColorStop(0.45, "#6f6d69");
+        grd.addColorStop(1, "#2d2b29");
+        ctx.fillStyle = grd;
+        ctx.fill();
+        ctx.strokeStyle = "#24201e";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-item.radius * 0.35, -item.radius * 0.35);
+        ctx.lineTo(item.radius * 0.05, -item.radius * 0.05);
+        ctx.lineTo(item.radius * 0.32, -item.radius * 0.3);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawRockPath(r) {
+        ctx.beginPath();
+        const points = [
+            [-0.76, -0.22], [-0.42, -0.72], [0.2, -0.82], [0.74, -0.42],
+            [0.84, 0.2], [0.45, 0.72], [-0.2, 0.8], [-0.76, 0.42]
+        ];
+        points.forEach(([px, py], i) => {
+            const x = px * r;
+            const y = py * r;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+    }
+
+    function drawBomb(item) {
+        ctx.save();
+        ctx.translate(item.x, item.y);
+        ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+        ctx.shadowBlur = 16;
+        ctx.shadowOffsetY = 8;
+
+        const grd = ctx.createRadialGradient(-item.radius * 0.28, -item.radius * 0.36, 4, 0, 0, item.radius);
+        grd.addColorStop(0, "#7b7b82");
+        grd.addColorStop(0.4, "#22252c");
+        grd.addColorStop(1, "#08090d");
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#010101";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.strokeStyle = "#d59a44";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(8, -item.radius + 3);
+        ctx.quadraticCurveTo(18, -item.radius - 23, 2, -item.radius - 30);
+        ctx.stroke();
+
+        ctx.fillStyle = "#ffcf48";
+        ctx.beginPath();
+        ctx.arc(0, -item.radius - 31, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function fitLabelFont(text, maxWidth, maxSize, minSize) {
+        let size = maxSize;
+        while (size > minSize) {
+            ctx.font = `900 ${size}px Arial, "Noto Sans TC", sans-serif`;
+            if (ctx.measureText(String(text)).width <= maxWidth) break;
+            size -= 1;
+        }
+        return size;
+    }
+
+    function wrapLabelText(text, maxWidth, maxLines) {
+        const raw = String(text || "");
+        const pieces = /[A-Za-z]\s+[A-Za-z]/.test(raw) ? raw.split(/(\s+)/) : [...raw];
+        const lines = [];
+        let line = "";
+
+        pieces.forEach(piece => {
+            const test = line + piece;
+            if (ctx.measureText(test).width > maxWidth && line) {
+                lines.push(line.trim());
+                line = piece.trimStart();
+            } else {
+                line = test;
+            }
+        });
+        if (line) lines.push(line.trim());
+
+        if (lines.length > maxLines) {
+            const visible = lines.slice(0, maxLines);
+            let last = visible[visible.length - 1];
+            while (last.length > 1 && ctx.measureText(last + "…").width > maxWidth) {
+                last = last.slice(0, -1);
+            }
+            visible[visible.length - 1] = last + "…";
+            return visible;
+        }
+
+        return lines;
+    }
+
+    function drawLabel(text, radius) {
+        const compact = isCompactLayout();
+        const maxLabelWidth = compact ? 290 : 170;
+        const minLabelWidth = compact ? radius * 2.15 : radius * 1.56;
+        const maxFontSize = compact ? 48 : 20;
+        const minFontSize = compact ? 32 : 15;
+        const maxLines = compact ? 2 : 1;
+        const paddingX = compact ? 22 : 14;
+
+        const fontSize = fitLabelFont(text, maxLabelWidth - paddingX * 2, maxFontSize, minFontSize);
+        ctx.font = `900 ${fontSize}px Arial, "Noto Sans TC", sans-serif`;
+        const lines = wrapLabelText(text, maxLabelWidth - paddingX * 2, maxLines);
+        const lineHeight = fontSize * 1.05;
+        const measuredWidth = Math.max(...lines.map(line => ctx.measureText(line).width), 0);
+        const w = Math.max(minLabelWidth, Math.min(maxLabelWidth, measuredWidth + paddingX * 2));
+        const h = Math.max(compact ? 46 : 30, lines.length * lineHeight + (compact ? 16 : 10));
+
+        roundRect(-w / 2, -h / 2, w, h, 7);
+        ctx.fillStyle = "rgba(255, 248, 217, 0.92)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(100, 55, 10, 0.8)";
+        ctx.lineWidth = compact ? 4 : 3;
+        ctx.stroke();
+
+        ctx.fillStyle = "#2a1605";
+        ctx.font = `900 ${fontSize}px Arial, "Noto Sans TC", sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const startY = -(lines.length - 1) * lineHeight / 2;
+        lines.forEach((line, index) => {
+            ctx.fillText(line, 0, startY + index * lineHeight + 1);
+        });
+    }
+
+    function drawParticles() {
+        particles.forEach(p => {
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.life * 0.08);
+            ctx.fillStyle = p.tone === "bad" ? "#ff5b4f" : p.tone === "dust" ? "#c1a17a" : "#ffe674";
+            ctx.beginPath();
+            ctx.moveTo(0, -p.size);
+            ctx.lineTo(p.size * 0.45, 0);
+            ctx.lineTo(0, p.size);
+            ctx.lineTo(-p.size * 0.45, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        });
+    }
+
+    function drawMessage() {
+        if (message.timer <= 0) return;
+
+        const alpha = Math.min(1, message.timer / 28);
+        const width = Math.min(700, 120 + message.text.length * 19);
+        const x = canvas.width / 2 - width / 2;
+        const y = canvas.height - 92;
+        const color = message.tone === "good" ? "#7bed5b" : message.tone === "bad" ? "#ff6c5d" : message.tone === "neutral" ? "#d8c5a3" : "#42d8ff";
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        roundRect(x, y, width, 50, 8);
+        ctx.fillStyle = "rgba(18, 13, 10, 0.82)";
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.font = "800 24px Arial, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(message.text, canvas.width / 2, y + 25);
+        ctx.restore();
+    }
+
+    function drawGameOverlay() {
+        if (gamePhase === "PLAYING") return;
+
+        ctx.save();
+        ctx.fillStyle = "rgba(7, 5, 4, 0.68)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const boxW = 620;
+        const boxH = gamePhase === "ENDED" ? 360 : 260;
+        const x = canvas.width / 2 - boxW / 2;
+        const y = canvas.height / 2 - boxH / 2;
+
+        roundRect(x, y, boxW, boxH, 8);
+        ctx.fillStyle = "rgba(30, 21, 15, 0.95)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 213, 74, 0.86)";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        if (gamePhase === "READY") {
+            ctx.fillStyle = "#ffd54a";
+            ctx.font = "900 48px Arial, sans-serif";
+            ctx.fillText("60 秒挖金礦挑戰", canvas.width / 2, y + 72);
+            ctx.fillStyle = "#fff3cf";
+            ctx.font = "800 25px Arial, sans-serif";
+            ctx.fillText("聽英文發音，抓英文單字或中文意思", canvas.width / 2, y + 128);
+            ctx.fillStyle = "rgba(255, 243, 207, 0.82)";
+            ctx.font = "700 20px Arial, sans-serif";
+            ctx.fillText("答錯扣 5 秒，石頭會彈開，炸彈扣 10 分", canvas.width / 2, y + 172);
+            ctx.fillStyle = "#42d8ff";
+            ctx.font = "900 24px Arial, sans-serif";
+            ctx.fillText("按上方「開始挑戰」開始", canvas.width / 2, y + 220);
+        } else {
+            ctx.fillStyle = "#ffd54a";
+            ctx.font = "900 52px Arial, sans-serif";
+            ctx.fillText("時間到！", canvas.width / 2, y + 64);
+
+            ctx.fillStyle = "#fff3cf";
+            ctx.font = "900 32px Arial, sans-serif";
+            ctx.fillText(`總分：${score}`, canvas.width / 2, y + 120);
+
+            drawResultRow("答對題數", correctCount, x + 86, y + 174);
+            drawResultRow("抓錯次數", wrongCount, x + 326, y + 174);
+            drawResultRow("最高連擊", bestStreak, x + 86, y + 234);
+            drawResultRow("炸彈次數", bombCount, x + 326, y + 234);
+
+            ctx.fillStyle = "#42d8ff";
+            ctx.font = "900 23px Arial, sans-serif";
+            ctx.fillText("按「再玩一次」重新挑戰", canvas.width / 2, y + 318);
+        }
+
+        ctx.restore();
+    }
+
+    function drawResultRow(label, value, x, y) {
+        ctx.save();
+        roundRect(x, y, 208, 44, 7);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 243, 207, 0.2)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "rgba(255, 243, 207, 0.74)";
+        ctx.font = "800 17px Arial, sans-serif";
+        ctx.fillText(label, x + 16, y + 22);
+        ctx.fillStyle = "#ffd54a";
+        ctx.font = "900 24px Arial, sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText(value, x + 188, y + 22);
+        ctx.restore();
+    }
+
+    function drawPebble(x, y, r, rot, color) {
+        ctx.beginPath();
+        ctx.ellipse(x, y, r, r * 0.55, rot, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+    }
+
+    function roundRect(x, y, w, h, r) {
+        const rr = Math.min(r, w / 2, h / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + rr, y);
+        ctx.lineTo(x + w - rr, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+        ctx.lineTo(x + w, y + h - rr);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+        ctx.lineTo(x + rr, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+        ctx.lineTo(x, y + rr);
+        ctx.quadraticCurveTo(x, y, x + rr, y);
+        ctx.closePath();
+    }
+
+    function loop() {
+        update();
+        draw();
+    }
+
+    playSoundBtn.addEventListener("click", () => {
+        if (targetWordObj) speakWord(targetWordObj.word);
+    });
+
+    startGameBtn.addEventListener("click", startGame);
+    fireBtn.addEventListener("click", shoot);
+
+    function bindMoveButton(button, direction) {
+        const setPressed = (pressed) => {
+            input[direction] = pressed;
+        };
+
+        button.addEventListener("pointerdown", (event) => {
+            event.preventDefault();
+            setPressed(true);
+            button.setPointerCapture?.(event.pointerId);
+        });
+        button.addEventListener("pointerup", () => setPressed(false));
+        button.addEventListener("pointercancel", () => setPressed(false));
+        button.addEventListener("pointerleave", () => setPressed(false));
+    }
+
+    bindMoveButton(moveLeftBtn, "left");
+    bindMoveButton(moveRightBtn, "right");
+    bindMoveButton(touchLeftBtn, "left");
+    bindMoveButton(touchRightBtn, "right");
+    touchFireBtn.addEventListener("click", shoot);
+
+    window.addEventListener("keydown", (event) => {
+        if (event.code === "ArrowLeft" || event.code === "KeyA") {
+            event.preventDefault();
+            input.left = true;
+        }
+        if (event.code === "ArrowRight" || event.code === "KeyD") {
+            event.preventDefault();
+            input.right = true;
+        }
+        if (event.code === "Space") {
+            event.preventDefault();
+            if (gamePhase === "READY" || gamePhase === "ENDED") startGame();
+            else shoot();
+        }
+        if (event.code === "KeyR" && gamePhase === "PLAYING" && targetWordObj) speakWord(targetWordObj.word);
+        if (event.code === "KeyN") startGame();
+    });
+
+    window.addEventListener("keyup", (event) => {
+        if (event.code === "ArrowLeft" || event.code === "KeyA") input.left = false;
+        if (event.code === "ArrowRight" || event.code === "KeyD") input.right = false;
+    });
+
+    window.addEventListener("message", (event) => {
+        if (event.source !== window.parent && event.origin !== window.location.origin) return;
+        if (!event.data || event.data.type !== "MINER_DATA") return;
+        applyMinerData(event.data.payload);
+    });
+
+    const hashLessonData = readLessonDataFromHash();
+    if (hashLessonData) applyMinerData(hashLessonData);
+
+    initLevel(false);
+    updateHud();
+    updateControls();
+    loop();
+</script>
+</body>
+</html>

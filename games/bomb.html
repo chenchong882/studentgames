@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="炸彈英文">
+  <meta name="theme-color" content="#1a7abf">
+  <meta name="description" content="炸掉英文單字房子的學習遊戲，適合國小小朋友！">
+  <title>💣 炸彈英文 — Bomb English</title>
+  <link rel="apple-touch-icon" href="../assets/bomb-icons/icon-192.png">
+  <link rel="icon" href="../assets/bomb-icons/icon-192.png">
+  <link rel="stylesheet" href="bomb.css">
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="bomb-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"></div>
+
+  <!-- Portrait warning -->
+  <div id="rotateWarning">
+    <div class="rotate-content">
+      <div class="rotate-icon">📱→📲</div>
+      <div>請橫放手機遊玩</div>
+      <div style="font-size:14px;opacity:0.7;margin-top:8px">Please rotate to landscape</div>
+    </div>
+  </div>
+
+  <script src="bomb-game.js"></script>
+</body>
+</html>

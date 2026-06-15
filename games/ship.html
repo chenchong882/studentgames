@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>海岸狙擊手 Shore Hunter</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #0a1530;
+    font-family: "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    overscroll-behavior: none;
+  }
+  #game-wrap { position: fixed; inset: 0; }
+  #scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* ── 天空題目（海面模式才顯示） ── */
+  #sky-question {
+    position: absolute;
+    top: 4%;
+    left: 0; right: 0;
+    text-align: center;
+    pointer-events: none;
+    transition: opacity .35s;
+    z-index: 5;
+  }
+  #sky-question.hidden { opacity: 0; }
+  #sky-big {
+    font-size: clamp(40px, 9vw, 88px);
+    font-weight: 900;
+    letter-spacing: .12em;
+    color: rgba(255,255,255,.95);
+    text-shadow:
+      0 0 18px rgba(255,215,120,.95),
+      0 0 46px rgba(255,170,60,.65),
+      0 0 90px rgba(255,140,40,.4);
+    animation: floatY 4.5s ease-in-out infinite, driftX 9s ease-in-out infinite;
+  }
+  #sky-small {
+    margin-top: 6px;
+    font-size: clamp(14px, 3vw, 22px);
+    color: rgba(255,245,225,.92);
+    text-shadow: 0 0 10px rgba(255,190,90,.8), 0 1px 3px rgba(0,0,0,.4);
+    animation: floatY 4.5s ease-in-out infinite .6s;
+  }
+  @keyframes floatY { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }
+  @keyframes driftX { 0%,100% { letter-spacing: .12em } 50% { letter-spacing: .2em } }
+
+  /* ── 底部 HUD ── */
+  #hud {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
+    background: linear-gradient(to top, rgba(5,12,28,.92), rgba(5,12,28,.55) 70%, transparent);
+    z-index: 10;
+    pointer-events: none;
+  }
+  #hud-top {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; flex-wrap: wrap;
+    font-size: clamp(14px, 3.2vw, 19px);
+    color: #fff; font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0,0,0,.7);
+  }
+  #conditions {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;
+    justify-content: center;
+  }
+  .chip {
+    background: rgba(255,255,255,.13);
+    border: 1px solid rgba(255,210,120,.5);
+    border-radius: 999px;
+    padding: 3px 12px;
+    font-size: clamp(12px, 2.8vw, 16px);
+    color: #ffe9c0;
+    text-shadow: 0 1px 2px rgba(0,0,0,.6);
+    backdrop-filter: blur(3px);
+  }
+  #btn-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 14px; margin-top: 8px;
+    pointer-events: auto;
+  }
+  #fire-btn {
+    font-size: clamp(18px, 4.5vw, 26px);
+    font-weight: 900;
+    color: #fff;
+    background: linear-gradient(180deg, #ff7a3c, #d83a18);
+    border: 2px solid #ffc391;
+    border-radius: 999px;
+    padding: 12px 46px;
+    box-shadow: 0 4px 18px rgba(255,90,30,.55), inset 0 1px 0 rgba(255,255,255,.4);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  #fire-btn:active { transform: scale(.94); filter: brightness(1.15); }
+  #fire-btn:disabled { filter: grayscale(.8) brightness(.7); }
+  #scope-btn {
+    font-size: clamp(16px, 4vw, 22px);
+    background: rgba(255,255,255,.14);
+    border: 1.5px solid rgba(255,255,255,.45);
+    color: #fff;
+    border-radius: 999px;
+    padding: 10px 18px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  #scope-btn:active { transform: scale(.94); }
+  #mode-hint {
+    text-align: center;
+    margin-top: 5px;
+    font-size: clamp(11px, 2.6vw, 14px);
+    color: rgba(255,255,255,.65);
+  }
+
+  /* ── 浮動訊息 ── */
+  #toast {
+    position: absolute;
+    top: 38%;
+    left: 50%;
+    transform: translate(-50%,-50%) scale(.8);
+    font-size: clamp(26px, 7vw, 52px);
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 0 0 16px rgba(0,0,0,.6), 0 3px 8px rgba(0,0,0,.5);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 20;
+    white-space: nowrap;
+    transition: none;
+  }
+  #toast.show {
+    animation: toastPop 1.3s ease-out forwards;
+  }
+  @keyframes toastPop {
+    0%   { opacity: 0; transform: translate(-50%,-50%) scale(.6); }
+    15%  { opacity: 1; transform: translate(-50%,-50%) scale(1.15); }
+    30%  { transform: translate(-50%,-50%) scale(1); }
+    75%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%,-70%) scale(1); }
+  }
+
+  /* ── 開始 / 結束畫面 ── */
+  .overlay {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 35%, rgba(20,40,80,.88), rgba(4,8,20,.96));
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    z-index: 30;
+    color: #fff;
+    text-align: center;
+    padding: 24px;
+  }
+  .overlay h1 {
+    font-size: clamp(34px, 9vw, 64px);
+    letter-spacing: .1em;
+    text-shadow: 0 0 24px rgba(255,180,80,.9);
+  }
+  .overlay .sub { color: #ffd9a0; font-size: clamp(15px, 3.6vw, 20px); }
+  .overlay .rules {
+    font-size: clamp(13px, 3vw, 17px);
+    line-height: 1.9;
+    color: rgba(255,255,255,.85);
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 14px;
+    padding: 12px 20px;
+    max-width: 560px;
+  }
+  .overlay button {
+    font-size: clamp(20px, 5vw, 28px);
+    font-weight: 900;
+    color: #3a1c00;
+    background: linear-gradient(180deg, #ffd158, #ff9d2e);
+    border: none;
+    border-radius: 999px;
+    padding: 14px 56px;
+    box-shadow: 0 6px 22px rgba(255,160,40,.5);
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .overlay button:active { transform: scale(.95); }
+  .hidden { display: none !important; }
+  #final-score, #win-score { font-size: clamp(28px, 7vw, 48px); color: #ffe082; font-weight: 900; }
+</style>
+</head>
+<body>
+<div id="game-wrap">
+  <canvas id="scene"></canvas>
+
+  <div id="sky-question" class="hidden">
+    <div id="sky-big">ATTACK</div>
+    <div id="sky-small">找出符合條件的船</div>
+  </div>
+
+  <div id="toast"></div>
+
+  <div id="hud" class="hidden">
+    <div id="hud-top">
+      <span id="lives">❤️❤️❤️</span>
+      <span id="level-label">第 1 關</span>
+      <span id="score-label">分數 0</span>
+      <span id="ammo-label">🚀🚀🚀</span>
+      <span id="timer-label">⏱️ 30s</span>
+    </div>
+    <div id="conditions"></div>
+    <div id="btn-row">
+      <button id="scope-btn">🔭 瞄準鏡</button>
+      <button id="fire-btn">🚀 發射</button>
+    </div>
+    <div id="mode-hint">雙指縮合進入瞄準鏡｜雙指張開返回海面</div>
+  </div>
+
+  <div id="start-screen" class="overlay">
+    <h1>🌊 海岸狙擊手</h1>
+    <div class="sub">Shore Hunter ─ 英文單字 3D 狙擊遊戲</div>
+    <div class="rules">
+      🔭 <b>Z 鍵 / 滾輪</b>切換瞄準鏡，鏡內<b>移動滑鼠</b>掃描船身（手機：雙指縮放、單指拖曳）<br>
+      🚀 對準<b>符合天空題目所有條件</b>的船，<b>空白鍵</b>發射<br>
+      👑 第 4、8 關有<b>魔王戰</b>，擊敗最終魔王即通關<br>
+      ⚠️ 打錯或讓目標靠岸會扣分／扣命<br>
+      🟣 <b>特殊模式</b>：每回合<b>隨機只看一種條件</b>（意思／顏色／旗幟／大小），看清楚天空提示再開火！
+    </div>
+    <div id="mode-row" style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center;">
+      <button id="start-easy" style="background:linear-gradient(180deg,#7be38a,#33c45a); color:#06310f;">🟢 簡單模式</button>
+      <button id="start-hard" style="background:linear-gradient(180deg,#ff9d6b,#ec5a2c); color:#3a1200;">🔴 困難模式</button>
+      <button id="start-special" style="background:linear-gradient(180deg,#c39bff,#7d4fd6); color:#fff;">🟣 特殊模式</button>
+    </div>
+    <div class="sub" style="font-size:clamp(12px,2.8vw,15px);">簡單：子彈無限・18 秒｜困難：3 發子彈・24 秒｜特殊：每回合換判定條件・20 秒</div>
+  </div>
+
+  <div id="over-screen" class="overlay hidden">
+    <h1>💥 遊戲結束</h1>
+    <div class="sub">最終成績</div>
+    <div id="final-score">0 分</div>
+    <div class="sub" id="final-level">抵達第 1 關</div>
+    <button id="restart-btn">再玩一次</button>
+  </div>
+
+  <div id="win-screen" class="overlay hidden">
+    <h1>🏆 通關成功</h1>
+    <div class="sub">你擊沉了深海死神號，海岸安全了！</div>
+    <div id="win-score">0 分</div>
+    <button id="winagain-btn">再玩一次</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ════════════════ 題庫與設定 ════════════════ */
+let wordBank = [
+  { word: "ATTACK",  meaning: "攻擊",   pos: "動詞" },
+  { word: "BRAVE",   meaning: "勇敢的", pos: "形容詞" },
+  { word: "CAPTAIN", meaning: "船長",   pos: "名詞" },
+  { word: "DANGER",  meaning: "危險",   pos: "名詞" },
+  { word: "ESCAPE",  meaning: "逃脫",   pos: "動詞" },
+  { word: "FIERCE",  meaning: "兇猛的", pos: "形容詞" },
+  { word: "GUARD",   meaning: "守衛",   pos: "動詞/名詞" },
+  { word: "HIDDEN",  meaning: "隱藏的", pos: "形容詞" },
+];
+
+const shipColors = [
+  { id: "red",    name: "紅色", icon: "🔴", main: "#d6402c", light: "#ff7a5e", dark: "#7e1d10" },
+  { id: "blue",   name: "藍色", icon: "🔵", main: "#2f6bd6", light: "#6fa3ff", dark: "#15336f" },
+  { id: "green",  name: "綠色", icon: "🟢", main: "#2f9e4f", light: "#6fd68f", dark: "#145a28" },
+  { id: "yellow", name: "黃色", icon: "🟡", main: "#e0a91f", light: "#ffd96a", dark: "#8a6207" },
+  { id: "black",  name: "黑色", icon: "⚫", main: "#3a3f4a", light: "#737a8c", dark: "#15171d" },
+];
+
+const flags = [
+  { emoji: "🏴‍☠️", name: "海盜旗" },
+  { emoji: "🇯🇵", name: "日本旗" },
+  { emoji: "🇺🇸", name: "美國旗" },
+  { emoji: "💀",  name: "骷髏旗" },
+  { emoji: "🇬🇧", name: "英國旗" },
+];
+
+const sizes = [
+  { id: "small",  name: "小型", scale: 1.15, score: 100 },
+  { id: "medium", name: "中型", scale: 1.65, score: 200 },
+  { id: "large",  name: "大型", scale: 2.20, score: 300 },
+];
+
+// 魔王關設定：在指定關卡觸發，HP = 需答對的單字題數
+const bossLevels = {
+  4: { hp: 3, name: "幽靈艦長",   icon: "🏴‍☠️", color: shipColors[4], final: false, score: 800,  speed: 9.0 },
+  8: { hp: 5, name: "深海死神號", icon: "💀",   color: shipColors[4], final: true,  score: 2000, speed: 8.4 },
+};
+
+const ROUND_TIME_EASY = 18;  // 簡單模式每回合秒數（靠時間壓力）
+const ROUND_TIME_HARD = 24;  // 困難模式每回合秒數（給時間瞄準掃描）
+const ROUND_TIME_SPECIAL = 20; // 特殊模式每回合秒數
+const AMMO_PER_ROUND  = 3;   // 困難模式每回合彈藥
+const AMMO_MAX        = 5;   // 彈藥上限（一發命中可累積）
+const SWAY_FROM_LEVEL = 3;   // 第幾關開始船隻橫向搖擺
+const SCOPE_ZOOM   = 5;      // 瞄準鏡倍率
+const PINCH_THRESH = 30;     // 雙指距離變化門檻（px）
+const SPAWN_Z      = 330;    // 船隻出生距離
+const SHORE_Z      = 42;     // 抵達岸邊距離
+const CAM_H        = 15;     // 攝影機高度（世界單位）
+
+/* ════════════════ 畫布與 3D 投影 ════════════════ */
+const canvas = document.getElementById("scene");
+const ctx = canvas.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+let horizonY = 0, focal = 0;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  horizonY = H * 0.42;
+  focal = Math.max(W, H) * 0.62;
+}
+window.addEventListener("resize", resize);
+resize();
+
+// 世界座標 (x 橫向, z 距離) → 螢幕座標；scale = 每世界單位的像素數
+function project(x, z) {
+  const s = focal / z;
+  return { sx: W / 2 + x * s, waterY: horizonY + CAM_H * s, s };
+}
+
+/* ════════════════ 遊戲狀態 ════════════════ */
+const game = {
+  state: "menu",          // menu | playing | over | win
+  difficulty: "hard",     // easy | hard
+  level: 1,
+  score: 0,
+  lives: 3,
+  combo: 0,
+  roundsDone: 0,
+  timer: ROUND_TIME_HARD,
+  roundTime: ROUND_TIME_HARD,
+  ammo: AMMO_PER_ROUND,   // 本回合剩餘彈藥（困難模式）
+  nextAmmoBonus: 0,       // 一發命中累積的下回合額外彈藥
+  shotsThisRound: 0,      // 本回合已發射數（判斷一發命中）
+  ships: [],
+  conditions: [],         // 本回合條件 key 列表
+  target: null,           // 目標屬性 {word,color,flag,size}
+  boss: null,             // 魔王回合資料（null = 一般回合）
+  scopeMode: false,
+  scopeAnim: 0,           // 0 = 海面, 1 = 完全進入瞄準鏡
+  aimX: 0, aimY: 0,       // 瞄準點（海面模式的螢幕座標）
+  rocket: null,
+  particles: [],
+  splashes: [],
+  shakeT: 0,
+  fireLock: false,
+  roundEnding: false,     // 回合結算中：擋掉 update 每幀重複觸發逃走／扣命
+  activeDims: [],         // 特殊模式：本回合的判定維度
+  bossesDone: {},         // 已擊敗的魔王 { "4": true, ... }
+};
+
+const $ = id => document.getElementById(id);
+const skyQ = $("sky-question"), skyBig = $("sky-big"), skySmall = $("sky-small");
+const hud = $("hud"), toastEl = $("toast");
+
+/* ════════════════ 音效（WebAudio 合成） ════════════════ */
+let actx = null;
+function audio() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === "suspended") actx.resume();
+  return actx;
+}
+function playNoise(dur, freq, vol) {
+  try {
+    const a = audio(), t = a.currentTime;
+    const buf = a.createBuffer(1, a.sampleRate * dur, a.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const src = a.createBufferSource(); src.buffer = buf;
+    const f = a.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = freq;
+    const g = a.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(f).connect(g).connect(a.destination);
+    src.start();
+  } catch (e) {}
+}
+function playTone(freq, dur, vol, type) {
+  try {
+    const a = audio(), t = a.currentTime;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type || "sine"; o.frequency.setValueAtTime(freq, t);
+    o.frequency.exponentialRampToValueAtTime(freq * 1.5, t + dur);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g).connect(a.destination);
+    o.start(); o.stop(t + dur);
+  } catch (e) {}
+}
+const sfx = {
+  launch:  () => playNoise(0.5, 1800, 0.25),
+  boom:    () => { playNoise(0.8, 500, 0.6); playTone(70, 0.5, 0.4, "sawtooth"); },
+  splash:  () => playNoise(0.5, 900, 0.3),
+  good:    () => { playTone(660, 0.12, 0.3, "triangle"); setTimeout(() => playTone(990, 0.2, 0.3, "triangle"), 110); },
+  bad:     () => playTone(160, 0.4, 0.4, "square"),
+  scope:   () => playTone(420, 0.1, 0.15, "sine"),
+};
+
+/* ════════════════ 工具 ════════════════ */
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const shuffle = arr => { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; };
+
+function showToast(text, color) {
+  toastEl.textContent = text;
+  toastEl.style.color = color || "#fff";
+  toastEl.classList.remove("show");
+  void toastEl.offsetWidth;     // 重啟動畫
+  toastEl.classList.add("show");
+}
+
+/* ════════════════ 回合 / 關卡產生 ════════════════ */
+function conditionKeysForLevel(lv) {
+  if (lv <= 1) return ["word"];
+  if (lv === 2) return ["word", "color"];
+  if (lv === 3) return ["word", "color", "flag"];
+  return ["word", "color", "flag", "size"];
+}
+
+function startRoundCommon() {
+  // 補充本回合彈藥（困難模式才用得到）
+  game.ammo = Math.min(AMMO_MAX, AMMO_PER_ROUND + game.nextAmmoBonus);
+  game.nextAmmoBonus = 0;
+  game.shotsThisRound = 0;
+  game.timer = game.roundTime;
+  game.roundEnding = false;
+}
+
+function newRound() {
+  const lv = game.level;
+  startRoundCommon();
+
+  // 魔王關偵測：抵達指定關卡且尚未擊敗 → 進入魔王回合
+  if (bossLevels[lv] && !game.bossesDone[lv]) { startBossRound(lv); return; }
+  game.boss = null;
+
+  if (game.difficulty === "special") { newRoundSpecial(lv); return; }
+
+  game.conditions = conditionKeysForLevel(lv);
+  const target = {
+    word:  pick(wordBank),
+    color: pick(shipColors),
+    flag:  pick(flags),
+    size:  pick(sizes),
+  };
+  game.target = target;
+
+  const count = clamp(2 + lv, 3, 5);
+  const otherWords = wordBank.filter(w => w.word !== target.word.word);
+  const ships = [];
+
+  for (let i = 0; i < count; i++) {
+    const isTarget = i === 0;
+    let attrs;
+    if (isTarget) {
+      attrs = { ...target };
+    } else {
+      // 干擾船：單字一定不同（單字永遠是條件之一，保證不會全中）
+      attrs = {
+        word:  pick(otherWords),
+        color: pick(shipColors),
+        flag:  pick(flags),
+        size:  pick(sizes),
+      };
+      // 提高難度：第一艘干擾船故意與目標同色同旗，逼玩家讀單字
+      if (i === 1 && lv >= 2) { attrs.color = target.color; attrs.flag = target.flag; }
+    }
+    ships.push(makeShip(attrs, i, count, isTarget));
+  }
+  // 打亂航道順序
+  for (let i = ships.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ships[i].lane, ships[j].lane] = [ships[j].lane, ships[i].lane];
+  }
+  game.ships = ships;
+  updateQuestionUI();
+}
+
+/* ── 特殊模式：每回合隨機決定「只看哪個維度」，逼玩家不斷切換注意力 ── */
+const pickDifferent = (arr, cur) => { let v; do { v = pick(arr); } while (v === cur); return v; };
+
+function pickDiffByDim(d, target) {
+  if (d === "word")  return pickDifferent(wordBank, target.word);
+  if (d === "color") return pickDifferent(shipColors, target.color);
+  if (d === "flag")  return pickDifferent(flags, target.flag);
+  return pickDifferent(sizes, target.size);
+}
+
+function newRoundSpecial(lv) {
+  const allDims = ["word", "color", "flag", "size"];
+  // 第 5 關起一次看 2 個維度，前期單一維度
+  const dimCount = lv >= 5 ? 2 : 1;
+  const activeDims = shuffle(allDims.slice()).slice(0, dimCount);
+  game.activeDims = activeDims;
+  game.conditions = activeDims;
+
+  const target = {
+    word:  pick(wordBank), color: pick(shipColors),
+    flag:  pick(flags),    size:  pick(sizes),
+  };
+  game.target = target;
+
+  const count = clamp(2 + lv, 3, 5);
+  const ships = [makeShip({ ...target }, 0, count, true)];
+
+  for (let i = 1; i < count; i++) {
+    const attrs = {
+      word:  pick(wordBank), color: pick(shipColors),
+      flag:  pick(flags),    size:  pick(sizes),
+    };
+    // 陷阱：非判定維度大多抄目標 → 只偷看錯維度的玩家會上當
+    for (const d of allDims) {
+      if (!activeDims.includes(d) && Math.random() < 0.65) attrs[d] = target[d];
+    }
+    // 保證：至少一個判定維度與目標不同 → 全場只有目標船符合所有判定維度
+    const d = pick(activeDims);
+    attrs[d] = pickDiffByDim(d, target);
+    ships.push(makeShip(attrs, i, count, false));
+  }
+
+  // 打亂航道順序
+  for (let i = ships.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ships[i].lane, ships[j].lane] = [ships[j].lane, ships[i].lane];
+  }
+  game.ships = ships;
+  updateQuestionUI();
+}
+
+function makeShip(attrs, idx, count, isTarget) {
+  const laneSpread = 110;
+  const lane = (idx / Math.max(1, count - 1) - 0.5) * 2; // -1 ~ 1
+  // 第 SWAY_FROM_LEVEL 關起導入橫向搖擺，幅度隨關卡加大
+  const swayOn = game.level >= SWAY_FROM_LEVEL;
+  return {
+    ...attrs,
+    isTarget,
+    lane,
+    spawnX: lane * laneSpread + rand(-12, 12),
+    shoreX: lane * 26 + rand(-4, 4),
+    z: SPAWN_Z + idx * rand(20, 55),
+    speed: rand(9.5, 12.5) * (1 + (game.level - 1) * 0.06),
+    bobPhase: rand(0, Math.PI * 2),
+    swayAmp: swayOn ? rand(14, 22) * (1 + (game.level - SWAY_FROM_LEVEL) * 0.18) : 0,
+    swaySpeed: rand(0.6, 1.0),
+    swayPhase: rand(0, Math.PI * 2),
+    alive: true,
+    sinking: 0,           // 0~1 下沉動畫
+  };
+}
+
+function updateQuestionUI() {
+  const t = game.target;
+  if (game.difficulty === "special") { updateQuestionUISpecial(t); return; }
+  skyBig.textContent = t.word.meaning;
+  const parts = [];
+  if (game.conditions.includes("color")) parts.push(t.color.name);
+  if (game.conditions.includes("flag"))  parts.push("掛" + t.flag.name);
+  if (game.conditions.includes("size"))  parts.push(t.size.name);
+  const prefix = parts.length ? parts.join("、") + "、" : "";
+  skySmall.textContent = `找出${prefix}單字意思為「${t.word.meaning}」的船（${t.word.pos}）`;
+
+  const box = $("conditions");
+  box.innerHTML = "";
+  const chips = [`📖 意思：${t.word.meaning}`];
+  if (game.conditions.includes("color")) chips.push(`${t.color.icon} 船色：${t.color.name}`);
+  if (game.conditions.includes("flag"))  chips.push(`🚩 旗幟：${t.flag.emoji} ${t.flag.name}`);
+  if (game.conditions.includes("size"))  chips.push(`📏 大小：${t.size.name}`);
+  chips.forEach(c => {
+    const el = document.createElement("span");
+    el.className = "chip"; el.textContent = c;
+    box.appendChild(el);
+  });
+}
+
+// 特殊模式維度說明：句子用 val、籌碼用 label（帶 icon）
+const dimMeta = {
+  word:  { icon: "📖", name: "意思", val: t => t.word.meaning, label: t => t.word.meaning },
+  color: { icon: "🎨", name: "顏色", val: t => t.color.name,   label: t => t.color.icon + " " + t.color.name },
+  flag:  { icon: "🚩", name: "旗幟", val: t => t.flag.name,    label: t => t.flag.emoji + " " + t.flag.name },
+  size:  { icon: "📏", name: "大小", val: t => t.size.name,    label: t => t.size.name },
+};
+
+function updateQuestionUISpecial(t) {
+  const dims = game.activeDims;
+  skyBig.textContent = dims.map(d => dimMeta[d].icon + " " + dimMeta[d].name).join("  ＋  ");
+  skySmall.textContent = `這回合只看「${dims.map(d => dimMeta[d].name).join("、")}」！擊沉 ${dims.map(d => dimMeta[d].val(t)).join("、")} 的船`;
+
+  const box = $("conditions");
+  box.innerHTML = "";
+  dims.forEach(d => {
+    const el = document.createElement("span");
+    el.className = "chip";
+    el.style.borderColor = "rgba(190,150,255,.85)";
+    el.style.background = "rgba(150,110,230,.28)";
+    el.style.color = "#f0e6ff";
+    el.textContent = `${dimMeta[d].icon} ${dimMeta[d].name}：${dimMeta[d].label(t)}`;
+    box.appendChild(el);
+  });
+}
+
+function updateHUD() {
+  $("lives").textContent = "❤️".repeat(game.lives) + "🖤".repeat(3 - game.lives);
+  $("score-label").textContent = "分數 " + game.score;
+  $("level-label").textContent = game.boss ? `👑 ${game.boss.name}` : `第 ${game.level} 關`;
+
+  const ammoEl = $("ammo-label");
+  if (game.difficulty === "hard") {
+    ammoEl.style.display = "";
+    ammoEl.textContent = game.ammo > 0 ? "🚀".repeat(game.ammo) : "🚀✕";
+  } else {
+    ammoEl.style.display = "none";
+  }
+
+  if (game.boss) $("timer-label").textContent = `💢 HP ${game.boss.hp}/${game.boss.maxHp}`;
+  else $("timer-label").textContent = "⏱️ " + Math.max(0, Math.ceil(game.timer)) + "s";
+}
+
+/* ════════════════ 命中與回合結算 ════════════════ */
+// 船隻當下的世界 x（含橫向搖擺）。繪製與命中判定共用，確保視覺與判定一致。
+function shipWorldX(ship, now) {
+  const t = (ship.z - SHORE_Z) / (SPAWN_Z - SHORE_Z);
+  const base = lerp(ship.shoreX, ship.spawnX, t);
+  const sway = ship.swayAmp ? Math.sin(now * 0.001 * ship.swaySpeed + ship.swayPhase) * ship.swayAmp : 0;
+  return base + sway;
+}
+
+function shipScreenRect(ship) {
+  const p = project(shipWorldX(ship, performance.now()), ship.z);
+  const u = p.s * ship.size.scale;
+  const bob = Math.sin(performance.now() / 600 + ship.bobPhase) * u * 0.25;
+  const y = p.waterY + bob + ship.sinking * u * 5;
+  return { x: p.sx, y, u, left: p.sx - 6.2 * u, right: p.sx + 6.2 * u, top: y - 7.5 * u, bottom: y + 1.6 * u };
+}
+
+function fire() {
+  if (game.state !== "playing" || game.fireLock || game.rocket) return;
+  // 困難模式：沒有彈藥不能發射
+  if (game.difficulty === "hard" && game.ammo <= 0) { sfx.bad(); return; }
+  game.fireLock = true;
+  game.shotsThisRound++;
+  if (game.difficulty === "hard") { game.ammo--; updateHUD(); }
+  sfx.launch();
+  // 命中判定用場景座標（aim），但瞄準鏡模式下視覺落點是鏡頭中心
+  const inScope = game.scopeAnim > 0.5;
+  game.rocket = {
+    x0: W / 2, y0: H + 30,
+    x1: inScope ? W / 2 : game.aimX,
+    y1: inScope ? H / 2 - H * 0.04 : game.aimY,
+    sceneX: game.aimX, sceneY: game.aimY,
+    t: 0,
+  };
+}
+
+// 困難模式彈藥耗盡：視同目標逃走（沿用逃走懲罰）。回傳 true 表示回合已結束。
+function checkAmmoOut() {
+  if (game.difficulty === "hard" && game.ammo <= 0) {
+    game.fireLock = true;
+    setTimeout(() => targetEscaped("🔫 彈藥用盡，目標逃走了！"), 700);
+    return true;
+  }
+  return false;
+}
+
+function resolveImpact(x, y, fxX, fxY) {
+  if (game.boss) { resolveBossImpact(x, y, fxX, fxY); return; }
+
+  let hit = null;
+  for (const s of game.ships) {
+    if (!s.alive || s.sinking > 0) continue;
+    const r = shipScreenRect(s);
+    const pad = r.u * 1.2;
+    if (x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad) {
+      if (!hit || s.z < hit.z) hit = s;
+    }
+  }
+  spawnExplosion(fxX ?? x, fxY ?? y, !!hit);
+  game.shakeT = 0.35;
+
+  if (!hit) {
+    sfx.splash(); showToast("💦 落水了！", "#9fd8ff");
+    if (!checkAmmoOut()) game.fireLock = false;
+    return;
+  }
+
+  sfx.boom();
+  hit.sinking = 0.001;
+
+  if (hit.isTarget) {
+    let gained = hit.size.score;
+    game.combo++;
+    let comboText = "";
+    if (game.combo > 0 && game.combo % 3 === 0) { gained += 100; comboText = "  🔥Combo +100"; }
+    // 困難模式：一發命中，下回合 +1 發子彈
+    if (game.difficulty === "hard" && game.shotsThisRound === 1) {
+      game.nextAmmoBonus = 1; comboText += "  🎯一發入魂 +1彈";
+    }
+    game.score += gained;
+    sfx.good();
+    showToast(`🎯 命中目標 +${gained}${comboText}`, "#ffe082");
+    game.roundEnding = true;   // 命中後到換回合前，避免 timer 歸零又誤觸發逃走
+    setTimeout(endRound, 1400);
+  } else {
+    game.score = Math.max(0, game.score - 150);
+    game.combo = 0;
+    sfx.bad();
+    showToast(`❌ 誤擊 ${hit.word.word}（${hit.word.meaning}） -150`, "#ff8a80");
+    if (!checkAmmoOut()) game.fireLock = false;
+  }
+  updateHUD();
+}
+
+function targetEscaped(reason) {
+  if (game.roundEnding) return;   // timer 卡在 0 時，擋掉每幀重複觸發（toast 狂跳、命狂掉的元兇）
+  game.roundEnding = true;
+  game.score = Math.max(0, game.score - 50);
+  game.lives--;
+  game.combo = 0;
+  sfx.bad();
+  showToast(reason + " -50 💔", "#ff8a80");
+  updateHUD();
+  if (game.lives <= 0) { setTimeout(gameOver, 1200); }
+  else setTimeout(endRound, 1400);
+  game.fireLock = true;   // 等待換回合，避免連按
+}
+
+function endRound() {
+  if (game.state !== "playing") return;
+  game.roundsDone++;
+  if (game.roundsDone % 2 === 0) game.level = Math.min(8, game.level + 1);
+  game.fireLock = false;
+  newRound();
+  updateHUD();
+}
+
+function gameOver() {
+  game.state = "over";
+  $("final-score").textContent = game.score + " 分";
+  $("final-level").textContent = `抵達第 ${game.level} 關`;
+  $("over-screen").classList.remove("hidden");
+  hud.classList.add("hidden");
+  skyQ.classList.add("hidden");
+}
+
+function winGame() {
+  game.state = "win";
+  $("win-score").textContent = game.score + " 分";
+  $("win-screen").classList.remove("hidden");
+  hud.classList.add("hidden");
+  skyQ.classList.add("hidden");
+}
+
+/* ════════════════ 魔王關 ════════════════ */
+function startBossRound(lv) {
+  const cfg = bossLevels[lv];
+  game.boss = {
+    lv, name: cfg.name, icon: cfg.icon, color: cfg.color,
+    hp: cfg.hp, maxHp: cfg.hp, final: cfg.final, score: cfg.score,
+    z: SPAWN_Z, speed: cfg.speed, bobPhase: rand(0, Math.PI * 2),
+    sinking: 0, landed: false, clue: null,
+  };
+  game.conditions = ["word"];     // 魔王只考單字，密集練習
+  $("conditions").innerHTML = "";
+  // 困難模式魔王戰配給較多彈藥（HP + 3）
+  if (game.difficulty === "hard") game.ammo = cfg.hp + 3;
+  spawnBossWave();
+  showToast(`👑 ${cfg.name} 出現！`, "#ff8a80");
+  updateHUD();
+}
+
+// 產生一波護衛艦並出題（HP 每扣 1 換新一波）
+function spawnBossWave() {
+  const b = game.boss;
+  const count = 4;
+  const targetWord = pick(wordBank);
+  b.clue = targetWord;
+  const others = shuffle(wordBank.filter(w => w.word !== targetWord.word));
+  const words = shuffle([targetWord, others[0], others[1], others[2]]);
+
+  const ships = [];
+  for (let i = 0; i < count; i++) {
+    const lane = (i / (count - 1) - 0.5) * 2;
+    const isTarget = words[i].word === targetWord.word;
+    ships.push({
+      word: words[i],
+      color: isTarget ? b.color : pick(shipColors),
+      flag: pick(flags),
+      size: sizes[0],
+      isTarget, isEscort: true,
+      lane,
+      spawnX: lane * 95, shoreX: lane * 95,   // 不前進，固定 x
+      z: 150 + rand(-10, 10),
+      speed: 0,
+      bobPhase: rand(0, Math.PI * 2),
+      swayAmp: 16, swaySpeed: rand(0.7, 1.1), swayPhase: rand(0, Math.PI * 2),
+      alive: true, sinking: 0,
+    });
+  }
+  game.ships = ships;
+  skyBig.textContent = targetWord.meaning;
+  skySmall.textContent = `擊落單字意思為「${targetWord.meaning}」的護衛艦（${targetWord.pos}）`;
+  skyQ.classList.toggle("hidden", game.scopeMode);
+}
+
+function resolveBossImpact(x, y, fxX, fxY) {
+  const b = game.boss;
+  let hit = null;
+  for (const s of game.ships) {
+    if (!s.alive || s.sinking > 0) continue;
+    const r = shipScreenRect(s);
+    const pad = r.u * 1.2;
+    if (x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad) {
+      if (!hit || s.z < hit.z) hit = s;
+    }
+  }
+  spawnExplosion(fxX ?? x, fxY ?? y, !!hit);
+  game.shakeT = 0.35;
+
+  if (!hit) {
+    sfx.splash(); showToast("💦 落水了！", "#9fd8ff");
+    if (!checkBossAmmoOut()) game.fireLock = false;
+    return;
+  }
+  sfx.boom();
+  hit.sinking = 0.001;
+
+  if (hit.isTarget) {
+    b.hp--;
+    game.score += 150;
+    game.combo++;
+    sfx.good();
+    updateHUD();
+    if (b.hp <= 0) {
+      game.score += b.score;
+      showToast(`💥 擊沉 ${b.name}！+${b.score}`, "#ffe082");
+      b.sinking = 0.001;
+      game.bossesDone[b.lv] = true;
+      game.fireLock = true;
+      spawnExplosion(W / 2, H * 0.4, true);
+      if (b.final) setTimeout(winGame, 1800);
+      else setTimeout(() => { game.boss = null; endRound(); }, 1800);
+    } else {
+      showToast("🎯 命中！魔王 HP -1", "#ffe082");
+      game.fireLock = true;
+      setTimeout(() => { if (game.boss && !game.boss.landed) { spawnBossWave(); game.fireLock = false; } }, 900);
+    }
+  } else {
+    game.score = Math.max(0, game.score - 100);
+    game.combo = 0;
+    b.z -= 22;                 // 答錯：魔王逼近
+    sfx.bad();
+    showToast(`❌ 誤擊 ${hit.word.word}（${hit.word.meaning}），魔王逼近！`, "#ff8a80");
+    updateHUD();
+    if (!checkBossAmmoOut()) game.fireLock = false;
+  }
+}
+
+// 魔王戰彈藥耗盡（困難模式）：扣 1 命並補給，撐不住則 game over
+function checkBossAmmoOut() {
+  if (game.difficulty !== "hard" || game.ammo > 0) return false;
+  game.lives--;
+  game.combo = 0;
+  sfx.bad();
+  updateHUD();
+  game.fireLock = true;
+  if (game.lives <= 0) { setTimeout(gameOver, 900); return true; }
+  showToast("🔫 彈藥用盡 -1命，緊急補給！", "#ff8a80");
+  setTimeout(() => { game.ammo = AMMO_PER_ROUND; game.fireLock = false; updateHUD(); }, 900);
+  return true;
+}
+
+function updateBoss(dt) {
+  const b = game.boss;
+  for (const s of game.ships) {
+    if (!s.alive) continue;
+    if (s.sinking > 0) { s.sinking += dt * 0.9; if (s.sinking >= 1) s.alive = false; }
+  }
+  if (b.sinking > 0) {
+    b.sinking += dt * 0.5;
+  } else if (!b.landed) {
+    b.z -= b.speed * dt;
+    if (b.z <= SHORE_Z) {
+      b.z = SHORE_Z; b.landed = true;
+      sfx.bad();
+      showToast("🚢 魔王突破防線！", "#ff8a80");
+      game.fireLock = true;
+      setTimeout(gameOver, 1300);
+    }
+  }
+  if (game.shakeT > 0) game.shakeT -= dt;
+  updateHUD();
+}
+
+function drawBoss(now) {
+  const b = game.boss;
+  if (!b) return;
+  const p = project(0, b.z);
+  const u = p.s * 4.6;
+  if (u < 0.3) return;
+  const bob = Math.sin(now / 700 + b.bobPhase) * u * 0.12;
+  const cx = p.sx, waterY = p.waterY + bob + b.sinking * u * 5;
+
+  ctx.save();
+  ctx.translate(cx, waterY);
+  if (b.sinking > 0) { ctx.rotate(b.sinking * 0.6); ctx.globalAlpha = clamp(1 - b.sinking * 1.1, 0, 1); }
+
+  const L = 14 * u, hullH = 3.2 * u;
+  const darkC = { light: "#5b6070", main: "#33394a", dark: "#14161f" };
+
+  // 船尾浪花
+  ctx.fillStyle = "rgba(235,250,255,.4)";
+  ctx.beginPath(); ctx.ellipse(0, hullH * 0.55, L * 0.7, u * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+
+  drawHullShape(L, hullH, u, darkC, b, false);
+
+  // 三根桅杆與魔王旗
+  ctx.strokeStyle = "#2a1f15"; ctx.lineWidth = Math.max(1, 0.4 * u);
+  for (const mx of [-0.3, 0, 0.3]) {
+    ctx.beginPath(); ctx.moveTo(L * mx, -hullH); ctx.lineTo(L * mx, -hullH - 6 * u); ctx.stroke();
+  }
+  ctx.font = `${4.6 * u}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(b.icon, 0, -hullH - 6.6 * u);
+
+  // 船名
+  ctx.font = `900 ${2.3 * u}px Arial, sans-serif`;
+  ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.lineWidth = Math.max(1, 0.3 * u);
+  ctx.fillStyle = "rgba(255,90,90,.97)";
+  ctx.strokeText(b.name, 0, -hullH * 0.35);
+  ctx.fillText(b.name, 0, -hullH * 0.35);
+
+  // HP 條
+  if (b.sinking === 0) {
+    const bw = L * 1.25, bh = Math.max(4, 0.9 * u), by = -hullH - 9.2 * u;
+    ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(-bw / 2, by, bw, bh);
+    ctx.fillStyle = "#ff3b3b"; ctx.fillRect(-bw / 2, by, bw * (b.hp / b.maxHp), bh);
+    ctx.strokeStyle = "rgba(255,255,255,.75)"; ctx.lineWidth = Math.max(1, 0.12 * u);
+    ctx.strokeRect(-bw / 2, by, bw, bh);
+  }
+  ctx.restore();
+}
+
+function startGame(difficulty) {
+  audio();
+  const diff = difficulty || game.difficulty || "hard";
+  Object.assign(game, {
+    state: "playing", difficulty: diff, level: 1, score: 0, lives: 3, combo: 0,
+    roundsDone: 0, scopeMode: false, scopeAnim: 0,
+    rocket: null, particles: [], splashes: [], fireLock: false, roundEnding: false,
+    boss: null, bossesDone: {}, nextAmmoBonus: 0, activeDims: [],
+    roundTime: diff === "easy" ? ROUND_TIME_EASY : diff === "special" ? ROUND_TIME_SPECIAL : ROUND_TIME_HARD,
+    aimX: W / 2, aimY: horizonY + H * 0.18,
+  });
+  $("start-screen").classList.add("hidden");
+  $("over-screen").classList.add("hidden");
+  $("win-screen").classList.add("hidden");
+  hud.classList.remove("hidden");
+  skyQ.classList.remove("hidden");
+  $("scope-btn").textContent = "🔭 瞄準鏡";
+  $("mode-hint").textContent = "雙指縮合進入瞄準鏡｜雙指張開返回海面";
+  newRound();
+  updateHUD();
+}
+
+$("start-easy").addEventListener("click", () => startGame("easy"));
+$("start-hard").addEventListener("click", () => startGame("hard"));
+$("start-special").addEventListener("click", () => startGame("special"));
+$("restart-btn").addEventListener("click", () => startGame());
+$("winagain-btn").addEventListener("click", () => startGame());
+$("fire-btn").addEventListener("click", fire);
+$("scope-btn").addEventListener("click", () => setScope(!game.scopeMode));
+
+/* ════════════════ 視角切換 ════════════════ */
+function setScope(on) {
+  if (game.scopeMode === on || game.state !== "playing") return;
+  game.scopeMode = on;
+  sfx.scope();
+  skyQ.classList.toggle("hidden", on);
+  $("scope-btn").textContent = on ? "🌊 海面" : "🔭 瞄準鏡";
+  $("mode-hint").textContent = on
+    ? "單指拖曳移動瞄準鏡｜雙指張開返回海面"
+    : "雙指縮合進入瞄準鏡｜雙指張開返回海面";
+}
+
+/* ════════════════ 觸控手勢 ════════════════ */
+let lastPinchDist = 0;
+let dragId = null, dragX = 0, dragY = 0;
+
+canvas.addEventListener("touchstart", e => {
+  e.preventDefault();
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    lastPinchDist = Math.hypot(dx, dy);
+    dragId = null;
+  } else if (e.touches.length === 1) {
+    dragId = e.touches[0].identifier;
+    dragX = e.touches[0].clientX; dragY = e.touches[0].clientY;
+  }
+}, { passive: false });
+
+canvas.addEventListener("touchmove", e => {
+  e.preventDefault();
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.hypot(dx, dy);
+    if (lastPinchDist > 0) {
+      if (dist < lastPinchDist - PINCH_THRESH) { setScope(true);  lastPinchDist = dist; }
+      else if (dist > lastPinchDist + PINCH_THRESH) { setScope(false); lastPinchDist = dist; }
+    } else lastPinchDist = dist;
+    return;
+  }
+  if (e.touches.length === 1 && dragId !== null) {
+    const t = e.touches[0];
+    const mvX = t.clientX - dragX, mvY = t.clientY - dragY;
+    dragX = t.clientX; dragY = t.clientY;
+    moveAim(mvX, mvY);
+  }
+}, { passive: false });
+
+canvas.addEventListener("touchend", e => {
+  e.preventDefault();
+  if (e.touches.length < 2) lastPinchDist = 0;
+  if (e.touches.length === 0) dragId = null;
+}, { passive: false });
+
+// 桌面：滑鼠拖曳瞄準、滾輪切換視角
+// 瞄準鏡模式下不需按住按鍵，移動滑鼠即可移動鏡頭
+let mouseDown = false;
+canvas.addEventListener("mousedown", e => { mouseDown = true; dragX = e.clientX; dragY = e.clientY; });
+window.addEventListener("mouseup", () => mouseDown = false);
+window.addEventListener("mousemove", e => {
+  const dx = e.clientX - dragX, dy = e.clientY - dragY;
+  dragX = e.clientX; dragY = e.clientY;
+  if (!mouseDown && !game.scopeMode) return;
+  moveAim(dx, dy);
+});
+canvas.addEventListener("wheel", e => { e.preventDefault(); setScope(e.deltaY > 0); }, { passive: false });
+window.addEventListener("keydown", e => {
+  if (e.code === "Space") { e.preventDefault(); fire(); }
+  if (e.code === "KeyZ")  { e.preventDefault(); setScope(!game.scopeMode); }
+});
+
+function moveAim(dx, dy) {
+  // 瞄準鏡中移動較細膩（除以倍率）
+  const k = game.scopeMode ? 1 / (SCOPE_ZOOM * 0.55) : 1;
+  game.aimX = clamp(game.aimX + dx * k, 0, W);
+  game.aimY = clamp(game.aimY + dy * k, horizonY - H * 0.1, H);
+}
+
+/* ════════════════ 特效 ════════════════ */
+function spawnExplosion(x, y, onShip) {
+  const n = onShip ? 42 : 22;
+  for (let i = 0; i < n; i++) {
+    const a = rand(0, Math.PI * 2), v = rand(60, onShip ? 420 : 240);
+    game.particles.push({
+      x, y,
+      vx: Math.cos(a) * v, vy: Math.sin(a) * v - rand(50, 200),
+      life: rand(0.5, 1.1), age: 0,
+      r: rand(3, onShip ? 11 : 6),
+      hue: onShip ? rand(15, 50) : rand(190, 210),
+    });
+  }
+  game.splashes.push({ x, y, age: 0, life: 0.7, max: onShip ? 90 : 55 });
+}
+
+/* ════════════════ 繪製：場景 ════════════════ */
+let cloudSeed = [];
+for (let i = 0; i < 6; i++) cloudSeed.push({ x: Math.random(), y: rand(0.06, 0.3), s: rand(0.6, 1.5), v: rand(4, 10) });
+
+function drawSky(now) {
+  const g = ctx.createLinearGradient(0, 0, 0, horizonY);
+  g.addColorStop(0, "#2b3a6e");
+  g.addColorStop(0.45, "#7a5a9e");
+  g.addColorStop(0.75, "#e0784f");
+  g.addColorStop(1, "#ffb35e");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, -H, W, horizonY + H);   // 多畫一些，瞄準鏡放大時不留黑邊
+
+  // 夕陽
+  const sunX = W * 0.68, sunY = horizonY - H * 0.09, sunR = Math.min(W, H) * 0.07;
+  const sg = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR * 3.2);
+  sg.addColorStop(0, "rgba(255,236,170,1)");
+  sg.addColorStop(0.25, "rgba(255,200,110,.9)");
+  sg.addColorStop(1, "rgba(255,170,80,0)");
+  ctx.fillStyle = sg;
+  ctx.beginPath(); ctx.arc(sunX, sunY, sunR * 3.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#fff3c9";
+  ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2); ctx.fill();
+
+  // 雲層
+  ctx.fillStyle = "rgba(255,225,200,.35)";
+  for (const c of cloudSeed) {
+    const cx = ((c.x + now * c.v / 100000) % 1.2 - 0.1) * W;
+    const cy = c.y * horizonY;
+    const cs = c.s * Math.min(W, H) * 0.08;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, cs * 2.2, cs * 0.55, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + cs, cy - cs * 0.3, cs * 1.4, cs * 0.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx - cs, cy - cs * 0.2, cs * 1.2, cs * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawSea(now) {
+  const g = ctx.createLinearGradient(0, horizonY, 0, H);
+  g.addColorStop(0, "#c97a4a");
+  g.addColorStop(0.12, "#2e6577");
+  g.addColorStop(0.5, "#174a5e");
+  g.addColorStop(1, "#0c2e44");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, horizonY, W, H * 2);    // 往下多畫，瞄準鏡放大用
+
+  // 夕陽水面反光
+  const sunX = W * 0.68;
+  const rg = ctx.createLinearGradient(0, horizonY, 0, H);
+  rg.addColorStop(0, "rgba(255,190,110,.5)");
+  rg.addColorStop(1, "rgba(255,190,110,0)");
+  ctx.fillStyle = rg;
+  ctx.beginPath();
+  ctx.moveTo(sunX - W * 0.03, horizonY);
+  ctx.lineTo(sunX + W * 0.03, horizonY);
+  ctx.lineTo(sunX + W * 0.16, H);
+  ctx.lineTo(sunX - W * 0.16, H);
+  ctx.fill();
+
+  // 透視波浪線：固定世界距離的橫線，產生 3D 縱深
+  ctx.lineWidth = 1;
+  for (let z = 60; z < 500; z *= 1.18) {
+    const zz = z + Math.sin(now / 900 + z) * 4;
+    const p = project(0, zz);
+    const alpha = clamp(60 / z, 0.05, 0.5);
+    ctx.strokeStyle = `rgba(170,225,235,${alpha})`;
+    ctx.beginPath();
+    const amp = clamp(p.s * 0.5, 0.5, 5);
+    for (let x = 0; x <= W; x += 24) {
+      const y = p.waterY + Math.sin(x / 60 + now / 500 + z) * amp;
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+/* ── 船隻（3D 透視 + 倒影） ── */
+function drawShip(ship, now) {
+  const wx = shipWorldX(ship, now);
+  const p = project(wx, ship.z);
+  const u = p.s * ship.size.scale;                       // 像素 / 世界單位
+  if (u < 0.4) return;
+  const bob = Math.sin(now / 600 + ship.bobPhase) * u * 0.25;
+  const rock = Math.sin(now / 900 + ship.bobPhase) * 0.03;
+  const sinkY = ship.sinking * u * 5;
+  const cx = p.sx, waterY = p.waterY + bob + sinkY;
+  const c = ship.color;
+
+  ctx.save();
+  ctx.translate(cx, waterY);
+  if (ship.sinking > 0) {
+    ctx.rotate(rock + ship.sinking * 0.7);
+    ctx.globalAlpha = clamp(1 - ship.sinking * 1.1, 0, 1);
+  } else {
+    ctx.rotate(rock);
+  }
+
+  const L = 12 * u;       // 船身全長（像素）
+  const hullH = 2.6 * u;
+
+  // ── 倒影 ──
+  if (ship.sinking === 0) {
+    ctx.save();
+    ctx.scale(1, -0.55);
+    ctx.globalAlpha = 0.18;
+    drawHullShape(L, hullH, u, c, ship, true);
+    ctx.restore();
+  }
+
+  // ── 船尾浪花 ──
+  ctx.fillStyle = "rgba(235,250,255,.5)";
+  ctx.beginPath();
+  ctx.ellipse(0, hullH * 0.55, L * 0.62, u * 0.55, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  drawHullShape(L, hullH, u, c, ship, false);
+
+  // ── 上層船艙 ──
+  ctx.fillStyle = c.light;
+  ctx.fillRect(-L * 0.18, -hullH - 2.1 * u, L * 0.34, 2.1 * u);
+  ctx.fillStyle = c.dark;
+  ctx.fillRect(-L * 0.18, -hullH - 2.1 * u, L * 0.34, 0.4 * u);
+  // 舷窗
+  ctx.fillStyle = "#ffe9b0";
+  for (let i = -1; i <= 1; i++) {
+    ctx.beginPath();
+    ctx.arc(i * L * 0.1, -hullH - 1.05 * u, 0.32 * u, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // ── 桅杆與旗幟 ──
+  const mastTop = -hullH - 5.6 * u;
+  ctx.strokeStyle = "#503a26";
+  ctx.lineWidth = Math.max(1, 0.28 * u);
+  ctx.beginPath();
+  ctx.moveTo(L * 0.32, -hullH);
+  ctx.lineTo(L * 0.32, mastTop);
+  ctx.stroke();
+  ctx.font = `${3 * u}px sans-serif`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  const flagWave = Math.sin(now / 300 + ship.bobPhase) * 0.08;
+  ctx.save();
+  ctx.translate(L * 0.32, mastTop + 1.1 * u);
+  ctx.rotate(flagWave);
+  ctx.fillText(ship.flag.emoji, 0.1 * u, 0);
+  ctx.restore();
+
+  // ── 船身單字 ──
+  ctx.font = `900 ${2.3 * u}px Arial, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(255,255,255,.98)";
+  ctx.strokeStyle = "rgba(0,0,0,.55)";
+  ctx.lineWidth = Math.max(1, 0.3 * u);
+  ctx.strokeText(ship.word.word, 0, -hullH * 0.45);
+  ctx.fillText(ship.word.word, 0, -hullH * 0.45);
+
+  ctx.restore();
+}
+
+function drawHullShape(L, hullH, u, c, ship, isReflection) {
+  // 船體側視（含底部弧線），亮→暗漸層做出立體感
+  const g = ctx.createLinearGradient(0, -hullH, 0, hullH * 0.6);
+  g.addColorStop(0, c.light);
+  g.addColorStop(0.45, c.main);
+  g.addColorStop(1, c.dark);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(-L / 2, -hullH);                       // 船尾上緣
+  ctx.lineTo(L * 0.38, -hullH);                     // 上緣
+  ctx.quadraticCurveTo(L * 0.56, -hullH * 1.25, L / 2, -hullH * 0.2);  // 船頭翹起
+  ctx.quadraticCurveTo(L * 0.3, hullH * 0.75, 0, hullH * 0.75);        // 船底
+  ctx.quadraticCurveTo(-L * 0.42, hullH * 0.75, -L / 2, -hullH);
+  ctx.closePath();
+  ctx.fill();
+  if (!isReflection) {
+    // 甲板邊線
+    ctx.strokeStyle = "rgba(255,255,255,.4)";
+    ctx.lineWidth = Math.max(0.6, 0.18 * u);
+    ctx.beginPath();
+    ctx.moveTo(-L / 2, -hullH);
+    ctx.lineTo(L * 0.38, -hullH);
+    ctx.stroke();
+  }
+}
+
+/* ── 特效繪製 ── */
+function drawParticles(dt) {
+  game.particles = game.particles.filter(pt => (pt.age += dt) < pt.life);
+  for (const pt of game.particles) {
+    pt.x += pt.vx * dt; pt.y += pt.vy * dt;
+    pt.vy += 600 * dt;
+    const a = 1 - pt.age / pt.life;
+    ctx.fillStyle = `hsla(${pt.hue}, 95%, ${55 + a * 25}%, ${a})`;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, pt.r * a, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  game.splashes = game.splashes.filter(s => (s.age += dt) < s.life);
+  for (const s of game.splashes) {
+    const k = s.age / s.life;
+    ctx.strokeStyle = `rgba(255,230,180,${0.8 * (1 - k)})`;
+    ctx.lineWidth = 4 * (1 - k) + 1;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.max * k, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawRocket(dt) {
+  const r = game.rocket;
+  if (!r) return;
+  r.t += dt / 0.45;
+  if (r.t >= 1) {
+    const { sceneX, sceneY, x1, y1 } = r;
+    game.rocket = null;
+    resolveImpact(sceneX, sceneY, x1, y1);
+    return;
+  }
+  const k = r.t;
+  // 弧線彈道
+  const x = lerp(r.x0, r.x1, k);
+  const y = lerp(r.y0, r.y1, k) - Math.sin(k * Math.PI) * H * 0.12;
+  const sc = lerp(1.6, 0.35, k);
+  ctx.save();
+  ctx.translate(x, y);
+  const ang = Math.atan2(r.y1 - r.y0 - Math.cos(k * Math.PI) * H * 0.12, r.x1 - r.x0);
+  ctx.rotate(ang);
+  ctx.scale(sc, sc);
+  // 火焰尾
+  ctx.fillStyle = "rgba(255,170,60,.85)";
+  ctx.beginPath();
+  ctx.ellipse(-16, 0, 14 + Math.random() * 8, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // 彈體
+  ctx.fillStyle = "#cfd6e0";
+  ctx.beginPath();
+  ctx.moveTo(14, 0); ctx.lineTo(2, -5); ctx.lineTo(-10, -5);
+  ctx.lineTo(-10, 5); ctx.lineTo(2, 5);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#e0452a";
+  ctx.beginPath();
+  ctx.moveTo(14, 0); ctx.lineTo(2, -5); ctx.lineTo(2, 5);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ── 火箭筒（海面模式右下角） ── */
+function drawLauncher() {
+  if (game.scopeAnim > 0.4) return;
+  ctx.save();
+  ctx.globalAlpha = 1 - game.scopeAnim * 2.5;
+  const bx = W * 0.78, by = H * 1.02;
+  ctx.translate(bx, by);
+  ctx.rotate(-0.62);
+  const len = Math.min(W, H) * 0.5;
+  const g = ctx.createLinearGradient(0, -28, 0, 28);
+  g.addColorStop(0, "#5d6a55");
+  g.addColorStop(0.5, "#3c4636");
+  g.addColorStop(1, "#222a1d");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, -26, len, 52);
+  ctx.fillStyle = "#1b2117";
+  ctx.fillRect(len - 18, -32, 18, 64);     // 砲口
+  ctx.fillStyle = "#2c3526";
+  ctx.fillRect(len * 0.35, -38, 30, 12);   // 準星座
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+/* ── 準星 / 瞄準鏡 ── */
+function drawCrosshair() {
+  const x = game.aimX, y = game.aimY;
+  ctx.strokeStyle = "rgba(120,255,140,.9)";
+  ctx.lineWidth = 1.5;
+  if (game.scopeAnim < 0.5) {
+    // 海面模式：小準星
+    ctx.beginPath();
+    ctx.arc(x, y, 14, 0, Math.PI * 2);
+    ctx.moveTo(x - 22, y); ctx.lineTo(x - 8, y);
+    ctx.moveTo(x + 8, y);  ctx.lineTo(x + 22, y);
+    ctx.moveTo(x, y - 22); ctx.lineTo(x, y - 8);
+    ctx.moveTo(x, y + 8);  ctx.lineTo(x, y + 22);
+    ctx.stroke();
+  }
+}
+
+function drawScopeOverlay() {
+  const k = game.scopeAnim;
+  if (k <= 0.01) return;
+  const cx = W / 2, cy = H / 2 - H * 0.04;
+  const R = Math.min(W, H) * lerp(0.9, 0.4, k);
+
+  // 黑色暗角
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, W, H);
+  ctx.arc(cx, cy, R, 0, Math.PI * 2, true);
+  ctx.fillStyle = `rgba(0,0,0,${0.96 * k})`;
+  ctx.fill();
+  ctx.restore();
+
+  if (k < 0.6) return;
+
+  // 鏡框 + 刻度
+  ctx.strokeStyle = "rgba(40,60,45,.95)";
+  ctx.lineWidth = 10;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = "rgba(130,255,150,.8)";
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, R - 8, 0, Math.PI * 2); ctx.stroke();
+
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * Math.PI * 2;
+    const r1 = R - 10, r2 = R - (i % 6 === 0 ? 26 : 18);
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+    ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
+    ctx.stroke();
+  }
+
+  // 十字線
+  ctx.strokeStyle = "rgba(120,255,140,.95)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx - R + 14, cy); ctx.lineTo(cx - 24, cy);
+  ctx.moveTo(cx + 24, cy); ctx.lineTo(cx + R - 14, cy);
+  ctx.moveTo(cx, cy - R + 14); ctx.lineTo(cx, cy - 24);
+  ctx.moveTo(cx, cy + 24); ctx.lineTo(cx, cy + R - 14);
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(120,255,140,.95)";
+  ctx.fill();
+  // 測距刻度
+  for (const d of [-60, -30, 30, 60]) {
+    ctx.beginPath();
+    ctx.moveTo(cx + d, cy - 6); ctx.lineTo(cx + d, cy + 6);
+    ctx.moveTo(cx - 6, cy + d); ctx.lineTo(cx + 6, cy + d);
+    ctx.stroke();
+  }
+  // 倍率標示
+  ctx.font = "700 14px monospace";
+  ctx.fillStyle = "rgba(130,255,150,.85)";
+  ctx.textAlign = "center";
+  ctx.fillText(`x${SCOPE_ZOOM}.0`, cx, cy - R + 34);
+}
+
+/* ════════════════ 主迴圈 ════════════════ */
+let lastT = performance.now();
+
+function tick(now) {
+  requestAnimationFrame(tick);
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now;
+
+  // 瞄準鏡開合動畫
+  const targetAnim = game.scopeMode ? 1 : 0;
+  game.scopeAnim += (targetAnim - game.scopeAnim) * Math.min(1, dt * 9);
+  if (Math.abs(game.scopeAnim - targetAnim) < 0.005) game.scopeAnim = targetAnim;
+
+  if (game.state === "playing") update(dt);
+
+  render(now, dt);
+}
+
+function update(dt) {
+  if (game.boss) { updateBoss(dt); return; }
+
+  // 回合結算中：只推進沉船／震動動畫，不再扣時間、不再重複觸發逃走
+  if (game.roundEnding) {
+    for (const s of game.ships) {
+      if (s.alive && s.sinking > 0) { s.sinking += dt * 0.9; if (s.sinking >= 1) s.alive = false; }
+    }
+    if (game.shakeT > 0) game.shakeT -= dt;
+    return;
+  }
+
+  game.timer -= dt;
+  if (game.timer <= 0) {
+    game.timer = 0;
+    targetEscaped("⏱️ 時間到，目標逃走了！");
+    return;
+  }
+
+  for (const s of game.ships) {
+    if (!s.alive) continue;
+    if (s.sinking > 0) {
+      s.sinking += dt * 0.9;
+      if (s.sinking >= 1) s.alive = false;
+      continue;
+    }
+    s.z -= s.speed * dt;
+    if (s.z <= SHORE_Z) {
+      s.alive = false;
+      if (s.isTarget) targetEscaped("🚢 目標船靠岸了！");
+    }
+  }
+  if (game.shakeT > 0) game.shakeT -= dt;
+  updateHUD();
+}
+
+function render(now, dt) {
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+
+  // 鏡頭震動
+  if (game.shakeT > 0) {
+    const sh = game.shakeT * 14;
+    ctx.translate(rand(-sh, sh), rand(-sh, sh));
+  }
+
+  // ── 場景變換：瞄準鏡放大 ──
+  const k = game.scopeAnim;
+  if (k > 0.01) {
+    const zoom = lerp(1, SCOPE_ZOOM, k);
+    const cx = W / 2, cy = H / 2 - H * 0.04;
+    ctx.translate(cx, cy);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-game.aimX, -game.aimY);
+  }
+
+  drawSky(now);
+  drawSea(now);
+
+  // 魔王畫在護衛艦之後（深度較遠）
+  if (game.boss) drawBoss(now);
+
+  // 由遠到近排序繪製船隻
+  const sorted = [...game.ships].filter(s => s.alive).sort((a, b) => b.z - a.z);
+  for (const s of sorted) drawShip(s, now);
+
+  ctx.restore();
+
+  // ── 螢幕空間圖層（不受縮放影響） ──
+  ctx.save();
+  if (game.shakeT > 0) {
+    const sh = game.shakeT * 10;
+    ctx.translate(rand(-sh, sh), rand(-sh, sh));
+  }
+  drawParticles(dt);
+  drawRocket(dt);
+  if (game.state === "playing") {
+    drawLauncher();
+    drawCrosshair();
+  }
+  drawScopeOverlay();
+  ctx.restore();
+}
+
+/* 瞄準鏡模式下，命中判定使用「瞄準點」也就是鏡頭中心對到的場景座標。
+   因為縮放是以 aim 為中心，鏡心 = aimX/aimY，邏輯一致。 */
+
+requestAnimationFrame(tick);
+
+/* ===== 外部單字介面（與 miner/bomb 同標準）===== */
+const DEFAULT_SHIP_WORDBANK = wordBank.slice();
+function normalizeShipWords(words){
+  const seen=new Set(), out=[];
+  (words||[]).forEach(w=>{
+    const word=String((w&&(w.word||w.en))||'').trim();
+    const meaning=String((w&&(w.chinese||w.meaning||w.zh))||'').trim();
+    const pos=String((w&&(w.part_of_speech||w.pos))||'').trim();
+    if(!word||!meaning) return;
+    const k=word.toLowerCase(); if(seen.has(k)) return; seen.add(k);
+    out.push({ word: word.toUpperCase(), meaning, pos: pos||"單字" });
+  });
+  return out;
+}
+function applyShipData(payload){
+  const next=normalizeShipWords(payload&&payload.words);
+  wordBank = next.length>=4 ? next : DEFAULT_SHIP_WORDBANK;
+}
+function readShipHash(){
+  const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash;
+  if(!h) return null;
+  try{ return JSON.parse(new URLSearchParams(h).get('lessonData')||''); }catch(e){ return null; }
+}
+window.addEventListener('message',e=>{
+  if(!e.data||e.data.type!=='SHIP_DATA') return;
+  applyShipData(e.data.payload);
+});
+(function(){ const d=readShipHash(); if(d) applyShipData(d); })();
+</script>
+</body>
+</html>
