@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英文攻防戰</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#0d0d1a;color:#fff;font-family:'Outfit',sans-serif;min-height:100vh;padding:12px;overflow-x:hidden;}
+h1{font-size:clamp(1.25rem,5vw,1.7rem);font-weight:900;background:linear-gradient(90deg,#f9c74f,#f3722c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;text-align:center;}
+button{font-family:'Outfit',sans-serif;}
+.wrap{width:min(900px,100%);margin:0 auto;}
+.unit-title{text-align:center;color:#9ca3af;font-size:.82rem;font-weight:800;margin-bottom:10px;}
+.panel{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:14px;}
+.start-card{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:12px;}
+.rules{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.rule{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px;font-size:.86rem;font-weight:800;color:#d1d5db;line-height:1.45;}
+.rule strong{color:#f9c74f;}
+.difficulty-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.difficulty-btn{background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.14);border-bottom:4px solid rgba(255,255,255,.12);border-radius:12px;padding:10px;cursor:pointer;color:#fff;text-align:left;transition:all .16s;}
+.difficulty-btn:hover{background:rgba(249,199,79,.12);border-color:rgba(249,199,79,.55);}
+.difficulty-btn.active{background:rgba(249,199,79,.18);border-color:#f9c74f;box-shadow:0 0 0 2px rgba(249,199,79,.18);}
+.difficulty-btn .label{display:block;font-size:1rem;font-weight:900;color:#fff;margin-bottom:4px;}
+.difficulty-btn .desc{display:block;font-size:.74rem;font-weight:800;color:#cbd5e1;line-height:1.45;}
+.unit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.unit-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px;text-align:center;}
+.unit-card .emoji{font-size:1.45rem;}
+.unit-card .name{font-weight:900;margin:2px 0;color:#fff;}
+.unit-card .meta{font-size:.74rem;color:#cbd5e1;font-weight:700;line-height:1.5;}
+.primary-btn{background:linear-gradient(135deg,#f9c74f,#f3722c);border:none;border-bottom:4px solid #9a3412;color:#111;border-radius:14px;padding:13px 20px;font-size:1.08rem;font-weight:900;cursor:pointer;box-shadow:0 10px 25px rgba(249,115,22,.18);}
+.primary-btn:active{border-bottom-width:0;transform:translateY(4px);}
+.secondary-btn{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.16);border-bottom:4px solid rgba(255,255,255,.12);color:#fff;border-radius:14px;padding:12px 18px;font-size:1rem;font-weight:900;cursor:pointer;}
+.secondary-btn:active{border-bottom-width:1.5px;transform:translateY(3px);}
+#game-screen{display:none;}
+#topbar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;}
+.stat{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:6px 8px;font-size:.84rem;text-align:center;white-space:nowrap;}
+.stat span{font-weight:900;color:#f9c74f;}
+#canvas{border-radius:14px;border:2px solid rgba(255,255,255,.15);display:block;width:100%;height:auto;background:#111827;}
+#panels{display:flex;gap:10px;margin-top:10px;}
+#deploy{display:flex;flex-direction:column;gap:8px;min-width:210px;}
+.section-title{font-size:.9rem;color:#aaa;margin-bottom:2px;font-weight:900;}
+.unit-btn{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-bottom:4px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 10px;cursor:pointer;transition:all .16s;text-align:left;color:#fff;}
+.unit-btn:hover{background:rgba(249,199,79,.15);border-color:#f9c74f;}
+.unit-btn:active{border-bottom-width:1.5px;transform:translateY(3px);}
+.unit-btn.disabled{opacity:.38;cursor:not-allowed;border-color:rgba(255,80,80,.35);}
+.unit-btn.ready{box-shadow:0 0 0 2px rgba(249,199,79,.2),0 0 18px rgba(249,199,79,.18);}
+.unit-btn.active{background:rgba(76,201,240,.2);border-color:#4cc9f0;box-shadow:0 0 0 2px rgba(76,201,240,.3);}
+#kind-tabs .unit-btn{font-size:.82rem;font-weight:800;}
+#kind-tabs .unit-btn small{font-weight:600;color:#cbd5e1;font-size:.66rem;}
+.unit-btn .icon{font-size:1.45rem;}
+.unit-btn .info{display:flex;flex-direction:column;}
+.unit-btn .name{font-weight:900;font-size:.88rem;}
+.unit-btn .cost{font-size:.76rem;color:#f9c74f;font-weight:800;}
+#quiz-panel{flex:1;}
+#quiz-type{font-size:.78rem;color:#f9c74f;font-weight:900;margin-bottom:6px;}
+#question{font-size:1rem;font-weight:800;margin-bottom:12px;line-height:1.5;}
+#options{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.opt-btn{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-bottom:4px solid rgba(255,255,255,.12);border-radius:10px;padding:9px 12px;cursor:pointer;font-size:.9rem;color:#fff;transition:all .16s;text-align:left;font-weight:800;}
+.opt-btn:hover{background:rgba(100,180,255,.2);border-color:#4cc9f0;}
+.opt-btn.correct{background:rgba(76,200,100,.25);border-color:#4cc864;}
+.opt-btn.wrong{background:rgba(255,80,80,.22);border-color:#ff5050;}
+#feedback{margin-top:8px;font-size:.88rem;min-height:20px;font-weight:900;}
+.fb-correct{color:#4cc864;}
+.fb-wrong{color:#ff6b6b;}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:99;padding:20px;text-align:center;}
+#overlay.show{display:flex;}
+#overlay h2{font-size:2.8rem;font-weight:900;}
+#overlay .stats{font-size:1rem;color:#d1d5db;line-height:2;}
+#overlay .note{color:#9ca3af;font-size:.9rem;font-weight:800;}
+.overlay-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+@media (max-width:720px){
+  body{padding:10px;}
+  .rules{grid-template-columns:1fr;}
+  .difficulty-grid{grid-template-columns:1fr;}
+  .unit-grid{grid-template-columns:1fr;}
+  #topbar{grid-template-columns:1fr 1fr;gap:6px;}
+  .stat{font-size:.78rem;}
+  #panels{flex-direction:column;}
+  #deploy{min-width:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  #deploy .section-title{grid-column:1/-1;}
+  .unit-btn{padding:8px;justify-content:center;text-align:center;flex-direction:column;gap:4px;}
+  .unit-btn .icon{font-size:1.2rem;}
+  .unit-btn .name{font-size:.78rem;}
+  .unit-btn .cost{font-size:.7rem;}
+  #options{grid-template-columns:1fr;gap:7px;}
+  #question{font-size:.92rem;}
+  .opt-btn{font-size:.86rem;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⚔️ 英文攻防戰</h1>
+  <div class="unit-title" id="unit-title">等待教材資料...</div>
+
+  <section id="start-screen" class="start-card">
+    <div class="panel">
+      <div class="rules">
+        <div class="rule"><strong>勝利目標</strong><br>推倒敵方基地，或時間到時基地血量較高。</div>
+        <div class="rule"><strong>答對獎勵</strong><br>+25 金，連對 3 題再 +15 金。</div>
+        <div class="rule" id="difficulty-summary"><strong>敵方壓力</strong><br>普通：開場 30 金，答錯敵方增援。</div>
+        <div class="rule"><strong>題型</strong><br>中英互選為主，穿插文法選擇題。</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="section-title">兵種數值表</div>
+      <div class="unit-grid" id="unit-table"></div>
+    </div>
+    <div class="panel">
+      <div class="section-title">難度選擇</div>
+      <div class="difficulty-grid">
+        <button class="difficulty-btn" id="difficulty-easy" type="button" onclick="selectDifficulty('easy')">
+          <span class="label">簡單</span>
+          <span class="desc">45 金開局，敵人較慢，答錯只讓敵方出兵倒數提前。</span>
+        </button>
+        <button class="difficulty-btn active" id="difficulty-normal" type="button" onclick="selectDifficulty('normal')">
+          <span class="label">普通</span>
+          <span class="desc">30 金開局，目前標準節奏，答錯增援 1 名劍士。</span>
+        </button>
+        <button class="difficulty-btn" id="difficulty-hard" type="button" onclick="selectDifficulty('hard')">
+          <span class="label">困難</span>
+          <span class="desc">20 金開局，敵人更快，連錯會追加弓箭手。</span>
+        </button>
+      </div>
+    </div>
+    <button class="primary-btn" onclick="startGame()">開始戰鬥</button>
+  </section>
+
+  <section id="game-screen">
+    <div id="topbar">
+      <div class="stat">金幣 <span id="gold-display">30</span></div>
+      <div class="stat">強化值 <span id="power-display">0</span></div>
+      <div class="stat">等級 <span id="level-display">Lv1</span></div>
+      <div class="stat">時間 <span id="time-display">2:30</span></div>
+      <div class="stat">答題 <span id="score-display">0 / 0</span></div>
+      <div class="stat">派兵 <span id="deployed-display">0</span></div>
+    </div>
+    <canvas id="canvas" width="900" height="360"></canvas>
+    <div id="boss-banner" style="display:none;margin:6px 0;padding:6px 10px;border-radius:8px;background:rgba(255,80,80,.18);border:1px solid #ff5050;color:#ffd166;font-weight:700;text-align:center;"></div>
+    <div id="panels">
+      <div id="deploy" class="panel">
+        <div class="section-title">派兵（單字題賺金幣）</div>
+        <button class="unit-btn" id="btn-sword" onclick="deployUnit('sword')">
+          <span class="icon">⚔️</span>
+          <span class="info"><span class="name">劍士</span><span class="cost">30 金</span></span>
+        </button>
+        <button class="unit-btn" id="btn-archer" onclick="deployUnit('archer')">
+          <span class="icon">🏹</span>
+          <span class="info"><span class="name">弓箭手</span><span class="cost">55 金</span></span>
+        </button>
+        <button class="unit-btn" id="btn-mage" onclick="deployUnit('mage')">
+          <span class="icon">🔮</span>
+          <span class="info"><span class="name">法師</span><span class="cost">85 金</span></span>
+        </button>
+        <div class="section-title">升級全軍（文法題賺強化值）</div>
+        <button class="unit-btn" id="btn-upgrade" onclick="upgradeArmy()">
+          <span class="icon">⬆️</span>
+          <span class="info"><span class="name">全軍升級</span><span class="cost">升 Lv2・2 強化值</span></span>
+        </button>
+      </div>
+      <div id="quiz-panel" class="panel">
+        <div class="section-title">出題類型（自己選）</div>
+        <div id="kind-tabs" style="display:flex;gap:8px;margin-bottom:8px;">
+          <button id="tab-vocab" class="unit-btn active" onclick="setQuestionKind('vocab')" style="flex:1;justify-content:center;">📘 單字題<br><small>賺金幣→派兵</small></button>
+          <button id="tab-grammar" class="unit-btn" onclick="setQuestionKind('grammar')" style="flex:1;justify-content:center;">📐 文法題<br><small>賺強化值→升級</small></button>
+        </div>
+        <div id="quiz-type">準備中</div>
+        <div id="question">按開始戰鬥後出題</div>
+        <div id="options"></div>
+        <div id="feedback"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="overlay">
+  <h2 id="overlay-title"></h2>
+  <div class="stats" id="overlay-stats"></div>
+  <div class="note" id="overlay-note"></div>
+  <div class="overlay-actions">
+    <button class="primary-btn" onclick="startGame()">同難度再來一局</button>
+    <button class="secondary-btn" onclick="showStartScreen()">回難度選擇</button>
+  </div>
+</div>
+
+<script>
+const BASE_CONFIG = {
+  durationSec: 150,
+  baseHP: 360,
+  correctGold: 25,
+  comboNeed: 3,
+  comboBonus: 15,
+  // ── 方案乙：全軍等級系統（文法題養成）──
+  powerPerGrammar: 1,                  // 文法答對 +1 強化值
+  levelCost: { 2: 2, 3: 5 },           // 升到 Lv2 花 2、Lv3 花 5（一場難以升滿，須取捨）
+  levelMult: { 1: 1.0, 2: 1.4, 3: 2.0 }, // 各級全軍 HP+攻擊倍率
+  // ── 敵方階梯成長（隨時間自動變強）──
+  enemyTierTimes: [50, 100],           // 0:50、1:40 各跳一階
+  enemyTierMult: [1.0, 1.45, 2.0],
+  // ── BOSS 波 ──
+  bossTimes: [55, 110],                // 0:55、1:50 出 BOSS
+  bossHP: [900, 1300],
+  bossAtk: [40, 60],
+  bossGrammarNeed: 3,                  // 連對 3 題文法才擊退
+};
+
+const DIFFICULTY_CONFIG = {
+  easy: {
+    label: '簡單',
+    startGold: 45,
+    passiveGold: 10,
+    passiveMs: 5000,
+    enemyIntervals: { early: 12000, mid: 10000, late: 8000 },
+    wrongPenalty: 'advance_spawn',
+    wrongSpawnAdvanceMs: 4000,
+    summary: '簡單：45 金開局，每 5 秒 +10 金；敵人 12 / 10 / 8 秒出兵，答錯只讓出兵倒數提前。'
+  },
+  normal: {
+    label: '普通',
+    startGold: 30,
+    passiveGold: 8,
+    passiveMs: 5000,
+    enemyIntervals: { early: 9000, mid: 7000, late: 5000 },
+    wrongPenalty: 'spawn_sword',
+    summary: '普通：30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士。'
+  },
+  hard: {
+    label: '困難',
+    startGold: 20,
+    passiveGold: 5,
+    passiveMs: 6000,
+    enemyIntervals: { early: 7000, mid: 5000, late: 3800 },
+    wrongPenalty: 'spawn_scaling',
+    summary: '困難：20 金開局，每 6 秒 +5 金；敵人 7 / 5 / 3.8 秒出兵，連錯會追加弓箭手。'
+  }
+};
+
+let selectedDifficulty = 'normal';
+let CONFIG = {
+  ...BASE_CONFIG,
+  ...DIFFICULTY_CONFIG.normal,
+};
+
+function applyDifficultyConfig(){
+  CONFIG = {
+    ...BASE_CONFIG,
+    ...DIFFICULTY_CONFIG[selectedDifficulty],
+  };
+}
+
+function selectDifficulty(level){
+  if(!DIFFICULTY_CONFIG[level]) return;
+  selectedDifficulty = level;
+  applyDifficultyConfig();
+  updateDifficultyUI();
+}
+
+function updateDifficultyUI(){
+  Object.keys(DIFFICULTY_CONFIG).forEach(level => {
+    document.getElementById('difficulty-' + level)?.classList.toggle('active', level === selectedDifficulty);
+  });
+  const summary = document.getElementById('difficulty-summary');
+  if(summary) summary.innerHTML = `<strong>敵方壓力</strong><br>${CONFIG.summary}`;
+  document.getElementById('gold-display').textContent = CONFIG.startGold;
+}
+
+const UNIT_DEF = {
+  sword:  { label:'劍士',   emoji:'⚔️', cost:30, hp:90, atk:12, spd:1.25, range:38,  color:'#4cc9f0', role:'便宜、擋線' },
+  archer: { label:'弓箭手', emoji:'🏹', cost:55, hp:55, atk:20, spd:1.0,  range:115, color:'#f9c74f', role:'穩定遠攻' },
+  mage:   { label:'法師',   emoji:'🔮', cost:85, hp:42, atk:34, spd:0.82, range:135, color:'#c77dff', role:'高傷害、脆皮' },
+};
+
+const DEFAULT_GRAMMAR = [
+  { question:'The costume ________ the actor wore was very expensive.', options:['whom','whose','what','which'], answer:'which', hint:'文法選擇題' },
+  { question:'It is ________ a normal day ________ I just want to stay at home.', options:['such...that','so...that','too...to','very...that'], answer:'such...that', hint:'文法選擇題' },
+  { question:'The ability ________ the girl showed surprised everyone.', options:['who','that','whom','where'], answer:'that', hint:'文法選擇題' },
+  { question:'Gina felt ________ depressed ________ she did not want to eat anything.', options:['such','so','too','very'], answer:'so', hint:'文法選擇題' },
+];
+
+const FALLBACK_WORDS = [
+  { id:'fallback-1', word:'costume', chinese:'特殊場合的服裝' },
+  { id:'fallback-2', word:'ability', chinese:'才能' },
+  { id:'fallback-3', word:'weakness', chinese:'弱點' },
+  { id:'fallback-4', word:'protect', chinese:'保護' },
+  { id:'fallback-5', word:'emotion', chinese:'情緒' },
+];
+
+let uid = 0;
+let state = null;
+let battleData = { unitTitle:'示範題庫', words:FALLBACK_WORDS, grammarQuiz:DEFAULT_GRAMMAR };
+let vocabQuestions = [];
+let grammarQuestions = [];
+let vocabQueue = [];
+let grammarQueue = [];
+let vocabPos = 0;
+let grammarPos = 0;
+let currentQuestion = null;
+let lastTime = 0;
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let audioCtx = null;
+const soundGate = {};
+
+function getAudioCtx(){
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if(!Ctx) return null;
+  if(!audioCtx) audioCtx = new Ctx();
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function tone(freq, endFreq, dur, wave='sine', vol=.08, delay=0){
+  const ac = getAudioCtx();
+  if(!ac) return;
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.connect(gain);
+  gain.connect(ac.destination);
+  osc.type = wave;
+  osc.frequency.setValueAtTime(freq, ac.currentTime + delay);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), ac.currentTime + delay + dur);
+  gain.gain.setValueAtTime(vol, ac.currentTime + delay);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + delay + dur);
+  osc.start(ac.currentTime + delay);
+  osc.stop(ac.currentTime + delay + dur + .02);
+}
+
+function noiseBurst(dur=.08, vol=.035, filterFreq=1400, delay=0){
+  const ac = getAudioCtx();
+  if(!ac) return;
+  const buffer = ac.createBuffer(1, ac.sampleRate * dur, ac.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<data.length;i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+  const src = ac.createBufferSource();
+  const filter = ac.createBiquadFilter();
+  const gain = ac.createGain();
+  src.buffer = buffer;
+  filter.type = 'highpass';
+  filter.frequency.setValueAtTime(filterFreq, ac.currentTime + delay);
+  gain.gain.setValueAtTime(vol, ac.currentTime + delay);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + delay + dur);
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(ac.destination);
+  src.start(ac.currentTime + delay);
+}
+
+function playSound(type, throttleMs=0){
+  try{
+    const now = performance.now();
+    if(throttleMs && soundGate[type] && now - soundGate[type] < throttleMs) return;
+    soundGate[type] = now;
+
+    if(type === 'correct'){
+      tone(523, 784, .12, 'sine', .065);
+      tone(784, 1175, .16, 'sine', .055, .09);
+    } else if(type === 'combo'){
+      [0, .08, .16].forEach((d, i) => tone([659, 880, 1175][i], [880, 1175, 1568][i], .14, 'triangle', .055, d));
+    } else if(type === 'wrong'){
+      tone(220, 90, .26, 'sawtooth', .045);
+      noiseBurst(.1, .025, 600);
+    } else if(type === 'deploy'){
+      tone(180, 260, .08, 'square', .035);
+      tone(260, 390, .12, 'triangle', .035, .06);
+    } else if(type === 'sword'){
+      noiseBurst(.09, .03, 1800);
+      tone(520, 180, .12, 'sawtooth', .025);
+    } else if(type === 'arrow'){
+      noiseBurst(.12, .025, 2600);
+      tone(880, 420, .16, 'triangle', .02);
+    } else if(type === 'mage'){
+      tone(330, 880, .22, 'sine', .035);
+      tone(660, 1320, .18, 'triangle', .025, .06);
+    } else if(type === 'baseHit'){
+      tone(150, 70, .2, 'sawtooth', .055);
+      noiseBurst(.16, .04, 500);
+    } else if(type === 'win'){
+      [0, .12, .24, .38].forEach((d, i) => tone([523, 659, 784, 1047][i], [659, 784, 1047, 1397][i], .18, 'sine', .06, d));
+    } else if(type === 'lose'){
+      tone(220, 110, .28, 'sawtooth', .045);
+      tone(165, 70, .35, 'sawtooth', .035, .16);
+    } else if(type === 'draw'){
+      tone(392, 392, .16, 'triangle', .035);
+      tone(330, 330, .18, 'triangle', .03, .12);
+    }
+  } catch(e) {}
+}
+
+function shuffle(arr){
+  const a = [...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+function uniqueTexts(items){
+  return [...new Set(items.filter(Boolean).map(x => String(x).trim()).filter(Boolean))];
+}
+
+function makeQuestion(type, prompt, answer, choices, audio){
+  const opts = shuffle(uniqueTexts([answer, ...choices])).slice(0,4);
+  if(!opts.includes(answer)) opts[Math.floor(Math.random()*opts.length)] = answer;
+  return { type, prompt, opts, ans: opts.indexOf(answer), audio };
+}
+
+function buildQuestionPools(payload){
+  const words = (payload.words || []).filter(w => w && w.word && w.chinese);
+  const wordPool = words.length >= 4 ? words : FALLBACK_WORDS;
+  vocabQuestions = [];
+  wordPool.forEach(target => {
+    const others = shuffle(wordPool.filter(w => w.id !== target.id && w.word !== target.word));
+    vocabQuestions.push(makeQuestion('英文選中文', target.word, target.chinese, others.map(w => w.chinese), target.word));
+    vocabQuestions.push(makeQuestion('中文選英文', target.chinese, target.word, others.map(w => w.word), target.word));
+  });
+
+  grammarQuestions = (payload.grammarQuiz || []).filter(q => q && q.question && q.options && q.answer).map(q => {
+    const opts = uniqueTexts(q.options);
+    const answer = String(q.answer);
+    return { type:'文法選擇題', prompt:q.question, opts, ans:opts.indexOf(answer), audio:null };
+  }).filter(q => q.ans >= 0 && q.opts.length >= 2);
+
+  if(grammarQuestions.length === 0){
+    grammarQuestions = DEFAULT_GRAMMAR.map(q => {
+      const opts = uniqueTexts(q.options);
+      return { type:'文法選擇題', prompt:q.question, opts, ans:opts.indexOf(q.answer), audio:null };
+    });
+  }
+  resetQuestionQueues();
+  updateStartInfo();
+}
+
+function resetQuestionQueues(){
+  vocabQueue = shuffle([...Array(vocabQuestions.length).keys()]);
+  grammarQueue = shuffle([...Array(grammarQuestions.length).keys()]);
+  vocabPos = 0;
+  grammarPos = 0;
+}
+
+function nextFromPool(pool, queueName){
+  if(queueName === 'grammar'){
+    if(grammarPos >= grammarQueue.length){grammarQueue = shuffle([...Array(pool.length).keys()]); grammarPos = 0;}
+    return pool[grammarQueue[grammarPos++]];
+  }
+  if(vocabPos >= vocabQueue.length){vocabQueue = shuffle([...Array(pool.length).keys()]); vocabPos = 0;}
+  return pool[vocabQueue[vocabPos++]];
+}
+
+function getNextQuestion(){
+  let kind = state ? state.forcedKind : 'vocab';
+  if(kind === 'grammar' && grammarQuestions.length === 0) kind = 'vocab';
+  if(kind === 'grammar') return nextFromPool(grammarQuestions, 'grammar');
+  return nextFromPool(vocabQuestions, 'vocab');
+}
+
+function updateStartInfo(){
+  document.getElementById('unit-title').textContent = battleData.unitTitle || '目前單元';
+  const table = document.getElementById('unit-table');
+  table.innerHTML = Object.values(UNIT_DEF).map(u => `
+    <div class="unit-card">
+      <div class="emoji">${u.emoji}</div>
+      <div class="name">${u.label}</div>
+      <div class="meta">${u.cost} 金 | HP ${u.hp} | 攻 ${u.atk}<br>速 ${u.spd} | 射程 ${u.range}<br>${u.role}</div>
+    </div>
+  `).join('');
+  updateDifficultyUI();
+}
+
+window.addEventListener('message', (event) => {
+  // 中央遊戲站為跨網域，放行來自父視窗（學生頁）的訊息
+  if(event.source !== window.parent && event.origin !== window.location.origin) return;
+  if(!event.data || event.data.type !== 'BATTLE_DATA') return;
+  battleData = {
+    unitTitle: event.data.payload?.unitTitle || '目前單元',
+    words: event.data.payload?.words || FALLBACK_WORDS,
+    grammarQuiz: event.data.payload?.grammarQuiz || DEFAULT_GRAMMAR,
+  };
+  buildQuestionPools(battleData);
+});
+
+class Unit{
+  constructor(type, side){
+    const d = UNIT_DEF[type] || UNIT_DEF.sword;
+    this.id = uid++;
+    this.type = type;
+    this.side = side;
+    this.level = side === 'player' ? (state ? state.level : 1) : 1;
+    this.tier  = side === 'enemy'  ? (state ? state.enemyTier : 0) : 0;
+    const mult = side === 'player'
+      ? (CONFIG.levelMult[this.level] || 1)
+      : (CONFIG.enemyTierMult[this.tier] || 1);
+    this.isBoss = false;
+    this.hp = d.hp * mult;
+    this.maxHp = d.hp * mult;
+    this.atk = Math.round(d.atk * mult);
+    this.spd = d.spd;
+    this.range = d.range;
+    this.color = d.color;
+    this.emoji = d.emoji;
+    this.x = side === 'player' ? 105 : 795;
+    this.y = 252 + Math.random() * 18;
+    this.lastAttack = 0;
+    this.attackRate = 1050;
+    this.state = 'walk';
+    this.phase = Math.random() * Math.PI * 2;
+    this.attackFlash = 0;
+  }
+  enemies(){
+    return state.units.filter(u => u.side !== this.side && u.hp > 0);
+  }
+  nearestEnemy(){
+    let best = null, bd = Infinity;
+    for(const e of this.enemies()){
+      const d = Math.abs(e.x - this.x);
+      if(d < bd){bd = d; best = e;}
+    }
+    return { unit:best, dist:bd };
+  }
+  update(dt, now){
+    const { unit:target, dist } = this.nearestEnemy();
+    if(target && dist <= this.range){
+      this.state = 'fight';
+      if(now - this.lastAttack > this.attackRate){
+        target.hp -= this.atk;
+        this.lastAttack = now;
+        this.attackFlash = now;
+        addAttackEffect(this, target, now);
+        state.floats.push({ x:target.x, y:target.y-20, text:'-'+this.atk, color:'#ff6b6b', life:760, born:now });
+      }
+      return;
+    }
+    this.state = 'walk';
+    const dir = this.side === 'player' ? 1 : -1;
+    this.x += this.spd * dir * (dt / 16);
+  }
+}
+
+function initState(){
+  const now = Date.now();
+  return {
+    phase:'playing',
+    gold:CONFIG.startGold,
+    playerHP:CONFIG.baseHP,
+    enemyHP:CONFIG.baseHP,
+    maxHP:CONFIG.baseHP,
+    units:[],
+    effects:[],
+    floats:[],
+    correctCount:0,
+    wrongCount:0,
+    wrongStreak:0,
+    combo:0,
+    maxCombo:0,
+    deployCount:0,
+    startMs:now,
+    timeLeft:CONFIG.durationSec,
+    lastPassiveGold:now,
+    lastEnemySpawn:now,
+    quizLocked:false,
+    // ── 等級系統 ──
+    power:0,                 // 強化值（文法題賺）
+    level:1,                 // 全軍等級 1~3
+    // ── 敵方階梯 ──
+    enemyTier:0,             // 0/1/2 對應 enemyTierMult
+    // ── BOSS ──
+    boss:null,               // 當前 BOSS 單位
+    bossesSpawned:0,
+    bossDefeated:0,
+    grammarStreak:0,         // 連續答對文法（擊退 BOSS 用）
+    forcedKind:'vocab',      // 玩家選的出題類型
+  };
+}
+
+function addAttackEffect(attacker, target, now){
+  if(!state) return;
+  if(attacker.type === 'sword'){
+    playSound('sword', 120);
+    state.effects.push({
+      kind:'slash',
+      x:target.x,
+      y:target.y-2,
+      side:attacker.side,
+      color:attacker.side === 'player' ? '#7dd3fc' : '#fb7185',
+      life:260,
+      born:now,
+    });
+    return;
+  }
+  if(attacker.type === 'archer'){
+    playSound('arrow', 140);
+    state.effects.push({
+      kind:'arrow',
+      fromX:attacker.x + (attacker.side === 'player' ? 14 : -14),
+      fromY:attacker.y - 10,
+      toX:target.x,
+      toY:target.y - 10,
+      side:attacker.side,
+      life:340,
+      born:now,
+    });
+    return;
+  }
+  playSound('mage', 170);
+  state.effects.push({
+    kind:'orb',
+    fromX:attacker.x + (attacker.side === 'player' ? 12 : -12),
+    fromY:attacker.y - 20,
+    toX:target.x,
+    toY:target.y - 12,
+    color:attacker.side === 'player' ? '#c084fc' : '#f472b6',
+    side:attacker.side,
+    life:420,
+    born:now,
+  });
+}
+
+function startGame(){
+  getAudioCtx();
+  applyDifficultyConfig();
+  state = initState();
+  spawnEnemy('sword', 'opening');
+  resetQuestionQueues();
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'block';
+  document.getElementById('overlay').classList.remove('show');
+  loadQuestion();
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+function drawBg(){
+  const sky = ctx.createLinearGradient(0,0,0,260);
+  sky.addColorStop(0,'#1a1a3e'); sky.addColorStop(1,'#2d6a9f');
+  ctx.fillStyle = sky; ctx.fillRect(0,0,900,280);
+  const gnd = ctx.createLinearGradient(0,280,0,360);
+  gnd.addColorStop(0,'#2d5a1b'); gnd.addColorStop(1,'#1a3a0f');
+  ctx.fillStyle = gnd; ctx.fillRect(0,280,900,80);
+  ctx.strokeStyle = '#4a8a2a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0,280); ctx.lineTo(900,280); ctx.stroke();
+}
+
+function drawBase(x, label, hp, maxHP, isPlayer){
+  const barW = 92;
+  ctx.fillStyle = isPlayer ? '#2a4a8a' : '#6a1a1a';
+  ctx.beginPath(); ctx.roundRect(x-30,220,60,70,6); ctx.fill();
+  ctx.fillStyle = isPlayer ? '#3a6ac0' : '#a02020';
+  ctx.beginPath(); ctx.roundRect(x-25,215,50,30,4); ctx.fill();
+  ctx.fillStyle = isPlayer ? '#4cc9f0' : '#ff6b6b';
+  ctx.beginPath(); ctx.moveTo(x,195); ctx.lineTo(x+16,205); ctx.lineTo(x,215); ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x,195); ctx.lineTo(x,260); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Outfit'; ctx.textAlign = 'center';
+  ctx.fillText(label,x,292);
+  const ratio = Math.max(0, hp / maxHP);
+  ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.beginPath(); ctx.roundRect(x-barW/2,200,barW,10,5); ctx.fill();
+  ctx.fillStyle = ratio > .5 ? '#4cc864' : ratio > .25 ? '#f9c74f' : '#ff5050';
+  ctx.beginPath(); ctx.roundRect(x-barW/2,200,barW*ratio,10,5); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = '10px Outfit';
+  ctx.fillText(Math.max(0, Math.ceil(hp))+'/'+maxHP,x,197);
+}
+
+function drawWeapon(u, dir, cx, groundY, attackPower){
+  const handY = groundY - 26;
+  if(u.type === 'sword'){
+    ctx.strokeStyle = '#f8fafc';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx + dir * 9, handY);
+    ctx.lineTo(cx + dir * (22 + attackPower * 8), handY - 12 - attackPower * 6);
+    ctx.stroke();
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx + dir * 6, handY + 2);
+    ctx.lineTo(cx + dir * 12, handY + 6);
+    ctx.stroke();
+    return;
+  }
+  if(u.type === 'archer'){
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx + dir * 14, handY - 2, 14, dir > 0 ? -1.2 : Math.PI - 1.2, dir > 0 ? 1.2 : Math.PI + 1.2, dir < 0);
+    ctx.stroke();
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx + dir * 14, handY - 16);
+    ctx.lineTo(cx + dir * 14, handY + 12);
+    ctx.stroke();
+    if(attackPower > 0){
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(cx + dir * 6, handY - 2);
+      ctx.lineTo(cx + dir * 24, handY - 2);
+      ctx.stroke();
+    }
+    return;
+  }
+  ctx.strokeStyle = '#e9d5ff';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx + dir * 8, handY + 10);
+  ctx.lineTo(cx + dir * 18, handY - 22);
+  ctx.stroke();
+  ctx.fillStyle = attackPower > 0 ? '#f0abfc' : '#c084fc';
+  ctx.beginPath();
+  ctx.arc(cx + dir * 19, handY - 24, 5 + attackPower * 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawUnit(u, now){
+  const dir = u.side === 'player' ? 1 : -1;
+  if(u.isBoss){
+    const gy = u.y;
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.beginPath(); ctx.ellipse(u.x, gy+18, 30, 9, 0, 0, Math.PI*2); ctx.fill();
+    ctx.font = '44px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('👹', u.x, gy - 18);
+    const bw = 66, ratio = Math.max(0, u.hp / u.maxHp);
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(u.x-bw/2, gy-58, bw, 7);
+    ctx.fillStyle = '#ff5050'; ctx.fillRect(u.x-bw/2, gy-58, bw*ratio, 7);
+    ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 1.5; ctx.strokeRect(u.x-bw/2, gy-58, bw, 7);
+    return;
+  }
+  const teamColor = u.side === 'player' ? '#38bdf8' : '#fb7185';
+  const coatColor = u.type === 'sword' ? teamColor : u.type === 'archer' ? '#facc15' : '#c084fc';
+  const attackAge = now - u.attackFlash;
+  const attackPower = attackAge >= 0 && attackAge < 280 ? 1 - attackAge / 280 : 0;
+  const bob = u.state === 'walk' ? Math.sin(now / 110 + u.phase) * 3 : 0;
+  const cx = u.x + dir * attackPower * 5;
+  const groundY = u.y + bob;
+
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  ctx.beginPath(); ctx.ellipse(u.x,groundY+15,18,6,0,0,Math.PI*2); ctx.fill();
+
+  ctx.strokeStyle = teamColor;
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - dir * 4, groundY - 10);
+  ctx.lineTo(cx - dir * 9, groundY + 10);
+  ctx.moveTo(cx + dir * 5, groundY - 10);
+  ctx.lineTo(cx + dir * 12, groundY + 10);
+  ctx.stroke();
+
+  ctx.fillStyle = coatColor;
+  ctx.strokeStyle = 'rgba(255,255,255,.85)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(cx - 10, groundY - 36, 20, 24, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#fde68a';
+  ctx.beginPath();
+  ctx.arc(cx, groundY - 47, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = u.side === 'player' ? '#0f172a' : '#7f1d1d';
+  ctx.beginPath();
+  ctx.arc(cx + dir * 4, groundY - 49, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = teamColor;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(cx - dir * 7, groundY - 28);
+  ctx.lineTo(cx - dir * 16, groundY - 19);
+  ctx.moveTo(cx + dir * 7, groundY - 28);
+  ctx.lineTo(cx + dir * 12, groundY - 23);
+  ctx.stroke();
+  drawWeapon(u, dir, cx, groundY, attackPower);
+
+  if(u.side === 'player' && u.level >= 2){     // Lv2：盾牌
+    const sx = cx - dir * 12;
+    ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(sx, groundY - 22, 5, 9, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  }
+  if(u.side === 'player' && u.level >= 3){     // Lv3：鎧甲
+    ctx.fillStyle = 'rgba(226,232,240,.9)';
+    ctx.beginPath(); ctx.roundRect(cx - 8, groundY - 33, 16, 16, 4); ctx.fill();
+    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, groundY - 33); ctx.lineTo(cx, groundY - 17); ctx.stroke();
+  }
+
+  const bw = 28, ratio = Math.max(0, u.hp / u.maxHp);
+  ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(u.x-bw/2,groundY-65,bw,5);
+  ctx.fillStyle = ratio > .5 ? '#4cc864' : ratio > .25 ? '#f9c74f' : '#ff5050';
+  ctx.fillRect(u.x-bw/2,groundY-65,bw*ratio,5);
+  if(u.state === 'fight'){
+    ctx.strokeStyle = u.side === 'player' ? 'rgba(125,211,252,.7)' : 'rgba(251,113,133,.7)';
+    ctx.lineWidth = 1.5; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.arc(u.x,groundY-28,24,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+
+function drawEffects(now){
+  state.effects = state.effects.filter(e => {
+    const age = now - e.born;
+    if(age > e.life) return false;
+    const t = Math.min(1, age / e.life);
+    ctx.save();
+    ctx.globalAlpha = 1 - Math.max(0, t - .65) / .35;
+    if(e.kind === 'slash'){
+      const dir = e.side === 'player' ? 1 : -1;
+      ctx.strokeStyle = e.color;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(e.x - dir * 7, e.y - 16, 20 + t * 8, dir > 0 ? -1.05 : Math.PI - 1.05, dir > 0 ? .85 : Math.PI + .85, dir < 0);
+      ctx.stroke();
+    } else {
+      const x = e.fromX + (e.toX - e.fromX) * t;
+      const y = e.fromY + (e.toY - e.fromY) * t;
+      const angle = Math.atan2(e.toY - e.fromY, e.toX - e.fromX);
+      if(e.kind === 'arrow'){
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-15, 0);
+        ctx.lineTo(10, 0);
+        ctx.stroke();
+        ctx.fillStyle = '#f8fafc';
+        ctx.beginPath();
+        ctx.moveTo(12, 0);
+        ctx.lineTo(5, -4);
+        ctx.lineTo(5, 4);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        const glow = ctx.createRadialGradient(x, y, 2, x, y, 16);
+        glow.addColorStop(0, e.color);
+        glow.addColorStop(1, 'rgba(192,132,252,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = e.color;
+        ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.restore();
+    return true;
+  });
+}
+
+function drawFloats(now){
+  state.floats = state.floats.filter(f => {
+    const age = now - f.born;
+    if(age > f.life) return false;
+    ctx.save(); ctx.globalAlpha = 1 - age / f.life;
+    ctx.fillStyle = f.color; ctx.font = 'bold 13px Outfit'; ctx.textAlign = 'center';
+    ctx.fillText(f.text, f.x, f.y - age * .04);
+    ctx.restore();
+    return true;
+  });
+}
+
+function getEnemyInterval(elapsed){
+  if(elapsed >= 120) return CONFIG.enemyIntervals.late;
+  if(elapsed >= 60) return CONFIG.enemyIntervals.mid;
+  return CONFIG.enemyIntervals.early;
+}
+
+function pickEnemyType(){
+  const r = Math.random();
+  if(r < .68) return 'sword';
+  if(r < .9) return 'archer';
+  return 'mage';
+}
+
+function spawnEnemy(type='sword', reason='timer'){
+  if(!state || state.phase !== 'playing') return;
+  state.units.push(new Unit(type, 'enemy'));
+  const text = reason === 'wrong' ? '敵方增援!' : reason === 'hardCombo' ? '連錯增援!' : reason === 'opening' ? '敵方先鋒!' : '敵方出兵';
+  state.floats.push({ x:790, y:178, text, color:'#ff6b6b', life:900, born:Date.now() });
+}
+
+function applyWrongPenalty(){
+  state.wrongStreak += 1;
+
+  if(CONFIG.wrongPenalty === 'advance_spawn'){
+    state.lastEnemySpawn -= CONFIG.wrongSpawnAdvanceMs || 4000;
+    state.floats.push({ x:790, y:178, text:'敵方整隊加速!', color:'#ff9f1c', life:900, born:Date.now() });
+    return '答錯！敵方出兵倒數提前';
+  }
+
+  spawnEnemy('sword', 'wrong');
+  if(CONFIG.wrongPenalty === 'spawn_scaling' && state.wrongStreak % 2 === 0){
+    spawnEnemy('archer', 'hardCombo');
+    return '答錯！敵方劍士增援，連錯追加弓箭手';
+  }
+
+  return '答錯！敵方增援 +1';
+}
+
+function getTimedResult(){
+  if(state.enemyHP < state.playerHP) return 'win';
+  if(state.playerHP < state.enemyHP) return 'lose';
+  return 'draw';
+}
+
+function showStartScreen(){
+  document.getElementById('start-screen').style.display = 'flex';
+  document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('overlay').classList.remove('show');
+  updateDifficultyUI();
+}
+
+function loop(ts){
+  if(!state || state.phase !== 'playing') return;
+  const dt = ts - lastTime;
+  lastTime = ts;
+  const now = Date.now();
+  const elapsed = (now - state.startMs) / 1000;
+  state.timeLeft = Math.max(0, CONFIG.durationSec - Math.floor(elapsed));
+
+  updateEnemyTier(elapsed);
+  maybeSpawnBoss(elapsed);
+
+  if(now - state.lastPassiveGold > CONFIG.passiveMs){
+    state.gold += CONFIG.passiveGold;
+    state.lastPassiveGold = now;
+    state.floats.push({ x:450, y:96, text:`+${CONFIG.passiveGold} 被動收入`, color:'#f9c74f', life:900, born:now });
+  }
+  if(now - state.lastEnemySpawn > getEnemyInterval(elapsed)){
+    spawnEnemy(pickEnemyType(), 'timer');
+    state.lastEnemySpawn = now;
+  }
+
+  state.units.forEach(u => u.update(dt, now));
+  state.units = state.units.filter(u => u.hp > 0);
+  for(const u of state.units){
+    if(u.side === 'player' && u.x >= 840){
+      state.enemyHP -= u.atk; u.hp = 0;
+      playSound('baseHit', 180);
+      state.effects.push({ kind:'slash', x:840, y:248, side:'player', color:'#7dd3fc', life:260, born:now });
+    }
+    if(u.side === 'enemy' && u.x <= 60){
+      state.playerHP -= u.atk; u.hp = 0;
+      playSound('baseHit', 180);
+      state.effects.push({ kind:'slash', x:60, y:248, side:'enemy', color:'#fb7185', life:260, born:now });
+    }
+  }
+  state.units = state.units.filter(u => u.hp > 0);
+  if(state.boss && state.boss.hp <= 0){          // BOSS 被我方兵擊倒
+    state.boss = null;
+    state.bossDefeated += 1;
+    state.floats.push({ x:450, y:120, text:'BOSS 被擊倒！', color:'#4cc864', life:1400, born:now });
+  }
+
+  ctx.clearRect(0,0,900,360);
+  drawBg();
+  drawBase(60,'我方基地',state.playerHP,state.maxHP,true);
+  drawBase(840,'敵方基地',state.enemyHP,state.maxHP,false);
+  state.units
+    .sort((a,b) => a.y - b.y)
+    .forEach(u => drawUnit(u, now));
+  drawEffects(now);
+  drawFloats(now);
+  updateHUD();
+
+  if(state.enemyHP <= 0){ endGame('win'); return; }
+  if(state.playerHP <= 0){ endGame('lose'); return; }
+  if(state.timeLeft <= 0){ endGame(getTimedResult()); return; }
+  requestAnimationFrame(loop);
+}
+
+function updateHUD(){
+  document.getElementById('gold-display').textContent = state.gold;
+  document.getElementById('time-display').textContent = `${Math.floor(state.timeLeft/60)}:${String(state.timeLeft%60).padStart(2,'0')}`;
+  document.getElementById('score-display').textContent = `${state.correctCount} / ${state.wrongCount}`;
+  document.getElementById('deployed-display').textContent = state.deployCount;
+  document.getElementById('power-display').textContent = state.power;
+  document.getElementById('level-display').textContent = 'Lv' + state.level;
+  for(const [key, def] of Object.entries(UNIT_DEF)){
+    const btn = document.getElementById('btn-' + key);
+    const cost = Math.round(def.cost);
+    btn.classList.toggle('disabled', state.gold < cost);
+    btn.classList.toggle('ready', state.gold >= cost);
+  }
+  const upBtn = document.getElementById('btn-upgrade');
+  if(upBtn){
+    const costEl = upBtn.querySelector('.cost');
+    if(state.level >= 3){
+      upBtn.classList.add('disabled'); upBtn.classList.remove('ready');
+      if(costEl) costEl.textContent = '已滿級 Lv3';
+    } else {
+      const cost = CONFIG.levelCost[state.level+1];
+      if(costEl) costEl.textContent = `升 Lv${state.level+1}・${cost} 強化值`;
+      upBtn.classList.toggle('disabled', state.power < cost);
+      upBtn.classList.toggle('ready', state.power >= cost);
+    }
+  }
+  const banner = document.getElementById('boss-banner');
+  if(banner){
+    if(state.boss){
+      banner.style.display = 'block';
+      banner.textContent = `👹 BOSS 出沒！切到文法題、連對擊退 ${Math.min(state.grammarStreak, CONFIG.bossGrammarNeed)}/${CONFIG.bossGrammarNeed}`;
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+}
+
+function updateKindTabs(){
+  const v = document.getElementById('tab-vocab');
+  const g = document.getElementById('tab-grammar');
+  if(!v || !g) return;
+  const kind = state ? state.forcedKind : 'vocab';
+  v.classList.toggle('active', kind === 'vocab');
+  g.classList.toggle('active', kind === 'grammar');
+  g.classList.toggle('disabled', grammarQuestions.length === 0);
+}
+
+function deployUnit(type){
+  if(!state || state.phase !== 'playing') return;
+  const def = UNIT_DEF[type];
+  if(!def || state.gold < def.cost) return;
+  playSound('deploy', 80);
+  state.gold -= def.cost;
+  state.deployCount += 1;
+  state.units.push(new Unit(type, 'player'));
+  state.floats.push({ x:105, y:178, text:'-'+def.cost+' 金', color:'#f9c74f', life:900, born:Date.now() });
+  updateHUD();
+}
+
+function upgradeArmy(){
+  if(!state || state.phase !== 'playing' || state.level >= 3) return;
+  const next = state.level + 1;
+  const cost = CONFIG.levelCost[next];
+  if(state.power < cost) return;
+  state.power -= cost;
+  const ratio = CONFIG.levelMult[next] / CONFIG.levelMult[state.level];
+  state.level = next;
+  for(const u of state.units){            // 既有我方兵同步強化（保留血量比例）
+    if(u.side !== 'player' || u.isBoss) continue;
+    const hpRatio = u.hp / u.maxHp;
+    u.maxHp *= ratio;
+    u.hp = u.maxHp * hpRatio;
+    u.atk = Math.round(u.atk * ratio);
+    u.level = state.level;
+  }
+  playSound('combo');
+  state.floats.push({ x:105, y:150, text:`全軍升至 Lv${state.level}！`, color:'#7dd3fc', life:1200, born:Date.now() });
+  updateHUD();
+}
+
+function updateEnemyTier(elapsed){
+  let tier = 0;
+  for(let i=0;i<CONFIG.enemyTierTimes.length;i++){
+    if(elapsed >= CONFIG.enemyTierTimes[i]) tier = i + 1;
+  }
+  if(tier > state.enemyTier){
+    state.enemyTier = tier;
+    state.floats.push({ x:790, y:150, text:`敵方變強了！（階 ${tier+1}）`, color:'#fb7185', life:1400, born:Date.now() });
+    playSound('lose', 200);
+  }
+}
+
+function maybeSpawnBoss(elapsed){
+  if(state.bossesSpawned >= CONFIG.bossTimes.length) return;
+  if(elapsed >= CONFIG.bossTimes[state.bossesSpawned]){
+    const i = state.bossesSpawned;
+    const boss = new Unit('sword', 'enemy');
+    boss.isBoss = true;
+    boss.emoji = '👹';
+    boss.hp = boss.maxHp = CONFIG.bossHP[i] || 900;
+    boss.atk = CONFIG.bossAtk[i] || 40;
+    boss.spd = 0.55;
+    boss.range = 46;
+    boss.attackRate = 1200;
+    state.units.push(boss);
+    state.boss = boss;
+    state.bossesSpawned += 1;
+    state.grammarStreak = 0;
+    state.floats.push({ x:790, y:150, text:`👹 BOSS 來襲！連對 ${CONFIG.bossGrammarNeed} 題文法擊退`, color:'#ff5050', life:1800, born:Date.now() });
+    playSound('lose');
+  }
+}
+
+function hitBoss(){           // 文法連對時推進；達標擊退 BOSS
+  if(!state.boss) return;
+  const need = CONFIG.bossGrammarNeed;
+  state.boss.hp = state.boss.maxHp * Math.max(0, 1 - state.grammarStreak / need);
+  state.floats.push({ x:state.boss.x, y:state.boss.y-34, text:`文法重擊 ${Math.min(state.grammarStreak,need)}/${need}`, color:'#ffd166', life:900, born:Date.now() });
+  if(state.grammarStreak >= need){
+    state.boss.hp = 0;
+    state.boss = null;
+    state.bossDefeated += 1;
+    state.grammarStreak = 0;
+    state.gold += 60;
+    state.power += 1;
+    state.floats.push({ x:450, y:120, text:'擊退 BOSS！+60 金 +1 強化值', color:'#4cc864', life:1600, born:Date.now() });
+    playSound('win');
+  }
+}
+
+function setQuestionKind(kind){
+  if(!state || state.phase !== 'playing' || state.quizLocked) return;
+  if(kind === 'grammar' && grammarQuestions.length === 0) return;
+  state.forcedKind = kind;
+  loadQuestion();
+}
+
+function loadQuestion(){
+  if(!state || state.phase !== 'playing') return;
+  currentQuestion = getNextQuestion();
+  const isGrammar = currentQuestion.type === '文法選擇題';
+  document.getElementById('quiz-type').textContent = isGrammar
+    ? `📐 ${currentQuestion.type}｜答對 +${CONFIG.powerPerGrammar} 強化值（升級／擊退 BOSS）`
+    : `📘 ${currentQuestion.type}｜答對 +${CONFIG.correctGold} 金，連對 ${CONFIG.comboNeed} 題 +${CONFIG.comboBonus}`;
+  updateKindTabs();
+  document.getElementById('question').textContent = currentQuestion.prompt;
+  const optDiv = document.getElementById('options');
+  optDiv.innerHTML = '';
+  currentQuestion.opts.forEach((opt, i) => {
+    const b = document.createElement('button');
+    b.className = 'opt-btn';
+    b.textContent = opt;
+    b.onclick = () => checkAnswer(i, b);
+    optDiv.appendChild(b);
+  });
+  const fb = document.getElementById('feedback');
+  fb.textContent = '';
+  fb.className = '';
+  state.quizLocked = false;
+}
+
+function checkAnswer(chosen, btn){
+  if(!state || state.quizLocked || state.phase !== 'playing') return;
+  state.quizLocked = true;
+  const btns = document.querySelectorAll('.opt-btn');
+  btns.forEach(b => b.onclick = null);
+  const isGrammar = currentQuestion.type === '文法選擇題';
+  const fb = document.getElementById('feedback');
+  if(chosen === currentQuestion.ans){
+    playSound('correct');
+    btn.classList.add('correct');
+    state.correctCount += 1;
+    state.wrongStreak = 0;
+    if(isGrammar){
+      state.power += CONFIG.powerPerGrammar;
+      state.floats.push({ x:450, y:145, text:'+'+CONFIG.powerPerGrammar+' 強化值', color:'#7dd3fc', life:900, born:Date.now() });
+      let msg = `答對！+${CONFIG.powerPerGrammar} 強化值`;
+      if(state.boss){
+        state.grammarStreak += 1;
+        hitBoss();
+        msg = state.boss ? `文法重擊！${Math.min(state.grammarStreak, CONFIG.bossGrammarNeed)}/${CONFIG.bossGrammarNeed}` : '擊退 BOSS！';
+      }
+      fb.textContent = msg;
+    } else {
+      state.combo += 1;
+      state.maxCombo = Math.max(state.maxCombo, state.combo);
+      let gained = CONFIG.correctGold;
+      if(state.combo % CONFIG.comboNeed === 0){
+        gained += CONFIG.comboBonus;
+        setTimeout(() => playSound('combo'), 120);
+      }
+      state.gold += gained;
+      fb.textContent = `答對！+${gained} 金幣${gained > CONFIG.correctGold ? '（連勝獎勵）' : ''}`;
+      state.floats.push({ x:450, y:145, text:'+'+gained+' 金', color:'#4cc864', life:900, born:Date.now() });
+    }
+    fb.className = 'fb-correct';
+    setTimeout(loadQuestion, 760);
+  } else {
+    playSound('wrong');
+    btn.classList.add('wrong');
+    if(btns[currentQuestion.ans]) btns[currentQuestion.ans].classList.add('correct');
+    state.wrongCount += 1;
+    state.combo = 0;
+    if(state.boss && state.grammarStreak > 0){     // 連對中斷，BOSS 擊退進度歸零
+      state.grammarStreak = 0;
+      state.boss.hp = state.boss.maxHp;
+    }
+    fb.textContent = applyWrongPenalty();
+    fb.className = 'fb-wrong';
+    setTimeout(loadQuestion, 980);
+  }
+  updateHUD();
+}
+
+function endGame(result){
+  state.phase = 'ended';
+  playSound(result === 'win' ? 'win' : result === 'lose' ? 'lose' : 'draw');
+  const titleMap = {
+    win:['勝利！','#f9c74f'],
+    lose:['敗北','#ff5050'],
+    draw:['平手','#ff9f1c'],
+  };
+  const [title, color] = titleMap[result] || titleMap.draw;
+  document.getElementById('overlay-title').textContent = title;
+  document.getElementById('overlay-title').style.color = color;
+  document.getElementById('overlay-stats').innerHTML =
+    `難度：${CONFIG.label}<br>` +
+    `答對：${state.correctCount} 題　答錯：${state.wrongCount} 題<br>` +
+    `全軍等級：Lv${state.level}　擊退 BOSS：${state.bossDefeated} 次<br>` +
+    `最高連勝：${state.maxCombo}　派兵：${state.deployCount} 次<br>` +
+    `我方基地：${Math.max(0, Math.ceil(state.playerHP))} / ${state.maxHP}<br>` +
+    `敵方基地：${Math.max(0, Math.ceil(state.enemyHP))} / ${state.maxHP}`;
+  const note = result === 'win' ? '敵方基地血量較低，判定勝利。'
+    : result === 'lose' ? '我方基地血量較低，判定敗北。'
+    : '雙方基地血量相同，這局平手。';
+  document.getElementById('overlay-note').textContent = note;
+  document.getElementById('overlay').classList.add('show');
+}
+
+// 本機 file:// 時，從網址 hash 讀單字（與其他遊戲同標準）
+(function(){
+  const h = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
+  if(!h) return;
+  try {
+    const d = JSON.parse(new URLSearchParams(h).get('lessonData') || '');
+    if(d) battleData = {
+      unitTitle: d.unitTitle || '目前單元',
+      words: d.words || FALLBACK_WORDS,
+      grammarQuiz: d.grammarQuiz || DEFAULT_GRAMMAR,
+    };
+  } catch(e){}
+})();
+buildQuestionPools(battleData);
+</script>
+</body>
+</html>
