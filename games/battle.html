@@ -160,10 +160,10 @@ button{font-family:'Outfit',sans-serif;}
         </button>
       </div>
       <div id="quiz-panel" class="panel">
-        <div class="section-title">出題類型（自己選）</div>
+        <div class="section-title">出題：單字／文法交叉（BOSS 時全文法）</div>
         <div id="kind-tabs" style="display:flex;gap:8px;margin-bottom:8px;">
-          <button id="tab-vocab" class="unit-btn active" onclick="setQuestionKind('vocab')" style="flex:1;justify-content:center;">📘 單字題<br><small>賺金幣→派兵</small></button>
-          <button id="tab-grammar" class="unit-btn" onclick="setQuestionKind('grammar')" style="flex:1;justify-content:center;">📐 文法題<br><small>賺強化值→升級</small></button>
+          <div id="tab-vocab" class="unit-btn active" style="flex:1;justify-content:center;cursor:default;">📘 單字題<br><small>賺金幣→派兵</small></div>
+          <div id="tab-grammar" class="unit-btn" style="flex:1;justify-content:center;cursor:default;">📐 文法題<br><small>賺強化值→升級</small></div>
         </div>
         <div id="quiz-type">準備中</div>
         <div id="question">按開始戰鬥後出題</div>
@@ -410,7 +410,7 @@ function buildQuestionPools(payload){
   const wordPool = words.length >= 4 ? words : FALLBACK_WORDS;
   vocabQuestions = [];
   wordPool.forEach(target => {
-    const others = shuffle(wordPool.filter(w => w.id !== target.id && w.word !== target.word));
+    const others = shuffle(wordPool.filter(w => w.word !== target.word));
     vocabQuestions.push(makeQuestion('英文選中文', target.word, target.chinese, others.map(w => w.chinese), target.word));
     vocabQuestions.push(makeQuestion('中文選英文', target.chinese, target.word, others.map(w => w.word), target.word));
   });
@@ -448,8 +448,14 @@ function nextFromPool(pool, queueName){
 }
 
 function getNextQuestion(){
-  let kind = state ? state.forcedKind : 'vocab';
-  if(kind === 'grammar' && grammarQuestions.length === 0) kind = 'vocab';
+  let kind;
+  if(state && state.boss && grammarQuestions.length){
+    kind = 'grammar';                                   // BOSS 期間：全部文法題
+  } else {
+    kind = (state && state.lastKind === 'vocab') ? 'grammar' : 'vocab'; // 平時：單字／文法交叉
+    if(kind === 'grammar' && grammarQuestions.length === 0) kind = 'vocab';
+  }
+  if(state) state.lastKind = kind;
   if(kind === 'grammar') return nextFromPool(grammarQuestions, 'grammar');
   return nextFromPool(vocabQuestions, 'vocab');
 }
@@ -568,7 +574,7 @@ function initState(){
     bossesSpawned:0,
     bossDefeated:0,
     grammarStreak:0,         // 連續答對文法（擊退 BOSS 用）
-    forcedKind:'vocab',      // 玩家選的出題類型
+    lastKind:'grammar',      // 上一題類型（用來單字/文法交叉出題，首題為單字）
   };
 }
 
@@ -1007,14 +1013,13 @@ function updateHUD(){
   }
 }
 
-function updateKindTabs(){
+function updateKindTabs(){   // 純指示：highlight 目前這題是單字還是文法
   const v = document.getElementById('tab-vocab');
   const g = document.getElementById('tab-grammar');
-  if(!v || !g) return;
-  const kind = state ? state.forcedKind : 'vocab';
-  v.classList.toggle('active', kind === 'vocab');
-  g.classList.toggle('active', kind === 'grammar');
-  g.classList.toggle('disabled', grammarQuestions.length === 0);
+  if(!v || !g || !currentQuestion) return;
+  const isG = currentQuestion.type === '文法選擇題';
+  v.classList.toggle('active', !isG);
+  g.classList.toggle('active', isG);
 }
 
 function deployUnit(type){
@@ -1098,13 +1103,6 @@ function hitBoss(){           // 文法連對時推進；達標擊退 BOSS
     state.floats.push({ x:450, y:120, text:'擊退 BOSS！+60 金 +1 強化值', color:'#4cc864', life:1600, born:Date.now() });
     playSound('win');
   }
-}
-
-function setQuestionKind(kind){
-  if(!state || state.phase !== 'playing' || state.quizLocked) return;
-  if(kind === 'grammar' && grammarQuestions.length === 0) return;
-  state.forcedKind = kind;
-  loadQuestion();
 }
 
 function loadQuestion(){
