@@ -53,17 +53,100 @@ const CFG = {
   TRAJ_STEPS_EASY:   35,
   TRAJ_STEPS_HARD:   18,
   BOMBS_PER_LEVEL:   6,    // bombs available per level
+  // ── Hard-mode anti-air turrets ──
+  TURRET_FIRE_MIN:   115,  // frames between volleys (~1.9s)
+  TURRET_FIRE_MAX:   210,  // ~3.5s
+  TURRET_CHARGE:     46,   // warning frames (barrel locks + glows) before firing
+  TURRET_BATCH_MAX:  2,    // up to N turrets fire per volley (usually 1)
+  SHELL_SPD:         4.4,  // straight shot, slower than plane top speed so it's dodgeable
+};
+
+// ══════════════════════════════════════════
+//  WORD → EMOJI LOOKUP (picture-matching mode)
+// ══════════════════════════════════════════
+// Houses show this emoji instead of the plain word label when a match exists
+// (DEFAULT_LEVELS below is built entirely from matched words; words coming
+// in via BOMB_DATA fall back to the plain text label when there's no entry).
+const WORD_EMOJI = {
+  'blanket':'🛏️', 'mirror':'🪞', 'cousin':'👨‍👩‍👦', 'backpack':'🎒', 'crayons':'🖍️', 'scissors':'✂️',
+  'puzzle':'🧩', 'mountain':'⛰️', 'spaghetti':'🍝', 'cookie':'🍪', 'yogurt':'🥛', 'sandwich':'🥪',
+  'lemonade':'🍋', 'hospital':'🏥', 'bakery':'🥖', 'police station':'🚔', 'museum':'🏛️', 'library':'📚',
+  'subway':'🚇', 'rocket':'🚀', 'flashlight':'🔦', 'notebook':'📓', 'paintbrush':'🖌️', 'basket':'🧺',
+  'ticket':'🎫', 'castle':'🏰', 'traffic light':'🚦', 'umbrella':'☂️', 'suitcase':'🧳', 'thermometer':'🌡️',
+  'toothbrush':'🪥', 'calculator':'🧮', 'microscope':'🔬', 'telescope':'🔭', 'compass':'🧭', 'calendar':'📅',
+  'envelope':'✉️', 'headphones':'🎧', 'microphone':'🎤', 'skateboard':'🛹', 'bicycle':'🚲', 'helmet':'🪖',
+  'wallet':'👛', 'watch':'⌚', 'soap':'🧼', 'sponge':'🧽', 'key':'🔑', 'lamp':'💡',
+  'battery':'🔋', 'magnet':'🧲', 'broom':'🧹', 'bucket':'🪣', 'chair':'🪑', 'window':'🪟',
+  'package':'📦', 'newspaper':'📰', 'remote control':'🎮', 'airport':'✈️', 'harbor':'⚓', 'lighthouse':'🗼',
+  'bridge':'🌉', 'tunnel':'🚇', 'fountain':'⛲', 'playground':'🛝', 'stadium':'🏟️', 'aquarium':'🐠',
+  'planetarium':'🪐', 'pharmacy':'💊', 'restaurant':'🍽️', 'bookstore':'📚', 'train station':'🚉', 'fire station':'🚒',
+  'parking lot':'🅿️', 'bus stop':'🚏', 'crosswalk':'🚸', 'ferry':'⛴️', 'taxi':'🚕', 'tram':'🚋',
+  'cable car':'🚠', 'gas station':'⛽', 'market':'🛒', 'factory':'🏭', 'post office':'📮', 'clinic':'🩺',
+  'temple':'⛩️', 'garden':'🌷', 'campground':'🏕️', 'noodles':'🍜', 'pancake':'🥞', 'dumpling':'🥟',
+  'popcorn':'🍿', 'cupcake':'🧁', 'watermelon':'🍉', 'pineapple':'🍍', 'coconut':'🥥', 'avocado':'🥑',
+  'mushroom':'🍄', 'cereal':'🥣', 'honey':'🍯', 'jam':'🫙', 'smoothie':'🥤', 'sushi':'🍣',
+  'waffle':'🧇', 'pretzel':'🥨', 'taco':'🌮', 'burrito':'🌯', 'falafel':'🧆', 'croissant':'🥐',
+  'bagel':'🥯', 'oatmeal':'🥣', 'yogurt cup':'🥛', 'pudding':'🍮', 'milkshake':'🥤', 'tea pot':'🫖',
+  'hot chocolate':'☕', 'salad':'🥗', 'spice jar':'🧂', 'stapler':'📎', 'marker':'🖊️', 'ruler':'📏',
+  'palette':'🎨', 'clay':'🧱', 'locker':'🗄️', 'chalkboard':'⬛', 'globe':'🌐', 'diploma':'🎓',
+  'violin':'🎻', 'drum':'🥁', 'guitar':'🎸', 'keyboard':'🎹', 'trophy':'🏆', 'camera':'📷',
+  'printer':'🖨️', 'paper clip':'📎', 'folder':'📁', 'clipboard':'📋', 'paint tube':'🎨', 'easel':'🖼️',
+  'music stand':'🎼', 'projector':'📽️', 'tablet':'📱', 'laptop':'💻', 'badge':'🏷️', 'flash card':'🃏',
+  'test tube':'🧪', 'abacus':'🧮', 'megaphone':'📣', 'lion':'🦁', 'tiger':'🐯', 'elephant':'🐘',
+  'monkey':'🐵', 'panda':'🐼', 'zebra':'🦓', 'giraffe':'🦒', 'kangaroo':'🦘', 'koala':'🐨',
+  'rabbit':'🐰', 'squirrel':'🐿️', 'hedgehog':'🦔', 'wolf':'🐺', 'fox':'🦊', 'bear':'🐻',
+  'polar bear':'🐻‍❄️', 'deer':'🦌', 'horse':'🐴', 'cow':'🐮', 'pig':'🐷', 'sheep':'🐑',
+  'goat':'🐐', 'camel':'🐫', 'llama':'🦙', 'hippopotamus':'🦛', 'rhinoceros':'🦏', 'gorilla':'🦍',
+  'raccoon':'🦝', 'otter':'🦦', 'bat':'🦇', 'fish':'🐟', 'tropical fish':'🐠', 'blowfish':'🐡',
+  'shark':'🦈', 'dolphin':'🐬', 'whale':'🐳', 'octopus':'🐙', 'squid':'🦑', 'crab':'🦀',
+  'lobster':'🦞', 'shrimp':'🦐', 'oyster':'🦪', 'turtle':'🐢', 'seal':'🦭', 'jellyfish':'🪼',
+  'coral':'🪸', 'seashell':'🐚', 'wave':'🌊', 'beach':'🏖️', 'island':'🏝️', 'anchor':'⚓',
+  'sailboat':'⛵', 'surfing':'🏄', 'snorkel mask':'🤿', 'lifebuoy':'🛟', 'swimming':'🏊', 'penguin':'🐧',
+  'duck':'🦆', 'swan':'🦢', 'flamingo':'🦩', 'apple':'🍎', 'pear':'🍐', 'orange':'🍊',
+  'banana':'🍌', 'grapes':'🍇', 'strawberry':'🍓', 'blueberry':'🫐', 'cherry':'🍒', 'peach':'🍑',
+  'mango':'🥭', 'kiwi':'🥝', 'lemon':'🍋', 'melon':'🍈', 'tomato':'🍅', 'eggplant':'🍆',
+  'broccoli':'🥦', 'leafy greens':'🥬', 'cucumber':'🥒', 'corn':'🌽', 'carrot':'🥕', 'garlic':'🧄',
+  'onion':'🧅', 'potato':'🥔', 'sweet potato':'🍠', 'beans':'🫘', 'chestnut':'🌰', 'bell pepper':'🫑',
+  'olive':'🫒', 'ginger':'🫚', 'hot pepper':'🌶️', 'sun':'☀️', 'cloud':'☁️', 'partly cloudy':'⛅',
+  'rain':'🌧️', 'thunderstorm':'⛈️', 'lightning':'⚡', 'snow':'❄️', 'snowman':'⛄', 'rainbow':'🌈',
+  'wind':'💨', 'tornado':'🌪️', 'fog':'🌫️', 'water drop':'💧', 'star':'⭐', 'sparkles':'✨',
+  'comet':'☄️', 'full moon':'🌕', 'crescent moon':'🌙', 'new moon':'🌑', 'sunrise':'🌅', 'sunset':'🌇',
+  'earth':'🌍', 'saturn':'🪐', 'cyclone':'🌀', 'ice':'🧊', 'drizzle':'🌦️', 'mist':'🌁',
+  'milky way':'🌌', 'shooting star':'🌠', 'frost':'❄️', 'car':'🚗', 'police car':'🚓', 'ambulance':'🚑',
+  'fire truck':'🚒', 'bus':'🚌', 'van':'🚐', 'pickup truck':'🛻', 'truck':'🚚', 'tractor':'🚜',
+  'motorcycle':'🏍️', 'moped':'🛵', 'auto rickshaw':'🛺', 'train':'🚆', 'high speed train':'🚄', 'monorail':'🚝',
+  'trolleybus':'🚎', 'airplane':'✈️', 'helicopter':'🚁', 'small airplane':'🛩️', 'parachute':'🪂', 'balloon':'🎈',
+  'canoe':'🛶', 'speedboat':'🚤', 'ship':'🚢', 'mountain railway':'🚞', 'cruise ship':'🛳️', 'flying saucer':'🛸',
+  'sled':'🛷', 'wheel':'🛞', 'construction sign':'🚧', 't-shirt':'👕', 'pants':'👖', 'jacket':'🧥',
+  'dress':'👗', 'shorts':'🩳', 'socks':'🧦', 'gloves':'🧤', 'scarf':'🧣', 'cap':'🧢',
+  'top hat':'🎩', 'crown':'👑', 'necktie':'👔', 'shoes':'👞', 'sneakers':'👟', 'boots':'🥾',
+  'high heels':'👠', 'sandals':'👡', 'ballet shoes':'🩰', 'graduation cap':'🎓', 'swimsuit':'🩱', 'bikini':'👙',
+  'kimono':'👘', 'sari':'🥻', 'handbag':'👜', 'glasses':'👓', 'sunglasses':'🕶️', 'ring':'💍',
+  'diamond':'💎', 'lipstick':'💄', 'nail polish':'💅', 'soccer ball':'⚽', 'basketball':'🏀', 'football':'🏈',
+  'baseball':'⚾', 'softball':'🥎', 'tennis':'🎾', 'volleyball':'🏐', 'rugby':'🏉', 'frisbee':'🥏',
+  'billiards':'🎱', 'ping pong':'🏓', 'badminton':'🏸', 'ice hockey':'🏒', 'field hockey':'🏑', 'lacrosse':'🥍',
+  'golf':'⛳', 'archery':'🏹', 'fishing':'🎣', 'boxing':'🥊', 'martial arts':'🥋', 'roller skate':'🛼',
+  'skiing':'🎿', 'snowboarding':'🏂', 'ice skating':'⛸️', 'weightlifting':'🏋️', 'gymnastics':'🤸', 'wrestling':'🤼',
+  'rowing':'🚣', 'climbing':'🧗', 'cycling':'🚴', 'ant':'🐜', 'bee':'🐝', 'butterfly':'🦋',
+  'caterpillar':'🐛', 'ladybug':'🐞', 'snail':'🐌', 'spider':'🕷️', 'spider web':'🕸️', 'scorpion':'🦂',
+  'mosquito':'🦟', 'fly':'🪰', 'cricket':'🦗', 'cockroach':'🪳', 'beetle':'🪲', 'worm':'🪱',
+  'lizard':'🦎', 'frog':'🐸', 'snake':'🐍', 'crocodile':'🐊', 'mouse':'🐭', 'rat':'🐀',
+  'hamster':'🐹', 'chick':'🐤', 'chicken':'🐔', 'rooster':'🐓', 'turkey':'🦃', 'peacock':'🦚',
+  'owl':'🦉', 'parrot':'🦜', 'bird':'🐦',
 };
 
 // ══════════════════════════════════════════
 //  LEVEL DATA
 // ══════════════════════════════════════════
 const DEFAULT_LEVELS = [
-  { id:1, themeEN:'Animals',    themeZH:'🐾 動物',    skyTop:'#1565c0', skyBot:'#42a5f5', groundTop:'#66bb6a', words:['cat','dog','pig','hen','cow']   },
-  { id:2, themeEN:'Colors',     themeZH:'🎨 顏色',    skyTop:'#4a148c', skyBot:'#ab47bc', groundTop:'#8bc34a', words:['red','blue','green','pink','black'] },
-  { id:3, themeEN:'Numbers',    themeZH:'🔢 數字',    skyTop:'#e65100', skyBot:'#ffa726', groundTop:'#4db6ac', words:['one','two','three','four','five'] },
-  { id:4, themeEN:'Body Parts', themeZH:'🧍 身體',    skyTop:'#880e4f', skyBot:'#ef9a9a', groundTop:'#aed581', words:['eye','ear','nose','hand','foot'] },
-  { id:5, themeEN:'Food',       themeZH:'🍎 食物',    skyTop:'#1a237e', skyBot:'#7986cb', groundTop:'#ffcc80', words:['rice','milk','cake','fish','egg']  },
+  { id:1, themeEN:'Picture Match 1', themeZH:'📷 圖片配對 1', skyTop:'#1565c0', skyBot:'#42a5f5', groundTop:'#66bb6a', words:['blanket','mirror','cousin','backpack','crayons'] },
+  { id:2, themeEN:'Picture Match 2', themeZH:'📷 圖片配對 2', skyTop:'#4a148c', skyBot:'#ab47bc', groundTop:'#8bc34a', words:['scissors','puzzle','mountain','spaghetti','cookie'] },
+  { id:3, themeEN:'Picture Match 3', themeZH:'📷 圖片配對 3', skyTop:'#e65100', skyBot:'#ffa726', groundTop:'#4db6ac', words:['yogurt','sandwich','lemonade','hospital','bakery'] },
+  { id:4, themeEN:'Picture Match 4', themeZH:'📷 圖片配對 4', skyTop:'#00695c', skyBot:'#26a69a', groundTop:'#9ccc65', words:['police station','museum','library','subway','rocket'] },
+  { id:5, themeEN:'Picture Match 5', themeZH:'📷 圖片配對 5', skyTop:'#283593', skyBot:'#5c6bc0', groundTop:'#ffb74d', words:['flashlight','notebook','paintbrush','basket','ticket'] },
+  { id:6, themeEN:'Picture Match 6', themeZH:'📷 圖片配對 6', skyTop:'#ad1457', skyBot:'#ec407a', groundTop:'#80cbc4', words:['castle','traffic light','umbrella','suitcase','thermometer'] },
+  { id:7, themeEN:'Picture Match 7', themeZH:'📷 圖片配對 7', skyTop:'#1565c0', skyBot:'#42a5f5', groundTop:'#66bb6a', words:['toothbrush','calculator','microscope','telescope','compass'] },
+  { id:8, themeEN:'Picture Match 8', themeZH:'📷 圖片配對 8', skyTop:'#4a148c', skyBot:'#ab47bc', groundTop:'#8bc34a', words:['calendar','envelope','headphones','microphone','skateboard'] },
 ];
 let LEVELS = DEFAULT_LEVELS.map(level => ({ ...level, words: [...level.words] }));
 let bombLessonTitle = '示範題庫';
@@ -119,6 +202,7 @@ function applyBombData(payload) {
 
   if (typeof game !== 'undefined') {
     clearInterval(game._timerInterval);
+    Audio.stopBgm();
     game = new Game();
     resizeCanvas();
   }
@@ -176,8 +260,76 @@ const Audio = (() => {
     osc.start(); osc.stop(ctx.currentTime + dur);
   }
 
+  // ── Background music: synthesized drone + light arpeggio loop ──
+  let bgm = null;
+  function startBgm() {
+    ensure();
+    if (bgm) return;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, ctx.currentTime);
+    master.gain.linearRampToValueAtTime(0.13, ctx.currentTime + 1.6);
+    master.connect(ctx.destination);
+
+    // Thick layered drone bed: deep bass + root + fifth
+    const droneOscs = [];
+    [[55, 'sine', 0, 0.6], [110, 'triangle', 6, 0.42], [164.81, 'sawtooth', -6, 0.22]].forEach(([f, type, det, vol]) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = type; o.frequency.value = f; o.detune.value = det;
+      g.gain.value = vol;
+      o.connect(g); g.connect(master); o.start();
+      droneOscs.push(o);
+    });
+
+    // Arpeggio + a driving kick on the downbeat for a grand march feel
+    const seq = [220, 277.18, 329.63, 440, 329.63, 277.18];
+    let step = 0;
+    const timer = setInterval(() => {
+      const f = seq[step % seq.length];
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'triangle';
+      o.frequency.value = step % 2 === 0 ? f : f * 2;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.42);
+      o.connect(g); g.connect(master);
+      o.start(); o.stop(ctx.currentTime + 0.45);
+
+      // Kick drum every 2 beats
+      if (step % 2 === 0) {
+        const k = ctx.createOscillator();
+        const kg = ctx.createGain();
+        k.type = 'sine';
+        k.frequency.setValueAtTime(130, ctx.currentTime);
+        k.frequency.exponentialRampToValueAtTime(45, ctx.currentTime + 0.16);
+        kg.gain.setValueAtTime(0.55, ctx.currentTime);
+        kg.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.24);
+        k.connect(kg); kg.connect(master);
+        k.start(); k.stop(ctx.currentTime + 0.26);
+      }
+      step++;
+    }, 360);
+
+    bgm = { master, droneOscs, timer };
+  }
+  function stopBgm() {
+    if (!bgm) return;
+    clearInterval(bgm.timer);
+    const { master, droneOscs } = bgm;
+    bgm = null;
+    try {
+      master.gain.cancelScheduledValues(ctx.currentTime);
+      master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
+      master.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+    } catch (e) {}
+    droneOscs.forEach(o => { try { o.stop(ctx.currentTime + 0.45); } catch (e) {} });
+    setTimeout(() => { try { master.disconnect(); } catch (e) {} }, 600);
+  }
+
   return {
     init: ensure,
+    startBgm, stopBgm,
     speak(word) {
       if (!window.speechSynthesis) return;
       speechSynthesis.cancel();
@@ -193,13 +345,30 @@ const Audio = (() => {
       if (us) u.voice = us;
       speechSynthesis.speak(u);
     },
-    explosion()    { noise(0.55, 0.6); tone(80, 0.4, 'sawtooth', 0.15); },
-    bombDrop()     { tone(300, 0.12, 'sine', 0.2); },
-    wrong()        { tone(180, 0.5, 'sawtooth', 0.25); },
-    success()      { [660,880,1100].forEach((f,i) => setTimeout(()=>tone(f,0.18,'sine',0.25), i*120)); },
-    levelClear()   { [660,784,880,1046].forEach((f,i) => setTimeout(()=>tone(f,0.22,'sine',0.3), i*130)); },
-    missile()      { tone(440, 0.25, 'square', 0.2); tone(360, 0.35, 'sawtooth', 0.1, -200); },
-    hit()          { noise(0.3, 0.4); tone(120, 0.3, 'sawtooth', 0.2); },
+    // ── Bigger, more cinematic SFX ──
+    explosion()    {
+      noise(0.9, 0.78);                       // long, full-bodied blast
+      tone(55, 0.85, 'sawtooth', 0.34);       // sub boom
+      tone(40, 1.05, 'sine',     0.30);       // deep rumble tail
+      tone(110, 0.5,  'square',   0.13);      // mid crack
+    },
+    bombDrop()     { tone(340, 0.14, 'sine', 0.22); tone(180, 0.2, 'sine', 0.12, -120); },
+    wrong()        { tone(180, 0.5, 'sawtooth', 0.25); tone(120, 0.6, 'sine', 0.16); },
+    success()      {
+      [523.25,659.25,783.99,1046.5].forEach((f,i) => setTimeout(()=>tone(f,0.3,'triangle',0.27), i*90));
+      tone(130.81, 0.7, 'sine', 0.18);        // low pad underneath
+    },
+    levelClear()   {
+      // Triumphant fanfare with octave-doubled bass
+      [392,523.25,659.25,783.99,1046.5].forEach((f,i) => setTimeout(()=>{
+        tone(f, 0.5, 'sawtooth', 0.22); tone(f/2, 0.5, 'sine', 0.14);
+      }, i*140));
+      noise(0.45, 0.32);
+    },
+    missile()      { tone(520, 0.3, 'square', 0.22); tone(300, 0.5, 'sawtooth', 0.16, -300); noise(0.22, 0.32); },
+    cannon()       { noise(0.32, 0.6); tone(120, 0.36, 'square', 0.3); tone(50, 0.6, 'sawtooth', 0.27); },
+    turretCharge() { tone(440, 0.32, 'sine', 0.14); tone(660, 0.32, 'sine', 0.09, 8); },
+    hit()          { noise(0.45, 0.58); tone(95, 0.5, 'sawtooth', 0.3); tone(48, 0.65, 'sine', 0.22); },
   };
 })();
 
@@ -477,6 +646,24 @@ class House {
     this.wrongBubble = 0;
     this.alpha       = 1;
     this.sinkY       = 0;
+
+    // ── Hard-mode anti-air turret state ──
+    this.isTurret    = false;
+    this.aimAngle    = -Math.PI / 2; // barrel points up by default
+    this.charging    = 0;            // counts down warning frames; >0 = locking on
+    this.muzzle      = 0;            // muzzle flash frames after firing
+    this.recoil      = 0;            // barrel recoil offset
+  }
+
+  // Barrel pivot point (top-centre of the base) in world coords
+  get muzzleX() { return this.x; }
+  get muzzleY() { return this.groundY - 26; }
+
+  aimAt(plane) {
+    // Track the plane but keep the barrel in the upper half-circle
+    const ang = Math.atan2(plane.y - this.muzzleY, plane.x - this.muzzleX);
+    const clamped = clamp(ang, -Math.PI + 0.15, -0.15);
+    this.aimAngle = lerpAngle(this.aimAngle, clamped, this.charging > 0 ? 0.18 : 0.06);
   }
 
   checkHit(b) {
@@ -494,6 +681,8 @@ class House {
     if (this.hintFlash > 0) this.hintFlash--;
     if (this.wrongFlash> 0) this.wrongFlash--;
     if (this.wrongBubble>0) this.wrongBubble--;
+    if (this.muzzle    > 0) this.muzzle--;
+    if (this.recoil    > 0) this.recoil -= 1.2;
   }
 
   draw(c, isTarget) {
@@ -504,6 +693,14 @@ class House {
     const shk = this.shaking > 0 ? Math.sin(this.shaking * 2.5) * 5 : 0;
     c.translate(shk, this.sinkY);
 
+    if (this.isTurret) this._drawTurretBody(c);
+    else               this._drawHouseBody(c);
+
+    this._drawLabel(c, isTarget);
+    c.restore();
+  }
+
+  _drawHouseBody(c) {
     const bx = this.x - this.width/2;
     const by = this.y;
 
@@ -543,44 +740,111 @@ class House {
       c.fillStyle = this.pal.roof;
       c.fillRect(this.x + 9, by - 11, 9, 15);
     }
+  }
 
-    // ── Word label ──
+  // ── Hard-mode: anti-air gun emplacement (same hitbox as the house) ──
+  _drawTurretBody(c) {
+    const baseW = this.width + 10;
+    const bx = this.x - baseW / 2;
+    const gY = this.groundY;
+
+    // Sandbag / concrete base (trapezoid)
+    c.fillStyle = '#5b6650';
+    c.beginPath();
+    c.moveTo(bx, gY);
+    c.lineTo(bx + 8, gY - 22);
+    c.lineTo(bx + baseW - 8, gY - 22);
+    c.lineTo(bx + baseW, gY);
+    c.closePath(); c.fill();
+    // Sandbag rows
+    c.fillStyle = 'rgba(0,0,0,0.18)';
+    c.fillRect(bx + 6, gY - 12, baseW - 12, 3);
+    c.fillStyle = '#6f7a62';
+    for (let sx = bx + 6; sx < bx + baseW - 10; sx += 14) {
+      c.beginPath(); c.ellipse(sx + 7, gY - 5, 7, 5, 0, 0, Math.PI*2); c.fill();
+    }
+
+    // Rotating hub
+    const hubX = this.x, hubY = gY - 24;
+    c.fillStyle = '#414a3a';
+    c.beginPath(); c.arc(hubX, hubY, 13, Math.PI, 0); c.fill();
+    c.fillStyle = '#2f3630';
+    c.beginPath(); c.arc(hubX, hubY, 7, 0, Math.PI*2); c.fill();
+
+    // Barrel (rotates to aim, recoils when firing)
+    c.save();
+    c.translate(hubX, hubY);
+    c.rotate(this.aimAngle);
+    const charging = this.charging > 0;
+    const barrelLen = 30 - (this.recoil > 0 ? this.recoil : 0);
+    c.fillStyle = charging && Math.floor(this.charging / 4) % 2 === 0 ? '#c0392b' : '#3a4233';
+    roundRect(c, 0, -5, barrelLen, 10, 3); c.fill();
+    c.fillStyle = '#2a3026';
+    roundRect(c, barrelLen - 6, -6, 6, 12, 2); c.fill();
+    // Muzzle flash
+    if (this.muzzle > 0) {
+      const fa = this.muzzle / 8;
+      c.fillStyle = `rgba(255,${160 + Math.random()*80|0},40,${fa})`;
+      c.beginPath(); c.arc(barrelLen + 4, 0, 7 + Math.random()*5, 0, Math.PI*2); c.fill();
+    }
+    c.restore();
+
+    // Charge warning glow on the hub
+    if (charging) {
+      const p = 0.4 + 0.4 * Math.sin(Date.now() / 70);
+      c.save();
+      c.globalAlpha = p * this.alpha;
+      c.fillStyle = '#FF3300';
+      c.beginPath(); c.arc(hubX, hubY, 7, 0, Math.PI*2); c.fill();
+      c.restore();
+    }
+  }
+
+  _drawLabel(c, isTarget) {
+    const by = this.y;
+    // ── Word / picture label ──
     const isHinted = this.hintFlash > 0;
     const isWrong  = this.wrongFlash > 0;
     const lY  = by - 18; // drawn closer to the smaller roof
-    const fontSize = isTarget ? 16 : 13;
-    c.font = `bold ${fontSize}px 'Arial Rounded MT Bold', Arial`;
-    const tw  = c.measureText(this.word).width;
-    const pad = 9;
-    const lw  = tw + pad * 2;
-    const lh  = 24;
-    const lx  = this.x - lw/2;
-    const ly  = lY - lh/2;
+    const emoji = WORD_EMOJI[this.word.toLowerCase()];
 
-    // Glow / flash
-    if (isTarget) {
-      const p = 0.6 + 0.4 * Math.sin(Date.now()/280);
-      c.shadowColor = '#FFD700'; c.shadowBlur = 18 * p;
-    } else if (isHinted) {
+    // Glow / flash (reactive only)
+    if (isHinted) {
       c.shadowColor = '#00FF88'; c.shadowBlur = 22;
     } else if (isWrong) {
       c.shadowColor = '#FF3333'; c.shadowBlur = 20;
     }
 
-    c.fillStyle = isTarget ? 'rgba(255,225,50,0.95)'
-                : isHinted ? 'rgba(100,255,150,0.92)'
-                : isWrong  ? 'rgba(255,120,120,0.92)'
-                :            'rgba(255,255,255,0.92)';
-    roundRect(c, lx, ly, lw, lh, 8);
-    c.fill();
+    if (emoji) {
+      // Picture-matching mode: show the image, no English text to read.
+      c.font = '30px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",Arial';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(emoji, this.x, lY);
+    } else {
+      // No gold highlight for the target — every label looks the same so the
+      // player must read (or listen) to find the right one. Green = hint after
+      // repeated misses, red = just answered wrong; both are reactive feedback.
+      c.font = `bold 13px 'Arial Rounded MT Bold', Arial`;
+      const tw  = c.measureText(this.word).width;
+      const pad = 9;
+      const lw  = tw + pad * 2;
+      const lh  = 24;
+      const lx  = this.x - lw/2;
+      const ly  = lY - lh/2;
 
-    if (isTarget) { c.strokeStyle = '#FF8800'; c.lineWidth = 2.2; c.stroke(); }
+      c.fillStyle = isHinted ? 'rgba(100,255,150,0.92)'
+                  : isWrong  ? 'rgba(255,120,120,0.92)'
+                  :            'rgba(255,255,255,0.92)';
+      roundRect(c, lx, ly, lw, lh, 8);
+      c.fill();
 
+      c.fillStyle  = '#111';
+      c.textAlign  = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(this.word, this.x, lY);
+    }
     c.shadowBlur = 0;
-    c.fillStyle  = '#111';
-    c.textAlign  = 'center';
-    c.textBaseline = 'middle';
-    c.fillText(this.word, this.x, lY);
 
     // Wrong bubble
     if (this.wrongBubble > 0) {
@@ -594,8 +858,6 @@ class House {
       c.fillText('❌ Wrong!', this.x, lY - 29);
       c.restore();
     }
-
-    c.restore();
   }
 }
 
@@ -661,26 +923,44 @@ class Missile {
     this.vx = (Math.random()-0.5)*2; this.vy = -2.5;
     this.angle = -Math.PI/2;
     this.active = true;
-    this.life = 280;
+    this.life = 600;            // self-destructs after ~10s
     this.smoke = [];
-    this.warningShown = false;
+    this.closest = Infinity;    // tracks nearest approach, for dodge detection
+    this.giveUp = false;        // once dodged, stops homing and flies off straight
   }
   update() {
-    const dx = this.plane.x - this.x, dy = this.plane.y - this.y;
-    const d  = Math.hypot(dx, dy) || 1;
-    const tvx = dx/d * CFG.MISSILE_SPD, tvy = dy/d * CFG.MISSILE_SPD;
-    this.vx += (tvx - this.vx) * CFG.MISSILE_TURN;
-    this.vy += (tvy - this.vy) * CFG.MISSILE_TURN;
-    const spd = Math.hypot(this.vx, this.vy);
-    if (spd > CFG.MISSILE_SPD) { this.vx=this.vx/spd*CFG.MISSILE_SPD; this.vy=this.vy/spd*CFG.MISSILE_SPD; }
+    const d = dist(this.x, this.y, this.plane.x, this.plane.y);
+
+    // Dodge detection: if it got close then the plane pulled well clear, give up.
+    if (!this.giveUp) {
+      if (d < this.closest) this.closest = d;
+      if (this.closest < 80 && d > this.closest + 95) {
+        this.giveUp = true;
+      }
+    }
+
+    // Home toward the plane unless it's been shaken off.
+    if (!this.giveUp) {
+      const dx = this.plane.x - this.x, dy = this.plane.y - this.y;
+      const dd = Math.hypot(dx, dy) || 1;
+      const tvx = dx/dd * CFG.MISSILE_SPD, tvy = dy/dd * CFG.MISSILE_SPD;
+      this.vx += (tvx - this.vx) * CFG.MISSILE_TURN;
+      this.vy += (tvy - this.vy) * CFG.MISSILE_TURN;
+      const spd = Math.hypot(this.vx, this.vy);
+      if (spd > CFG.MISSILE_SPD) { this.vx=this.vx/spd*CFG.MISSILE_SPD; this.vy=this.vy/spd*CFG.MISSILE_SPD; }
+    }
     this.x += this.vx; this.y += this.vy;
     this.angle = Math.atan2(this.vy, this.vx);
     this.smoke.push({ x:this.x, y:this.y, life:1, sz: 4+Math.random()*4 });
     if (this.smoke.length > 35) this.smoke.shift();
     this.smoke.forEach(s => { s.life -= 0.04; s.sz *= 1.04; });
     this.life--;
-    if (this.life <= 0) { this.active = false; return; }
-    if (dist(this.x, this.y, this.plane.x, this.plane.y) < 28 && this.plane.invincible === 0) {
+    // Off-screen after giving up? Let it go silently.
+    if (this.giveUp && (this.x < -80 || this.x > W+80 || this.y < -80 || this.y > H+80)) {
+      this.active = false; return;
+    }
+    if (this.life <= 0) { this.active = false; return 'expire'; }  // auto-detonate
+    if (d < 28 && this.plane.invincible === 0 && !this.plane.hidden) {
       this.active = false; return 'hit';
     }
   }
@@ -703,6 +983,47 @@ class Missile {
     // Exhaust flame
     c.fillStyle = `rgba(255,${100+Math.random()*100},0,0.85)`;
     c.beginPath(); c.ellipse(-18,0,9,3.5,0,0,Math.PI*2); c.fill();
+    c.restore();
+  }
+}
+
+// ══════════════════════════════════════════
+//  SHELL (anti-air cannon round — straight shot, dodgeable)
+// ══════════════════════════════════════════
+class Shell {
+  constructor(x, y, angle, plane) {
+    this.x = x; this.y = y;
+    this.vx = Math.cos(angle) * CFG.SHELL_SPD;
+    this.vy = Math.sin(angle) * CFG.SHELL_SPD;
+    this.plane = plane;
+    this.active = true;
+    this.life = 240;
+    this.trail = [];
+  }
+  update() {
+    this.trail.push({ x: this.x, y: this.y });
+    if (this.trail.length > 10) this.trail.shift();
+    this.x += this.vx; this.y += this.vy;
+    this.life--;
+    if (this.life <= 0 || this.y > H * CFG.GROUND_RATIO || this.x < -40 || this.x > W + 40) {
+      this.active = false; return;
+    }
+    if (dist(this.x, this.y, this.plane.x, this.plane.y) < 24 && this.plane.invincible === 0 && !this.plane.hidden) {
+      this.active = false; return 'hit';
+    }
+  }
+  draw(c) {
+    for (let i = 1; i < this.trail.length; i++) {
+      const a = (i / this.trail.length) * 0.5;
+      c.fillStyle = `rgba(255,200,80,${a})`;
+      c.beginPath(); c.arc(this.trail[i].x, this.trail[i].y, 2.5 * (i / this.trail.length), 0, Math.PI*2); c.fill();
+    }
+    c.save();
+    c.fillStyle = '#ffcc33';
+    c.shadowColor = '#ff8800'; c.shadowBlur = 8;
+    c.beginPath(); c.arc(this.x, this.y, 5, 0, Math.PI*2); c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(this.x - this.vx*0.3, this.y - this.vy*0.3, 2.5, 0, Math.PI*2); c.fill();
     c.restore();
   }
 }
@@ -1163,9 +1484,11 @@ class Game {
     this.bombs    = [];
     this.exps     = [];
     this.missiles = [];
+    this.shells   = [];
     this.floats   = [];
     this.houses   = [];
     this.trees    = [];
+    this.turretFireT = 0; // hard-mode: frames until next turret volley
   }
 
   // ── Start ──────────────────────────────
@@ -1180,6 +1503,7 @@ class Game {
     this.phase     = 'playing';
     this.plane.reset();
     Audio.init();
+    Audio.startBgm();
     this._loadLevel();
     this._startTimer();
   }
@@ -1189,13 +1513,16 @@ class Game {
     if (this.phase === 'playing') {
       this._prevPhase = 'playing';
       this.phase = 'paused';
+      Audio.stopBgm();
     } else if (this.phase === 'paused') {
       this.phase = 'playing';
+      Audio.startBgm();
     }
   }
 
   returnToMenu() {
     clearInterval(this._timerInterval);
+    Audio.stopBgm();
     this.phase = 'menu';
   }
 
@@ -1209,9 +1536,10 @@ class Game {
   // ── Load Level ─────────────────────────
   _loadLevel() {
     const lv = LEVELS[this.lvIdx];
-    if (!lv) { this.phase = 'victory'; clearInterval(this._timerInterval); return; }
+    if (!lv) { this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); return; }
     this.wordsLeft = [...lv.words];
-    this.bombs = []; this.missiles = []; this.exps = []; this.floats = [];
+    this.bombs = []; this.missiles = []; this.shells = []; this.exps = []; this.floats = [];
+    this.turretFireT = Math.floor(lerp(CFG.TURRET_FIRE_MIN, CFG.TURRET_FIRE_MAX, Math.random())) + 90;
     this.wrongAtt  = 0;
     this.planeRespawnT = 0;
     this.plane.hidden = false;
@@ -1224,7 +1552,12 @@ class Game {
     const gY = H * CFG.GROUND_RATIO;
     const n  = words.length;
     const spacing = W / (n + 1);
-    this.houses = words.map((w, i) => new House(spacing + i * spacing, gY, w, i));
+    const turret = this.difficulty === 'hard';
+    this.houses = words.map((w, i) => {
+      const h = new House(spacing + i * spacing, gY, w, i);
+      h.isTurret = turret;
+      return h;
+    });
 
     // Scatter trees
     this.trees = [];
@@ -1280,7 +1613,7 @@ class Game {
     this.plane.invincible = 110;
     this.plane.shake();
     Audio.hit();
-    if (this.lives <= 0) { this.phase = 'gameOver'; clearInterval(this._timerInterval); }
+    if (this.lives <= 0) { this.phase = 'gameOver'; clearInterval(this._timerInterval); Audio.stopBgm(); }
   }
 
   // ── Float Text ─────────────────────────
@@ -1306,7 +1639,7 @@ class Game {
         this.plane.respawnFromSky();
       }
     } else {
-      planeEvent = this.plane.update(joystick);
+      planeEvent = this.plane.update(getControl());
       if (planeEvent === 'ground') {
         this.exps.push(new Explosion(this.plane.x, this.plane.y, true));
         Audio.explosion();
@@ -1361,12 +1694,10 @@ class Game {
           Audio.wrong();
           this.wrongAtt++;
 
-          // Hard mode missile
-          if (this.difficulty === 'hard') {
-            this.missiles.push(new Missile(h.x, h.y, this.plane));
-            Audio.missile();
-            this._float(h.x, h.y - 60, '🚀 MISSILE!', '#FF3300', 18);
-          }
+          // Wrong answer fires a homing missile in BOTH modes
+          this.missiles.push(new Missile(h.x, h.y, this.plane));
+          Audio.missile();
+          this._float(h.x, h.y - 60, '🚀 MISSILE!', '#FF3300', 18);
 
           // Hint after 2 wrong
           if (this.wrongAtt >= 2) {
@@ -1388,8 +1719,30 @@ class Game {
           Audio.explosion();
           this._loseLife();
           this._float(this.plane.x, this.plane.y - 40, '💥 HIT!', '#FF3300', 26);
+        } else if (r === 'expire') {
+          // Timed out — detonates harmlessly in the air
+          this.exps.push(new Explosion(m.x, m.y, false));
+          Audio.explosion();
         }
         this.missiles.splice(i, 1);
+      }
+    }
+
+    // Anti-air turrets (hard mode only)
+    if (this.difficulty === 'hard') this._updateTurrets();
+
+    // Shells
+    for (let i = this.shells.length-1; i >= 0; i--) {
+      const s = this.shells[i];
+      const r = s.update();
+      if (!s.active) {
+        if (r === 'hit') {
+          this.exps.push(new Explosion(s.x, s.y, false));
+          Audio.explosion();
+          this._loseLife();
+          this._float(this.plane.x, this.plane.y - 40, '💥 HIT!', '#FF3300', 26);
+        }
+        this.shells.splice(i, 1);
       }
     }
 
@@ -1398,6 +1751,49 @@ class Game {
     this.floats.forEach(f=>f.update()); this.floats=this.floats.filter(f=>f.life>0);
 
     bombButton.update();
+  }
+
+  // ── Hard-mode turret fire scheduler ──
+  _updateTurrets() {
+    const live = this.houses.filter(h => !h.destroyed);
+    if (live.length === 0) return;
+
+    // Living turrets slowly track the plane; charging ones lock & fire.
+    live.forEach(h => {
+      if (this.plane.hidden) { h.charging = 0; return; }
+      h.aimAt(this.plane);
+      if (h.charging > 0) {
+        h.charging--;
+        if (h.charging === 0) this._turretFire(h);
+      }
+    });
+
+    // Don't pile on a downed/respawning plane.
+    if (this.plane.hidden || this.planeRespawnT > 0) return;
+
+    this.turretFireT--;
+    if (this.turretFireT <= 0) {
+      const ready = live.filter(h => h.charging === 0 && h.muzzle === 0);
+      if (ready.length) {
+        // Usually 1 turret, occasionally 2 — never every turret at once.
+        const batch = (ready.length > 2 && Math.random() < 0.3) ? 2 : 1;
+        for (let k = 0; k < Math.min(batch, CFG.TURRET_BATCH_MAX, ready.length); k++) {
+          const pick = ready.splice(Math.floor(Math.random()*ready.length), 1)[0];
+          pick.charging = CFG.TURRET_CHARGE;
+        }
+        Audio.turretCharge();
+      }
+      this.turretFireT = Math.floor(lerp(CFG.TURRET_FIRE_MIN, CFG.TURRET_FIRE_MAX, Math.random()));
+    }
+  }
+
+  _turretFire(h) {
+    if (h.destroyed || this.phase !== 'playing') return;
+    h.muzzle = 8;
+    h.recoil = 10;
+    // Fire along the barrel's locked direction (straight shot, so it's dodgeable).
+    this.shells.push(new Shell(h.muzzleX, h.muzzleY, h.aimAngle, this.plane));
+    Audio.cannon();
   }
 
   // ══════════════════════════════════════
@@ -1430,6 +1826,9 @@ class Game {
 
     // Missiles
     this.missiles.forEach(m => m.draw(c));
+
+    // Shells (turret fire)
+    this.shells.forEach(s => s.draw(c));
 
     // Plane
     this.plane.draw(c);
@@ -1522,6 +1921,31 @@ canvas.addEventListener('mouseup', e => {
   joystick.end({identifier:0});
   bombButton.release({identifier:0});
 });
+
+// ── Keyboard controls (desktop): WASD / arrows to steer, Space to bomb, Esc/P to pause ──
+const keys = {};
+function getControl() {
+  let dx = 0, dy = 0;
+  if (keys['ArrowLeft']  || keys['KeyA']) dx -= 1;
+  if (keys['ArrowRight'] || keys['KeyD']) dx += 1;
+  if (keys['ArrowUp']    || keys['KeyW']) dy -= 1;
+  if (keys['ArrowDown']  || keys['KeyS']) dy += 1;
+  if (dx || dy) {
+    const d = Math.hypot(dx, dy) || 1;
+    return { active: true, dx: dx/d, dy: dy/d };
+  }
+  return joystick; // fall back to touch joystick
+}
+const STEER_KEYS = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyW','KeyA','KeyS','KeyD','Space'];
+window.addEventListener('keydown', e => {
+  if (STEER_KEYS.includes(e.code)) e.preventDefault();
+  keys[e.code] = true;
+  Audio.init();
+  if (e.code === 'Space' && !e.repeat && game.phase === 'playing') game.dropBomb();
+  if ((e.code === 'Escape' || e.code === 'KeyP') && !e.repeat &&
+      (game.phase === 'playing' || game.phase === 'paused')) game.togglePause();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
 
 window.addEventListener('message', event => {
   if (event.source !== window.parent && event.origin !== window.location.origin) return;
