@@ -59,6 +59,13 @@ const CFG = {
   TURRET_CHARGE:     46,   // warning frames (barrel locks + glows) before firing
   TURRET_BATCH_MAX:  2,    // up to N turrets fire per volley (usually 1)
   SHELL_SPD:         4.4,  // straight shot, slower than plane top speed so it's dodgeable
+  // ── Supply crate (bomb refill) ──
+  CRATE_LOW_THRESHOLD: 2,    // crate can spawn once bombsLeft drops to/below this
+  CRATE_BOMBS:       3,    // bombs granted on pickup
+  CRATE_FALL_SPD:    0.85,
+  CRATE_COOLDOWN_MIN: 180, // frames before another crate may appear (~3s)
+  CRATE_COOLDOWN_MAX: 300, // ~5s
+  CRATE_PICKUP_R:    34,   // collision radius vs. the plane
 };
 
 // ══════════════════════════════════════════
@@ -260,56 +267,52 @@ const Audio = (() => {
     osc.start(); osc.stop(ctx.currentTime + dur);
   }
 
-  // ── Background music: synthesized drone + light arpeggio loop ──
+  // ── Background music: bright, bouncy xylophone arpeggio loop ──
   let bgm = null;
   function startBgm() {
     ensure();
     if (bgm) return;
     const master = ctx.createGain();
     master.gain.setValueAtTime(0.0001, ctx.currentTime);
-    master.gain.linearRampToValueAtTime(0.13, ctx.currentTime + 1.6);
+    master.gain.linearRampToValueAtTime(0.11, ctx.currentTime + 1.2);
     master.connect(ctx.destination);
 
-    // Thick layered drone bed: deep bass + root + fifth
-    const droneOscs = [];
-    [[55, 'sine', 0, 0.6], [110, 'triangle', 6, 0.42], [164.81, 'sawtooth', -6, 0.22]].forEach(([f, type, det, vol]) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = type; o.frequency.value = f; o.detune.value = det;
-      g.gain.value = vol;
-      o.connect(g); g.connect(master); o.start();
-      droneOscs.push(o);
-    });
+    // Very faint high pad, just enough to avoid dead silence between mallet
+    // hits — no bass weight, no kick drum (that was the "noisy" part).
+    const padOsc = ctx.createOscillator();
+    const padGain = ctx.createGain();
+    padOsc.type = 'sine'; padOsc.frequency.value = 440;
+    padGain.gain.value = 0.04;
+    padOsc.connect(padGain); padGain.connect(master); padOsc.start();
+    const droneOscs = [padOsc];
 
-    // Arpeggio + a driving kick on the downbeat for a grand march feel
-    const seq = [220, 277.18, 329.63, 440, 329.63, 277.18];
+    // C major pentatonic, mallet-style hits (fast attack, fast decay + a
+    // quiet octave-up overtone for a wooden "tink" timbre).
+    const seq = [523.25, 587.33, 659.25, 783.99, 659.25, 587.33];
     let step = 0;
     const timer = setInterval(() => {
       const f = seq[step % seq.length];
+
       const o = ctx.createOscillator();
       const g = ctx.createGain();
-      o.type = 'triangle';
-      o.frequency.value = step % 2 === 0 ? f : f * 2;
+      o.type = 'triangle'; o.frequency.value = f;
       g.gain.setValueAtTime(0.0001, ctx.currentTime);
-      g.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.04);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.42);
+      g.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.26);
       o.connect(g); g.connect(master);
-      o.start(); o.stop(ctx.currentTime + 0.45);
+      o.start(); o.stop(ctx.currentTime + 0.28);
 
-      // Kick drum every 2 beats
-      if (step % 2 === 0) {
-        const k = ctx.createOscillator();
-        const kg = ctx.createGain();
-        k.type = 'sine';
-        k.frequency.setValueAtTime(130, ctx.currentTime);
-        k.frequency.exponentialRampToValueAtTime(45, ctx.currentTime + 0.16);
-        kg.gain.setValueAtTime(0.55, ctx.currentTime);
-        kg.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.24);
-        k.connect(kg); kg.connect(master);
-        k.start(); k.stop(ctx.currentTime + 0.26);
-      }
+      const o2 = ctx.createOscillator();
+      const g2 = ctx.createGain();
+      o2.type = 'sine'; o2.frequency.value = f * 2;
+      g2.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g2.gain.linearRampToValueAtTime(0.07, ctx.currentTime + 0.008);
+      g2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.14);
+      o2.connect(g2); g2.connect(master);
+      o2.start(); o2.stop(ctx.currentTime + 0.15);
+
       step++;
-    }, 360);
+    }, 300);
 
     bgm = { master, droneOscs, timer };
   }
@@ -347,10 +350,20 @@ const Audio = (() => {
     },
     // ── Bigger, more cinematic SFX ──
     explosion()    {
-      noise(0.9, 0.78);                       // long, full-bodied blast
-      tone(55, 0.85, 'sawtooth', 0.34);       // sub boom
-      tone(40, 1.05, 'sine',     0.30);       // deep rumble tail
-      tone(110, 0.5,  'square',   0.13);      // mid crack
+      noise(0.7, 0.65);                       // impact crack
+      // Downward pitch-bend on a round sine — reads as a spoken "boooom"
+      // rather than a harsh buzz (sawtooth/square removed on purpose).
+      ensure();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(175, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(42, ctx.currentTime + 0.32);
+      g.gain.setValueAtTime(0.5, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.85);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(); o.stop(ctx.currentTime + 0.9);
+      tone(40, 0.9, 'sine', 0.2);              // low rumble tail
     },
     bombDrop()     { tone(340, 0.14, 'sine', 0.22); tone(180, 0.2, 'sine', 0.12, -120); },
     wrong()        { tone(180, 0.5, 'sawtooth', 0.25); tone(120, 0.6, 'sine', 0.16); },
@@ -369,6 +382,7 @@ const Audio = (() => {
     cannon()       { noise(0.32, 0.6); tone(120, 0.36, 'square', 0.3); tone(50, 0.6, 'sawtooth', 0.27); },
     turretCharge() { tone(440, 0.32, 'sine', 0.14); tone(660, 0.32, 'sine', 0.09, 8); },
     hit()          { noise(0.45, 0.58); tone(95, 0.5, 'sawtooth', 0.3); tone(48, 0.65, 'sine', 0.22); },
+    cratePickup()  { [660, 880, 1100].forEach((f,i) => setTimeout(()=>tone(f, 0.18, 'triangle', 0.24), i*60)); },
   };
 })();
 
@@ -612,6 +626,58 @@ class Bomb {
     const sparkColor = Date.now()%500<250 ? '#FFD700' : '#FF6600';
     c.fillStyle = sparkColor;
     c.beginPath(); c.arc(this.x + Math.sin(this.spin*2)*2, this.y-16, 3.5, 0, Math.PI*2); c.fill();
+  }
+}
+
+// ══════════════════════════════════════════
+//  SUPPLY CRATE (bomb refill airdrop)
+// ══════════════════════════════════════════
+class SupplyCrate {
+  constructor(x) {
+    this.x = x; this.y = -40;
+    this.swayPhase = Math.random() * Math.PI * 2;
+    this.active = true;
+  }
+
+  update() {
+    this.y += CFG.CRATE_FALL_SPD;
+    this.x += Math.sin((this.y + this.swayPhase*40) * 0.02) * 0.6;
+    const gY = H * CFG.GROUND_RATIO;
+    if (this.y > gY) { this.active = false; return 'missed'; }
+  }
+
+  draw(c) {
+    c.save();
+    c.translate(this.x, this.y);
+
+    // Parachute lines
+    c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 1.5;
+    [[-16,-26],[16,-26],[0,-30]].forEach(([px,py]) => {
+      c.beginPath(); c.moveTo(0, -6); c.lineTo(px, py); c.stroke();
+    });
+    // Parachute canopy
+    c.fillStyle = '#FF5252';
+    c.beginPath();
+    c.moveTo(-20, -26); c.quadraticCurveTo(0, -42, 20, -26);
+    c.quadraticCurveTo(0, -34, -20, -26);
+    c.closePath(); c.fill();
+    c.fillStyle = '#FFEB3B';
+    c.beginPath();
+    c.moveTo(-9, -29); c.quadraticCurveTo(0, -38, 9, -29);
+    c.quadraticCurveTo(0, -33, -9, -29);
+    c.closePath(); c.fill();
+
+    // Crate body
+    c.fillStyle = '#A1662F';
+    c.fillRect(-13, -6, 26, 22);
+    c.strokeStyle = '#5D3A1A'; c.lineWidth = 2;
+    c.strokeRect(-13, -6, 26, 22);
+    c.beginPath(); c.moveTo(-13, 5); c.lineTo(13, 5); c.stroke();
+    c.beginPath(); c.moveTo(0, -6); c.lineTo(0, 16); c.stroke();
+    c.font = 'bold 13px Arial'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = '#FFEB3B'; c.fillText('💣', 0, 5);
+
+    c.restore();
   }
 }
 
@@ -1489,6 +1555,8 @@ class Game {
     this.houses   = [];
     this.trees    = [];
     this.turretFireT = 0; // hard-mode: frames until next turret volley
+    this.crate    = null; // active supply crate, if any
+    this._crateCooldown = 150; // frames until another crate may spawn
   }
 
   // ── Start ──────────────────────────────
@@ -1544,6 +1612,8 @@ class Game {
     this.planeRespawnT = 0;
     this.plane.hidden = false;
     this.bombsLeft = CFG.BOMBS_PER_LEVEL; // refill bombs each level
+    this.crate = null;
+    this._crateCooldown = 150;
     this._buildScene(lv.words);
     this._nextTarget();
   }
@@ -1750,7 +1820,32 @@ class Game {
     this.exps.forEach(e=>e.update()); this.exps=this.exps.filter(e=>!e.done);
     this.floats.forEach(f=>f.update()); this.floats=this.floats.filter(f=>f.life>0);
 
+    // Supply crate — spawns when bombs run low, refills on pickup
+    this._updateCrate();
+
     bombButton.update();
+  }
+
+  _updateCrate() {
+    if (!this.crate) {
+      if (this._crateCooldown > 0) { this._crateCooldown--; return; }
+      if (this.bombsLeft <= CFG.CRATE_LOW_THRESHOLD && this.bombsLeft < CFG.BOMBS_PER_LEVEL) {
+        this.crate = new SupplyCrate(60 + Math.random() * (W - 120));
+        this._float(this.crate.x, 50, '📦 Supply incoming!', '#33CCFF', 18);
+      }
+      return;
+    }
+    const r = this.crate.update();
+    if (!this.plane.hidden && dist(this.plane.x, this.plane.y, this.crate.x, this.crate.y) < CFG.CRATE_PICKUP_R) {
+      this.bombsLeft = Math.min(CFG.BOMBS_PER_LEVEL, this.bombsLeft + CFG.CRATE_BOMBS);
+      this._float(this.crate.x, this.crate.y - 20, `📦 +${CFG.CRATE_BOMBS} 💣`, '#33FF99', 22);
+      Audio.cratePickup();
+      this.crate = null;
+      this._crateCooldown = Math.floor(lerp(CFG.CRATE_COOLDOWN_MIN, CFG.CRATE_COOLDOWN_MAX, Math.random()));
+    } else if (r === 'missed') {
+      this.crate = null;
+      this._crateCooldown = Math.floor(lerp(CFG.CRATE_COOLDOWN_MIN, CFG.CRATE_COOLDOWN_MAX, Math.random()));
+    }
   }
 
   // ── Hard-mode turret fire scheduler ──
@@ -1823,6 +1918,9 @@ class Game {
 
     // Bombs
     this.bombs.forEach(b => b.draw(c));
+
+    // Supply crate
+    if (this.crate) this.crate.draw(c);
 
     // Missiles
     this.missiles.forEach(m => m.draw(c));
