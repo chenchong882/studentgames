@@ -241,6 +241,35 @@ const Audio = (() => {
     if (ctx.state === 'suspended') ctx.resume();
   }
 
+  // ── Speech synthesis (word read-aloud) ──
+  // iPad / iOS Safari quirks handled here:
+  //  • getVoices() returns an empty list on the first synchronous call, so we
+  //    cache it and refresh whenever the voices finish loading.
+  //  • speak() is silently ignored unless it has first run inside a real user
+  //    gesture, so we "prime" it with a silent utterance on the very first tap
+  //    (see primeSpeech). After that, setTimeout-driven reads (e.g. on a new
+  //    word) and the speaker button both work.
+  let speechVoices = [];
+  let speechPrimed = false;
+  function loadVoices() {
+    if (!window.speechSynthesis) return;
+    try { speechVoices = speechSynthesis.getVoices() || []; } catch (e) {}
+  }
+  if (window.speechSynthesis) {
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+  }
+  function primeSpeech() {
+    if (speechPrimed || !window.speechSynthesis) return;
+    speechPrimed = true;
+    loadVoices();
+    try {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;               // silent unlock
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
   function noise(dur, vol = 0.5) {
     ensure();
     const len = ctx.sampleRate * dur;
@@ -332,19 +361,20 @@ const Audio = (() => {
 
   return {
     init: ensure,
+    primeSpeech,
     startBgm, stopBgm,
     speak(word) {
-      if (!window.speechSynthesis) return;
-      speechSynthesis.cancel();
+      if (!window.speechSynthesis || !word) return;
+      try { speechSynthesis.resume(); } catch (e) {}   // iOS sometimes leaves it paused
+      try { speechSynthesis.cancel(); } catch (e) {}    // stop any in-flight word
       const u = new SpeechSynthesisUtterance(word);
       u.lang  = 'en-US';
       u.rate  = 0.88;
       u.pitch = 1.1;
-      // Prefer a US voice if available
-      const voices = speechSynthesis.getVoices();
-      const us = voices.find(v => v.lang === 'en-US' && !v.name.includes('Google') === false)
-              || voices.find(v => v.lang === 'en-US')
-              || voices.find(v => v.lang.startsWith('en'));
+      // Prefer a US English voice (cached + refreshed via onvoiceschanged,
+      // because iOS returns an empty list on the first synchronous call).
+      const us = speechVoices.find(v => v.lang === 'en-US')
+              || speechVoices.find(v => v.lang && v.lang.startsWith('en'));
       if (us) u.voice = us;
       speechSynthesis.speak(u);
     },
@@ -2013,6 +2043,7 @@ function hitPauseBtn(x, y) {
 
 function handleStart(touches) {
   Audio.init();
+  Audio.primeSpeech();   // unlock iOS speech on the first real touch
   for (const t of touches) {
     const {clientX:x, clientY:y} = t;
     if (game.phase==='paused')  { hitPauseScreen(x,y); continue; }
@@ -2032,7 +2063,7 @@ canvas.addEventListener('touchend',   e => { e.preventDefault(); for(const t of 
 // Mouse fallback (desktop testing)
 let mDown=false;
 canvas.addEventListener('mousedown', e => {
-  mDown=true; Audio.init();
+  mDown=true; Audio.init(); Audio.primeSpeech();
   const ft={clientX:e.clientX, clientY:e.clientY, identifier:0};
   handleStart([ft]);
 });
@@ -2065,6 +2096,7 @@ window.addEventListener('keydown', e => {
   if (STEER_KEYS.includes(e.code)) e.preventDefault();
   keys[e.code] = true;
   Audio.init();
+  Audio.primeSpeech();
   if (e.code === 'Space' && !e.repeat && game.phase === 'playing') game.dropBomb();
   if ((e.code === 'Escape' || e.code === 'KeyP') && !e.repeat &&
       (game.phase === 'playing' || game.phase === 'paused')) game.togglePause();
