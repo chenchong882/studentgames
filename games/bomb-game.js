@@ -1758,14 +1758,23 @@ class Game {
         } else {
           // ❌ WRONG
           h.shaking = 2.5; h.wrongFlash = 40; h.wrongBubble = 60;
-          this.timer += CFG.WRONG_PENALTY_S;
-          this._float(h.x, h.y - 30, `+${CFG.WRONG_PENALTY_S}s ⏱`, '#FF5555', 20);
-          this._loseLife();
           Audio.wrong();
           this.wrongAtt++;
 
-          // Wrong answer fires a homing missile in BOTH modes
-          this.missiles.push(new Missile(h.x, h.y, this.plane));
+          if (this.difficulty === 'easy') {
+            // Easy mode: no penalty — no life lost, no time added. The enemy
+            // just fires a missile the player has to dodge.
+            this._float(h.x, h.y - 30, '❌ 再試一次', '#FF5555', 20);
+          } else {
+            this.timer += CFG.WRONG_PENALTY_S;
+            this._float(h.x, h.y - 30, `+${CFG.WRONG_PENALTY_S}s ⏱`, '#FF5555', 20);
+            this._loseLife();
+          }
+
+          // Wrong answer fires a homing missile in both modes
+          const missile = new Missile(h.x, h.y, this.plane);
+          missile.sourceHouse = h;            // don't let it blow up the house that fired it
+          this.missiles.push(missile);
           Audio.missile();
           this._float(h.x, h.y - 60, '🚀 MISSILE!', '#FF3300', 18);
 
@@ -1783,6 +1792,23 @@ class Game {
     for (let i = this.missiles.length-1; i >= 0; i--) {
       const m = this.missiles[i];
       const r = m.update();
+
+      // A missile that flies into a house just detonates on impact — it blows up
+      // (explosion + boom) but the house takes no damage. Only the player's own
+      // dropped bombs decide right/wrong. Skip the house that fired it (the
+      // missile spawns on top of it) and any already-destroyed ones.
+      if (m.active) {
+        for (const h of this.houses) {
+          if (h.destroyed || h === m.sourceHouse) continue;
+          if (m.x > h.x - h.width/2 && m.x < h.x + h.width/2 && m.y > h.y && m.y < h.groundY) {
+            m.active = false;
+            this.exps.push(new Explosion(m.x, m.y, false));
+            Audio.explosion();
+            break;
+          }
+        }
+      }
+
       if (!m.active) {
         if (r === 'hit') {
           this.exps.push(new Explosion(m.x, m.y, false));
