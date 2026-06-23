@@ -1493,31 +1493,33 @@ function dmgIndicatorAt(worldPos){
   setTimeout(()=>path.remove(),1300);
 }
 
-/* ============ 背景音效（Web Audio 合成的低沉氛圍 drone） ============ */
-let bgm=null;
+/* ============ 背景音樂（鋼甲獵獸.mp3，循環播放） ============ */
+const BGM_VOL=0.55;            // 背景音樂音量（0~1），想調大小改這裡
+let bgmAudio=null, bgmFade=null;
+function ensureBgmAudio(){
+  if(bgmAudio)return bgmAudio;
+  bgmAudio=new Audio('../assets/鋼甲獵獸.mp3');
+  bgmAudio.loop=true; bgmAudio.preload='auto'; bgmAudio.volume=0;
+  return bgmAudio;
+}
+function fadeBgm(to,ms,onDone){       // 線性淡入/淡出音量
+  clearInterval(bgmFade);
+  const a=bgmAudio; if(!a)return;
+  const from=a.volume, steps=Math.max(1,Math.round(ms/40)); let i=0;
+  bgmFade=setInterval(()=>{
+    i++; a.volume=Math.min(1,Math.max(0,from+(to-from)*i/steps));
+    if(i>=steps){clearInterval(bgmFade); if(onDone)onDone();}
+  },40);
+}
 function startBgm(){
-  ensureAudio();
-  if(!AC||bgm)return;
-  const g=AC.createGain();g.gain.value=0;g.connect(master);
-  g.gain.linearRampToValueAtTime(0.12,AC.currentTime+2.5);
-  const lp=AC.createBiquadFilter();lp.type='lowpass';lp.frequency.value=520;lp.Q.value=2;lp.connect(g);
-  const oscs=[55,82.4,110].map((f,i)=>{          // A1 + E2 + A2
-    const o=AC.createOscillator();o.type=i===2?'triangle':'sawtooth';o.frequency.value=f;
-    const og=AC.createGain();og.gain.value=i===2?0.18:0.3;o.connect(og);og.connect(lp);
-    o.start();return o;
-  });
-  const lfo=AC.createOscillator();lfo.frequency.value=0.06;   // 緩慢起伏
-  const lfoG=AC.createGain();lfoG.gain.value=260;
-  lfo.connect(lfoG);lfoG.connect(lp.frequency);lfo.start();
-  bgm={g,oscs,lfo};
+  const a=ensureBgmAudio();
+  const p=a.play();                   // 由使用者手勢觸發（開始/繼續），可正常播放
+  if(p&&p.catch)p.catch(()=>{});
+  fadeBgm(BGM_VOL,1500);
 }
 function stopBgm(){
-  if(!bgm||!AC)return;
-  const t=AC.currentTime,b=bgm;bgm=null;
-  b.g.gain.cancelScheduledValues(t);
-  b.g.gain.setValueAtTime(b.g.gain.value,t);
-  b.g.gain.linearRampToValueAtTime(0,t+0.6);
-  setTimeout(()=>{b.oscs.forEach(o=>{try{o.stop()}catch(e){}});try{b.lfo.stop()}catch(e){}},700);
+  if(!bgmAudio)return;
+  fadeBgm(0,500,()=>{try{bgmAudio.pause()}catch(e){}});
 }
 
 /* ============ 暫停 ============ */
@@ -1581,7 +1583,7 @@ function resetTouch(){
   stickEl.style.display='none';stickEl.classList.remove('boost');
 }
 function setAim(t){mouse.x=t.clientX;mouse.y=Math.max(28,t.clientY-90);} // 準心抬到手指上方，免得被手指擋住
-function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink,#pauseOverlay,#overlay');}
+function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink');}
 addEventListener('touchstart',e=>{
   ensureAudio();
   if(state==='menu'||state==='over'){ // 選單 / 結束畫面：輕觸開始（互動元件除外）
