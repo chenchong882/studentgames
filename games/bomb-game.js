@@ -7,6 +7,12 @@ const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 let W = 0, H = 0;
 
+// iOS (incl. iPadOS, which reports as Mac + touch). A running Web Audio context
+// steals the audio session there and mutes speechSynthesis, so on iOS we briefly
+// suspend the context while a word is read aloud. Desktop is unaffected.
+const IS_IOS = /iP(hone|od|ad)/.test(navigator.userAgent)
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -251,6 +257,8 @@ const Audio = (() => {
   //    word) and the speaker button both work.
   let speechVoices = [];
   let speechPrimed = false;
+  let speechGen    = 0;     // iOS audio-duck generation: only the latest word resumes Web Audio
+  let duckTimer    = null;
   function loadVoices() {
     if (!window.speechSynthesis) return;
     try { speechVoices = speechSynthesis.getVoices() || []; } catch (e) {}
@@ -383,6 +391,20 @@ const Audio = (() => {
       const us = speechVoices.find(v => v.lang === 'en-US')
               || speechVoices.find(v => v.lang && v.lang.startsWith('en'));
       if (us) u.voice = us;
+      // iOS: hand the audio session to speech by suspending Web Audio for the
+      // duration of the word, then resume. A generation token makes sure that
+      // only the *latest* word resumes the context — otherwise a previous word
+      // being cancelled would resume Web Audio and re-mute the new word. The
+      // timeout is a safety net so BGM never stays stuck off.
+      if (IS_IOS && ctx) {
+        const myGen = ++speechGen;
+        if (duckTimer) { clearTimeout(duckTimer); duckTimer = null; }
+        try { ctx.suspend(); } catch (e) {}
+        const restore = () => { if (myGen === speechGen) { try { ctx.resume(); } catch (e) {} } };
+        u.onend   = restore;
+        u.onerror = restore;
+        duckTimer = setTimeout(restore, 3500);
+      }
       speechSynthesis.speak(u);
     },
     // ── Bigger, more cinematic SFX ──
