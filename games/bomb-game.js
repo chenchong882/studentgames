@@ -251,14 +251,15 @@ const Audio = (() => {
   // iPad / iOS Safari quirks handled here:
   //  • getVoices() returns an empty list on the first synchronous call, so we
   //    cache it and refresh whenever the voices finish loading.
-  //  • speak() is silently ignored unless it has first run inside a real user
-  //    gesture, so we "prime" it with a silent utterance on the very first tap
-  //    (see primeSpeech). After that, setTimeout-driven reads (e.g. on a new
-  //    word) and the speaker button both work.
+  //  • speak() is silently ignored unless the first real word is spoken inside
+  //    a user gesture. On iOS, Web Audio can also steal the audio session from
+  //    speech, so the first word must run before BGM starts.
   let speechVoices = [];
   let speechPrimed = false;
-  let speechGen    = 0;     // iOS audio-duck generation: only the latest word resumes Web Audio
+  let speechGen    = 0;     // only the latest word may restore background audio
   let duckTimer    = null;
+  let speechActive = false;
+  let currentUtterance = null;
   function loadVoices() {
     if (!window.speechSynthesis) return;
     try { speechVoices = speechSynthesis.getVoices() || []; } catch (e) {}
@@ -268,15 +269,21 @@ const Audio = (() => {
     speechSynthesis.onvoiceschanged = loadVoices;
   }
   function primeSpeech() {
-    if (speechPrimed || !window.speechSynthesis) return;
-    speechPrimed = true;
-    loadVoices();
-    // No silent "unlock" utterance here on purpose: the first real word is
-    // spoken from inside this same tap gesture (menu → start → _nextTarget),
-    // which is what actually unlocks iOS speech. A silent utterance would just
-    // leave the engine "speaking", forcing the real word into a cancel()+speak()
-    // collision that Safari drops.
-    try { speechSynthesis.resume(); } catch (e) {}
+    if (!window.speechSynthesis) {
+      if (bgmWanted && !speechActive) startBgm();
+      return;
+    }
+    if (!speechPrimed) {
+      speechPrimed = true;
+      loadVoices();
+      // No silent "unlock" utterance here on purpose: the first real word is
+      // spoken from inside this same tap gesture (menu → start → _nextTarget),
+      // which is what actually unlocks iOS speech. A silent utterance would just
+      // leave the engine "speaking", forcing the real word into a cancel()+speak()
+      // collision that Safari drops.
+      try { speechSynthesis.resume(); } catch (e) {}
+    }
+    if (bgmWanted && !speechActive) startBgm();
   }
 
   function noise(dur, vol = 0.5) {
@@ -305,67 +312,54 @@ const Audio = (() => {
     osc.start(); osc.stop(ctx.currentTime + dur);
   }
 
-  // ── Background music: bright, bouncy xylophone arpeggio loop ──
-  let bgm = null;
-  function startBgm() {
-    ensure();
-    if (bgm) return;
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(0.0001, ctx.currentTime);
-    master.gain.linearRampToValueAtTime(0.11, ctx.currentTime + 1.2);
-    master.connect(ctx.destination);
+  // ── Background music: user-provided MP3, kept quiet so speech stays clear ──
+  const BGM_SRC = '../悠然小步.mp3';
+  const BGM_VOLUME = 0.10;
+  const BGM_DUCK_VOLUME = 0.018;
+  let bgmAudio = null;
+  let bgmWanted = false;
 
-    // Very faint high pad, just enough to avoid dead silence between mallet
-    // hits — no bass weight, no kick drum (that was the "noisy" part).
-    const padOsc = ctx.createOscillator();
-    const padGain = ctx.createGain();
-    padOsc.type = 'sine'; padOsc.frequency.value = 440;
-    padGain.gain.value = 0.04;
-    padOsc.connect(padGain); padGain.connect(master); padOsc.start();
-    const droneOscs = [padOsc];
-
-    // C major pentatonic, mallet-style hits (fast attack, fast decay + a
-    // quiet octave-up overtone for a wooden "tink" timbre).
-    const seq = [523.25, 587.33, 659.25, 783.99, 659.25, 587.33];
-    let step = 0;
-    const timer = setInterval(() => {
-      const f = seq[step % seq.length];
-
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = 'triangle'; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, ctx.currentTime);
-      g.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.26);
-      o.connect(g); g.connect(master);
-      o.start(); o.stop(ctx.currentTime + 0.28);
-
-      const o2 = ctx.createOscillator();
-      const g2 = ctx.createGain();
-      o2.type = 'sine'; o2.frequency.value = f * 2;
-      g2.gain.setValueAtTime(0.0001, ctx.currentTime);
-      g2.gain.linearRampToValueAtTime(0.07, ctx.currentTime + 0.008);
-      g2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.14);
-      o2.connect(g2); g2.connect(master);
-      o2.start(); o2.stop(ctx.currentTime + 0.15);
-
-      step++;
-    }, 300);
-
-    bgm = { master, droneOscs, timer };
+  function getBgmAudio() {
+    if (bgmAudio) return bgmAudio;
+    bgmAudio = document.createElement('audio');
+    bgmAudio.src = BGM_SRC;
+    bgmAudio.loop = true;
+    bgmAudio.preload = 'auto';
+    bgmAudio.volume = BGM_VOLUME;
+    bgmAudio.setAttribute('playsinline', '');
+    bgmAudio.setAttribute('webkit-playsinline', '');
+    bgmAudio.style.display = 'none';
+    (document.body || document.documentElement).appendChild(bgmAudio);
+    return bgmAudio;
   }
+
+  function startBgm() {
+    bgmWanted = true;
+    const a = getBgmAudio();
+    a.volume = speechActive ? BGM_DUCK_VOLUME : BGM_VOLUME;
+    if (IS_IOS && speechActive) return;
+    const playPromise = a.play();
+    if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
+  }
+
+  function duckBgmForSpeech() {
+    if (!bgmAudio) return;
+    bgmAudio.volume = BGM_DUCK_VOLUME;
+    if (IS_IOS && !bgmAudio.paused) {
+      try { bgmAudio.pause(); } catch (e) {}
+    }
+  }
+
+  function restoreBgmAfterSpeech() {
+    if (!bgmAudio) return;
+    bgmAudio.volume = BGM_VOLUME;
+    if (bgmWanted) startBgm();
+  }
+
   function stopBgm() {
-    if (!bgm) return;
-    clearInterval(bgm.timer);
-    const { master, droneOscs } = bgm;
-    bgm = null;
-    try {
-      master.gain.cancelScheduledValues(ctx.currentTime);
-      master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
-      master.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
-    } catch (e) {}
-    droneOscs.forEach(o => { try { o.stop(ctx.currentTime + 0.45); } catch (e) {} });
-    setTimeout(() => { try { master.disconnect(); } catch (e) {} }, 600);
+    bgmWanted = false;
+    if (!bgmAudio) return;
+    try { bgmAudio.pause(); } catch (e) {}
   }
 
   return {
@@ -391,21 +385,39 @@ const Audio = (() => {
       const us = speechVoices.find(v => v.lang === 'en-US')
               || speechVoices.find(v => v.lang && v.lang.startsWith('en'));
       if (us) u.voice = us;
-      // iOS: hand the audio session to speech by suspending Web Audio for the
-      // duration of the word, then resume. A generation token makes sure that
-      // only the *latest* word resumes the context — otherwise a previous word
-      // being cancelled would resume Web Audio and re-mute the new word. The
-      // timeout is a safety net so BGM never stays stuck off.
-      if (IS_IOS && ctx) {
-        const myGen = ++speechGen;
+
+      const myGen = ++speechGen;
+      currentUtterance = u;
+      speechActive = true;
+      if (duckTimer) { clearTimeout(duckTimer); duckTimer = null; }
+      duckBgmForSpeech();
+
+      const restore = () => {
+        if (myGen !== speechGen) return;
+        speechActive = false;
+        currentUtterance = null;
         if (duckTimer) { clearTimeout(duckTimer); duckTimer = null; }
-        try { ctx.suspend(); } catch (e) {}
-        const restore = () => { if (myGen === speechGen) { try { ctx.resume(); } catch (e) {} } };
-        u.onend   = restore;
-        u.onerror = restore;
-        duckTimer = setTimeout(restore, 3500);
+        restoreBgmAfterSpeech();
+      };
+      u.onend   = restore;
+      u.onerror = restore;
+      duckTimer = setTimeout(restore, 3500);
+
+      const speakNow = () => {
+        try { speechSynthesis.speak(u); } catch (e) { restore(); }
+      };
+
+      if (IS_IOS && ctx && ctx.state === 'running') {
+        try {
+          const paused = ctx.suspend();
+          if (paused && typeof paused.then === 'function') {
+            paused.then(speakNow, speakNow);
+            return;
+          }
+        } catch (e) {}
       }
-      speechSynthesis.speak(u);
+
+      speakNow();
     },
     // ── Bigger, more cinematic SFX ──
     explosion()    {
@@ -1631,9 +1643,8 @@ class Game {
     this.planeRespawnT = 0;
     this.phase     = 'playing';
     this.plane.reset();
-    Audio.init();
-    Audio.startBgm();
     this._loadLevel();
+    Audio.startBgm();
     this._startTimer();
   }
 
@@ -2076,7 +2087,6 @@ function hitPauseBtn(x, y) {
 }
 
 function handleStart(touches) {
-  Audio.init();
   Audio.primeSpeech();   // unlock iOS speech on the first real touch
   for (const t of touches) {
     const {clientX:x, clientY:y} = t;
@@ -2097,7 +2107,7 @@ canvas.addEventListener('touchend',   e => { e.preventDefault(); for(const t of 
 // Mouse fallback (desktop testing)
 let mDown=false;
 canvas.addEventListener('mousedown', e => {
-  mDown=true; Audio.init(); Audio.primeSpeech();
+  mDown=true; Audio.primeSpeech();
   const ft={clientX:e.clientX, clientY:e.clientY, identifier:0};
   handleStart([ft]);
 });
@@ -2129,7 +2139,6 @@ const STEER_KEYS = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','KeyW','KeyA'
 window.addEventListener('keydown', e => {
   if (STEER_KEYS.includes(e.code)) e.preventDefault();
   keys[e.code] = true;
-  Audio.init();
   Audio.primeSpeech();
   if (e.code === 'Space' && !e.repeat && game.phase === 'playing') game.dropBomb();
   if ((e.code === 'Escape' || e.code === 'KeyP') && !e.repeat &&
