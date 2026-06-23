@@ -74,6 +74,8 @@
     0%{transform:rotateX(0);} 22%{transform:rotateX(-68deg) translateY(-4px);}
     78%{transform:rotateX(-68deg) translateY(-4px);} 100%{transform:rotateX(0);}
   }
+  /* 持續滑行：按住期間維持低姿勢（無動畫），鬆開時平滑站起 */
+  #char.slideHold { transform:rotateX(-68deg) translateY(-4px); transition:transform .15s ease-out; }
   #char.crashed { animation:crash3d .8s ease-out forwards; }
   @keyframes crash3d {
     25%{transform:rotateX(-40deg) translateZ(20px);}
@@ -83,7 +85,7 @@
   .swingA { animation:swing .36s ease-in-out infinite alternate; }
   .swingB { animation:swing .36s ease-in-out infinite alternate-reverse; }
   @keyframes swing { from{transform:rotateX(44deg);} to{transform:rotateX(-44deg);} }
-  #char.jump .limb, #char.slide .limb, #char.crashed .limb { animation-play-state:paused; }
+  #char.jump .limb, #char.slide .limb, #char.slideHold .limb, #char.crashed .limb { animation-play-state:paused; }
 
   /* ===== 障礙物 ===== */
   .ob { opacity:0; transition:opacity .45s; }
@@ -122,6 +124,15 @@
     font-size:14px; font-weight:800; color:#ffe14d; text-shadow:0 2px 4px rgba(0,0,0,.6);
     pointer-events:none;
   }
+  /* 畫面上的暫停鈕（手機也能點）；開始/結束畫面會蓋住它 */
+  #pauseBtn {
+    position:absolute; top:calc(env(safe-area-inset-top, 0px) + 38px); left:14px; z-index:23;
+    width:38px; height:38px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,.42); color:#fff; border:2px solid rgba(255,255,255,.6);
+    font-size:15px; cursor:pointer; pointer-events:auto; touch-action:manipulation;
+  }
+  #pauseBtn:active { transform:scale(.92); }
 
   /* ===== 題目 HUD ===== */
   #qhud {
@@ -205,6 +216,12 @@
     cursor:pointer; touch-action:manipulation;
   }
   .bigbtn:active { transform:translateY(4px); box-shadow:0 2px 0 #c96a00; }
+  #pauseScreen { z-index:60; background:linear-gradient(160deg,#2c3e50,#1a2530); }
+  #guideScreen { z-index:70; }
+  .smbtn { font-family:inherit; font-size:16px; font-weight:700; color:#fff;
+    background:rgba(255,255,255,.18); border:2px solid #ffe14d; border-radius:40px;
+    padding:10px 28px; margin-top:14px; cursor:pointer; }
+  .smbtn:active { transform:translateY(2px); }
 
   #overScreen { background:linear-gradient(160deg,#41295a,#2F0743); justify-content:flex-start; padding-top:40px; }
   .stats { display:flex; gap:10px; margin:12px 0 14px; flex-wrap:wrap; justify-content:center; }
@@ -242,6 +259,7 @@
     <span>分數 <span id="score">0</span></span>
   </div>
   <div id="combo"></div>
+  <button id="pauseBtn" aria-label="暫停">⏸</button>
 
   <div id="qhud" class="hidden">
     <div id="qtext"></div>
@@ -281,6 +299,27 @@
       <ul id="wrongList"></ul>
     </div>
     <button class="bigbtn" id="replayBtn">再玩一次</button>
+  </div>
+
+  <div class="screen hidden" id="pauseScreen">
+    <h1>⏸ 暫停</h1>
+    <div class="sub">按 ESC 或「繼續」回到遊戲</div>
+    <button class="bigbtn" id="resumeBtn">繼續遊戲</button>
+    <button class="smbtn" id="guidePauseBtn">📖 如何遊玩</button>
+  </div>
+
+  <div class="screen hidden" id="guideScreen">
+    <h1>🏃 如何遊玩</h1>
+    <div class="rules">
+      ⬆️ 上滑 / ↑：跳躍（跳過矮牆，每次跳一下）<br>
+      ⬇️ 下滑 / ↓：滑鏟（鑽過橫樑）<b>按住 ↓ 或 S 可持續滑行</b><br>
+      ⬅️ ➡️ / ← →：左右換道（閃開路障）<br>
+      <br>
+      🎯 遇到「單字門」會出題；門靠近時，往<b>正確答案的方向</b>滑（上／下／左／右）就能通過。<br>
+      答錯或撞到障礙會扣 ❤️，撐越久分數越高！<br>
+      ⏸ 遊戲中可按 <b>ESC</b> 暫停。
+    </div>
+    <button class="bigbtn" id="guideBtn">✓ 我知道了</button>
   </div>
 </div>
 
@@ -397,6 +436,86 @@ const sndBad   = () => { tone(160,.4,0,'sawtooth'); };
 const sndCombo = () => { tone(660,.1,0); tone(880,.1,.08); tone(1100,.2,.16); };
 const sndTick  = () => { tone(520,.06,0,'square'); };
 const sndPass  = () => { tone(420,.08,0,'triangle'); };
+// 音高滑音（馬力歐式跳躍「蹬」聲用）
+function sweep(f0, f1, dur, type, vol){
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || 'square';
+    const t0 = ac.currentTime;
+    o.frequency.setValueAtTime(f0, t0);
+    o.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+    g.gain.setValueAtTime(vol || 0.18, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  } catch(e){}
+}
+// 帶通白噪音（滑地板「刷」聲用）
+function noiseBurst(dur, vol, freq){
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const n = Math.floor(ac.sampleRate * dur);
+    const buf = ac.createBuffer(1, n, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);   // 漸弱
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq || 1600; bp.Q.value = 0.8;
+    const g = ac.createGain(); g.gain.value = vol || 0.18;
+    src.connect(bp); bp.connect(g); g.connect(ac.destination);
+    src.start();
+  } catch(e){}
+}
+const sndJump  = () => { sweep(520, 1180, 0.16, 'square', 0.18); };   // 蹬！往上滑音
+const sndSlide = () => { noiseBurst(0.34, 0.17, 1500); };            // 刷～刮地聲
+
+/* ================= 背景音樂（Web Audio 合成輕快循環）================= */
+let bgmOn = false, bgmTimer = null, bgmGain = null, bgmStep = 0;
+// 八步循環：低音貝斯走 C–G–F–Dm，上方旋律點綴，營造跑酷節奏感
+const BGM_BASS = [130.81, 130.81, 196.00, 196.00, 174.61, 174.61, 146.83, 146.83];
+const BGM_LEAD = [523.25, 659.25, 784.00, 659.25, 587.33, 698.46, 587.33, 493.88];
+function bgmVoice(freq, dur, type, vol){
+  try {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = freq;
+    const t0 = ac.currentTime;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(bgmGain);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  } catch(e){}
+}
+function bgmTick(){
+  if (!ac || !bgmOn) return;
+  bgmVoice(BGM_BASS[bgmStep % BGM_BASS.length], 0.26, 'triangle', 0.13);
+  bgmVoice(BGM_LEAD[bgmStep % BGM_LEAD.length], 0.20, 'square', 0.05);
+  bgmStep++;
+}
+function startBgm(){
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === 'suspended') ac.resume();
+    if (bgmOn) return;
+    bgmOn = true; bgmStep = 0;
+    bgmGain = ac.createGain();
+    bgmGain.gain.setValueAtTime(0.0001, ac.currentTime);
+    bgmGain.gain.exponentialRampToValueAtTime(0.09, ac.currentTime + 1.2);
+    bgmGain.connect(ac.destination);
+    bgmTick();
+    bgmTimer = setInterval(bgmTick, 250);   // ≈ 八分音符
+  } catch(e){}
+}
+function stopBgm(){
+  if (!bgmOn) return;
+  bgmOn = false;
+  clearInterval(bgmTimer); bgmTimer = null;
+  if (bgmGain && ac) { try { bgmGain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.4); } catch(e){} }
+}
+function duckBgm(on){   // 暫停時降低音量，繼續時拉回
+  if (!bgmGain || !ac) return;
+  try { bgmGain.gain.exponentialRampToValueAtTime(on ? 0.0001 : 0.09, ac.currentTime + 0.3); } catch(e){}
+}
 
 /* ================= 3D 方塊產生器 ================= */
 // 面命名以「鏡頭視角」為準：near = 面向鏡頭（角色的背面）、far = 朝向遠方（角色的正面）
@@ -519,12 +638,14 @@ let state = 'idle';   // idle | play | crash | over
 let score, lives, combo, passed, gateNum, gateCorrect, wrongAnswers;
 let lane, jumpStart, slideStart, speed, roadY, surviveTimer, slowUntil, themeIdx;
 let obstacles = [], decks = {}, sinceGate, reflexTarget, nextIn, shownHints, hudGate;
+let slideHeld = false;   // 是否正按住「下」持續滑行
 
 function isJumping(){
   const t = performance.now() - jumpStart;
   return t > 60 && t < JUMP_MS - 60;
 }
 function isSliding(){
+  if (slideHeld) return true;   // 按住期間一律視為滑行中
   const t = performance.now() - slideStart;
   return t > 40 && t < SLIDE_MS - 40;
 }
@@ -540,11 +661,31 @@ function jump(){
   if (state !== 'play' || isJumping() || isSliding()) return;
   jumpStart = performance.now();
   retrigger('jump', JUMP_MS);
+  sndJump();
 }
 function slide(){
   if (state !== 'play' || isJumping() || isSliding()) return;
   slideStart = performance.now();
   retrigger('slide', SLIDE_MS);
+  sndSlide();
+}
+// 持續滑行：按住「下」時進入並維持低姿勢，跳躍中不可滑
+function startSlideHold(){
+  if (state !== 'play' || isJumping() || slideHeld) return;
+  slideHeld = true;
+  slideStart = performance.now();
+  char.classList.remove('jump','slide');
+  void char.offsetWidth;
+  char.classList.add('slideHold');
+  sndSlide();
+}
+// 鬆開「下」：結束持續滑行，剩餘的滑行時間內仍判定為滑行（與點擊滑行手感一致）
+function endSlideHold(){
+  if (!slideHeld) return;
+  slideHeld = false;
+  const remain = SLIDE_MS - (performance.now() - slideStart);
+  if (remain > 80) setTimeout(() => { if (!slideHeld) char.classList.remove('slideHold'); }, remain);
+  else char.classList.remove('slideHold');
 }
 let leanTimer = null;
 function moveLane(dir){
@@ -561,7 +702,7 @@ function moveLane(dir){
 }
 function resetPlayer(){
   lane = 1;
-  jumpStart = -9999; slideStart = -9999;
+  jumpStart = -9999; slideStart = -9999; slideHeld = false;
   char.className = 'part';
   playerRoot.style.transition = 'none';
   playerRoot.style.transform = 'translate3d(0,0,0)';
@@ -757,7 +898,8 @@ function resolveObstacle(o){
 function crash(o){
   state = 'crash';
   slowUntil = 0;
-  char.classList.remove('jump','slide');
+  slideHeld = false;
+  char.classList.remove('jump','slide','slideHold');
   void char.offsetWidth;
   char.classList.add('crashed');
   flash(false);
@@ -793,6 +935,7 @@ function crash(o){
 /* ================= 主迴圈 ================= */
 let last = performance.now();
 function loop(now){
+  if (paused) { last = now; requestAnimationFrame(loop); return; }
   const rawDt = Math.min(now - last, 50) / 1000;
   last = now;
 
@@ -888,6 +1031,7 @@ function handleSwipe(dx, dy){
 }
 let sx = 0, sy = 0, tracking = false;
 document.addEventListener('touchstart', e => {
+  if (guideOpen || paused) return;
   tracking = true;
   sx = e.touches[0].clientX; sy = e.touches[0].clientY;
 }, { passive: false });
@@ -900,16 +1044,36 @@ document.addEventListener('touchend', e => {
   const t = e.changedTouches[0];
   handleSwipe(t.clientX - sx, t.clientY - sy);
 });
-document.addEventListener('mousedown', e => { tracking = true; sx = e.clientX; sy = e.clientY; });
+document.addEventListener('mousedown', e => { if (guideOpen || paused) return; tracking = true; sx = e.clientX; sy = e.clientY; });
 document.addEventListener('mouseup', e => {
   if (!tracking) return;
   tracking = false;
   handleSwipe(e.clientX - sx, e.clientY - sy);
 });
+const KEY_DIR = {
+  ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
+  w:'up', W:'up', s:'down', S:'down', a:'left', A:'left', d:'right', D:'right',
+};
 document.addEventListener('keydown', e => {
-  const map = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right' };
-  if (map[e.key]) { e.preventDefault(); onSwipe(map[e.key]); }
+  if (e.key === 'Escape') { e.preventDefault(); if (guideOpen) closeGuide(); else togglePause(); return; }
+  if (guideOpen || paused) { e.preventDefault(); return; }
+  const dir = KEY_DIR[e.key];
+  if (!dir) return;
+  e.preventDefault();
+  if (e.repeat) return;                     // 忽略長按自動重複，改走持續滑行邏輯
+  if (dir === 'down') {
+    // 按住「下」(↓ / S)：若前方是題目門先鎖定「下」答案，並進入持續滑行
+    const g = nearestGateInLockRange();
+    if (g) { g.choice = 'down'; markHudChoice('down'); sndTick(); }
+    startSlideHold();
+  } else {
+    onSwipe(dir);                           // 上＝跳一下、左右＝換道（跳躍仍維持單次）
+  }
 });
+document.addEventListener('keyup', e => {
+  if (KEY_DIR[e.key] === 'down') endSlideHold();
+});
+window.addEventListener('blur', () => { if (slideHeld) endSlideHold(); });
 
 /* ================= 開始 / 結束 ================= */
 function startGame(){
@@ -929,10 +1093,12 @@ function startGame(){
   $('startScreen').classList.add('hidden');
   $('overScreen').classList.add('hidden');
   state = 'play';
+  startBgm();
 }
 
 function gameOver(){
   state = 'over';
+  stopBgm();
   hideHud();
   const total = gateCorrect + wrongAnswers.length;
   const acc = total ? Math.round(gateCorrect / total * 100) : 0;
@@ -958,6 +1124,25 @@ function gameOver(){
 
 $('startBtn').addEventListener('click', startGame);
 $('replayBtn').addEventListener('click', startGame);
+
+/* ===== 暫停 + 玩法守則 ===== */
+let paused = false, guideOpen = false;
+function togglePause(){
+  if (state !== 'play') return;
+  paused = !paused;
+  $('pauseScreen').classList.toggle('hidden', !paused);
+  duckBgm(paused);
+}
+function openGuide(){ guideOpen = true; $('guideScreen').classList.remove('hidden'); }
+function closeGuide(){ guideOpen = false; $('guideScreen').classList.add('hidden');
+  try { localStorage.setItem('runnerGuideSeen', '1'); } catch(e){} }
+$('pauseBtn').addEventListener('click', togglePause);
+['mousedown','touchstart'].forEach(ev =>           // 別讓點按鈕被當成滑動
+  $('pauseBtn').addEventListener(ev, e => e.stopPropagation()));
+$('resumeBtn').addEventListener('click', togglePause);
+$('guidePauseBtn').addEventListener('click', openGuide);
+$('guideBtn').addEventListener('click', closeGuide);
+try { if (!localStorage.getItem('runnerGuideSeen')) openGuide(); } catch(e){ openGuide(); }
 
 // 待機畫面也讓角色原地跑
 resetPlayer();
@@ -1005,6 +1190,24 @@ window.addEventListener('message',e=>{
   applyRunnerData(e.data.payload);
 });
 (function(){ const d=readRunnerHash(); if(d) applyRunnerData(d); })();
+
+/* 返回選單按鈕：記住目前單字，返回時帶回主機 */
+(function(){
+  function rawFromHash(){ const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash; return h?(new URLSearchParams(h).get('lessonData')||''):''; }
+  let LESSON_RAW=rawFromHash();
+  window.addEventListener('message',e=>{ if(e.data&&e.data.type==='RUNNER_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
+  function backToMenu(){
+    if(history.length>1 && /index\.html/.test(document.referrer)){ history.back(); return; }
+    location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
+  }
+  const b=document.createElement('button');
+  b.type='button'; b.id='back-to-menu'; b.textContent='← 選單'; b.setAttribute('aria-label','返回遊戲選單');
+  b.style.cssText='position:fixed;top:10px;left:10px;z-index:99999;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.addEventListener('click',backToMenu);
+  b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
+  b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
+  (document.body||document.documentElement).appendChild(b);
+})();
 
 // 測試用：window.__dbg() 可查看目前狀態
 window.__dbg = () => ({

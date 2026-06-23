@@ -46,15 +46,15 @@ button{font-family:'Outfit',sans-serif;}
 .unit-btn.disabled{opacity:.38;cursor:not-allowed;border-color:rgba(255,80,80,.35);}
 .unit-btn.ready{box-shadow:0 0 0 2px rgba(249,199,79,.2),0 0 18px rgba(249,199,79,.18);}
 .unit-btn.active{background:rgba(76,201,240,.2);border-color:#4cc9f0;box-shadow:0 0 0 2px rgba(76,201,240,.3);}
-#kind-tabs .unit-btn{font-size:.82rem;font-weight:800;}
-#kind-tabs .unit-btn small{font-weight:600;color:#cbd5e1;font-size:.66rem;}
 .unit-btn .icon{font-size:1.45rem;}
 .unit-btn .info{display:flex;flex-direction:column;}
 .unit-btn .name{font-weight:900;font-size:.88rem;}
 .unit-btn .cost{font-size:.76rem;color:#f9c74f;font-weight:800;}
 #quiz-panel{flex:1;}
-#quiz-type{font-size:.78rem;color:#f9c74f;font-weight:900;margin-bottom:6px;}
-#question{font-size:1rem;font-weight:800;margin-bottom:12px;line-height:1.5;}
+#quiz-type{font-size:.9rem;font-weight:900;margin-bottom:10px;padding:7px 12px;border-radius:10px;border:2px solid #555;}
+#quiz-type.qt-vocab{color:#cdefff;background:rgba(76,201,240,.16);border-color:#4cc9f0;}
+#quiz-type.qt-grammar{color:#eddcff;background:rgba(199,125,255,.18);border-color:#c77dff;}
+#question{font-size:1.35rem;font-weight:900;margin-bottom:14px;line-height:1.55;padding:14px 16px;background:rgba(255,255,255,.06);border-left:5px solid #f9c74f;border-radius:10px;color:#fff;}
 #options{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .opt-btn{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-bottom:4px solid rgba(255,255,255,.12);border-radius:10px;padding:9px 12px;cursor:pointer;font-size:.9rem;color:#fff;transition:all .16s;text-align:left;font-weight:800;}
 .opt-btn:hover{background:rgba(100,180,255,.2);border-color:#4cc9f0;}
@@ -69,6 +69,13 @@ button{font-family:'Outfit',sans-serif;}
 #overlay .stats{font-size:1rem;color:#d1d5db;line-height:2;}
 #overlay .note{color:#9ca3af;font-size:.9rem;font-weight:800;}
 .overlay-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+.battle-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);align-items:center;justify-content:center;flex-direction:column;z-index:120;padding:20px;text-align:center;}
+.battle-ov.show{display:flex;}
+.battle-ov .card{max-width:560px;width:90%;background:#15182b;border:1px solid rgba(249,199,79,.4);border-radius:16px;padding:24px 28px;color:#fff;}
+.battle-ov h2{font-size:1.8rem;font-weight:900;color:#f9c74f;margin-bottom:12px;}
+.battle-ov .r{text-align:left;font-size:.95rem;line-height:1.9;background:rgba(255,255,255,.07);border-radius:12px;padding:14px 18px;margin-bottom:16px;color:rgba(255,255,255,.92);}
+.battle-ov .r b{color:#f9c74f;}
+.battle-ov .acts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
 @media (max-width:720px){
   body{padding:10px;}
   .rules{grid-template-columns:1fr;}
@@ -84,7 +91,7 @@ button{font-family:'Outfit',sans-serif;}
   .unit-btn .name{font-size:.78rem;}
   .unit-btn .cost{font-size:.7rem;}
   #options{grid-template-columns:1fr;gap:7px;}
-  #question{font-size:.92rem;}
+  #question{font-size:1.12rem;}
   .opt-btn{font-size:.86rem;}
 }
 </style>
@@ -136,8 +143,8 @@ button{font-family:'Outfit',sans-serif;}
       <div class="stat">答題 <span id="score-display">0 / 0</span></div>
       <div class="stat">派兵 <span id="deployed-display">0</span></div>
     </div>
+    <div id="boss-banner" style="display:none;margin:6px 0;padding:8px 12px;border-radius:10px;background:rgba(255,80,80,.2);border:1.5px solid #ff5050;color:#ffd166;font-weight:700;"></div>
     <canvas id="canvas" width="900" height="360"></canvas>
-    <div id="boss-banner" style="display:none;margin:6px 0;padding:6px 10px;border-radius:8px;background:rgba(255,80,80,.18);border:1px solid #ff5050;color:#ffd166;font-weight:700;text-align:center;"></div>
     <div id="panels">
       <div id="deploy" class="panel">
         <div class="section-title">派兵（單字題賺金幣）</div>
@@ -153,18 +160,21 @@ button{font-family:'Outfit',sans-serif;}
           <span class="icon">🔮</span>
           <span class="info"><span class="name">法師</span><span class="cost">85 金</span></span>
         </button>
-        <div class="section-title">升級全軍（文法題賺強化值）</div>
-        <button class="unit-btn" id="btn-upgrade" onclick="upgradeArmy()">
-          <span class="icon">⬆️</span>
-          <span class="info"><span class="name">全軍升級</span><span class="cost">升 Lv2・2 強化值</span></span>
+        <div class="section-title">兵種進化（文法題賺強化值）</div>
+        <button class="unit-btn" id="up-sword" onclick="upgradeUnit('sword')">
+          <span class="icon">⚔️</span>
+          <span class="info"><span class="name">劍士進化</span><span class="cost">升 Lv2・2 強化值</span></span>
+        </button>
+        <button class="unit-btn" id="up-archer" onclick="upgradeUnit('archer')">
+          <span class="icon">🏹</span>
+          <span class="info"><span class="name">弓箭手進化</span><span class="cost">升 Lv2・2 強化值</span></span>
+        </button>
+        <button class="unit-btn" id="up-mage" onclick="upgradeUnit('mage')">
+          <span class="icon">🔮</span>
+          <span class="info"><span class="name">法師進化</span><span class="cost">升 Lv2・2 強化值</span></span>
         </button>
       </div>
       <div id="quiz-panel" class="panel">
-        <div class="section-title">出題：單字／文法交叉（BOSS 時全文法）</div>
-        <div id="kind-tabs" style="display:flex;gap:8px;margin-bottom:8px;">
-          <div id="tab-vocab" class="unit-btn active" style="flex:1;justify-content:center;cursor:default;">📘 單字題<br><small>賺金幣→派兵</small></div>
-          <div id="tab-grammar" class="unit-btn" style="flex:1;justify-content:center;cursor:default;">📐 文法題<br><small>賺強化值→升級</small></div>
-        </div>
         <div id="quiz-type">準備中</div>
         <div id="question">按開始戰鬥後出題</div>
         <div id="options"></div>
@@ -181,6 +191,29 @@ button{font-family:'Outfit',sans-serif;}
   <div class="overlay-actions">
     <button class="primary-btn" onclick="startGame()">同難度再來一局</button>
     <button class="secondary-btn" onclick="showStartScreen()">回難度選擇</button>
+  </div>
+</div>
+
+<div id="battle-pause" class="battle-ov">
+  <div class="card">
+    <h2>⏸ 暫停</h2>
+    <div class="acts">
+      <button class="primary-btn" id="battle-resume">繼續戰鬥</button>
+      <button class="secondary-btn" id="battle-guide-pause">📖 如何遊玩</button>
+    </div>
+  </div>
+</div>
+<div id="battle-guide" class="battle-ov">
+  <div class="card">
+    <h2>⚔️ 如何遊玩</h2>
+    <div class="r">
+      這是一場<b>答題攻防戰</b>：畫面下方出英文／文法題，<b>點選正確答案</b>。<br>
+      ✅ 答對單字題 → 獲得金幣、派我方士兵攻向敵方基地。<br>
+      📘 答對文法題 → 累積強化值，可<b>升級全軍</b>（攻擊與血量倍率提升）。<br>
+      ⏳ 限時內把<b>敵方基地血量打到 0</b> 就獲勝；小心敵軍與 BOSS 反推你的基地！<br>
+      ⏸ 戰鬥中可按 <b>ESC</b> 暫停。
+    </div>
+    <button class="primary-btn" id="battle-guide-ok">✓ 我知道了</button>
   </div>
 </div>
 
@@ -202,7 +235,10 @@ const BASE_CONFIG = {
   bossTimes: [55, 110],                // 0:55、1:50 出 BOSS
   bossHP: [900, 1300],
   bossAtk: [40, 60],
-  bossGrammarNeed: 3,                  // 連對 3 題文法才擊退
+  bossChip: [1/3, 1/5],               // 每隻 BOSS「答對一題文法」扣的血量比例 → 第 1 隻需 3 次、第 2 隻需 5 次
+  // 各難度 BOSS 行為（在 DIFFICULTY_CONFIG 設定）：
+  //   bossChipMode: 'count' 每答對就扣血 / 'peak' 只在刷新「連續答對最高紀錄」時扣血
+  //   bossWrong:    'none' 答錯血量不變 / 'full' 答錯補滿血（須一路連續）
 };
 
 const DIFFICULTY_CONFIG = {
@@ -214,7 +250,9 @@ const DIFFICULTY_CONFIG = {
     enemyIntervals: { early: 12000, mid: 10000, late: 8000 },
     wrongPenalty: 'advance_spawn',
     wrongSpawnAdvanceMs: 4000,
-    summary: '簡單：45 金開局，每 5 秒 +10 金；敵人 12 / 10 / 8 秒出兵，答錯只讓出兵倒數提前。'
+    bossChipMode: 'count',           // 每答對一題就扣 BOSS 血
+    bossWrong: 'none',               // 答錯不影響 BOSS 血量
+    summary: '簡單：45 金開局，每 5 秒 +10 金；敵人 12 / 10 / 8 秒出兵，答錯只讓出兵倒數提前。BOSS：答對就扣血。'
   },
   normal: {
     label: '普通',
@@ -223,7 +261,9 @@ const DIFFICULTY_CONFIG = {
     passiveMs: 5000,
     enemyIntervals: { early: 9000, mid: 7000, late: 5000 },
     wrongPenalty: 'spawn_sword',
-    summary: '普通：30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士。'
+    bossChipMode: 'peak',            // 只在刷新「連續答對最高紀錄」時扣 BOSS 血
+    bossWrong: 'none',               // 答錯中斷連續但不補血
+    summary: '普通：30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士。BOSS：需連續答對刷新紀錄才扣血。'
   },
   hard: {
     label: '困難',
@@ -232,7 +272,9 @@ const DIFFICULTY_CONFIG = {
     passiveMs: 6000,
     enemyIntervals: { early: 7000, mid: 5000, late: 3800 },
     wrongPenalty: 'spawn_scaling',
-    summary: '困難：20 金開局，每 6 秒 +5 金；敵人 7 / 5 / 3.8 秒出兵，連錯會追加弓箭手。'
+    bossChipMode: 'peak',            // 連續答對才扣血
+    bossWrong: 'full',               // 答錯補滿血，須一路連續答對
+    summary: '困難：20 金開局，每 6 秒 +5 金；敵人 7 / 5 / 3.8 秒出兵，連錯會追加弓箭手。BOSS：答錯回滿血，須連續答對。'
   }
 };
 
@@ -270,6 +312,15 @@ const UNIT_DEF = {
   archer: { label:'弓箭手', emoji:'🏹', cost:55, hp:55, atk:20, spd:1.0,  range:115, color:'#f9c74f', role:'穩定遠攻' },
   mage:   { label:'法師',   emoji:'🔮', cost:85, hp:42, atk:34, spd:0.82, range:135, color:'#c77dff', role:'高傷害、脆皮' },
 };
+
+// BOSS 外觀種類（純造型：emoji + 名字 + 血條/光環配色），每局洗牌輪流出，數值仍由出場序決定
+const BOSS_TYPES = [
+  { emoji:'👹', name:'赤鬼',   color:'#ff5050', aura:'rgba(255,80,80,.22)'  },
+  { emoji:'👺', name:'天狗',   color:'#fb7185', aura:'rgba(251,113,133,.22)'},
+  { emoji:'🐲', name:'魔龍',   color:'#34d399', aura:'rgba(52,211,153,.22)' },
+  { emoji:'💀', name:'骷髏王', color:'#e2e8f0', aura:'rgba(226,232,240,.26)'},
+  { emoji:'👿', name:'惡魔',   color:'#c084fc', aura:'rgba(192,132,252,.22)'},
+];
 
 const DEFAULT_GRAMMAR = [
   { question:'The costume ________ the actor wore was very expensive.', options:['whom','whose','what','which'], answer:'which', hint:'文法選擇題' },
@@ -491,7 +542,7 @@ class Unit{
     this.id = uid++;
     this.type = type;
     this.side = side;
-    this.level = side === 'player' ? (state ? state.level : 1) : 1;
+    this.level = side === 'player' ? (state ? (state.levels[type] || 1) : 1) : 1;
     this.tier  = side === 'enemy'  ? (state ? state.enemyTier : 0) : 0;
     const mult = side === 'player'
       ? (CONFIG.levelMult[this.level] || 1)
@@ -566,12 +617,14 @@ function initState(){
     quizLocked:false,
     // ── 等級系統 ──
     power:0,                 // 強化值（文法題賺）
-    level:1,                 // 全軍等級 1~3
+    levels:{ sword:1, archer:1, mage:1 },   // 各兵種獨立等級 1~3
     // ── 敵方階梯 ──
     enemyTier:0,             // 0/1/2 對應 enemyTierMult
     // ── BOSS ──
     boss:null,               // 當前 BOSS 單位
     bossesSpawned:0,
+    bossQueue:shuffle([...Array(BOSS_TYPES.length).keys()]),  // 本局 BOSS 外觀的洗牌順序
+    bossQueuePos:0,
     bossDefeated:0,
     grammarStreak:0,         // 連續答對文法（擊退 BOSS 用）
     lastKind:'grammar',      // 上一題類型（用來單字/文法交叉出題，首題為單字）
@@ -725,12 +778,15 @@ function drawUnit(u, now){
     const gy = u.y;
     ctx.fillStyle = 'rgba(0,0,0,.35)';
     ctx.beginPath(); ctx.ellipse(u.x, gy+18, 30, 9, 0, 0, Math.PI*2); ctx.fill();
+    if(u.bossAura){                              // 各 BOSS 專屬光環
+      const g = ctx.createRadialGradient(u.x, gy-16, 4, u.x, gy-16, 36);
+      g.addColorStop(0, u.bossAura);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(u.x, gy-16, 36, 0, Math.PI*2); ctx.fill();
+    }
     ctx.font = '44px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('👹', u.x, gy - 18);
-    const bw = 66, ratio = Math.max(0, u.hp / u.maxHp);
-    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(u.x-bw/2, gy-58, bw, 7);
-    ctx.fillStyle = '#ff5050'; ctx.fillRect(u.x-bw/2, gy-58, bw*ratio, 7);
-    ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 1.5; ctx.strokeRect(u.x-bw/2, gy-58, bw, 7);
+    ctx.fillText(u.emoji || '👹', u.x, gy - 18);   // 血量改在頂部大血條顯示
     return;
   }
   const teamColor = u.side === 'player' ? '#38bdf8' : '#fb7185';
@@ -918,6 +974,7 @@ function showStartScreen(){
 }
 
 function loop(ts){
+  if(paused){ requestAnimationFrame(loop); return; }   // 暫停：保持排程但不推進
   if(!state || state.phase !== 'playing') return;
   const dt = ts - lastTime;
   lastTime = ts;
@@ -953,10 +1010,14 @@ function loop(ts){
     }
   }
   state.units = state.units.filter(u => u.hp > 0);
-  if(state.boss && state.boss.hp <= 0){          // BOSS 被我方兵擊倒
+  if(state.boss && state.boss.hp <= 0){          // BOSS 被擊倒（答題或派兵皆可）
     state.boss = null;
     state.bossDefeated += 1;
-    state.floats.push({ x:450, y:120, text:'BOSS 被擊倒！', color:'#4cc864', life:1400, born:now });
+    state.grammarStreak = 0;
+    state.gold += 60;
+    state.power += 1;
+    state.floats.push({ x:450, y:120, text:'擊退 BOSS！+60 金 +1 強化值', color:'#4cc864', life:1500, born:now });
+    playSound('win');
   }
 
   ctx.clearRect(0,0,900,360);
@@ -982,22 +1043,25 @@ function updateHUD(){
   document.getElementById('score-display').textContent = `${state.correctCount} / ${state.wrongCount}`;
   document.getElementById('deployed-display').textContent = state.deployCount;
   document.getElementById('power-display').textContent = state.power;
-  document.getElementById('level-display').textContent = 'Lv' + state.level;
+  document.getElementById('level-display').textContent =
+    `⚔️${state.levels.sword} 🏹${state.levels.archer} 🔮${state.levels.mage}`;
   for(const [key, def] of Object.entries(UNIT_DEF)){
     const btn = document.getElementById('btn-' + key);
     const cost = Math.round(def.cost);
     btn.classList.toggle('disabled', state.gold < cost);
     btn.classList.toggle('ready', state.gold >= cost);
   }
-  const upBtn = document.getElementById('btn-upgrade');
-  if(upBtn){
+  for(const key of Object.keys(UNIT_DEF)){
+    const upBtn = document.getElementById('up-' + key);
+    if(!upBtn) continue;
     const costEl = upBtn.querySelector('.cost');
-    if(state.level >= 3){
+    const lv = state.levels[key];
+    if(lv >= 3){
       upBtn.classList.add('disabled'); upBtn.classList.remove('ready');
       if(costEl) costEl.textContent = '已滿級 Lv3';
     } else {
-      const cost = CONFIG.levelCost[state.level+1];
-      if(costEl) costEl.textContent = `升 Lv${state.level+1}・${cost} 強化值`;
+      const cost = CONFIG.levelCost[lv+1];
+      if(costEl) costEl.textContent = `升 Lv${lv+1}・${cost} 強化值`;
       upBtn.classList.toggle('disabled', state.power < cost);
       upBtn.classList.toggle('ready', state.power >= cost);
     }
@@ -1005,21 +1069,21 @@ function updateHUD(){
   const banner = document.getElementById('boss-banner');
   if(banner){
     if(state.boss){
+      const b = state.boss;
+      const ratio = Math.max(0, Math.min(1, b.hp / b.maxHp));
       banner.style.display = 'block';
-      banner.textContent = `👹 BOSS 出沒！切到文法題、連對擊退 ${Math.min(state.grammarStreak, CONFIG.bossGrammarNeed)}/${CONFIG.bossGrammarNeed}`;
+      banner.innerHTML =
+        `<div style="display:flex;align-items:center;gap:10px;">`+
+          `<span style="font-size:1.15rem;font-weight:900;white-space:nowrap;">${b.emoji} ${b.bossName||'BOSS'}</span>`+
+          `<div style="flex:1;height:20px;background:rgba(0,0,0,.5);border-radius:10px;overflow:hidden;border:1.5px solid #ffd166;">`+
+            `<div style="height:100%;width:${(ratio*100).toFixed(1)}%;background:${b.bossColor||'#ff5050'};transition:width .2s;"></div>`+
+          `</div>`+
+          `<span style="white-space:nowrap;font-weight:900;">${Math.max(0,Math.ceil(b.hp))} / ${b.maxHp}　擊退 ${bossProgress(b)}/${b.need}</span>`+
+        `</div>`;
     } else {
       banner.style.display = 'none';
     }
   }
-}
-
-function updateKindTabs(){   // 純指示：highlight 目前這題是單字還是文法
-  const v = document.getElementById('tab-vocab');
-  const g = document.getElementById('tab-grammar');
-  if(!v || !g || !currentQuestion) return;
-  const isG = currentQuestion.type === '文法選擇題';
-  v.classList.toggle('active', !isG);
-  g.classList.toggle('active', isG);
 }
 
 function deployUnit(type){
@@ -1034,24 +1098,25 @@ function deployUnit(type){
   updateHUD();
 }
 
-function upgradeArmy(){
-  if(!state || state.phase !== 'playing' || state.level >= 3) return;
-  const next = state.level + 1;
+function upgradeUnit(type){
+  if(!state || state.phase !== 'playing') return;
+  if(!UNIT_DEF[type] || state.levels[type] >= 3) return;
+  const next = state.levels[type] + 1;
   const cost = CONFIG.levelCost[next];
   if(state.power < cost) return;
   state.power -= cost;
-  const ratio = CONFIG.levelMult[next] / CONFIG.levelMult[state.level];
-  state.level = next;
-  for(const u of state.units){            // 既有我方兵同步強化（保留血量比例）
-    if(u.side !== 'player' || u.isBoss) continue;
+  const ratio = CONFIG.levelMult[next] / CONFIG.levelMult[state.levels[type]];
+  state.levels[type] = next;
+  for(const u of state.units){            // 只同步強化同兵種既有我方兵（保留血量比例）
+    if(u.side !== 'player' || u.isBoss || u.type !== type) continue;
     const hpRatio = u.hp / u.maxHp;
     u.maxHp *= ratio;
     u.hp = u.maxHp * hpRatio;
     u.atk = Math.round(u.atk * ratio);
-    u.level = state.level;
+    u.level = next;
   }
   playSound('combo');
-  state.floats.push({ x:105, y:150, text:`全軍升至 Lv${state.level}！`, color:'#7dd3fc', life:1200, born:Date.now() });
+  state.floats.push({ x:105, y:150, text:`${UNIT_DEF[type].label}進化至 Lv${next}！`, color:'#7dd3fc', life:1200, born:Date.now() });
   updateHUD();
 }
 
@@ -1071,48 +1136,52 @@ function maybeSpawnBoss(elapsed){
   if(state.bossesSpawned >= CONFIG.bossTimes.length) return;
   if(elapsed >= CONFIG.bossTimes[state.bossesSpawned]){
     const i = state.bossesSpawned;
+    const bt = BOSS_TYPES[state.bossQueue[state.bossQueuePos % BOSS_TYPES.length]];
+    state.bossQueuePos += 1;
     const boss = new Unit('sword', 'enemy');
     boss.isBoss = true;
-    boss.emoji = '👹';
+    boss.emoji = bt.emoji;
+    boss.bossName = bt.name;
+    boss.bossColor = bt.color;
+    boss.bossAura = bt.aura;
     boss.hp = boss.maxHp = CONFIG.bossHP[i] || 900;
     boss.atk = CONFIG.bossAtk[i] || 40;
     boss.spd = 0.55;
     boss.range = 46;
     boss.attackRate = 1200;
+    const chip = (CONFIG.bossChip && CONFIG.bossChip[i]) || (1/3);
+    boss.need = Math.max(1, Math.round(1 / chip));   // 共需答對幾題文法
+    boss.chipDmg = boss.maxHp * chip;                // 每次答對扣的血
+    boss.streak = 0;                                 // 目前連續答對
+    boss.peak = 0;                                   // 連續答對最高紀錄（peak 模式用）
     state.units.push(boss);
     state.boss = boss;
     state.bossesSpawned += 1;
     state.grammarStreak = 0;
-    state.floats.push({ x:790, y:150, text:`👹 BOSS 來襲！連對 ${CONFIG.bossGrammarNeed} 題文法擊退`, color:'#ff5050', life:1800, born:Date.now() });
+    const tip = CONFIG.bossWrong === 'full'
+      ? `連續答對 ${boss.need} 題文法擊退（答錯回滿血）`
+      : CONFIG.bossChipMode === 'peak'
+        ? `連續答對刷新紀錄共 ${boss.need} 次擊退`
+        : `答對 ${boss.need} 題文法擊退`;
+    state.floats.push({ x:790, y:150, text:`${bt.emoji} ${bt.name}來襲！${tip}`, color:bt.color, life:1800, born:Date.now() });
     playSound('lose');
   }
 }
 
-function hitBoss(){           // 文法連對時推進；達標擊退 BOSS
-  if(!state.boss) return;
-  const need = CONFIG.bossGrammarNeed;
-  state.boss.hp = state.boss.maxHp * Math.max(0, 1 - state.grammarStreak / need);
-  state.floats.push({ x:state.boss.x, y:state.boss.y-34, text:`文法重擊 ${Math.min(state.grammarStreak,need)}/${need}`, color:'#ffd166', life:900, born:Date.now() });
-  if(state.grammarStreak >= need){
-    state.boss.hp = 0;
-    state.boss = null;
-    state.bossDefeated += 1;
-    state.grammarStreak = 0;
-    state.gold += 60;
-    state.power += 1;
-    state.floats.push({ x:450, y:120, text:'擊退 BOSS！+60 金 +1 強化值', color:'#4cc864', life:1600, born:Date.now() });
-    playSound('win');
-  }
+function bossProgress(boss){   // 由血量推算「已擊退幾格」，供顯示用（含派兵造成的傷害）
+  if(!boss || !boss.need) return 0;
+  return Math.min(boss.need, Math.round((1 - Math.max(0, boss.hp) / boss.maxHp) * boss.need));
 }
 
 function loadQuestion(){
   if(!state || state.phase !== 'playing') return;
   currentQuestion = getNextQuestion();
   const isGrammar = currentQuestion.type === '文法選擇題';
-  document.getElementById('quiz-type').textContent = isGrammar
+  const qt = document.getElementById('quiz-type');
+  qt.textContent = isGrammar
     ? `📐 ${currentQuestion.type}｜答對 +${CONFIG.powerPerGrammar} 強化值（升級／擊退 BOSS）`
     : `📘 ${currentQuestion.type}｜答對 +${CONFIG.correctGold} 金，連對 ${CONFIG.comboNeed} 題 +${CONFIG.comboBonus}`;
-  updateKindTabs();
+  qt.className = isGrammar ? 'qt-grammar' : 'qt-vocab';
   document.getElementById('question').textContent = currentQuestion.prompt;
   const optDiv = document.getElementById('options');
   optDiv.innerHTML = '';
@@ -1146,9 +1215,23 @@ function checkAnswer(chosen, btn){
       state.floats.push({ x:450, y:145, text:'+'+CONFIG.powerPerGrammar+' 強化值', color:'#7dd3fc', life:900, born:Date.now() });
       let msg = `答對！+${CONFIG.powerPerGrammar} 強化值`;
       if(state.boss){
-        state.grammarStreak += 1;
-        hitBoss();
-        msg = state.boss ? `文法重擊！${Math.min(state.grammarStreak, CONFIG.bossGrammarNeed)}/${CONFIG.bossGrammarNeed}` : '擊退 BOSS！';
+        const boss = state.boss;
+        boss.streak = (boss.streak || 0) + 1;
+        let hit = false;
+        if(CONFIG.bossChipMode === 'count'){           // 簡單：每答對就扣
+          boss.hp -= boss.chipDmg; hit = true;
+        } else if(boss.streak > (boss.peak || 0)){      // 普通/困難：刷新連續紀錄才扣
+          boss.peak = boss.streak;
+          boss.hp -= boss.chipDmg; hit = true;
+        }
+        state.grammarStreak = boss.streak;
+        if(boss.hp <= 0){
+          msg = '擊退 BOSS！';
+        } else {
+          if(hit) state.floats.push({ x:boss.x, y:boss.y-34, text:`文法重擊 ${bossProgress(boss)}/${boss.need}`, color:'#ffd166', life:900, born:Date.now() });
+          msg = hit ? `文法重擊！${bossProgress(boss)}/${boss.need}`
+                    : `連對 ${boss.streak} 題（要超過紀錄 ${boss.peak} 才再扣血）`;
+        }
       }
       fb.textContent = msg;
     } else {
@@ -1171,9 +1254,15 @@ function checkAnswer(chosen, btn){
     if(btns[currentQuestion.ans]) btns[currentQuestion.ans].classList.add('correct');
     state.wrongCount += 1;
     state.combo = 0;
-    if(state.boss && state.grammarStreak > 0){     // 連對中斷，BOSS 擊退進度歸零
+    if(state.boss){
+      state.boss.streak = 0;                        // 連續中斷
       state.grammarStreak = 0;
-      state.boss.hp = state.boss.maxHp;
+      if(CONFIG.bossWrong === 'full'){              // 困難：答錯補滿血、進度全失
+        state.boss.hp = state.boss.maxHp;
+        state.boss.peak = 0;
+        state.floats.push({ x:state.boss.x, y:state.boss.y-34, text:'BOSS 回滿血！', color:'#ff5050', life:1000, born:Date.now() });
+      }
+      // 簡單/普通：血量不變（普通保留連對最高紀錄 peak）
     }
     fb.textContent = applyWrongPenalty();
     fb.className = 'fb-wrong';
@@ -1196,7 +1285,7 @@ function endGame(result){
   document.getElementById('overlay-stats').innerHTML =
     `難度：${CONFIG.label}<br>` +
     `答對：${state.correctCount} 題　答錯：${state.wrongCount} 題<br>` +
-    `全軍等級：Lv${state.level}　擊退 BOSS：${state.bossDefeated} 次<br>` +
+    `兵種等級：⚔️${state.levels.sword} 🏹${state.levels.archer} 🔮${state.levels.mage}　擊退 BOSS：${state.bossDefeated} 次<br>` +
     `最高連勝：${state.maxCombo}　派兵：${state.deployCount} 次<br>` +
     `我方基地：${Math.max(0, Math.ceil(state.playerHP))} / ${state.maxHP}<br>` +
     `敵方基地：${Math.max(0, Math.ceil(state.enemyHP))} / ${state.maxHP}`;
@@ -1221,6 +1310,24 @@ function endGame(result){
   } catch(e){}
 })();
 buildQuestionPools(battleData);
+
+/* 返回選單按鈕：記住目前單字，返回時帶回主機 */
+(function(){
+  function rawFromHash(){ const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash; return h?(new URLSearchParams(h).get('lessonData')||''):''; }
+  let LESSON_RAW=rawFromHash();
+  window.addEventListener('message',e=>{ if(e.data&&e.data.type==='BATTLE_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
+  function backToMenu(){
+    if(history.length>1 && /index\.html/.test(document.referrer)){ history.back(); return; }
+    location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
+  }
+  const b=document.createElement('button');
+  b.type='button'; b.id='back-to-menu'; b.textContent='← 選單'; b.setAttribute('aria-label','返回遊戲選單');
+  b.style.cssText='position:fixed;top:10px;left:10px;z-index:99999;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.addEventListener('click',backToMenu);
+  b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
+  b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
+  (document.body||document.documentElement).appendChild(b);
+})();
 </script>
 </body>
 </html>

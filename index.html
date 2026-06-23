@@ -20,6 +20,20 @@
     header { margin-bottom: 28px; }
     h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 52px); line-height: 1.05; }
     p { margin: 0; color: #cbd5e1; font-size: 17px; line-height: 1.6; }
+    .scope {
+      margin-top: 22px; padding: 16px 18px; border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 12px; background: rgba(15,23,42,0.6);
+    }
+    .scope-title { font-size: 14px; color: #cbd5e1; margin-bottom: 12px; }
+    .scope-opts { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .scope-btn {
+      cursor: pointer; border: 1px solid rgba(255,255,255,0.22); border-radius: 999px;
+      padding: 9px 18px; font-size: 15px; color: #e2e8f0; background: rgba(255,255,255,0.04);
+      transition: background .15s ease, color .15s ease, border-color .15s ease; user-select: none;
+    }
+    .scope-btn.active { background: rgba(250,204,21,0.92); color: #1f2937; border-color: rgba(250,204,21,0.92); font-weight: bold; }
+    .scope-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+    .scope-info { font-size: 13px; color: #94a3b8; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 24px; }
     .game-card {
       display: block; border: 1px solid rgba(255,255,255,0.16); border-radius: 12px;
@@ -39,15 +53,80 @@
       <h1>🎮 英文單字遊戲主機</h1>
       <p>五款單字遊戲共用主機。學生頁面會把該單元的單字傳進來，自動換成最新段考單字。</p>
     </header>
-    <section class="grid">
-      <a class="game-card" href="./games/miner.html"><h2>單字挖金礦</h2><span>聽發音，抓正確金塊。</span></a>
-      <a class="game-card" href="./games/bomb.html"><h2>炸彈英文</h2><span>駕駛飛機，炸掉目標單字。</span></a>
-      <a class="game-card" href="./games/tank.html"><h2>單字坦克</h2><span>找出樹上正確的單字，射下來。</span></a>
-      <a class="game-card" href="./games/ship.html"><h2>海岸狙擊手</h2><span>瞄準意思正確的船艦擊沉。</span></a>
-      <a class="game-card" href="./games/runner.html"><h2>英文跑酷</h2><span>邊跑邊選正確答案閃避障礙。</span></a>
-      <a class="game-card" href="./games/battle.html"><h2>英文攻防戰</h2><span>派兵攻防，答對單字才能出兵。</span></a>
+    <section class="scope">
+      <div class="scope-title">選擇練習單字範圍：</div>
+      <div class="scope-opts">
+        <div id="scope-lesson" class="scope-btn" role="button" tabindex="0">本次段考單字</div>
+        <div id="scope-builtin" class="scope-btn" role="button" tabindex="0">系統內建單字</div>
+        <span id="scope-lesson-info" class="scope-info"></span>
+      </div>
     </section>
-    <p class="note">※ 直接點進遊戲會用內建示範單字；由學生頁面開啟時，會自動帶入該單元的單字。</p>
+    <section class="grid">
+      <a class="game-card" href="./games/miner.html" data-href="./games/miner.html"><h2>單字挖金礦</h2><span>聽發音，抓正確金塊。</span></a>
+      <a class="game-card" href="./games/bomb.html" data-href="./games/bomb.html"><h2>炸彈英文</h2><span>駕駛飛機，炸掉目標單字。</span></a>
+      <a class="game-card" href="./games/tank.html" data-href="./games/tank.html"><h2>單字坦克</h2><span>找出樹上正確的單字，射下來。</span></a>
+      <a class="game-card" href="./games/ship.html" data-href="./games/ship.html"><h2>海岸狙擊手</h2><span>瞄準意思正確的船艦擊沉。</span></a>
+      <a class="game-card" href="./games/runner.html" data-href="./games/runner.html"><h2>英文跑酷</h2><span>邊跑邊選正確答案閃避障礙。</span></a>
+      <a class="game-card" href="./games/battle.html" data-href="./games/battle.html"><h2>英文攻防戰</h2><span>派兵攻防，答對單字才能出兵。</span></a>
+    </section>
+    <p class="note">※ 選「系統內建單字」會用內建示範題庫；選「本次段考單字」需由學生頁面開啟才會帶入該單元的單字。</p>
   </main>
+  <script>
+  (function(){
+    // 從網址 hash 讀學生頁帶進來的段考單字
+    function readHashLesson(){
+      const h = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
+      if(!h) return { raw:null, data:null };
+      const raw = new URLSearchParams(h).get('lessonData');
+      if(!raw) return { raw:null, data:null };
+      try { return { raw, data: JSON.parse(raw) }; } catch(e){ return { raw:null, data:null }; }
+    }
+    const lesson = readHashLesson();
+    const hasLesson = !!(lesson.data && Array.isArray(lesson.data.words) && lesson.data.words.length);
+
+    const lessonBtn = document.getElementById('scope-lesson');
+    const builtinBtn = document.getElementById('scope-builtin');
+    const lessonInfo = document.getElementById('scope-lesson-info');
+
+    if(hasLesson){
+      const title = lesson.data.unitTitle || '本次段考';
+      lessonInfo.textContent = `${title}・${lesson.data.words.length} 字`;
+    } else {
+      lessonBtn.classList.add('disabled');
+      lessonInfo.textContent = '（由學生頁面開啟才有段考單字）';
+    }
+
+    // 預設範圍：有段考單字就選段考，否則只能用內建；sessionStorage 記住選擇
+    let scope = sessionStorage.getItem('sg_scope');
+    if(!hasLesson) scope = 'builtin';
+    else if(scope !== 'builtin') scope = 'lesson';
+
+    function render(){
+      lessonBtn.classList.toggle('active', scope === 'lesson');
+      builtinBtn.classList.toggle('active', scope === 'builtin');
+    }
+    function setScope(s){
+      if(s === 'lesson' && !hasLesson) return;
+      scope = s; sessionStorage.setItem('sg_scope', s); render();
+    }
+    lessonBtn.addEventListener('click', () => setScope('lesson'));
+    builtinBtn.addEventListener('click', () => setScope('builtin'));
+    lessonBtn.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); setScope('lesson'); } });
+    builtinBtn.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); setScope('builtin'); } });
+    render();
+
+    // 點遊戲卡：依選擇決定是否把段考單字用 hash 帶進遊戲
+    document.querySelectorAll('.game-card').forEach(card => {
+      card.addEventListener('click', e => {
+        e.preventDefault();
+        const base = card.getAttribute('data-href');
+        const url = (scope === 'lesson' && lesson.raw)
+          ? base + '#lessonData=' + encodeURIComponent(lesson.raw)
+          : base;
+        location.href = url;
+      });
+    });
+  })();
+  </script>
 </body>
 </html>

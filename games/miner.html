@@ -327,6 +327,20 @@
                 }
             }
         }
+    /* ===== 暫停 + 玩法守則面板 ===== */
+    .mOverlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+        background:rgba(10,12,20,.72);z-index:200;}
+    .mOverlay.hidden{display:none;}
+    .mCard{max-width:560px;width:88%;background:#1b2030;border:1px solid rgba(255,207,77,.4);
+        border-radius:16px;padding:24px 28px;color:#fff;text-align:center;box-shadow:0 14px 50px rgba(0,0,0,.6);}
+    .mCard h2{margin:0 0 14px;color:#ffd24d;font-size:24px;}
+    .mCard .r{text-align:left;font-size:14.5px;line-height:1.9;background:rgba(255,255,255,.07);
+        border-radius:12px;padding:14px 18px;margin-bottom:18px;color:rgba(255,255,255,.92);}
+    .mCard .r b{color:#ffd24d;}
+    .mBtn{font-family:inherit;font-size:17px;font-weight:800;color:#1a1207;
+        background:linear-gradient(#ffd766,#ffb52e);border:none;border-radius:40px;
+        padding:12px 34px;cursor:pointer;margin:5px;}
+    .mBtn.sec{background:rgba(255,255,255,.16);color:#fff;border:2px solid #ffd24d;}
     </style>
 </head>
 <body>
@@ -378,6 +392,29 @@
         <button class="secondary" id="touch-right-btn" type="button" aria-label="礦車往右">→</button>
     </section>
     <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"></div>
+
+    <div id="miner-pause" class="mOverlay hidden">
+        <div class="mCard">
+            <h2>⏸ 暫停</h2>
+            <button class="mBtn" id="miner-resume">繼續遊戲</button>
+            <button class="mBtn sec" id="miner-guide-pause">📖 如何遊玩</button>
+        </div>
+    </div>
+    <div id="miner-guide" class="mOverlay hidden">
+        <div class="mCard">
+            <h2>⛏️ 如何遊玩</h2>
+            <div class="r">
+                🎧 每題會<b>播放英文發音</b>（可按「聽發音」或 R 重聽）。<br>
+                ← → 或 A／D：移動礦車<br>
+                空白鍵 或「發射鉤子」：放出鉤爪<br>
+                <br>
+                🎯 聽完發音，把鉤爪射向<b>正確的金塊</b>（對應的英文單字或中文意思）。<br>
+                抓對 +20 分，抓錯倒扣時間。限時 60 秒，連續答對有連擊加成！<br>
+                ⏸ 遊戲中可按 <b>ESC</b> 暫停。
+            </div>
+            <button class="mBtn" id="miner-guide-ok">✓ 我知道了</button>
+        </div>
+    </div>
 
 <script>
     const canvas = document.getElementById("gameCanvas");
@@ -819,6 +856,7 @@
     }
 
     function update() {
+        if (paused) { lastFrameTime = performance.now(); return; }
         const now = performance.now();
         const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
         lastFrameTime = now;
@@ -1535,6 +1573,23 @@
     startGameBtn.addEventListener("click", startGame);
     fireBtn.addEventListener("click", shoot);
 
+    /* ===== 暫停 + 玩法守則 ===== */
+    let paused = false, guideOpen = false;
+    function togglePause() {
+        if (gamePhase !== "PLAYING") return;
+        paused = !paused;
+        document.getElementById("miner-pause").classList.toggle("hidden", !paused);
+    }
+    function openGuide() { guideOpen = true; document.getElementById("miner-guide").classList.remove("hidden"); }
+    function closeGuide() {
+        guideOpen = false; document.getElementById("miner-guide").classList.add("hidden");
+        try { localStorage.setItem("minerGuideSeen", "1"); } catch (e) {}
+    }
+    document.getElementById("miner-resume").addEventListener("click", togglePause);
+    document.getElementById("miner-guide-pause").addEventListener("click", openGuide);
+    document.getElementById("miner-guide-ok").addEventListener("click", closeGuide);
+    try { if (!localStorage.getItem("minerGuideSeen")) openGuide(); } catch (e) { openGuide(); }
+
     function bindMoveButton(button, direction) {
         const setPressed = (pressed) => {
             input[direction] = pressed;
@@ -1557,6 +1612,12 @@
     touchFireBtn.addEventListener("click", shoot);
 
     window.addEventListener("keydown", (event) => {
+        if (guideOpen) {
+            if (event.code === "Space" || event.code === "Enter" || event.code === "Escape") closeGuide();
+            event.preventDefault(); return;
+        }
+        if (event.code === "Escape") { event.preventDefault(); togglePause(); return; }
+        if (paused) { event.preventDefault(); return; }
         if (event.code === "ArrowLeft" || event.code === "KeyA") {
             event.preventDefault();
             input.left = true;
@@ -1592,6 +1653,24 @@
     updateHud();
     updateControls();
     loop();
+
+    /* 返回選單按鈕：記住目前單字，返回時帶回主機 */
+    (function(){
+      function rawFromHash(){ const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash; return h?(new URLSearchParams(h).get('lessonData')||''):''; }
+      let LESSON_RAW=rawFromHash();
+      window.addEventListener('message',e=>{ if(e.data&&e.data.type==='MINER_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
+      function backToMenu(){
+        if(history.length>1 && /index\.html/.test(document.referrer)){ history.back(); return; }
+        location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
+      }
+      const b=document.createElement('button');
+      b.type='button'; b.id='back-to-menu'; b.textContent='← 選單'; b.setAttribute('aria-label','返回遊戲選單');
+      b.style.cssText='position:fixed;top:10px;left:10px;z-index:99999;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+      b.addEventListener('click',backToMenu);
+      b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
+      b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
+      (document.body||document.documentElement).appendChild(b);
+    })();
 </script>
 </body>
 </html>
