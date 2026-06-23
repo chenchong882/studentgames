@@ -84,6 +84,22 @@
     animation:atkIn .25s ease-out, atkOut .6s ease-in 2.6s forwards;}
   @keyframes atkIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}
   @keyframes atkOut{to{opacity:0;transform:translateX(14px)}}
+  /* ===== 觸控操控（平板 / 手機） ===== */
+  #touchUI{position:fixed;inset:0;z-index:7;pointer-events:none;}
+  #moveStick{position:absolute;width:140px;height:140px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.28);background:rgba(20,26,38,.30);
+    transform:translate(-50%,-50%);display:none;}
+  #moveKnob{position:absolute;left:50%;top:50%;width:60px;height:60px;border-radius:50%;
+    transform:translate(-50%,-50%);background:rgba(255,216,120,.55);
+    border:2px solid rgba(255,255,255,.55);box-shadow:0 0 14px rgba(255,216,120,.6);}
+  #moveStick.boost{border-color:#ff8a4c;}
+  #moveStick.boost #moveKnob{background:rgba(255,120,60,.8);box-shadow:0 0 18px rgba(255,120,60,.9);}
+  #btnPause{position:absolute;top:14px;right:14px;width:48px;height:48px;border-radius:12px;
+    font-size:22px;background:rgba(20,26,38,.6);color:#ffe9a8;
+    border:1px solid rgba(255,216,120,.4);pointer-events:auto;}
+  #touchZones{position:absolute;inset:0;font-size:13px;color:rgba(255,255,255,.45);}
+  #touchZones .zL,#touchZones .zR{position:absolute;bottom:18px;text-align:center;width:46%;}
+  #touchZones .zL{left:2%;} #touchZones .zR{right:2%;}
   .hidden{display:none !important;}
 </style>
 </head>
@@ -114,6 +130,14 @@
 <svg id="arcLayer"></svg>
 <div id="atkLog"></div>
 <div id="hint">W/S 前進後退 ・ A/D 轉向 ・ Shift 加速 ・ 滑鼠瞄準 ・ 空格鍵／左鍵開砲 ・ R 重新開始 ・ ESC 暫停</div>
+<div id="touchUI" class="hidden">
+  <div id="touchZones">
+    <div class="zL">◀ 左側：拖曳移動／轉向（推到底加速）</div>
+    <div class="zR">右側：拖曳瞄準・自動開砲 ▶</div>
+  </div>
+  <div id="moveStick"><div id="moveKnob"></div></div>
+  <button id="btnPause">⏸</button>
+</div>
 <div id="overlay">
   <h1>🦖 侏羅紀坦克 3D</h1>
   <div class="sub">J U R A S S I C&nbsp;&nbsp;T A N K</div>
@@ -123,7 +147,7 @@
 </div>
 <div id="pauseOverlay" class="hidden">
   <h1>⏸ 暫停</h1>
-  <p>按 ESC 繼續遊戲</p>
+  <p>按 ESC 或 點擊畫面 繼續遊戲</p>
   <button id="guidePauseBtn" class="uiBtn">📖 如何遊玩</button>
 </div>
 <div id="guide" class="hidden">
@@ -649,12 +673,14 @@ function startGame(){
   document.getElementById('overlay').classList.add('hidden');
   document.getElementById('pauseOverlay').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
+  if(IS_TOUCH)document.getElementById('touchUI').classList.remove('hidden');
   startBgm();
 }
 function gameOver(reason){
   window.lastOver={reason,at:elapsed};
   overReason=reason;state='over';overT=0;best=Math.max(best,score);
   paused=false;document.getElementById('pauseOverlay').classList.add('hidden');stopBgm();
+  document.getElementById('touchUI').classList.add('hidden');resetTouch();
   endRound(false);closeQuiz();
   const missHtml=missedList.length
     ?`<p style="margin-top:18px;color:#ffb454;font-weight:700">📒 本局要複習的單字</p>
@@ -667,7 +693,7 @@ function gameOver(reason){
     <p style="font-size:26px;font-weight:700;color:#ffe9a8;margin-top:24px">得分 ${score} ・ 擊殺 ${kills}</p>
     <p style="color:rgba(255,255,255,.7)">最高分：${best} ・ 存活 ${Math.floor(elapsed)} 秒</p>
     ${missHtml}
-    <div class="go">點擊滑鼠 或 按 R 重新開始</div>`;
+    <div class="go">點擊滑鼠、輕觸螢幕 或 按 R 重新開始</div>`;
   ov.classList.remove('hidden');
 }
 
@@ -1542,13 +1568,76 @@ addEventListener('mousedown',()=>{
   mouse.down=true;
 });
 addEventListener('mouseup',()=>mouse.down=false);
-addEventListener('touchstart',e=>{ // 平板/手機：輕觸螢幕開始
+/* ====== 觸控操控（平板 / 手機）：左搖桿移動轉向 + 右側拖曳瞄準並自動開砲 ====== */
+const IS_TOUCH = matchMedia('(pointer:coarse)').matches || ('ontouchstart' in window);
+const stickEl=document.getElementById('moveStick'), knobEl=document.getElementById('moveKnob');
+const STICK_R=58;                 // 搖桿可拉半徑(px)
+let moveId=null, moveCx=0, moveCy=0;   // 移動觸點 id 與搖桿圓心
+let aimId=null;                        // 瞄準觸點 id
+function clearMoveKeys(){keys['KeyW']=keys['KeyS']=keys['KeyA']=keys['KeyD']=keys['ShiftLeft']=false;}
+function updMoveKnob(dx,dy){knobEl.style.left=(70+dx)+'px';knobEl.style.top=(70+dy)+'px';}
+function resetTouch(){
+  moveId=aimId=null;clearMoveKeys();mouse.down=false;
+  stickEl.style.display='none';stickEl.classList.remove('boost');
+}
+function setAim(t){mouse.x=t.clientX;mouse.y=Math.max(28,t.clientY-90);} // 準心抬到手指上方，免得被手指擋住
+function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink,#pauseOverlay,#overlay');}
+addEventListener('touchstart',e=>{
   ensureAudio();
-  if(e.target&&e.target.closest&&e.target.closest('.uiBtn,#guide,#guideLink'))return; // 守則連結 / 按鈕走自己的事件
-  if(guideOpen)return;
-  if(state==='menu'){e.preventDefault();startGame();return;}
-  if(state==='over'&&overT>0.6){e.preventDefault();startGame();}
+  if(state==='menu'||state==='over'){ // 選單 / 結束畫面：輕觸開始（互動元件除外）
+    if(isUIEl(e.target)||guideOpen)return;
+    if(state==='menu'){e.preventDefault();startGame();return;}
+    if(state==='over'&&overT>0.6){e.preventDefault();startGame();}
+    return;
+  }
+  if(state!=='play'||paused||guideOpen)return;
+  let acted=false;
+  for(const t of e.changedTouches){
+    if(isUIEl(document.elementFromPoint(t.clientX,t.clientY)))continue; // 暫停鈕 / 答題鈕走自己事件
+    if(t.clientX<innerWidth*0.46){          // 左半 → 移動搖桿（浮動定位在按下處）
+      if(moveId!==null)continue;
+      moveId=t.identifier;moveCx=t.clientX;moveCy=t.clientY;
+      stickEl.style.left=moveCx+'px';stickEl.style.top=moveCy+'px';stickEl.style.display='block';
+      updMoveKnob(0,0);acted=true;
+    }else{                                  // 右半 → 瞄準並自動開砲
+      if(aimId!==null)continue;
+      aimId=t.identifier;setAim(t);if(!quiz)mouse.down=true;acted=true;
+    }
+  }
+  if(acted)e.preventDefault();
 },{passive:false});
+addEventListener('touchmove',e=>{
+  if(state!=='play')return;
+  let acted=false;
+  for(const t of e.changedTouches){
+    if(t.identifier===moveId){
+      let dx=t.clientX-moveCx,dy=t.clientY-moveCy;
+      const len=Math.hypot(dx,dy);
+      if(len>STICK_R){dx*=STICK_R/len;dy*=STICK_R/len;}
+      updMoveKnob(dx,dy);
+      const nx=dx/STICK_R, ny=dy/STICK_R;
+      clearMoveKeys();
+      if(ny<-0.30)keys['KeyW']=true;
+      if(ny<-0.78)keys['ShiftLeft']=true;   // 推到底加速
+      if(ny> 0.40)keys['KeyS']=true;
+      if(nx<-0.32)keys['KeyA']=true;
+      if(nx> 0.32)keys['KeyD']=true;
+      stickEl.classList.toggle('boost',!!keys['ShiftLeft']);
+      acted=true;
+    }else if(t.identifier===aimId){setAim(t);acted=true;}
+  }
+  if(acted)e.preventDefault();
+},{passive:false});
+function endTouch(e){
+  for(const t of e.changedTouches){
+    if(t.identifier===moveId){moveId=null;clearMoveKeys();stickEl.style.display='none';stickEl.classList.remove('boost');}
+    else if(t.identifier===aimId){aimId=null;mouse.down=false;}
+  }
+}
+addEventListener('touchend',endTouch);
+addEventListener('touchcancel',endTouch);
+document.getElementById('btnPause').addEventListener('click',e=>{e.stopPropagation();togglePause();});
+document.getElementById('pauseOverlay').addEventListener('click',()=>{if(paused&&!guideOpen)togglePause();});
 addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('resize',()=>{
   renderer.setSize(innerWidth,innerHeight);
