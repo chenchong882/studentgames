@@ -642,12 +642,9 @@ class Bomb {
     c.save();
     c.translate(this.x, this.y); c.rotate(this.spin);
 
-    // Body gradient — see-through centre so a falling bomb doesn't hide the
-    // word/picture on a house it passes over; the darker rim keeps it readable.
+    // Body gradient
     const g = c.createRadialGradient(-3, -4, 2, 0, 0, 14);
-    g.addColorStop(0,   'rgba(110,110,110,0.32)');
-    g.addColorStop(0.6, 'rgba(45,45,45,0.62)');
-    g.addColorStop(1,   'rgba(17,17,17,0.92)');
+    g.addColorStop(0, '#666'); g.addColorStop(1, '#111');
     c.fillStyle = g;
     c.beginPath(); c.ellipse(0, 2, 11, 15, 0, 0, Math.PI*2); c.fill();
 
@@ -1262,11 +1259,13 @@ class BombButton {
   draw(c) {
     const sc = this.pressed>0 ? 0.90 : 1;
     c.save(); c.translate(this.cx, this.cy); c.scale(sc, sc);
-    c.globalAlpha = 0.75;
+    // More see-through overall so the button doesn't block the houses/view
+    // behind it; the cyan rings still mark where to tap.
+    c.globalAlpha = this.pressed>0 ? 0.7 : 0.55;
 
     // Outer ring fill (translucent)
     const g = c.createRadialGradient(0,0,this.r*0.35, 0,0,this.r);
-    g.addColorStop(0,'rgba(0,220,255,0.10)'); g.addColorStop(1,'rgba(0,220,255,0.30)');
+    g.addColorStop(0,'rgba(0,220,255,0.06)'); g.addColorStop(1,'rgba(0,220,255,0.20)');
     c.fillStyle = g;
     c.beginPath(); c.arc(0,0,this.r,0,Math.PI*2); c.fill();
 
@@ -1274,16 +1273,16 @@ class BombButton {
     c.strokeStyle='rgba(0,230,255,0.92)'; c.lineWidth=4;
     c.beginPath(); c.arc(0,0,this.r,0,Math.PI*2); c.stroke();
 
-    // Green inner circle (like reference)
-    c.fillStyle = 'rgba(50,180,80,0.70)';
+    // Green inner circle (translucent so the house shows through)
+    c.fillStyle = 'rgba(50,180,80,0.32)';
     c.beginPath(); c.arc(0,0,this.r*0.72,0,Math.PI*2); c.fill();
 
     // Inner ring border
     c.strokeStyle='rgba(0,230,255,0.60)'; c.lineWidth=2;
     c.beginPath(); c.arc(0,0,this.r*0.72,0,Math.PI*2); c.stroke();
 
-    // Bomb icon (solid white, larger)
-    c.fillStyle='rgba(255,255,255,0.96)';
+    // Bomb icon (kept readable but no longer solid)
+    c.fillStyle='rgba(255,255,255,0.80)';
     c.beginPath(); c.ellipse(0,5,17,22,0,0,Math.PI*2); c.fill();
 
     // Fuse
