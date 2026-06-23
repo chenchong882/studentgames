@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>狙擊暗殺：單字特務</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    font-family: "Noto Sans TC", Arial, sans-serif;
+    background: #0b0f1a; color: #e2e8f0; user-select: none;
+    touch-action: none;
+  }
+  #stage { position: fixed; inset: 0; }
+  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+
+  /* 頂部情報列 */
+  #hud-top {
+    position: fixed; top: 0; left: 0; right: 0; padding: 10px 14px;
+    display: flex; gap: 12px; align-items: flex-start; pointer-events: none;
+    background: linear-gradient(180deg, rgba(3,7,18,0.85), rgba(3,7,18,0));
+    z-index: 5;
+  }
+  #intel {
+    flex: 1; min-width: 0; border: 1px solid rgba(250,204,21,0.35);
+    border-radius: 10px; padding: 8px 12px; background: rgba(15,23,42,0.7);
+    backdrop-filter: blur(2px);
+  }
+  #intel .label { font-size: 12px; color: #fbbf24; letter-spacing: 2px; }
+  #intel .sentence { font-size: clamp(15px, 2.6vw, 20px); line-height: 1.45; margin-top: 2px; }
+  #intel .sentence .blank { color: #fbbf24; font-weight: bold; border-bottom: 2px solid #fbbf24; padding: 0 6px; }
+  #stats {
+    display: flex; flex-direction: column; gap: 4px; align-items: flex-end;
+    font-size: 13px; white-space: nowrap;
+  }
+  #stats .row { display: flex; gap: 8px; align-items: center; }
+  #stats b { color: #fbbf24; font-size: 16px; }
+  #ammo { letter-spacing: 1px; font-size: 18px; line-height: 1; }
+  #timerbar { width: 120px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.15); overflow: hidden; }
+  #timerfill { height: 100%; width: 100%; background: #34d399; transition: width .1s linear; }
+
+  /* 底部控制 */
+  #controls { position: fixed; bottom: 0; left: 0; right: 0; padding: 14px; display: flex; justify-content: space-between; align-items: flex-end; z-index: 5; pointer-events: none; }
+  .pad-btn {
+    pointer-events: auto; border: none; border-radius: 50%; width: 76px; height: 76px;
+    font-size: 13px; font-weight: bold; color: #0b0f1a; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.5); transition: transform .08s ease, filter .1s ease;
+  }
+  .pad-btn:active { transform: scale(0.92); }
+  .pad-btn .ico { font-size: 26px; }
+  #scope-btn { background: #38bdf8; }
+  #scope-btn.on { background: #fbbf24; filter: brightness(1.1); }
+  #fire-btn { background: #f87171; }
+  #fire-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  /* 依裝置調整操控元件尺寸與佈局 */
+  body.dev-desktop .pad-btn { width: 60px; height: 60px; font-size: 11px; opacity: 0.85; }
+  body.dev-desktop .pad-btn .ico { font-size: 20px; }
+  body.dev-tablet .pad-btn { width: 100px; height: 100px; font-size: 15px; }
+  body.dev-tablet .pad-btn .ico { font-size: 36px; }
+  body.dev-tablet #controls { padding: 26px 32px; }
+  body.left-handed #controls { flex-direction: row-reverse; }
+  .set-row { pointer-events: auto; background: rgba(15,23,42,0.8); color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 14px 18px;
+    font-size: 15px; cursor: pointer; text-align: left; }
+  .set-row:active { transform: scale(0.98); }
+
+  #back { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 6;
+    pointer-events: auto; background: rgba(15,23,42,0.8); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 999px; padding: 6px 14px; font-size: 12px; cursor: pointer; display: none; }
+
+  /* 覆蓋層（開始 / 結算 / 題目回饋） */
+  .overlay {
+    position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 24px;
+    background: rgba(3,7,18,0.86); backdrop-filter: blur(3px);
+  }
+  .overlay.hide { display: none; }
+  .overlay h1 { font-size: clamp(28px, 6vw, 48px); margin: 0 0 10px; }
+  .overlay h1 .accent { color: #fbbf24; }
+  .overlay p { color: #cbd5e1; max-width: 560px; line-height: 1.7; margin: 6px 0; font-size: 15px; }
+  .overlay .big { font-size: 22px; color: #fff; margin: 14px 0; }
+  .btn {
+    margin-top: 18px; border: none; border-radius: 999px; padding: 14px 38px; font-size: 18px;
+    font-weight: bold; background: #fbbf24; color: #1f2937; cursor: pointer; box-shadow: 0 8px 24px rgba(250,204,21,0.3);
+  }
+  .btn:active { transform: scale(0.97); }
+  .help { margin-top: 22px; font-size: 13px; color: #94a3b8; line-height: 1.9; max-width: 480px; }
+  .help kbd { background: rgba(255,255,255,0.12); border-radius: 4px; padding: 1px 7px; font-size: 12px; }
+  .help .row { display: none; }
+  body.dev-phone   .help .row.phone,
+  body.dev-tablet  .help .row.tablet,
+  body.dev-desktop .help .row.desktop { display: block; }
+
+  /* 即時提示 toast */
+  #toast { position: fixed; top: 38%; left: 50%; transform: translateX(-50%); z-index: 15;
+    font-size: clamp(22px, 5vw, 40px); font-weight: bold; text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+    opacity: 0; transition: opacity .2s ease; pointer-events: none; text-align: center; }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+
+<button id="back">← 返回主機</button>
+
+<div id="hud-top">
+  <div id="intel">
+    <div class="label">暗殺情報 / INTEL</div>
+    <div class="sentence" id="intel-text">—</div>
+  </div>
+  <div id="stats">
+    <div class="row">關卡 <b id="round">1</b></div>
+    <div class="row" id="lives-row" style="display:none">生命 <span id="lives">❤️❤️❤️</span></div>
+    <div class="row">分數 <b id="score">0</b></div>
+    <div class="row">資金 $<b id="money">0</b></div>
+    <div class="row" id="ammo">🔸🔸🔸</div>
+    <div class="row"><div id="timerbar"><div id="timerfill"></div></div></div>
+  </div>
+</div>
+
+<div id="controls">
+  <button class="pad-btn" id="scope-btn"><span class="ico">🔭</span><span>開鏡</span></button>
+  <button class="pad-btn" id="fire-btn" disabled><span class="ico">🔫</span><span>開火</span></button>
+</div>
+
+<div id="toast"></div>
+
+<!-- 開始畫面 -->
+<div class="overlay" id="start-overlay">
+  <h1>狙擊暗殺 <span class="accent">單字特務</span></h1>
+  <p>對面大樓很遠，<b>必須開鏡</b>才看得清每層樓的單字與走動的目標。讀懂情報，找出對應單字的那一層，趁目標<b>經過窗戶</b>時將他狙殺。</p>
+  <p>每關<b>限時間、限彈藥</b>。打錯樓層＝情報判讀失敗。</p>
+  <div class="help">
+    <div class="row phone">📱 <b>手機</b>：單指<b>拖曳</b>平移視野瞄準，按 <b>🔭 開鏡</b>放大，按 <b>🔫 開火</b>射擊（雙指捏合也可開/收鏡）</div>
+    <div class="row tablet">📲 <b>平板</b>：左手 <b>🔭 開鏡</b>、右手 <b>🔫 開火</b>，單指<b>拖曳</b>瞄準（雙指捏合也可開/收鏡）</div>
+    <div class="row desktop">💻 <b>電腦</b>：<b>移動滑鼠</b>瞄準，<kbd>右鍵</kbd>按住或 <kbd>Z</kbd> 開鏡，<kbd>左鍵</kbd>或<kbd>空白</kbd>開火，滾輪切換</div>
+  </div>
+  <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:18px">
+    <button class="btn" id="start-easy">🎯 簡單模式</button>
+    <button class="btn" id="start-hard" style="background:#f87171;color:#fff">💀 困難模式</button>
+  </div>
+  <p style="font-size:13px;color:#94a3b8;margin-top:10px">簡單：專心認字與抓時機　｜　困難：目標會察覺並<b>開槍反擊</b>，有 3 條命</p>
+  <button id="open-settings" style="margin-top:14px;background:rgba(255,255,255,0.08);color:#cbd5e1;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:8px 18px;font-size:13px;cursor:pointer">⚙️ 操控設定</button>
+</div>
+
+<!-- 設定面板 -->
+<div class="overlay hide" id="settings-overlay">
+  <h1 style="font-size:32px">⚙️ 操控設定</h1>
+  <div style="display:flex;flex-direction:column;gap:14px;margin-top:18px;width:min(420px,90vw)">
+    <button class="set-row" id="set-pinch">雙指縮放方向：標準</button>
+    <button class="set-row" id="set-hand">慣用手：右手（開火在右）</button>
+  </div>
+  <p class="help" id="settings-desc" style="margin-top:14px"></p>
+  <button class="btn" id="settings-close">完成</button>
+</div>
+
+<!-- 結算畫面 -->
+<div class="overlay hide" id="end-overlay">
+  <h1>任務結束</h1>
+  <div class="big" id="end-summary"></div>
+  <p id="end-detail"></p>
+  <button class="btn" id="restart-btn">再來一次</button>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   狙擊暗殺：單字特務  (sniper.html)
+   - 讀情報(英文例句挖空 / 中文提示) → 開鏡 → 平移瞄準
+   - 趁目標經過窗戶時狙殺正確樓層 → 限時限彈
+   ============================================================ */
+
+/* ---------- 題庫 ---------- */
+// 內建題庫：附英文例句(含目標單字)，挖空玩法完整。皆為「職業名詞」，干擾項天然同類。
+const BUILTIN = [
+  { word:"DOCTOR",  meaning:"醫生",   pos:"名詞", example:"The {W} treats sick people in the hospital." },
+  { word:"TEACHER", meaning:"老師",   pos:"名詞", example:"A {W} helps students learn new things at school." },
+  { word:"PILOT",   meaning:"飛行員", pos:"名詞", example:"The {W} flies the airplane across the ocean." },
+  { word:"CHEF",    meaning:"廚師",   pos:"名詞", example:"The {W} cooks delicious food in the kitchen." },
+  { word:"ARTIST",  meaning:"藝術家", pos:"名詞", example:"An {W} paints beautiful pictures in the studio." },
+  { word:"FARMER",  meaning:"農夫",   pos:"名詞", example:"The {W} grows vegetables on the farm every day." },
+  { word:"NURSE",   meaning:"護士",   pos:"名詞", example:"The {W} takes care of patients all night long." },
+  { word:"POLICE",  meaning:"警察",   pos:"名詞", example:"The {W} catches the thief on the busy street." },
+  { word:"SINGER",  meaning:"歌手",   pos:"名詞", example:"The {W} sings beautiful songs on the big stage." },
+  { word:"WRITER",  meaning:"作家",   pos:"名詞", example:"The {W} writes interesting stories every morning." },
+  { word:"DRIVER",  meaning:"司機",   pos:"名詞", example:"The {W} drives the bus around the whole city." },
+  { word:"DENTIST", meaning:"牙醫",   pos:"名詞", example:"The {W} checks your teeth twice a year." },
+];
+
+/* ---------- 讀取學生頁帶入的段考單字 ---------- */
+function rawFromHash(){
+  const h = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
+  return h ? (new URLSearchParams(h).get('lessonData') || '') : '';
+}
+const LESSON_RAW = rawFromHash();
+function readLesson(){
+  try { return JSON.parse(LESSON_RAW || ''); } catch(e){ return null; }
+}
+function normalizeWords(arr){
+  const out = [];
+  (arr||[]).forEach(w=>{
+    const word = String((w && w.word) || '').trim();
+    const meaning = String((w && (w.chinese || w.meaning || w.zh)) || '').trim();
+    const pos = String((w && w.pos) || '').trim();
+    const example = String((w && w.example) || '').trim(); // 段考資料通常沒有
+    if(!word || !meaning) return;
+    out.push({ word: word.toUpperCase(), meaning, pos: pos || '單字', example });
+  });
+  return out;
+}
+function buildWordBank(){
+  const lesson = readLesson();
+  const lessonWords = lesson ? normalizeWords(lesson.words) : [];
+  if(lessonWords.length >= 5) return { bank: lessonWords, source:'lesson' };
+  return { bank: BUILTIN.slice(), source:'builtin' };
+}
+
+/* ---------- 工具 ---------- */
+const rand = (a,b)=> a + Math.random()*(b-a);
+const randi = (a,b)=> Math.floor(rand(a,b+1));
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=randi(0,i); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+/* ---------- Canvas ---------- */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let VW = 0, VH = 0, DPR = 1;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  VW = window.innerWidth; VH = window.innerHeight;
+  cv.width = Math.floor(VW*DPR); cv.height = Math.floor(VH*DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ---------- 世界 / 大樓設定 ---------- */
+const FLOORS = 5;
+const FLOOR_H = 150;
+const BW = 980;                 // 大樓世界寬
+const BH = FLOORS * FLOOR_H;    // 大樓世界高
+const BX = -BW/2, BY = -BH/2;   // 大樓左上(世界座標, 以大樓中心為原點)
+const WALL_PAD = 70;            // 人物左右活動邊界
+const WIN_W = 320;              // 每層窗戶寬度(置中)
+function floorRect(i){ // i: 0=最上層
+  return { x: BX, y: BY + i*FLOOR_H, w: BW, h: FLOOR_H };
+}
+function windowRect(i){
+  const r = floorRect(i);
+  return { x1: r.x + r.w/2 - WIN_W/2, x2: r.x + r.w/2 + WIN_W/2, y: r.y, h: r.h };
+}
+
+/* ---------- 相機 / 準星（對齊 ship.html 的 aim 模式） ---------- */
+// ship 的做法: 場景內有一個準星 aim, 滑鼠/拖曳移動它; 開鏡 = 以 aim 為中心放大。
+const cam = { x: 0, y: 0 };     // 渲染中心(世界座標), 平滑跟隨 camTarget
+const aim = { x: 0, y: 0 };     // 準星(世界座標)
+let zoom = 1;                   // 目前縮放
+let targetZoom = 1;             // 目標縮放(開鏡=ZOOM_IN)
+const ZOOM_OUT = 0.62, ZOOM_IN = 1.6;
+let scoped = false;
+let recoil = 0;                 // 後座抖動量
+let flash = 0;                  // 槍口閃光
+let shake = {x:0,y:0};
+
+const AIM_MINX = BX+30, AIM_MAXX = BX+BW-30, AIM_MINY = BY+30, AIM_MAXY = BY+BH-30;
+function clampAim(){ aim.x = clamp(aim.x, AIM_MINX, AIM_MAXX); aim.y = clamp(aim.y, AIM_MINY, AIM_MAXY); }
+function screenToWorld(sx, sy){ return { x:(sx - VW/2)/zoom + cam.x, y:(sy - VH/2)/zoom + cam.y }; }
+
+function worldToScreen(wx, wy){
+  return {
+    x: VW/2 + (wx - cam.x)*zoom + shake.x,
+    y: VH/2 + (wy - cam.y)*zoom + shake.y
+  };
+}
+
+/* ---------- 遊戲狀態 ---------- */
+let state = 'menu'; // menu | playing | killcam | feedback | over
+let WB = null;      // word bank
+let roundNo = 0, score = 0, money = 0, combo = 0;
+let ammo = 0, ammoMax = 3;
+let timeLeft = 0, timeMax = 0;
+let floorsData = [];    // 每層: {word, person...}
+let answer = null;      // 正確單字物件
+let wind = 0;           // 風速(世界x偏移/單位)，前期為0
+let intelMode = 'cloze'; // cloze | hint
+let lastT = 0;
+let feedbackUntil = 0;
+const MAX_ROUNDS = 10;
+
+// 難度 / 生命
+let difficulty = 'easy';        // easy | hard
+let lives = 3;                  // 困難模式: 整場任務共用生命
+const MAX_LIVES = 3;
+
+// 慢動作 / kill cam
+let timeScale = 1, targetTimeScale = 1;
+let killTarget = null, killSuccess = false, killUntil = 0;
+let cinematic = 0;              // 電影黑邊/特寫淡入 0..1
+
+// 困難模式: 察覺 + 反擊
+let alertLevel = 0;            // 0..1 警覺度, 滿了目標就「發現運作方式」
+let alerted = false;          // 已察覺狙擊手
+let threat = null;            // 正在瞄準玩家的目標 {i, t, dur}
+let nextThreatAt = 0;        // 下次反擊時間戳
+let damageFlash = 0;        // 中彈紅閃 0..1
+
+/* 粒子(特效) */
+let particles = [];
+function spawnParticles(wx, wy, color, n, spd){
+  for(let i=0;i<n;i++){
+    const a = rand(0, Math.PI*2), s = rand(spd*0.3, spd);
+    particles.push({ x:wx, y:wy, vx:Math.cos(a)*s, vy:Math.sin(a)*s - rand(0,spd*0.4),
+      life:1, color, size:rand(2,5) });
+  }
+}
+let bulletHoles = []; // {x,y,glass}
+
+/* ---------- 音效(Web Audio 合成槍聲) ---------- */
+let actx = null;
+function audio(){
+  if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if(actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function gunshot(){
+  try{
+    const ac = audio(); const t = ac.currentTime;
+    // 白噪 burst
+    const len = Math.floor(ac.sampleRate*0.25);
+    const buf = ac.createBuffer(1, len, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<len;i++){ d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 2.2); }
+    const src = ac.createBufferSource(); src.buffer = buf;
+    const lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1800;
+    const g = ac.createGain(); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.25);
+    src.connect(lp); lp.connect(g); g.connect(ac.destination); src.start(t);
+    // 低頻 "thump"
+    const o = ac.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(120,t); o.frequency.exponentialRampToValueAtTime(40,t+0.18);
+    const g2 = ac.createGain(); g2.gain.setValueAtTime(0.7,t); g2.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+    o.connect(g2); g2.connect(ac.destination); o.start(t); o.stop(t+0.22);
+  }catch(e){}
+}
+function clickEmpty(){
+  try{ const ac=audio(); const t=ac.currentTime; const o=ac.createOscillator(); o.type='square'; o.frequency.value=900;
+    const g=ac.createGain(); g.gain.setValueAtTime(0.12,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.06);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+0.07);}catch(e){}
+}
+
+/* ---------- 發音(命中正確時唸單字) ---------- */
+// iOS 雷: 運行中的 AudioContext 會佔走音訊工作階段, 讓 speechSynthesis 沒聲音。
+// 對策: 唸字前 suspend AudioContext, 唸完(或逾時) resume。
+function speakWord(word){
+  if(!('speechSynthesis' in window)) return;
+  const resumeAudio = ()=>{ try{ if(actx && actx.state==='running') {/*keep*/} }catch(e){} };
+  try{
+    if(actx && actx.state === 'running'){ actx.suspend(); }
+  }catch(e){}
+  const msg = new SpeechSynthesisUtterance(word.toLowerCase());
+  msg.lang = 'en-US'; msg.rate = 0.85;
+  const restore = ()=>{ try{ if(actx && actx.state==='suspended') actx.resume(); }catch(e){} };
+  msg.onend = restore; msg.onerror = restore;
+  // 保險: 1.6s 後一定 resume
+  setTimeout(restore, 1600);
+  try{ window.speechSynthesis.cancel(); window.speechSynthesis.speak(msg); }catch(e){ restore(); }
+}
+
+/* ---------- 出題 ---------- */
+function startRound(){
+  roundNo++;
+  if(roundNo > MAX_ROUNDS){ endGame(); return; }
+
+  // 選 5 個單字(1 對 4 干擾)
+  const chosen = shuffle(WB.bank).slice(0, FLOORS);
+  answer = chosen[randi(0, FLOORS-1)];
+  intelMode = answer.example ? 'cloze' : 'hint';
+
+  // 風速: 前 4 關為 0, 之後逐步加入(進階調味)
+  wind = roundNo <= 4 ? 0 : rand(-1, 1) * (roundNo-4) * 0.12;
+
+  // 限時/限彈: 隨關卡略增難度
+  timeMax = Math.max(14, 24 - roundNo*0.8);
+  timeLeft = timeMax;
+  ammoMax = 3; ammo = ammoMax;
+
+  // 配置每層
+  floorsData = chosen.map((w, i)=>{
+    const r = floorRect(i);
+    const dir = Math.random()>0.5 ? 1 : -1;
+    return {
+      word: w,
+      i,
+      px: rand(r.x + WALL_PAD, r.x + r.w - WALL_PAD), // 人物世界x
+      dir,
+      speed: rand(55, 75) + roundNo*3,
+      alive: true,
+      falling: 0,
+      // 霓虹字外觀
+      hue: [180,300,50,140,260][i],
+    };
+  });
+
+  // 準星置中、相機回到大樓中央、收鏡
+  aim.x = 0; aim.y = 0;
+  cam.x = 0; cam.y = 0;
+  scoped = false; targetZoom = ZOOM_OUT; zoom = ZOOM_OUT;
+  particles = []; bulletHoles = [];
+  // 重置慢動作 / killcam / 反擊
+  timeScale = 1; targetTimeScale = 1; cinematic = 0; killTarget = null;
+  alertLevel = 0; alerted = false; threat = null; damageFlash = 0;
+  nextThreatAt = performance.now() + rand(2500, 4500);
+
+  const sb = document.getElementById('scope-btn');
+  sb.classList.remove('on'); sb.querySelector('span:last-child').textContent = '開鏡';
+
+  renderIntel();
+  updateHUD();
+  document.getElementById('fire-btn').disabled = true;
+  state = 'playing';
+}
+
+function renderIntel(){
+  const el = document.getElementById('intel-text');
+  if(intelMode === 'cloze'){
+    const html = answer.example.replace('{W}', '<span class="blank">______</span>');
+    el.innerHTML = html + ` <span style="color:#94a3b8">（填入空格的字＝你的目標）</span>`;
+  } else {
+    el.innerHTML = `Target: the word meaning <span class="blank">「${answer.meaning}」</span>` +
+      (answer.pos ? ` <span style="color:#94a3b8">(${answer.pos})</span>` : '') +
+      ` <span style="color:#94a3b8">— 狙殺該英文單字所在樓層的目標</span>`;
+  }
+}
+
+/* ---------- 開火 ---------- */
+function tryFire(){
+  if(state !== 'playing') return;
+  if(!scoped){ showToast('先開鏡 🔭', '#38bdf8'); return; }
+  if(ammo <= 0){ clickEmpty(); return; }
+
+  ammo--;
+  recoil = 1; flash = 1;
+  gunshot();
+  if(difficulty==='hard' && !alerted) alertLevel = Math.min(1, alertLevel + 0.12); // 槍聲暴露位置
+  updateHUD();
+
+  // 命中世界座標 = 準星 + 風偏移
+  const hitX = aim.x + wind*120;
+  const hitY = aim.y;
+
+  // 找命中的人: 須存活、在窗戶可見範圍、且落點在身體範圍
+  let hit = null;
+  for(const f of floorsData){
+    if(!f.alive) continue;
+    const win = windowRect(f.i);
+    const visible = f.px > win.x1 && f.px < win.x2; // 初版: 只能打經過窗戶的人
+    if(!visible) continue;
+    const r = floorRect(f.i);
+    const bodyY = r.y + r.h*0.5;       // 人物中心y
+    const dx = Math.abs(hitX - f.px);
+    const dy = Math.abs(hitY - bodyY);
+    if(dx < 38 && dy < r.h*0.42){ hit = f; break; }
+  }
+
+  if(hit){
+    if(hit.word.word === answer.word){
+      // 正確擊殺
+      hit.alive = false; hit.falling = 0.01;
+      spawnParticles(hit.px, floorRect(hit.i).y + FLOOR_H*0.4, '#ef4444', 26, 260);
+      const win = windowRect(hit.i);
+      bulletHoles.push({ x:hitX, y:hitY, glass:true });
+      combo++;
+      const base = 100, timeBonus = Math.round(timeLeft*4), ammoBonus = ammo*30, comboBonus = (combo-1)*25;
+      const gained = base + timeBonus + ammoBonus + comboBonus;
+      score += gained; money += Math.round(gained*0.5);
+      speakWord(answer.word);
+      showToast(`✅ ${answer.word}  +${gained}` + (combo>1?`  🔥x${combo}`:''), '#34d399');
+      flashScreen('#34d399');
+      enterKillcam(hit, true);
+    } else {
+      // 打錯樓層 = 情報判讀失敗
+      hit.alive = false; hit.falling = 0.01;
+      spawnParticles(hit.px, floorRect(hit.i).y + FLOOR_H*0.4, '#ef4444', 22, 240);
+      combo = 0;
+      score = Math.max(0, score - 60);
+      showToast(`❌ 判讀錯誤！那是 ${hit.word.word}（${hit.word.meaning}）`, '#f87171');
+      flashScreen('#f87171');
+      enterKillcam(hit, false);
+    }
+  } else {
+    // 沒打中人(打到牆/玻璃/空氣)
+    bulletHoles.push({ x:hitX, y:hitY, glass:true });
+    spawnParticles(hitX, hitY, '#a8d8ff', 14, 180);
+    if(ammo <= 0){
+      showToast(`彈藥耗盡！目標是 ${answer.word}`, '#f87171');
+      endRound(false);
+    }
+  }
+  updateHUD();
+}
+
+function endRound(success){
+  state = 'feedback';
+  document.getElementById('fire-btn').disabled = true;
+  feedbackUntil = performance.now() + (success ? 1100 : 1700);
+}
+
+// 打中人 → 慢動作特寫: 鏡頭推近目標、看他中彈倒下
+function enterKillcam(f, success){
+  state = 'killcam';
+  killTarget = f; killSuccess = success;
+  targetTimeScale = 0.20;          // 慢動作
+  killUntil = performance.now() + 1700;
+  threat = null;                   // 取消反擊
+  document.getElementById('fire-btn').disabled = true;
+}
+
+/* ---------- 計時/輸入更新 ---------- */
+function updateHUD(){
+  document.getElementById('round').textContent = Math.min(roundNo, MAX_ROUNDS);
+  document.getElementById('score').textContent = score;
+  document.getElementById('money').textContent = money;
+  let a = '';
+  for(let i=0;i<ammoMax;i++) a += i<ammo ? '🔸' : '▫️';
+  document.getElementById('ammo').textContent = a;
+  const lr = document.getElementById('lives-row');
+  if(difficulty === 'hard'){
+    lr.style.display = 'flex';
+    document.getElementById('lives').textContent = '❤️'.repeat(Math.max(0,lives)) + '🖤'.repeat(Math.max(0,MAX_LIVES-lives));
+  } else lr.style.display = 'none';
+  const pct = clamp(timeLeft/timeMax, 0, 1)*100;
+  const fill = document.getElementById('timerfill');
+  fill.style.width = pct + '%';
+  fill.style.background = pct>40 ? '#34d399' : (pct>18 ? '#fbbf24' : '#f87171');
+}
+
+/* ---------- 主迴圈 ---------- */
+function loop(t){
+  const rawdt = Math.min((t - lastT)/1000 || 0, 0.05);
+  lastT = t;
+
+  // 慢動作插值(真實時間驅動)
+  timeScale += (targetTimeScale - timeScale) * Math.min(1, rawdt*6);
+  const sdt = rawdt * timeScale;   // 世界物理時間(killcam 時變慢)
+
+  // 人物 / 粒子 (playing / feedback / killcam 都更新)
+  if(state==='playing' || state==='feedback' || state==='killcam'){
+    for(const f of floorsData){
+      if(f.alive){
+        const r = floorRect(f.i);
+        const sp = f.speed * (alerted ? 1.5 : 1);   // 察覺後加速、更難打
+        f.px += f.dir * sp * sdt;
+        if(f.px < r.x + WALL_PAD){ f.px = r.x + WALL_PAD; f.dir = 1; }
+        if(f.px > r.x + r.w - WALL_PAD){ f.px = r.x + r.w - WALL_PAD; f.dir = -1; }
+      } else if(f.falling > 0){
+        f.falling = Math.min(1, f.falling + sdt*2.5);
+      }
+    }
+    for(const p of particles){ p.x += p.vx*sdt; p.y += p.vy*sdt; p.vy += 600*sdt; p.life -= sdt*1.4; }
+    particles = particles.filter(p=>p.life>0);
+  }
+
+  if(state === 'playing'){
+    timeLeft -= rawdt;
+    if(timeLeft <= 0){
+      timeLeft = 0;
+      showToast(`⏰ 時間到！目標是 ${answer.word}`, '#f87171');
+      combo = 0; endRound(false);
+    }
+    if(difficulty === 'hard') updateThreat(rawdt);
+    updateHUD();
+  }
+
+  if(state === 'feedback' && performance.now() > feedbackUntil){
+    startRound();
+  }
+
+  // 相機目標: killcam 推近目標, 否則開鏡跟 aim / 收鏡看全棟
+  let cx, cy, cz, follow;
+  if(state==='killcam' && killTarget){
+    const r = floorRect(killTarget.i);
+    cx = killTarget.px; cy = r.y + FLOOR_H*0.5; cz = ZOOM_IN*1.7; follow = 5;
+    cinematic += (1 - cinematic) * Math.min(1, rawdt*4);
+    if(performance.now() > killUntil){
+      state = 'feedback'; targetTimeScale = 1; killTarget = null;
+      feedbackUntil = performance.now() + (killSuccess ? 150 : 850);
+    }
+  } else {
+    cx = scoped ? aim.x : 0; cy = scoped ? aim.y : 0; cz = targetZoom; follow = 14;
+    cinematic += (0 - cinematic) * Math.min(1, rawdt*6);
+  }
+  cam.x += (cx - cam.x) * Math.min(1, rawdt*follow);
+  cam.y += (cy - cam.y) * Math.min(1, rawdt*follow);
+  zoom  += (cz - zoom)  * Math.min(1, rawdt*(state==='killcam'?4:10));
+
+  // 後座 / 閃光 / 中彈紅閃 衰減(真實時間)
+  recoil *= Math.pow(0.001, rawdt);
+  flash  *= Math.pow(0.0001, rawdt);
+  damageFlash *= Math.pow(0.02, rawdt);
+  if(recoil < 0.01) recoil = 0;
+  if(flash < 0.01) flash = 0;
+  const sh = recoil*14;
+  shake.x = rand(-sh, sh); shake.y = rand(-sh, sh);
+
+  render();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- 困難模式: 察覺 + 反擊 ---------- */
+function updateThreat(dt){
+  if(!alerted){
+    // 警覺累積: 時間 + 開鏡(鏡片反光暴露)會更快; 開槍在 tryFire 另外加
+    alertLevel += dt * (0.05 + (scoped ? 0.09 : 0));
+    if(alertLevel >= 1){
+      alerted = true;
+      showToast('⚠️ 目標發現你的位置了！', '#fbbf24');
+      nextThreatAt = performance.now() + rand(700, 1500);
+    }
+    return;
+  }
+  if(!threat){
+    if(performance.now() >= nextThreatAt){
+      const visible = floorsData.filter(f=>{ if(!f.alive) return false; const w=windowRect(f.i); return f.px>w.x1 && f.px<w.x2; });
+      const pool = visible.length ? visible : floorsData.filter(f=>f.alive);
+      if(pool.length) threat = { i: pick(pool).i, t: 0, dur: 1.4 };
+      else nextThreatAt = performance.now() + 700;
+    }
+  } else {
+    threat.t += dt;
+    if(threat.t >= threat.dur){ enemyFire(); threat = null; nextThreatAt = performance.now() + rand(1800, 3200); }
+  }
+}
+function enemyFire(){
+  gunshot();
+  if(scoped){
+    // 玩家還在鏡中(暴露) → 中彈
+    lives--; damageFlash = 1;
+    for(let k=0;k<3;k++) bulletHoles.push({ x: aim.x+rand(-70,70), y: aim.y+rand(-70,70), glass:true });
+    if(lives <= 0){ failGame(); return; }
+    showToast(`🩸 中彈！剩 ${lives} 命 — 看到紅色預警就收鏡躲避`, '#f87171');
+    updateHUD();
+  } else {
+    showToast('🛡️ 你已收鏡，躲過反擊', '#34d399');
+  }
+}
+
+/* ---------- 繪製 ---------- */
+function render(){
+  ctx.clearRect(0,0,VW,VH);
+
+  // 夜空背景
+  const bg = ctx.createLinearGradient(0,0,0,VH);
+  bg.addColorStop(0,'#0a0f1f'); bg.addColorStop(1,'#161b2e');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,VW,VH);
+
+  if(state === 'menu' || state === 'over'){ return; }
+
+  drawBuilding();
+  drawParticles();
+  if(difficulty === 'hard') drawThreat();
+  drawScopeOverlay();
+  drawCrosshair();
+  drawMuzzleFlash();
+  drawDamageFlash();
+  if(state === 'killcam') drawCinematic();
+  if(difficulty === 'hard') drawAlertBar();
+}
+
+function drawBuilding(){
+  // 大樓外牆
+  const tl = worldToScreen(BX, BY);
+  const br = worldToScreen(BX+BW, BY+BH);
+  const x = tl.x, y = tl.y, w = br.x-tl.x, h = br.y-tl.y;
+
+  ctx.fillStyle = '#1f2433';
+  ctx.fillRect(x, y, w, h);
+  // 樓層
+  for(let i=0;i<FLOORS;i++){
+    const r = floorRect(i);
+    const a = worldToScreen(r.x, r.y);
+    const fw = w, fh = FLOOR_H*zoom;
+    // 牆面漸層
+    const g = ctx.createLinearGradient(a.x, a.y, a.x, a.y+fh);
+    g.addColorStop(0, '#262c3f'); g.addColorStop(1, '#1b2030');
+    ctx.fillStyle = g; ctx.fillRect(a.x, a.y, fw, fh);
+    // 樓板分隔線
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x+fw, a.y); ctx.stroke();
+
+    // 窗戶(透光)
+    const win = windowRect(i);
+    const ws = worldToScreen(win.x1, win.y + FLOOR_H*0.18);
+    const we = worldToScreen(win.x2, win.y + FLOOR_H*0.92);
+    const wx = ws.x, wy = ws.y, wW = we.x-ws.x, wH = we.y-ws.y;
+    const wg = ctx.createLinearGradient(wx, wy, wx, wy+wH);
+    wg.addColorStop(0,'rgba(120,170,220,0.30)'); wg.addColorStop(1,'rgba(60,90,130,0.18)');
+    ctx.fillStyle = wg; ctx.fillRect(wx, wy, wW, wH);
+    ctx.strokeStyle = 'rgba(140,180,220,0.5)'; ctx.lineWidth = 2; ctx.strokeRect(wx, wy, wW, wH);
+    // 窗框中線
+    ctx.beginPath(); ctx.moveTo(wx+wW/2, wy); ctx.lineTo(wx+wW/2, wy+wH); ctx.stroke();
+
+    drawFloorWord(i);
+    drawPerson(floorsData[i]);
+  }
+
+  // 彈孔
+  for(const b of bulletHoles){
+    const s = worldToScreen(b.x, b.y);
+    drawBulletHole(s.x, s.y);
+  }
+}
+
+function drawFloorWord(i){
+  const f = floorsData[i];
+  const r = floorRect(i);
+  // 字顯示在窗戶左側牆面(霓虹/油漆風)
+  const wp = worldToScreen(r.x + 36, r.y + FLOOR_H*0.5);
+  const fontPx = Math.max(10, 30*zoom);
+  ctx.save();
+  ctx.font = `900 ${fontPx}px "Arial Black", Arial, sans-serif`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  const col = `hsl(${f.hue} 90% 65%)`;
+  // 開鏡才看得清(未開鏡降透明、加抖) → 強化"必須開鏡"的設計
+  const legible = clamp((zoom - ZOOM_OUT) / (ZOOM_IN - ZOOM_OUT), 0, 1);
+  ctx.globalAlpha = 0.35 + 0.65*legible;
+  ctx.shadowColor = col; ctx.shadowBlur = (8 + 14*legible);
+  ctx.fillStyle = col;
+  ctx.fillText(f.word.word, wp.x, wp.y);
+  ctx.restore();
+}
+
+function drawPerson(f){
+  const r = floorRect(f.i);
+  const s = worldToScreen(f.px, r.y + FLOOR_H*0.5);
+  const win = windowRect(f.i);
+  const visible = f.px > win.x1 && f.px < win.x2;
+  const ph = FLOOR_H*0.62*zoom;
+  ctx.save();
+  ctx.translate(s.x, s.y);
+  if(f.falling > 0){ ctx.rotate(f.falling * Math.PI/2); ctx.globalAlpha = 1 - f.falling*0.6; }
+  // 不在窗戶(在牆後): 半透明剪影, 暗示"穿牆槍才打得到"
+  ctx.globalAlpha *= visible ? 1 : 0.18;
+  ctx.fillStyle = visible ? '#0f1420' : '#0f1420';
+  // 身體
+  const bw = ph*0.34;
+  ctx.fillStyle = '#10151f';
+  roundRectPath(-bw/2, -ph*0.18, bw, ph*0.55, 4); ctx.fill();
+  // 頭
+  ctx.beginPath(); ctx.arc(0, -ph*0.30, ph*0.14, 0, Math.PI*2); ctx.fill();
+  // 目標標記(在窗戶內時, 開鏡可見紅點)
+  if(visible && f.alive && zoom > 1){
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath(); ctx.arc(0, -ph*0.30, 3, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function roundRectPath(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+function drawBulletHole(x,y){
+  ctx.save();
+  ctx.strokeStyle = 'rgba(200,225,255,0.6)'; ctx.lineWidth = 1;
+  ctx.fillStyle = 'rgba(10,15,25,0.8)';
+  ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
+  for(let k=0;k<6;k++){ const a=k*Math.PI/3; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*rand(8,16), y+Math.sin(a)*rand(8,16)); ctx.stroke(); }
+  ctx.restore();
+}
+
+function drawParticles(){
+  for(const p of particles){
+    const s = worldToScreen(p.x, p.y);
+    ctx.globalAlpha = clamp(p.life,0,1);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(s.x, s.y, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawScopeOverlay(){
+  if(state === 'killcam') return;
+  if(!scoped){
+    // 收鏡: 提示
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0,0,VW,VH);
+    ctx.fillStyle = 'rgba(226,232,240,0.8)';
+    ctx.font = '600 16px "Noto Sans TC", sans-serif'; ctx.textAlign='center';
+    ctx.fillText('🔭 按開鏡才能看清單字與目標', VW/2, VH-110);
+    ctx.restore();
+    return;
+  }
+  // 開鏡: 暗角圓 + 十字刻度
+  const cx = VW/2, cy = VH/2;
+  const R = Math.min(VW, VH) * 0.46;
+  ctx.save();
+  // 圓外塗黑
+  ctx.fillStyle = 'rgba(0,0,0,0.92)';
+  ctx.beginPath();
+  ctx.rect(0,0,VW,VH);
+  ctx.arc(cx, cy, R, 0, Math.PI*2, true);
+  ctx.fill('evenodd');
+  // 鏡框
+  ctx.strokeStyle = '#0b0f1a'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = 'rgba(120,140,160,0.4)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx,cy,R-6,0,Math.PI*2); ctx.stroke();
+  // 十字線
+  ctx.strokeStyle = 'rgba(239,68,68,0.85)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(cx-R, cy); ctx.lineTo(cx-14, cy); ctx.moveTo(cx+14, cy); ctx.lineTo(cx+R, cy);
+  ctx.moveTo(cx, cy-R); ctx.lineTo(cx, cy-14); ctx.moveTo(cx, cy+14); ctx.lineTo(cx, cy+R); ctx.stroke();
+  // 刻度
+  ctx.strokeStyle = 'rgba(239,68,68,0.5)';
+  for(let m=-4;m<=4;m++){ if(m===0) continue; const yy=cy+m*16; ctx.beginPath(); ctx.moveTo(cx-6,yy); ctx.lineTo(cx+6,yy); ctx.stroke(); const xx=cx+m*16; ctx.beginPath(); ctx.moveTo(xx,cy-6); ctx.lineTo(xx,cy+6); ctx.stroke(); }
+  // 中央紅點
+  ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.beginPath(); ctx.arc(cx,cy,2.5,0,Math.PI*2); ctx.fill();
+
+  // 風速指示(進階關)
+  if(Math.abs(wind) > 0.001){
+    ctx.fillStyle = '#fbbf24'; ctx.font='600 14px "Noto Sans TC",sans-serif'; ctx.textAlign='center';
+    const dir = wind>0 ? '→' : '←';
+    ctx.fillText(`風 ${dir} ${Math.abs(wind*10).toFixed(1)} (需提前量)`, cx, cy+R-24);
+  }
+  ctx.restore();
+}
+
+function drawMuzzleFlash(){
+  if(flash <= 0.01) return;
+  ctx.save();
+  ctx.globalAlpha = clamp(flash,0,1)*0.5;
+  const g = ctx.createRadialGradient(VW/2, VH, 0, VW/2, VH, VH*0.7);
+  g.addColorStop(0, 'rgba(255,230,150,0.9)'); g.addColorStop(1, 'rgba(255,200,80,0)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
+  ctx.restore();
+}
+
+// 非開鏡時跟著 aim 的準星(開鏡用鏡框十字)
+function drawCrosshair(){
+  if((state!=='playing' && state!=='feedback') || scoped) return;
+  const s = worldToScreen(aim.x, aim.y);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(239,68,68,0.9)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(s.x, s.y, 12, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(s.x-18,s.y); ctx.lineTo(s.x-6,s.y); ctx.moveTo(s.x+6,s.y); ctx.lineTo(s.x+18,s.y);
+  ctx.moveTo(s.x,s.y-18); ctx.lineTo(s.x,s.y-6); ctx.moveTo(s.x,s.y+6); ctx.lineTo(s.x,s.y+18);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.fillRect(s.x-1.5, s.y-1.5, 3, 3);
+  ctx.restore();
+}
+
+// 困難模式: 敵人反擊預警
+function drawThreat(){
+  if(!threat) return;
+  const f = floorsData[threat.i]; if(!f) return;
+  const r = floorRect(threat.i);
+  const s = worldToScreen(f.px, r.y + FLOOR_H*0.4);
+  const p = clamp(threat.t/threat.dur, 0, 1);
+  const blink = 0.6 + 0.4*Math.sin(performance.now()/60);
+  ctx.save();
+  ctx.fillStyle = `rgba(239,68,68,${(0.3+0.6*p)*blink})`;
+  ctx.beginPath(); ctx.arc(s.x, s.y, 8+10*p, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = `rgba(239,68,68,${0.25+0.5*p})`; ctx.lineWidth = 1+2*p;
+  ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(VW/2, VH/2); ctx.stroke();
+  // 邊緣紅色警示
+  ctx.globalAlpha = 0.2 + 0.5*p;
+  const g = ctx.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*0.2, VW/2,VH/2,Math.max(VW,VH)*0.6);
+  g.addColorStop(0,'rgba(239,68,68,0)'); g.addColorStop(1,'rgba(239,68,68,0.55)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#fecaca'; ctx.font = '700 18px "Noto Sans TC",sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(scoped ? '⚠️ 被瞄準！立刻收鏡躲避' : '⚠️ 目標正在反擊', VW/2, 98);
+  ctx.restore();
+}
+
+function drawDamageFlash(){
+  if(damageFlash <= 0.01) return;
+  ctx.save();
+  ctx.globalAlpha = clamp(damageFlash,0,1)*0.6;
+  const g = ctx.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*0.25, VW/2,VH/2,Math.max(VW,VH)*0.7);
+  g.addColorStop(0,'rgba(170,0,0,0)'); g.addColorStop(1,'rgba(170,0,0,0.9)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
+  ctx.restore();
+}
+
+// kill cam: 電影黑邊 + 文字
+function drawCinematic(){
+  const a = clamp(cinematic,0,1);
+  if(a <= 0.01) return;
+  const bar = VH*0.14*a;
+  ctx.save();
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,VW,bar); ctx.fillRect(0,VH-bar,VW,bar);
+  ctx.globalAlpha = a; ctx.textAlign = 'center';
+  if(killSuccess){
+    ctx.fillStyle = '#fff'; ctx.font = '900 38px "Arial Black",Arial,sans-serif';
+    ctx.fillText('✸ ELIMINATED', VW/2, VH-bar-24);
+    ctx.fillStyle = '#34d399'; ctx.font = '700 20px "Noto Sans TC",sans-serif';
+    if(killTarget) ctx.fillText(killTarget.word.word, VW/2, bar+36);
+  } else {
+    ctx.fillStyle = '#f87171'; ctx.font = '900 32px "Arial Black",Arial,sans-serif';
+    ctx.fillText('✗ WRONG TARGET', VW/2, VH-bar-24);
+    ctx.fillStyle = '#fecaca'; ctx.font = '700 18px "Noto Sans TC",sans-serif';
+    if(answer) ctx.fillText(`正解是 ${answer.word}`, VW/2, bar+34);
+  }
+  ctx.restore();
+}
+
+// 困難模式: 警覺度條
+function drawAlertBar(){
+  if(state!=='playing' && state!=='feedback') return;
+  const w=160, h=6, x=VW/2-w/2, y=VH-52;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.15)'; roundRectPath(x,y,w,h,3); ctx.fill();
+  const p = clamp(alertLevel,0,1);
+  ctx.fillStyle = alerted ? '#ef4444' : (p>0.6 ? '#fbbf24' : '#38bdf8');
+  roundRectPath(x,y,w*p,h,3); ctx.fill();
+  ctx.fillStyle = alerted ? '#fca5a5' : 'rgba(226,232,240,0.7)';
+  ctx.font = '600 11px "Noto Sans TC",sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(alerted ? '⚠️ 已被察覺，當心反擊' : '目標警覺度', VW/2, y-6);
+  ctx.restore();
+}
+
+/* ---------- 螢幕閃光 / Toast ---------- */
+let screenFlash = null;
+function flashScreen(color){ /* 用 toast 的視覺即可, 這裡保留鉤子 */ }
+let toastTimer = null;
+function showToast(text, color){
+  const el = document.getElementById('toast');
+  el.textContent = text; el.style.color = color || '#fff'; el.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.style.opacity = '0'; }, 1300);
+}
+
+/* ---------- 裝置偵測 ---------- */
+// 電腦(滑鼠)= 絕對瞄準 + 鍵鼠; 手機/平板(觸控)= 相對拖曳 + 大按鈕 + 捏合縮放。
+let DEVICE = 'desktop';
+function detectDevice(){
+  const fine = window.matchMedia && window.matchMedia('(pointer:fine)').matches;
+  const coarse = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
+  const minSide = Math.min(window.innerWidth, window.innerHeight);
+  if(coarse && !fine){ DEVICE = minSide >= 600 ? 'tablet' : 'phone'; }
+  else { DEVICE = 'desktop'; }
+  document.body.classList.remove('dev-desktop','dev-tablet','dev-phone');
+  document.body.classList.add('dev-' + DEVICE);
+}
+detectDevice();
+window.addEventListener('resize', detectDevice);
+const inputActive = ()=> state==='playing'; // 只有遊玩中吃瞄準/開火; killcam/feedback 接管畫面
+
+/* ---------- 設定(可交換操控, 存 localStorage) ---------- */
+const SETTINGS = {
+  pinchInvert: false, // 雙指方向: false=張開進鏡/縮合收鏡(標準), true=相反
+  leftHanded: false,  // 慣用手: false=開火在右(右手), true=開火在左(左手)
+};
+try{
+  SETTINGS.pinchInvert = localStorage.getItem('sniperPinchInvert') === '1';
+  SETTINGS.leftHanded  = localStorage.getItem('sniperLeftHanded') === '1';
+}catch(e){}
+
+/* ---------- 輸入(對齊 ship.html 的 aim 模式) ---------- */
+// 非開鏡: 桌機滑鼠絕對定位準星 / 觸控拖曳; 開鏡: 以 aim 為中心放大, 移動採相對(較細膩)。
+function pointerToAim(sx, sy){ // 非開鏡絕對定位(用收鏡縮放換算世界座標)
+  aim.x = (sx - VW/2)/ZOOM_OUT; aim.y = (sy - VH/2)/ZOOM_OUT; clampAim();
+}
+function moveAim(dxPx, dyPx){ // 相對移動(螢幕位移→世界位移, 開鏡時自動變細)
+  aim.x += dxPx/zoom; aim.y += dyPx/zoom; clampAim();
+}
+
+// 桌機: 滑鼠
+let lastMX = 0, lastMY = 0;
+cv.addEventListener('mousemove', e=>{
+  if(!inputActive() || DEVICE!=='desktop'){ lastMX=e.clientX; lastMY=e.clientY; return; }
+  if(scoped) moveAim(e.clientX - lastMX, e.clientY - lastMY);
+  else pointerToAim(e.clientX, e.clientY);
+  lastMX = e.clientX; lastMY = e.clientY;
+});
+cv.addEventListener('mousedown', e=>{
+  if(!inputActive()) return;
+  if(e.button === 2){ e.preventDefault(); setScope(true); return; }  // 右鍵按住開鏡
+  if(e.button === 0){ tryFire(); }
+});
+window.addEventListener('mouseup', e=>{ if(e.button === 2) setScope(false); }); // 放開收鏡
+cv.addEventListener('contextmenu', e=> e.preventDefault());
+cv.addEventListener('wheel', e=>{ if(!inputActive()) return; e.preventDefault(); setScope(e.deltaY > 0); }, {passive:false});
+
+// 觸控: 單指拖曳移動準星; 雙指捏合切換開/收鏡(方向可在設定反轉)
+const PINCH_THRESH = 55;
+let lastTouch = null, pinchDist = 0;
+cv.addEventListener('touchstart', e=>{
+  if(!inputActive()) return;
+  e.preventDefault();
+  if(e.touches.length === 2){
+    pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    lastTouch = null;
+  } else {
+    lastTouch = { x:e.touches[0].clientX, y:e.touches[0].clientY };
+  }
+}, {passive:false});
+cv.addEventListener('touchmove', e=>{
+  if(!inputActive()) return;
+  e.preventDefault();
+  if(e.touches.length === 2){
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    if(pinchDist > 0){
+      if(d > pinchDist + PINCH_THRESH){ setScope(!SETTINGS.pinchInvert); pinchDist = d; }      // 張開
+      else if(d < pinchDist - PINCH_THRESH){ setScope(SETTINGS.pinchInvert); pinchDist = d; }   // 縮合
+    } else pinchDist = d;
+    return;
+  }
+  if(lastTouch){
+    const t = e.touches[0];
+    moveAim(t.clientX - lastTouch.x, t.clientY - lastTouch.y);
+    lastTouch = { x:t.clientX, y:t.clientY };
+  }
+}, {passive:false});
+cv.addEventListener('touchend', e=>{
+  if(e.touches.length < 2) pinchDist = 0;
+  if(e.touches.length === 0) lastTouch = null;
+}, {passive:false});
+
+// 鍵盤(電腦) — 對齊 ship: 空白=開火, Z=切換開鏡
+window.addEventListener('keydown', e=>{
+  if(!inputActive()) return;
+  if(e.code === 'Space'){ e.preventDefault(); tryFire(); }
+  if(e.code === 'KeyZ'){ e.preventDefault(); setScope(!scoped); }
+});
+
+function setScope(on){
+  if(state !== 'playing'){ audio(); return; }
+  audio(); // 解鎖音訊
+  if(scoped === on) return;
+  scoped = on;
+  targetZoom = on ? ZOOM_IN : ZOOM_OUT;
+  const btn = document.getElementById('scope-btn');
+  btn.classList.toggle('on', on);
+  btn.querySelector('span:last-child').textContent = on ? '收鏡' : '開鏡';
+  document.getElementById('fire-btn').disabled = !on;
+}
+
+document.getElementById('scope-btn').addEventListener('click', ()=> setScope(!scoped));
+document.getElementById('fire-btn').addEventListener('click', ()=> tryFire());
+
+/* ---------- 設定面板(可交換操控) ---------- */
+function applySettings(){
+  document.body.classList.toggle('left-handed', SETTINGS.leftHanded);
+  const pinch = document.getElementById('set-pinch');
+  const hand = document.getElementById('set-hand');
+  if(pinch) pinch.textContent = '雙指縮放方向：' + (SETTINGS.pinchInvert ? '相反' : '標準');
+  if(hand) hand.textContent = '慣用手：' + (SETTINGS.leftHanded ? '左手（開火在左）' : '右手（開火在右）');
+  const desc = document.getElementById('settings-desc');
+  if(desc) desc.innerHTML = SETTINGS.pinchInvert
+    ? '雙指<b>縮合</b>進瞄準鏡、<b>張開</b>收鏡（與直覺相反，適合部分人）'
+    : '雙指<b>張開</b>進瞄準鏡、<b>縮合</b>收鏡（標準）';
+}
+function saveSettings(){
+  try{
+    localStorage.setItem('sniperPinchInvert', SETTINGS.pinchInvert ? '1' : '0');
+    localStorage.setItem('sniperLeftHanded', SETTINGS.leftHanded ? '1' : '0');
+  }catch(e){}
+}
+applySettings();
+document.getElementById('open-settings').addEventListener('click', ()=> document.getElementById('settings-overlay').classList.remove('hide'));
+document.getElementById('settings-close').addEventListener('click', ()=> document.getElementById('settings-overlay').classList.add('hide'));
+document.getElementById('set-pinch').addEventListener('click', ()=>{ SETTINGS.pinchInvert = !SETTINGS.pinchInvert; saveSettings(); applySettings(); });
+document.getElementById('set-hand').addEventListener('click', ()=>{ SETTINGS.leftHanded = !SETTINGS.leftHanded; saveSettings(); applySettings(); });
+
+/* ---------- 流程控制 ---------- */
+function startGame(diff){
+  difficulty = (diff === 'hard') ? 'hard' : 'easy';
+  WB = buildWordBank();
+  roundNo = 0; score = 0; money = 0; combo = 0; lives = MAX_LIVES;
+  document.getElementById('start-overlay').classList.add('hide');
+  document.getElementById('end-overlay').classList.add('hide');
+  document.getElementById('settings-overlay').classList.add('hide');
+  document.getElementById('back').style.display = 'block';
+  audio();
+  startRound();
+}
+function finishOverlay(title){
+  state = 'over';
+  document.querySelector('#end-overlay h1').textContent = title;
+  document.getElementById('end-overlay').classList.remove('hide');
+  document.getElementById('fire-btn').disabled = true;
+}
+function endGame(){ // 完成全部關卡
+  finishOverlay('任務完成');
+  document.getElementById('end-summary').textContent = `總分 ${score}　資金 $${money}`;
+  const src = WB && WB.source === 'lesson' ? '本次段考單字' : '系統內建單字';
+  const mode = difficulty === 'hard' ? '困難模式' : '簡單模式';
+  document.getElementById('end-detail').textContent = `${mode}・完成 ${MAX_ROUNDS} 關狙擊任務（題庫：${src}）。`;
+}
+function failGame(){ // 困難模式被反殺
+  finishOverlay('任務失敗');
+  document.getElementById('end-summary').textContent = `你暴露行蹤被反殺　總分 ${score}`;
+  document.getElementById('end-detail').textContent = `困難模式・撐到第 ${Math.min(roundNo,MAX_ROUNDS)} 關。看到紅色預警時記得立刻收鏡躲避。`;
+}
+
+document.getElementById('start-easy').addEventListener('click', ()=> startGame('easy'));
+document.getElementById('start-hard').addEventListener('click', ()=> startGame('hard'));
+document.getElementById('restart-btn').addEventListener('click', ()=>{
+  document.getElementById('end-overlay').classList.add('hide');
+  document.getElementById('start-overlay').classList.remove('hide');
+  state = 'menu';
+});
+document.getElementById('back').addEventListener('click', ()=>{
+  location.href = '../index.html' + (LESSON_RAW ? '#lessonData='+encodeURIComponent(LESSON_RAW) : '');
+});
+
+requestAnimationFrame(t=>{ lastT=t; loop(t); });
+</script>
+</body>
+</html>
