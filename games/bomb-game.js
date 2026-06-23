@@ -263,11 +263,12 @@ const Audio = (() => {
     if (speechPrimed || !window.speechSynthesis) return;
     speechPrimed = true;
     loadVoices();
-    try {
-      const u = new SpeechSynthesisUtterance(' ');
-      u.volume = 0;               // silent unlock
-      speechSynthesis.speak(u);
-    } catch (e) {}
+    // No silent "unlock" utterance here on purpose: the first real word is
+    // spoken from inside this same tap gesture (menu → start → _nextTarget),
+    // which is what actually unlocks iOS speech. A silent utterance would just
+    // leave the engine "speaking", forcing the real word into a cancel()+speak()
+    // collision that Safari drops.
+    try { speechSynthesis.resume(); } catch (e) {}
   }
 
   function noise(dur, vol = 0.5) {
@@ -366,13 +367,19 @@ const Audio = (() => {
     speak(word) {
       if (!window.speechSynthesis || !word) return;
       try { speechSynthesis.resume(); } catch (e) {}   // iOS sometimes leaves it paused
-      try { speechSynthesis.cancel(); } catch (e) {}    // stop any in-flight word
-      const u = new SpeechSynthesisUtterance(word);
+      // Only cancel when something is actually queued/playing. Calling cancel()
+      // immediately before speak() on an idle engine makes Safari silently drop
+      // the new utterance (speaking=true but no sound) — the bug we were hitting.
+      if (speechSynthesis.speaking || speechSynthesis.pending) {
+        try { speechSynthesis.cancel(); } catch (e) {}
+      }
+      const u = new SpeechSynthesisUtterance(String(word));
       u.lang  = 'en-US';
-      u.rate  = 0.88;
+      u.rate  = 0.9;
       u.pitch = 1.1;
       // Prefer a US English voice (cached + refreshed via onvoiceschanged,
       // because iOS returns an empty list on the first synchronous call).
+      if (!speechVoices.length) loadVoices();
       const us = speechVoices.find(v => v.lang === 'en-US')
               || speechVoices.find(v => v.lang && v.lang.startsWith('en'));
       if (us) u.voice = us;
