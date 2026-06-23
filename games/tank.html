@@ -142,7 +142,7 @@
     <div id="moveKnob"></div>
   </div>
   <div id="fireBtn">開砲</div>
-  <div id="fireHint">按住開砲・拖曳調整砲管</div>
+  <div id="fireHint">按住開砲・左右上下滑調整砲管</div>
   <button id="btnPause">⏸</button>
 </div>
 <div id="overlay">
@@ -1577,28 +1577,27 @@ addEventListener('mousedown',()=>{
   mouse.down=true;
 });
 addEventListener('mouseup',()=>mouse.down=false);
-/* ====== 觸控操控（平板 / 手機）：左下固定方向盤移動 + 右下開砲鍵（按住開砲並拖曳調整砲管） ====== */
+/* ====== 觸控操控（平板 / 手機）：左半動態方向盤(可按固定圈或左側任意滑動) + 右下開砲鍵(按住開砲並滑動調整砲管) ====== */
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches || ('ontouchstart' in window);
 const stickEl=document.getElementById('moveStick'), knobEl=document.getElementById('moveKnob');
 const fireEl=document.getElementById('fireBtn');
 const STICK_R=58;          // 方向盤可拉半徑(px)
 const AIM_GAIN=1.6;        // 拖曳調整砲管的靈敏度
 let moveId=null, aimId=null;            // 移動 / 砲管 觸點 id
+let moveCx=0, moveCy=0;                 // 方向盤浮動原點（按下處）
 let aimSX=0,aimSY=0,aimAX=0,aimAY=0;    // 砲管拖曳起點 + 基準準心位置
-let stickCx=0,stickCy=0,fireRect=null;  // 方向盤圓心、開砲鍵範圍（快取）
-function refreshTouchRects(){
-  const s=stickEl.getBoundingClientRect();
-  stickCx=s.left+s.width/2; stickCy=s.top+s.height/2;
-  fireRect=fireEl.getBoundingClientRect();
-}
+let fireRect=null;                      // 開砲鍵範圍（快取）
+function refreshTouchRects(){fireRect=fireEl.getBoundingClientRect();}
+function placeStick(cx,cy){stickEl.style.left=(cx-75)+'px';stickEl.style.top=(cy-75)+'px';} // 圓心移到手指處
+function restStick(){stickEl.style.left='';stickEl.style.top='';}                            // 還原 CSS 左下原位
 function clearMoveKeys(){keys['KeyW']=keys['KeyS']=keys['KeyA']=keys['KeyD']=keys['ShiftLeft']=false;}
 function updMoveKnob(dx,dy){knobEl.style.left=(75+dx)+'px';knobEl.style.top=(75+dy)+'px';}
 function resetTouch(){
   moveId=aimId=null;clearMoveKeys();mouse.down=false;
-  updMoveKnob(0,0);stickEl.classList.remove('boost');fireEl.classList.remove('active');
+  updMoveKnob(0,0);restStick();stickEl.classList.remove('boost');fireEl.classList.remove('active');
 }
-function applyStick(x,y){                // 依方向盤固定圓心換算方向
-  let dx=x-stickCx, dy=y-stickCy; const len=Math.hypot(dx,dy);
+function applyStick(x,y){                // 依浮動原點換算方向
+  let dx=x-moveCx, dy=y-moveCy; const len=Math.hypot(dx,dy);
   if(len>STICK_R){dx*=STICK_R/len;dy*=STICK_R/len;}
   updMoveKnob(dx,dy);
   const nx=dx/STICK_R, ny=dy/STICK_R;
@@ -1629,8 +1628,11 @@ addEventListener('touchstart',e=>{
       aimId=t.identifier; if(!quiz)mouse.down=true;
       aimSX=t.clientX;aimSY=t.clientY;aimAX=mouse.x;aimAY=mouse.y;
       fireEl.classList.add('active');acted=true;
-    }else if(moveId===null&&t.clientX<innerWidth*0.5){                  // 左半 → 固定方向盤
-      moveId=t.identifier;applyStick(t.clientX,t.clientY);acted=true;
+    }else if(moveId===null&&t.clientX<innerWidth*0.5){                  // 左半 → 動態方向盤（圓心浮現在手指處）
+      moveId=t.identifier;
+      moveCx=clamp(t.clientX,80,innerWidth*0.5);
+      moveCy=clamp(t.clientY,80,innerHeight-80);
+      placeStick(moveCx,moveCy);updMoveKnob(0,0);clearMoveKeys();acted=true;
     }
   }
   if(acted)e.preventDefault();
@@ -1650,7 +1652,7 @@ addEventListener('touchmove',e=>{
 },{passive:false});
 function endTouch(e){
   for(const t of e.changedTouches){
-    if(t.identifier===moveId){moveId=null;clearMoveKeys();updMoveKnob(0,0);stickEl.classList.remove('boost');}
+    if(t.identifier===moveId){moveId=null;clearMoveKeys();updMoveKnob(0,0);restStick();stickEl.classList.remove('boost');}
     else if(t.identifier===aimId){aimId=null;mouse.down=false;fireEl.classList.remove('active');}
   }
 }
