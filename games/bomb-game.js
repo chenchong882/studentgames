@@ -635,9 +635,12 @@ class Bomb {
     c.save();
     c.translate(this.x, this.y); c.rotate(this.spin);
 
-    // Body gradient
+    // Body gradient — see-through centre so a falling bomb doesn't hide the
+    // word/picture on a house it passes over; the darker rim keeps it readable.
     const g = c.createRadialGradient(-3, -4, 2, 0, 0, 14);
-    g.addColorStop(0, '#666'); g.addColorStop(1, '#111');
+    g.addColorStop(0,   'rgba(110,110,110,0.32)');
+    g.addColorStop(0.6, 'rgba(45,45,45,0.62)');
+    g.addColorStop(1,   'rgba(17,17,17,0.92)');
     c.fillStyle = g;
     c.beginPath(); c.ellipse(0, 2, 11, 15, 0, 0, Math.PI*2); c.fill();
 
@@ -1645,7 +1648,7 @@ class Game {
     this.crate = null;
     this._crateCooldown = 150;
     this._buildScene(lv.words);
-    this._nextTarget();
+    this._nextTarget();            // pick + read aloud the first target of the level
   }
 
   _buildScene(words) {
@@ -1674,7 +1677,10 @@ class Game {
     const i = Math.floor(Math.random() * this.wordsLeft.length);
     this.targetWord = this.wordsLeft[i];
     this.wrongAtt = 0;
-    setTimeout(() => Audio.speak(this.targetWord), 350);
+    // Read the new target aloud. Speak straight away (no setTimeout) so the
+    // very first one — fired from the menu tap that starts the game — stays
+    // inside the user gesture that iOS needs to unlock speech.
+    Audio.speak(this.targetWord);
   }
 
   // ── Drop Bomb ──────────────────────────
