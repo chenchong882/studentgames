@@ -119,7 +119,7 @@
   <div class="sub">J U R A S S I C&nbsp;&nbsp;T A N K</div>
   <p>到發光的樹上射下正確的英文單字，邊打恐龍邊學單字！</p>
   <p class="guideLink" id="guideLink">📖 查看玩法說明</p>
-  <div class="go" id="goText">— 按空白鍵 或 點擊滑鼠 開始 —</div>
+  <div class="go" id="goText">— 按空白鍵、點擊滑鼠 或 輕觸螢幕 開始 —</div>
 </div>
 <div id="pauseOverlay" class="hidden">
   <h1>⏸ 暫停</h1>
@@ -1542,6 +1542,13 @@ addEventListener('mousedown',()=>{
   mouse.down=true;
 });
 addEventListener('mouseup',()=>mouse.down=false);
+addEventListener('touchstart',e=>{ // 平板/手機：輕觸螢幕開始
+  ensureAudio();
+  if(e.target&&e.target.closest&&e.target.closest('.uiBtn,#guide,#guideLink'))return; // 守則連結 / 按鈕走自己的事件
+  if(guideOpen)return;
+  if(state==='menu'){e.preventDefault();startGame();return;}
+  if(state==='over'&&overT>0.6){e.preventDefault();startGame();}
+},{passive:false});
 addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('resize',()=>{
   renderer.setSize(innerWidth,innerHeight);
