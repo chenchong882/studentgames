@@ -26,6 +26,7 @@
   #hint{position:fixed;bottom:8px;left:0;width:100%;text-align:center;
     color:rgba(255,255,255,.55);font-size:12px;pointer-events:none;z-index:5;text-shadow:0 1px 3px #000;}
   #flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:8;}
+  #threatGlow{position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;transition:opacity .18s linear;mix-blend-mode:screen;}
   #overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
     background:rgba(8,12,20,.6);color:#fff;text-align:center;z-index:9;}
   #overlay h1{font-size:56px;margin:0 0 8px;color:#ffe9a8;text-shadow:0 3px 16px #000;}
@@ -131,11 +132,12 @@
 <div id="reload"><div id="reloadFill"></div></div>
 <div id="banner"></div>
 <div id="flash"></div>
+<div id="threatGlow"></div>
 <div id="wordPrompt"><div class="q"></div><div class="s">在樹上找到正確的單字，把它射下來！</div></div>
 <div id="quiz"><div class="qq"></div><div class="bb"></div><div class="tt"><div id="quizBar"></div></div><div class="hk">用滑鼠點選正確答案</div></div>
 <svg id="arcLayer"></svg>
 <div id="atkLog"></div>
-<div id="hint">W/S 前進後退 ・ A/D 轉向 ・ Shift 加速 ・ 滑鼠瞄準 ・ 空格鍵／左鍵開砲 ・ R 重新開始 ・ ESC 暫停</div>
+<div id="hint">W/S 前進後退（按住越久越快） ・ A/D 轉向 ・ Shift 直接頂速 ・ 滑鼠瞄準 ・ 空格鍵／左鍵開砲 ・ R 重新開始 ・ ESC 暫停</div>
 <div id="touchUI" class="hidden">
   <div id="moveStick">
     <span class="ar au">▲</span><span class="ar ad">▼</span><span class="ar al">◀</span><span class="ar arr">▶</span>
@@ -160,7 +162,7 @@
 <div id="guide" class="hidden">
   <div class="card">
     <h2>🦖 如何遊玩</h2>
-    <div class="sec"><b>🎮 操作</b>　W/S 前進後退　・　A/D 轉向　・　<span class="hl">Shift 加速</span>　・　滑鼠瞄準　・　空白鍵 / 左鍵 開砲　・　ESC 暫停</div>
+    <div class="sec"><b>🎮 操作</b>　W/S 前進後退　・　A/D 轉向　・　<span class="hl">按住前進越久越快</span>（Shift 直接頂速）　・　滑鼠瞄準　・　空白鍵 / 左鍵 開砲　・　ESC 暫停</div>
     <div class="sec"><b>🎯 主線任務</b>　畫面上方出題（中文），到<span class="hl">發光的樹</span>上找出對應的<span class="hl">正確英文單字牌</span>，用砲彈射下來。射對加分又回血；射錯恐龍會狂暴！</div>
     <div class="sec"><b>🛸 神祕能量</b>　射擊空中的「?」方塊並答對英文題，隨機獲得隕石風暴、全屏清場、回血護盾、雙倍分數、超速連發等強力獎勵。</div>
     <div class="sec"><b>💥 砲彈是拋物線</b>　目標越遠，準心要抬得越高，瞄準時自己微調高度。</div>
@@ -669,7 +671,7 @@ function resetGame(){
   spawnT=4.5;pteroT=12;ufoT=rnd(35,48);mysT=15;pendingMeteors=0;
   effects.slow=0;effects.gold=0;effects.rapid=0;
   tank={hp:100,maxHp:100,yaw:0,reload:0,reloadMax:0.45,alive:true,flat:false,
-    shield:0,muzzle:0,smokeT:0,fireT:0,speed:0};
+    shield:0,muzzle:0,smokeT:0,fireT:0,speed:0,boost:0};
   tankG.position.set(0,th(0,0),0);
   tankG.scale.set(1,1,1);tankG.rotation.set(0,0,0);
   for(const m of collectMats(tankG))m.color.offsetHSL(0,0,0); // no-op keep
@@ -1058,8 +1060,17 @@ function updTank(dt){
     return;
   }
   let sp=0;
-  if(keys['KeyW']||keys['ArrowUp'])sp=(keys['ShiftLeft']||keys['ShiftRight'])?19:10;
-  if(keys['KeyS']||keys['ArrowDown'])sp=-6;
+  const fwd=keys['KeyW']||keys['ArrowUp'], back=keys['KeyS']||keys['ArrowDown'];
+  const shiftHeld=keys['ShiftLeft']||keys['ShiftRight'];   // Shift / 推桿到底＝瞬間頂速
+  if(fwd){
+    tank.boost=Math.min(1,tank.boost+dt/1.2);              // 持續前進：按越久越快，約 1.2 秒到頂速
+    sp=10+(shiftHeld?1:tank.boost)*9;                      // 10 → 19
+  }else if(back){
+    tank.boost=Math.min(1,tank.boost+dt/1.4);
+    sp=-(6+(shiftHeld?1:tank.boost)*4);                    // -6 → -10
+  }else{
+    tank.boost=Math.max(0,tank.boost-dt/0.4);              // 放開快速重置
+  }
   let turn=0;
   if(keys['KeyA']||keys['ArrowLeft'])turn=1;
   if(keys['KeyD']||keys['ArrowRight'])turn=-1;
@@ -1429,12 +1440,20 @@ function updHUD(){
   elArmor.style.width=(clamp(tank.hp/tank.maxHp,0,1)*100)+'%';
   elScore.textContent=score;
   elKills.textContent=kills;
-  let near=null,nd=1e9;
+  let near=null,nd=1e9, gw=null,gi=0;
   for(const d of dinos){
     if(d.deadT>=0)continue;
     const dd=d.g.position.distanceTo(tankG.position);
     if(dd<nd){nd=dd;near=d;}
+    let inten=clamp((50-dd)/45,0,0.85);
+    if(d.enrage>0)inten=Math.min(0.95,inten*1.3+0.12);   // 狂暴敵人警示更強
+    if(inten>gi){gi=inten;gw=d.g.position;}
   }
+  for(const p of pteros)if(p.state==='dive'){            // 俯衝的翼龍也算逼近威脅
+    const it=clamp((55-p.pos.distanceTo(tankG.position))/45,0,0.9);
+    if(it>gi){gi=it;gw=p.pos;}
+  }
+  setThreatGlow(state==='play'?gw:null,gi);
   if(near){
     elThreat.textContent=DT[near.type].name+' '+Math.round(nd)+'m';
     elThreat.style.color=nd<25?'#ff6655':'#ffb454';
@@ -1499,6 +1518,20 @@ function dmgIndicatorAt(worldPos){
   arcLayer.appendChild(path);
   setTimeout(()=>path.remove(),1300);
 }
+// 敵人逼近警示：朝最近危險敵人的方向，在螢幕邊緣亮一道淡紅光，越近越亮
+const elThreatGlow=document.getElementById('threatGlow');
+function setThreatGlow(worldPos,intensity){
+  if(!worldPos||intensity<=0.02){elThreatGlow.style.opacity=0;return;}
+  const v=_v1.copy(worldPos).project(camera);
+  let px=v.x,py=v.y; if(v.z>1){px=-px;py=-py;}      // 在攝影機後方→翻轉
+  const cx=innerWidth/2, cy=innerHeight/2;
+  const sx=(px*0.5+0.5)*innerWidth, sy=(-py*0.5+0.5)*innerHeight;
+  const a=Math.atan2(sy-cy,sx-cx), R=Math.max(cx,cy);
+  const ex=cx+Math.cos(a)*R, ey=cy+Math.sin(a)*R;   // 來源方向的螢幕邊緣點
+  const al=(0.55*intensity).toFixed(3);
+  elThreatGlow.style.background='radial-gradient(60% 75% at '+ex.toFixed(0)+'px '+ey.toFixed(0)+'px, rgba(255,45,35,'+al+') 0%, rgba(255,45,35,0) 62%)';
+  elThreatGlow.style.opacity=1;
+}
 
 /* ============ 背景音樂（鋼甲獵獸.mp3，循環播放） ============ */
 const BGM_VOL=0.55;            // 背景音樂音量（0~1），想調大小改這裡
@@ -1534,7 +1567,7 @@ function togglePause(){
   if(state!=='play')return;
   paused=!paused;
   document.getElementById('pauseOverlay').classList.toggle('hidden',!paused);
-  if(paused){mouse.down=false;for(const k in keys)keys[k]=false;stopBgm();}
+  if(paused){mouse.down=false;for(const k in keys)keys[k]=false;stopBgm();setThreatGlow(null,0);}
   else{if(AC&&AC.state==='suspended')AC.resume();startBgm();last=performance.now();}
 }
 
@@ -1567,6 +1600,10 @@ addEventListener('keydown',e=>{
 });
 addEventListener('keyup',e=>keys[e.code]=false);
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;mouse.down=false;});
+addEventListener('visibilitychange',()=>{       // 切到別的 App / 分頁（平板手機）→ 自動暫停遊戲並停背景音樂
+  if(!document.hidden)return;
+  if(state==='play'&&!paused)togglePause(); else stopBgm();
+});
 addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
 addEventListener('mousedown',()=>{
   ensureAudio();
