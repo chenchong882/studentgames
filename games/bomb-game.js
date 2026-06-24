@@ -375,19 +375,13 @@ const Audio = (() => {
       if (speechSynthesis.speaking || speechSynthesis.pending) {
         try { speechSynthesis.cancel(); } catch (e) {}
       }
-      const u = new SpeechSynthesisUtterance(String(word));
-      u.lang  = 'en-US';
-      u.rate  = 0.9;
-      u.pitch = 1.1;
       // Prefer a US English voice (cached + refreshed via onvoiceschanged,
       // because iOS returns an empty list on the first synchronous call).
       if (!speechVoices.length) loadVoices();
       const us = speechVoices.find(v => v.lang === 'en-US')
               || speechVoices.find(v => v.lang && v.lang.startsWith('en'));
-      if (us) u.voice = us;
 
       const myGen = ++speechGen;
-      currentUtterance = u;
       speechActive = true;
       if (duckTimer) { clearTimeout(duckTimer); duckTimer = null; }
       duckBgmForSpeech();
@@ -399,12 +393,34 @@ const Audio = (() => {
         if (duckTimer) { clearTimeout(duckTimer); duckTimer = null; }
         restoreBgmAfterSpeech();
       };
-      u.onend   = restore;
-      u.onerror = restore;
+
+      // Build a fresh utterance per attempt: once an utterance has been handed
+      // to speak() it can't be reliably re-spoken across browsers.
+      const build = () => {
+        const u = new SpeechSynthesisUtterance(String(word));
+        u.lang  = 'en-US';
+        u.rate  = 0.9;
+        u.pitch = 1.1;
+        if (us) u.voice = us;
+        u.onend   = restore;
+        u.onerror = restore;
+        currentUtterance = u;
+        return u;
+      };
       duckTimer = setTimeout(restore, 3500);
 
       const speakNow = () => {
-        try { speechSynthesis.speak(u); } catch (e) { restore(); }
+        if (myGen !== speechGen) return;
+        try { speechSynthesis.speak(build()); } catch (e) { restore(); return; }
+        // Chrome/Safari silently drop the very first utterance after a resume()
+        // on an idle engine — that's the "no sound when the game starts" bug.
+        // If nothing actually started, force one clean retry.
+        setTimeout(() => {
+          if (myGen !== speechGen) return;
+          if (!speechSynthesis.speaking && !speechSynthesis.pending) {
+            try { speechSynthesis.cancel(); speechSynthesis.speak(build()); } catch (e) {}
+          }
+        }, 260);
       };
 
       if (IS_IOS && ctx && ctx.state === 'running') {
@@ -520,9 +536,20 @@ class Plane {
     // Joystick points the plane's flight direction, including turning back left.
     const joyPower = joy.active ? clamp(Math.hypot(joy.dx, joy.dy), 0, 1) : 0;
     const cruiseSpd = clamp(W / 330, CFG.PLANE_MIN_SPD, 3.45);
-    const steerSpd = lerp(CFG.PLANE_MIN_SPD, CFG.PLANE_MAX_SPD, joyPower);
-    const targetVx = joy.active && joyPower > 0.08 ? joy.dx * steerSpd : cruiseSpd;
-    const targetVy = joy.active && joyPower > 0.08 ? joy.dy * steerSpd : 0;
+    let targetVx, targetVy;
+    if (joyPower > 0.08) {
+      // Treat the stick as a pure heading (normalized) and fly at a speed that
+      // ramps from cruise (light touch) up to max (full deflection). Earlier we
+      // scaled velocity by the raw deflection, so a small/near-centre push
+      // multiplied two small numbers and the plane stalled in mid-air.
+      const inv = 1 / Math.hypot(joy.dx, joy.dy);
+      const flySpd = lerp(cruiseSpd, CFG.PLANE_MAX_SPD, joyPower);
+      targetVx = joy.dx * inv * flySpd;
+      targetVy = joy.dy * inv * flySpd;
+    } else {
+      targetVx = cruiseSpd;
+      targetVy = 0;
+    }
 
     this.vx += (targetVx - this.vx) * 0.16;
     this.vy += (targetVy - this.vy) * 0.18;
