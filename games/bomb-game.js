@@ -348,7 +348,12 @@ const Audio = (() => {
     try { bgmAudio.pause(); } catch (e) {}
   }
 
-  return {
+  // 測試開關：true = 暫停「唸題以外」的所有聲音（合成音效 + BGM），只留 speechSynthesis，
+  // 把 iOS 的音訊工作階段完全讓給人聲，用來驗證平板/手機唸不出來是不是被搶走音訊。
+  // 測完把這行改回 false 即可恢復全部音效與背景音樂（程式沒刪，只是被暫停）。
+  const MUTE_NON_SPEECH = true;
+
+  const api = {
     init: ensure,
     primeSpeech,
     startBgm, stopBgm,
@@ -389,6 +394,17 @@ const Audio = (() => {
     hit()          { noise(0.45, 0.58); tone(95, 0.5, 'sawtooth', 0.3); tone(48, 0.65, 'sine', 0.22); },
     cratePickup()  { [660, 880, 1100].forEach((f,i) => setTimeout(()=>tone(f, 0.18, 'triangle', 0.24), i*60)); },
   };
+
+  if (MUTE_NON_SPEECH) {
+    // 把「唸題以外」全部換成空函式：不建立/喚醒 AudioContext、不播 BGM。
+    // 保留 speak（唸單字）與 stopBgm（停 BGM 用，呼叫也安全）。
+    const noop = () => {};
+    ['init', 'primeSpeech', 'startBgm', 'explosion', 'bombDrop', 'wrong', 'success',
+     'levelClear', 'missile', 'cannon', 'turretCharge', 'hit', 'cratePickup']
+      .forEach(k => { api[k] = noop; });
+  }
+
+  return api;
 })();
 
 // ══════════════════════════════════════════
