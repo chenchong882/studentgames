@@ -1344,7 +1344,7 @@ function update(dt){
 
   if(state==='play'&&tank.alive){
     spawnT-=dtw;
-    const dinoCap=Math.min(16,4+Math.floor(elapsed/9)); // 起步 4 隻，每 9 秒 +1，上限 16
+    const dinoCap=Math.min(16,2+Math.floor(elapsed/8)); // 起步 2 隻，每 8 秒 +1，上限 16（開場放緩，給逃脫空間）
     if(spawnT<=0&&dinos.length<dinoCap){spawnDino();
       spawnT=Math.max(1.4,5.0-elapsed*0.022)*rnd(0.8,1.3);}
     pteroT-=dtw;
@@ -1415,15 +1415,18 @@ function update(dt){
 }
 
 /* ============ 相機 ============ */
+let camLift=0;                                            // 抬砲時相機仰角（平滑值 0~1）
 function updCamera(dt){
   const tp=tankG.position;
   const fx=Math.sin(tank?tank.yaw:0),fz=Math.cos(tank?tank.yaw:0);
-  _v1.set(tp.x-fx*14,tp.y+6.5,tp.z-fz*14);
+  const aimUp=barrelG?clamp(-barrelG.rotation.x,0,0.95)/0.95:0;  // 砲管抬高程度 0~1
+  camLift+=(aimUp-camLift)*(1-Math.pow(0.02,dt));               // 平滑跟隨，避免瞄準跳動時鏡頭抖
+  _v1.set(tp.x-fx*14,tp.y+6.5-camLift*1.5,tp.z-fz*14);
   _v1.y=Math.max(_v1.y,th(_v1.x,_v1.z)+1.8);
   const k=1-Math.pow(0.002,dt);
   camera.position.lerp(_v1,k);
   if(shake>0)camera.position.add(_v2.set(rnd(-1,1),rnd(-1,1),rnd(-1,1)).multiplyScalar(shake*0.25));
-  _v3.set(tp.x+fx*8,tp.y+2.5,tp.z+fz*8);
+  _v3.set(tp.x+fx*8,tp.y+2.5+camLift*11,tp.z+fz*8);            // 抬砲往天空瞄時，看點上移露出天空（看得到 UFO/翼龍）
   camera.lookAt(_v3);
 }
 
