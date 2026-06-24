@@ -130,7 +130,7 @@
 <div class="overlay" id="start-overlay">
   <h1>狙擊暗殺 <span class="accent">單字特務</span></h1>
   <p>你<b>蹲在圍牆後</b>，對面大樓很遠。按<b>開鏡＝探頭瞄準</b>看清每層樓的單字與目標；放開就<b>縮回掩體</b>。讀懂情報，找出對應單字的那一層，趁目標<b>經過窗戶</b>時將他狙殺。</p>
-  <p>每關<b>限時間、限彈藥</b>。打錯樓層＝情報判讀失敗。</p>
+  <p>每關<b>限時間、只有 3 發子彈</b>。<b>打錯人＝任務失敗</b>，看清情報再開槍。第 4、7 關後會遇到<b>軍火商</b>，用資金升級裝備（含可貫穿石牆的穿甲彈）。</p>
   <div class="help">
     <div class="row phone">📱 <b>手機</b>：單指<b>拖曳</b>平移視野瞄準，按 <b>🔭 開鏡</b>放大，按 <b>🔫 開火</b>射擊（雙指捏合也可開/收鏡）</div>
     <div class="row tablet">📲 <b>平板</b>：左手 <b>🔭 開鏡</b>、右手 <b>🔫 開火</b>，單指<b>拖曳</b>瞄準（雙指捏合也可開/收鏡）</div>
@@ -153,6 +153,14 @@
   </div>
   <p class="help" id="settings-desc" style="margin-top:14px"></p>
   <button class="btn" id="settings-close">完成</button>
+</div>
+
+<!-- 軍火商商店 -->
+<div class="overlay hide" id="shop-overlay">
+  <h1>🛒 軍火商 <span class="accent">BLACK MARKET</span></h1>
+  <p>資金 $<b id="shop-money">0</b>　—　趁補給時升級裝備，下一批目標更難對付</p>
+  <div id="shop-items" style="display:flex;flex-direction:column;gap:12px;margin-top:8px;width:min(460px,92vw)"></div>
+  <button class="btn" id="shop-continue">繼續任務 →</button>
 </div>
 
 <!-- 結算畫面 -->
@@ -293,10 +301,16 @@ function worldToScreen(wx, wy){
 }
 
 /* ---------- 遊戲狀態 ---------- */
-let state = 'menu'; // menu | playing | killcam | feedback | over
+let state = 'menu'; // menu | playing | killcam | feedback | shop | over
 let WB = null;      // word bank
 let roundNo = 0, score = 0, money = 0, combo = 0;
 let ammo = 0, ammoMax = 3;
+// 商店 / 永久升級(整場任務內有效, startGame 重置)
+const SHOP_ROUNDS = [5, 8];     // 進入這幾關之前開軍火商(= 第 4、7 關後)
+let shoppedAt = {};
+let apUpgrade = false;          // 穿甲彈: 子彈可貫穿石牆
+let extraAmmo = 0;              // 加彈匣: ammoMax 加成(上限 +2)
+let extraTime = 0;             // 延長時限: timeMax 加成(上限 +12)
 let timeLeft = 0, timeMax = 0;
 let floorsData = [];    // 每層: {word, person...}
 let answer = null;      // 正確單字物件
@@ -399,9 +413,9 @@ function startRound(){
   wind = roundNo <= 4 ? 0 : rand(-1, 1) * (roundNo-4) * 0.12;
 
   // 限時/限彈: 隨關卡略增難度
-  timeMax = Math.max(14, 24 - roundNo*0.8);
+  timeMax = Math.max(14, 24 - roundNo*0.8) + extraTime;
   timeLeft = timeMax;
-  ammoMax = 3; ammo = ammoMax;
+  ammoMax = 3 + extraAmmo; ammo = ammoMax;
 
   // 配置每層
   floorsData = chosen.map((w, i)=>{
@@ -474,7 +488,7 @@ function tryFire(){
     const r = floorRect(f.i);
     const bodyY = r.y + FLOOR_H*0.58;
     if(Math.abs(hitX - f.px) < SEGW*0.55 && Math.abs(hitY - bodyY) < FLOOR_H*0.42){
-      if(segMatAt(f, hitX) === MAT.STONE) blocked = true;  // 石牆擋在前面
+      if(segMatAt(f, hitX) === MAT.STONE && !apUpgrade) blocked = true;  // 石牆擋住(除非有穿甲彈)
       else target = f;
       break;
     }
@@ -487,11 +501,12 @@ function tryFire(){
     showToast('🧱 石牆擋住了，打不穿', '#94a3b8');
     triggerSpotted();
   } else if(target){
-    const broke = segMatAt(target, hitX) === MAT.WOOD;
+    const hitMat = segMatAt(target, hitX);
     target.alive = false; target.falling = 0.01;
     const cy = floorRect(target.i).y + FLOOR_H*0.5;
     spawnParticles(target.px, cy, '#ef4444', 24, 250);
-    if(broke){ spawnParticles(hitX, hitY, '#b07a3c', 14, 160); bulletHoles.push({ x:hitX, y:hitY, mat:'wood' }); }
+    if(hitMat === MAT.WOOD){ spawnParticles(hitX, hitY, '#b07a3c', 14, 160); bulletHoles.push({ x:hitX, y:hitY, mat:'wood' }); }
+    else if(hitMat === MAT.STONE){ spawnParticles(hitX, hitY, '#d2d2d2', 16, 180); bulletHoles.push({ x:hitX, y:hitY, mat:'stone' }); } // 穿甲彈貫穿石牆
     else bulletHoles.push({ x:hitX, y:hitY, mat:'glass' });
     if(target.word.word === answer.word){
       combo++;
@@ -594,7 +609,7 @@ function loop(t){
   }
 
   if(state === 'feedback' && performance.now() > feedbackUntil){
-    startRound();
+    advance();
   }
 
   // 相機目標: killcam 推近目標, 否則開鏡跟 aim / 收鏡看全棟
@@ -604,8 +619,9 @@ function loop(t){
     cx = killTarget.px; cy = r.y + FLOOR_H*0.5; cz = ZOOM_IN*1.7; follow = 5;
     cinematic += (1 - cinematic) * Math.min(1, rawdt*4);
     if(performance.now() > killUntil){
-      state = 'feedback'; targetTimeScale = 1; killTarget = null;
-      feedbackUntil = performance.now() + (killSuccess ? 150 : 850);
+      targetTimeScale = 1; killTarget = null;
+      if(!killSuccess){ failGame('judge'); }                 // 打錯人 = 任務失敗
+      else { state = 'feedback'; feedbackUntil = performance.now() + 150; }
     }
   } else {
     cx = scoped ? aim.x : 0; cy = scoped ? aim.y : COVER_CAM_Y; cz = targetZoom;
@@ -657,7 +673,7 @@ function enemyFire(){
   lives--; damageFlash = 1;
   for(let k=0;k<3;k++) bulletHoles.push({ x: aim.x+rand(-70,70), y: aim.y+rand(-70,70), mat:'glass' });
   spotted = false; shooterIdx = -1;
-  if(lives <= 0){ failGame(); return; }
+  if(lives <= 0){ failGame('shot'); return; }
   showToast(`🩸 中彈！剩 ${lives} 命 — 開槍沒中要馬上收鏡蹲下`, '#f87171');
   updateHUD();
 }
@@ -1288,6 +1304,8 @@ function startGame(diff){
   difficulty = (diff === 'hard') ? 'hard' : 'easy';
   WB = buildWordBank();
   roundNo = 0; score = 0; money = 0; combo = 0; lives = MAX_LIVES;
+  apUpgrade = false; extraAmmo = 0; extraTime = 0; shoppedAt = {};
+  document.getElementById('shop-overlay').classList.add('hide');
   document.getElementById('start-overlay').classList.add('hide');
   document.getElementById('end-overlay').classList.add('hide');
   document.getElementById('settings-overlay').classList.add('hide');
@@ -1308,10 +1326,58 @@ function endGame(){ // 完成全部關卡
   const mode = difficulty === 'hard' ? '困難模式' : '簡單模式';
   document.getElementById('end-detail').textContent = `${mode}・完成 ${MAX_ROUNDS} 關狙擊任務（題庫：${src}）。`;
 }
-function failGame(){ // 困難模式被反殺
+function failGame(reason){
   finishOverlay('任務失敗');
-  document.getElementById('end-summary').textContent = `你暴露行蹤被反殺　總分 ${score}`;
-  document.getElementById('end-detail').textContent = `困難模式・撐到第 ${Math.min(roundNo,MAX_ROUNDS)} 關。開槍沒中會暴露行蹤，記得立刻收鏡蹲回掩體。`;
+  if(reason === 'judge'){       // 打錯人
+    document.getElementById('end-summary').textContent = `判讀錯誤・狙殺了錯誤的人　總分 ${score}`;
+    document.getElementById('end-detail').textContent = `撐到第 ${Math.min(roundNo,MAX_ROUNDS)} 關。看清情報對應的單字、確認樓層再開槍——打錯人任務就失敗。`;
+  } else {                      // 困難模式被反殺
+    document.getElementById('end-summary').textContent = `你暴露行蹤被反殺　總分 ${score}`;
+    document.getElementById('end-detail').textContent = `困難模式・撐到第 ${Math.min(roundNo,MAX_ROUNDS)} 關。開槍沒中會暴露行蹤，記得立刻收鏡蹲回掩體。`;
+  }
+}
+
+/* ---------- 關卡推進 / 軍火商商店 ---------- */
+function advance(){
+  const next = roundNo + 1;
+  if(next > MAX_ROUNDS){ endGame(); return; }
+  if(SHOP_ROUNDS.includes(next) && !shoppedAt[next]){ shoppedAt[next] = true; openShop(); return; }
+  startRound();
+}
+function openShop(){
+  state = 'shop';
+  document.getElementById('fire-btn').disabled = true;
+  renderShop();
+  document.getElementById('shop-overlay').classList.remove('hide');
+}
+function renderShop(){
+  document.getElementById('shop-money').textContent = money;
+  const box = document.getElementById('shop-items'); box.innerHTML = '';
+  const items = [
+    { name:'🛡️ 穿甲彈（永久）', desc:'子彈從此可貫穿石牆，石牆後的目標再也躲不掉', cost:900,
+      done:()=>apUpgrade, buy:()=>{ apUpgrade = true; } },
+    { name:'🔸 加大彈匣（+1 發/關）', desc:'每關可用子彈 +1（基礎 3，上限 5）', cost:350,
+      done:()=>extraAmmo>=2, buy:()=>{ extraAmmo++; } },
+    { name:'⏱️ 延長時限（+4 秒/關）', desc:'每關作答時間 +4 秒（上限 +12）', cost:300,
+      done:()=>extraTime>=12, buy:()=>{ extraTime += 4; } },
+  ];
+  if(difficulty === 'hard'){
+    items.push({ name:'❤️ 戰地急救（+1 命）', desc:'補回 1 條命（上限 3）', cost:400,
+      done:()=>lives>=MAX_LIVES, buy:()=>{ lives = Math.min(MAX_LIVES, lives+1); } });
+  }
+  items.forEach(it=>{
+    const sold = it.done();
+    const can = !sold && money >= it.cost;
+    const b = document.createElement('button');
+    b.className = 'set-row'; b.disabled = !can; if(!can) b.style.opacity = '0.55';
+    b.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <span><b>${it.name}</b><br><span style="font-size:13px;color:#94a3b8">${it.desc}</span></span>
+      <span style="white-space:nowrap;font-weight:bold;color:${sold?'#34d399':(can?'#fbbf24':'#64748b')}">${sold?'已擁有':'$'+it.cost}</span></div>`;
+    b.addEventListener('click', ()=>{
+      if(!it.done() && money >= it.cost){ money -= it.cost; it.buy(); updateHUD(); renderShop(); }
+    });
+    box.appendChild(b);
+  });
 }
 
 document.getElementById('start-easy').addEventListener('click', ()=> startGame('easy'));
@@ -1320,6 +1386,10 @@ document.getElementById('restart-btn').addEventListener('click', ()=>{
   document.getElementById('end-overlay').classList.add('hide');
   document.getElementById('start-overlay').classList.remove('hide');
   state = 'menu';
+});
+document.getElementById('shop-continue').addEventListener('click', ()=>{
+  document.getElementById('shop-overlay').classList.add('hide');
+  startRound();
 });
 document.getElementById('back').addEventListener('click', ()=>{
   location.href = '../index.html' + (LESSON_RAW ? '#lessonData='+encodeURIComponent(LESSON_RAW) : '');
