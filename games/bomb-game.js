@@ -7,9 +7,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 let W = 0, H = 0;
 
-// iOS (incl. iPadOS, which reports as Mac + touch). A running Web Audio context
-// steals the audio session there and mutes speechSynthesis, so on iOS we briefly
-// suspend the context while a word is read aloud. Desktop is unaffected.
+// iOS (incl. iPadOS, which reports as Mac + touch). Kept for audio-unlock quirks.
 const IS_IOS = /iP(hone|od|ad)/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
@@ -247,24 +245,7 @@ const Audio = (() => {
     if (ctx.state === 'suspended') ctx.resume();
   }
 
-  // ── Speech synthesis (word read-aloud) ──
-  // Same simple approach the other games (sniper / miner) use: cache the voice
-  // list (iOS returns an empty list on the first synchronous getVoices() call,
-  // so refresh on voiceschanged) and pick an English voice when speaking.
-  let voices = [];
-  function loadVoices() {
-    if (!window.speechSynthesis) return;
-    try { voices = speechSynthesis.getVoices() || []; } catch (e) {}
-  }
-  if (window.speechSynthesis) {
-    loadVoices();
-    speechSynthesis.onvoiceschanged = loadVoices;
-  }
-  function pickEnglishVoice() {
-    return voices.find(v => /^en[-_]?US/i.test(v.lang))
-        || voices.find(v => /^en/i.test(v.lang))
-        || null;
-  }
+  // 發音（唸單字）已整段移除：這個遊戲只保留背景音樂 + 音效，不唸單字。
   function primeSpeech() {
     // First user gesture: just make sure BGM is running if it's wanted.
     if (bgmWanted) startBgm();
@@ -334,24 +315,7 @@ const Audio = (() => {
     init: ensure,
     primeSpeech,
     startBgm, stopBgm,
-    speak(word) {
-      if (!window.speechSynthesis || !word) return;
-      // iOS: a running Web Audio context steals the audio session and mutes
-      // speech — suspend it while the word is read, resume when done/on timeout.
-      try { if (ctx && ctx.state === 'running') ctx.suspend(); } catch (e) {}
-      const restore = () => { try { if (ctx && ctx.state === 'suspended') ctx.resume(); } catch (e) {} };
-
-      const msg = new SpeechSynthesisUtterance(String(word).toLowerCase());
-      const v = pickEnglishVoice();
-      if (v) msg.voice = v;
-      msg.lang = (v && v.lang) ? v.lang : 'en-US';
-      msg.rate = 0.85;
-      msg.onend = restore;
-      msg.onerror = restore;
-      setTimeout(restore, 1600);   // safety: always resume audio
-
-      try { speechSynthesis.cancel(); speechSynthesis.speak(msg); } catch (e) { restore(); }
-    },
+    speak() {},   // 發音已停用：保留空殼以免呼叫端報錯
     // ── Bigger, more cinematic SFX ──
     explosion()    {
       noise(0.7, 0.65);                       // impact crack
@@ -1660,10 +1624,7 @@ class Game {
     const i = Math.floor(Math.random() * this.wordsLeft.length);
     this.targetWord = this.wordsLeft[i];
     this.wrongAtt = 0;
-    // Read the new target aloud. Speak straight away (no setTimeout) so the
-    // very first one — fired from the menu tap that starts the game — stays
-    // inside the user gesture that iOS needs to unlock speech.
-    Audio.speak(this.targetWord);
+    // （發音已停用，這裡不再唸出目標單字）
   }
 
   // ── Drop Bomb ──────────────────────────
@@ -2022,7 +1983,7 @@ function hitPauseScreen(x, y) {
 }
 
 function hitWordPanel(x, y) {
-  if (y>55 && y<97 && x>W/2-105 && x<W/2+105) Audio.speak(game.targetWord);
+  // 發音已停用：點題目面板不再唸單字。
 }
 
 function hitPauseBtn(x, y) {
@@ -2031,7 +1992,7 @@ function hitPauseBtn(x, y) {
 }
 
 function handleStart(touches) {
-  Audio.primeSpeech();   // unlock iOS speech on the first real touch
+  Audio.primeSpeech();   // 第一次觸碰：確保背景音樂開始播放
   for (const t of touches) {
     const {clientX:x, clientY:y} = t;
     if (game.phase==='paused')  { hitPauseScreen(x,y); continue; }
