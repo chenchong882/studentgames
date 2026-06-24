@@ -248,42 +248,26 @@ const Audio = (() => {
   }
 
   // ── Speech synthesis (word read-aloud) ──
-  // iPad / iOS Safari quirks handled here:
-  //  • getVoices() returns an empty list on the first synchronous call, so we
-  //    cache it and refresh whenever the voices finish loading.
-  //  • speak() is silently ignored unless the first real word is spoken inside
-  //    a user gesture. On iOS, Web Audio can also steal the audio session from
-  //    speech, so the first word must run before BGM starts.
-  let speechVoices = [];
-  let speechPrimed = false;
-  let speechGen    = 0;     // only the latest word may restore background audio
-  let duckTimer    = null;
-  let speechActive = false;
-  let currentUtterance = null;
+  // Same simple approach the other games (sniper / miner) use: cache the voice
+  // list (iOS returns an empty list on the first synchronous getVoices() call,
+  // so refresh on voiceschanged) and pick an English voice when speaking.
+  let voices = [];
   function loadVoices() {
     if (!window.speechSynthesis) return;
-    try { speechVoices = speechSynthesis.getVoices() || []; } catch (e) {}
+    try { voices = speechSynthesis.getVoices() || []; } catch (e) {}
   }
   if (window.speechSynthesis) {
     loadVoices();
     speechSynthesis.onvoiceschanged = loadVoices;
   }
+  function pickEnglishVoice() {
+    return voices.find(v => /^en[-_]?US/i.test(v.lang))
+        || voices.find(v => /^en/i.test(v.lang))
+        || null;
+  }
   function primeSpeech() {
-    if (!window.speechSynthesis) {
-      if (bgmWanted && !speechActive) startBgm();
-      return;
-    }
-    if (!speechPrimed) {
-      speechPrimed = true;
-      loadVoices();
-      // No silent "unlock" utterance here on purpose: the first real word is
-      // spoken from inside this same tap gesture (menu → start → _nextTarget),
-      // which is what actually unlocks iOS speech. A silent utterance would just
-      // leave the engine "speaking", forcing the real word into a cancel()+speak()
-      // collision that Safari drops.
-      try { speechSynthesis.resume(); } catch (e) {}
-    }
-    if (bgmWanted && !speechActive) startBgm();
+    // First user gesture: just make sure BGM is running if it's wanted.
+    if (bgmWanted) startBgm();
   }
 
   function noise(dur, vol = 0.5) {
@@ -312,10 +296,9 @@ const Audio = (() => {
     osc.start(); osc.stop(ctx.currentTime + dur);
   }
 
-  // ── Background music: user-provided MP3, kept quiet so speech stays clear ──
+  // ── Background music: user-provided MP3, kept quiet under the speech ──
   const BGM_SRC = '../悠然小步.mp3';
   const BGM_VOLUME = 0.10;
-  const BGM_DUCK_VOLUME = 0.018;
   let bgmAudio = null;
   let bgmWanted = false;
 
@@ -336,24 +319,9 @@ const Audio = (() => {
   function startBgm() {
     bgmWanted = true;
     const a = getBgmAudio();
-    a.volume = speechActive ? BGM_DUCK_VOLUME : BGM_VOLUME;
-    if (IS_IOS && speechActive) return;
+    a.volume = BGM_VOLUME;
     const playPromise = a.play();
     if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
-  }
-
-  function duckBgmForSpeech() {
-    if (!bgmAudio) return;
-    bgmAudio.volume = BGM_DUCK_VOLUME;
-    if (IS_IOS && !bgmAudio.paused) {
-      try { bgmAudio.pause(); } catch (e) {}
-    }
-  }
-
-  function restoreBgmAfterSpeech() {
-    if (!bgmAudio) return;
-    bgmAudio.volume = BGM_VOLUME;
-    if (bgmWanted) startBgm();
   }
 
   function stopBgm() {
@@ -368,72 +336,21 @@ const Audio = (() => {
     startBgm, stopBgm,
     speak(word) {
       if (!window.speechSynthesis || !word) return;
-      try { speechSynthesis.resume(); } catch (e) {}   // iOS sometimes leaves it paused
-      // Only cancel when something is actually queued/playing. Calling cancel()
-      // immediately before speak() on an idle engine makes Safari silently drop
-      // the new utterance (speaking=true but no sound) — the bug we were hitting.
-      if (speechSynthesis.speaking || speechSynthesis.pending) {
-        try { speechSynthesis.cancel(); } catch (e) {}
-      }
-      // Prefer a US English voice (cached + refreshed via onvoiceschanged,
-      // because iOS returns an empty list on the first synchronous call).
-      if (!speechVoices.length) loadVoices();
-      const us = speechVoices.find(v => v.lang === 'en-US')
-              || speechVoices.find(v => v.lang && v.lang.startsWith('en'));
+      // iOS: a running Web Audio context steals the audio session and mutes
+      // speech — suspend it while the word is read, resume when done/on timeout.
+      try { if (ctx && ctx.state === 'running') ctx.suspend(); } catch (e) {}
+      const restore = () => { try { if (ctx && ctx.state === 'suspended') ctx.resume(); } catch (e) {} };
 
-      const myGen = ++speechGen;
-      speechActive = true;
-      if (duckTimer) { clearTimeout(duckTimer); duckTimer = null; }
-      duckBgmForSpeech();
+      const msg = new SpeechSynthesisUtterance(String(word).toLowerCase());
+      const v = pickEnglishVoice();
+      if (v) msg.voice = v;
+      msg.lang = (v && v.lang) ? v.lang : 'en-US';
+      msg.rate = 0.85;
+      msg.onend = restore;
+      msg.onerror = restore;
+      setTimeout(restore, 1600);   // safety: always resume audio
 
-      const restore = () => {
-        if (myGen !== speechGen) return;
-        speechActive = false;
-        currentUtterance = null;
-        if (duckTimer) { clearTimeout(duckTimer); duckTimer = null; }
-        restoreBgmAfterSpeech();
-      };
-
-      // Build a fresh utterance per attempt: once an utterance has been handed
-      // to speak() it can't be reliably re-spoken across browsers.
-      const build = () => {
-        const u = new SpeechSynthesisUtterance(String(word));
-        u.lang  = 'en-US';
-        u.rate  = 0.9;
-        u.pitch = 1.1;
-        if (us) u.voice = us;
-        u.onend   = restore;
-        u.onerror = restore;
-        currentUtterance = u;
-        return u;
-      };
-      duckTimer = setTimeout(restore, 3500);
-
-      const speakNow = () => {
-        if (myGen !== speechGen) return;
-        try { speechSynthesis.speak(build()); } catch (e) { restore(); return; }
-        // Chrome/Safari silently drop the very first utterance after a resume()
-        // on an idle engine — that's the "no sound when the game starts" bug.
-        // If nothing actually started, force one clean retry.
-        setTimeout(() => {
-          if (myGen !== speechGen) return;
-          if (!speechSynthesis.speaking && !speechSynthesis.pending) {
-            try { speechSynthesis.cancel(); speechSynthesis.speak(build()); } catch (e) {}
-          }
-        }, 260);
-      };
-
-      if (IS_IOS && ctx && ctx.state === 'running') {
-        try {
-          const paused = ctx.suspend();
-          if (paused && typeof paused.then === 'function') {
-            paused.then(speakNow, speakNow);
-            return;
-          }
-        } catch (e) {}
-      }
-
-      speakNow();
+      try { speechSynthesis.cancel(); speechSynthesis.speak(msg); } catch (e) { restore(); }
     },
     // ── Bigger, more cinematic SFX ──
     explosion()    {
