@@ -313,6 +313,7 @@ let extraAmmo = 0;              // 加彈匣: ammoMax 加成(上限 +2)
 let extraTime = 0;             // 延長時限: timeMax 加成(上限 +12)
 let spentAny = false;          // 是否買過(穿甲彈以外的)裝備: 買過就鎖住穿甲彈
 let timeLeft = 0, timeMax = 0;
+let lastTickSec = -1;   // 最後 5 秒滴答聲: 記住上次發聲的整數秒
 let floorsData = [];    // 每層: {word, person...}
 let answer = null;      // 正確單字物件
 let wind = 0;           // 風速(世界x偏移/單位)，前期為0
@@ -391,6 +392,13 @@ function clickEmpty(){
     const g=ac.createGain(); g.gain.setValueAtTime(0.12,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.06);
     o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+0.07);}catch(e){}
 }
+// 倒數最後 5 秒的滴答聲: 最後一秒(urgent)音更高更緊
+function tickSnd(urgent){
+  try{ const ac=audio(); const t=ac.currentTime;
+    const o=ac.createOscillator(); o.type='square'; o.frequency.value = urgent ? 1500 : 1100;
+    const g=ac.createGain(); g.gain.setValueAtTime(urgent ? 0.22 : 0.16, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.05);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+0.06);}catch(e){}
+}
 
 /* ---------- 發音(命中正確時唸單字) ---------- */
 // iOS 雷: 運行中的 AudioContext 會佔走音訊工作階段, 讓 speechSynthesis 沒聲音。
@@ -429,6 +437,7 @@ function startRound(){
   // 限時/限彈: 隨關卡略增難度
   timeMax = Math.max(14, 24 - roundNo*0.8) + extraTime;
   timeLeft = timeMax;
+  lastTickSec = -1;   // 重置滴答計時
   ammoMax = 3 + extraAmmo; ammo = ammoMax;
 
   // 配置每層
@@ -621,6 +630,9 @@ function loop(t){
 
   if(state === 'playing'){
     timeLeft -= rawdt;
+    // 最後 5 秒每整數秒一聲滴答(5,4,3,2,1)
+    const sec = Math.ceil(timeLeft);
+    if(timeLeft > 0 && sec <= 5 && sec !== lastTickSec){ lastTickSec = sec; tickSnd(sec <= 2); }
     if(timeLeft <= 0){
       timeLeft = 0;
       showToast(`⏰ 時間到！目標是 ${answer.word}`, '#f87171');
