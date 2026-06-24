@@ -2140,11 +2140,59 @@ canvas.addEventListener('contextmenu', e => e.preventDefault());
 // ══════════════════════════════════════════
 
 // ══════════════════════════════════════════
+//  iOS 語音用：透明 DOM 按鈕層
+//  canvas 的 touch 無法解鎖 iOS speechSynthesis，只有真實 <button> 的 click 才行
+//  （挖金礦就是靠真實按鈕才唸得出來）。視覺仍由 canvas 畫，這些按鈕透明疊在上面：
+//    ・選難度 → 真實 click：解鎖語音 + 開始遊戲 + 進場唸第一個單字
+//    ・🔊     → 真實 click：重播目前目標單字
+// ══════════════════════════════════════════
+const _speechOverlay = (() => {
+  const root = document.body || document.documentElement;
+  function mkBtn(label) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.setAttribute('aria-label', label);
+    el.style.cssText = 'position:fixed;z-index:9000;margin:0;padding:0;border:none;'
+      + 'background:transparent;color:transparent;font:inherit;cursor:pointer;'
+      + 'display:none;-webkit-tap-highlight-color:transparent;';
+    root.appendChild(el);
+    return el;
+  }
+  function place(el, x, y, w, h) {
+    el.style.left = x + 'px'; el.style.top = y + 'px';
+    el.style.width = w + 'px'; el.style.height = h + 'px';
+  }
+  const easyBtn  = mkBtn('選擇簡單模式');
+  const hardBtn  = mkBtn('選擇困難模式');
+  const speakBtn = mkBtn('播放單字發音');
+  easyBtn.addEventListener('click',  () => { Audio.unlockSpeech(); if (game.phase === 'menu') game.start('easy'); });
+  hardBtn.addEventListener('click',  () => { Audio.unlockSpeech(); if (game.phase === 'menu') game.start('hard'); });
+  speakBtn.addEventListener('click', () => { Audio.unlockSpeech(); if (game.phase === 'playing' && game.targetWord) Audio.speak(game.targetWord); });
+
+  return function sync() {
+    if (game.phase === 'menu') {
+      const bw = menuBtnW(), bh = menuBtnH(), bx = W/2 - bw/2;
+      place(easyBtn, bx, H*0.50 - bh/2, bw, bh); easyBtn.style.display = 'block';
+      place(hardBtn, bx, H*0.64 - bh/2, bw, bh); hardBtn.style.display = 'block';
+    } else {
+      easyBtn.style.display = 'none'; hardBtn.style.display = 'none';
+    }
+    if (game.phase === 'playing' && game.targetWord) {
+      const pw = 210, ph = 42, px = W/2 - pw/2, py = 55;
+      place(speakBtn, px, py, pw, ph); speakBtn.style.display = 'block';
+    } else {
+      speakBtn.style.display = 'none';
+    }
+  };
+})();
+
+// ══════════════════════════════════════════
 //  MAIN LOOP
 // ══════════════════════════════════════════
 function loop() {
   game.update();
   game.draw(ctx);
+  _speechOverlay();
   requestAnimationFrame(loop);
 }
 
