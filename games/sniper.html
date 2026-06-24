@@ -311,6 +311,7 @@ let shoppedAt = {};
 let apUpgrade = false;          // 穿甲彈: 子彈可貫穿石牆
 let extraAmmo = 0;              // 加彈匣: ammoMax 加成(上限 +2)
 let extraTime = 0;             // 延長時限: timeMax 加成(上限 +12)
+let spentAny = false;          // 是否買過(穿甲彈以外的)裝備: 買過就鎖住穿甲彈
 let timeLeft = 0, timeMax = 0;
 let floorsData = [];    // 每層: {word, person...}
 let answer = null;      // 正確單字物件
@@ -892,13 +893,15 @@ function drawWallSegment(mat, x, y, w, h){
     ctx.globalAlpha = 0.12; ctx.strokeStyle = '#cfe6ff'; ctx.lineWidth = 6;
     ctx.beginPath(); ctx.moveTo(x+w*0.22, y+h*0.85); ctx.lineTo(x+w*0.62, y+h*0.22); ctx.stroke();
   } else if(mat === MAT.WOOD){
-    // 木牆: 半透明(人在後隱約可見) + 直木紋
-    ctx.globalAlpha = 0.8;
+    // 木牆: 完全不透明(看不到後面的人、不透光), 但子彈可穿 → 要算走位時機
     const g = ctx.createLinearGradient(x, y, x+w, y);
     g.addColorStop(0,'#5a3f28'); g.addColorStop(0.5,'#714f33'); g.addColorStop(1,'#523619');
     ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
-    ctx.globalAlpha = 0.3; ctx.strokeStyle = '#3a2716'; ctx.lineWidth = 1;
+    // 直木紋 + 橫向木板接縫
+    ctx.globalAlpha = 0.4; ctx.strokeStyle = '#3a2716'; ctx.lineWidth = 1;
     for(let k=1;k<4;k++){ const xx = x+w*k/4; ctx.beginPath(); ctx.moveTo(xx, y); ctx.lineTo(xx, y+h); ctx.stroke(); }
+    for(let k=1;k<3;k++){ const yy = y+h*k/3; ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x+w, yy); ctx.stroke(); }
+    ctx.globalAlpha = 1;
   } else {
     // 石牆: 不透明灰磚(完全遮住)
     const g = ctx.createLinearGradient(x, y, x+w, y+h);
@@ -1304,7 +1307,7 @@ function startGame(diff){
   difficulty = (diff === 'hard') ? 'hard' : 'easy';
   WB = buildWordBank();
   roundNo = 0; score = 0; money = 0; combo = 0; lives = MAX_LIVES;
-  apUpgrade = false; extraAmmo = 0; extraTime = 0; shoppedAt = {};
+  apUpgrade = false; extraAmmo = 0; extraTime = 0; spentAny = false; shoppedAt = {};
   document.getElementById('shop-overlay').classList.add('hide');
   document.getElementById('start-overlay').classList.add('hide');
   document.getElementById('end-overlay').classList.add('hide');
@@ -1354,27 +1357,34 @@ function renderShop(){
   document.getElementById('shop-money').textContent = money;
   const box = document.getElementById('shop-items'); box.innerHTML = '';
   const items = [
-    { name:'🛡️ 穿甲彈（永久）', desc:'子彈從此可貫穿石牆，石牆後的目標再也躲不掉', cost:900,
-      done:()=>apUpgrade, buy:()=>{ apUpgrade = true; } },
-    { name:'🔸 加大彈匣（+1 發/關）', desc:'每關可用子彈 +1（基礎 3，上限 5）', cost:350,
+    { name:'🛡️ 穿甲彈（永久）', desc:'子彈從此可貫穿石牆，石牆後的目標再也躲不掉', cost:400, isAP:true,
+      done:()=>apUpgrade, locked:()=>spentAny, lockText:'需全程未購買其他裝備',
+      buy:()=>{ apUpgrade = true; } },
+    { name:'🔸 加大彈匣（+1 發/關）', desc:'每關可用子彈 +1（基礎 3，上限 5）', cost:200,
       done:()=>extraAmmo>=2, buy:()=>{ extraAmmo++; } },
-    { name:'⏱️ 延長時限（+4 秒/關）', desc:'每關作答時間 +4 秒（上限 +12）', cost:300,
+    { name:'⏱️ 延長時限（+4 秒/關）', desc:'每關作答時間 +4 秒（上限 +12）', cost:150,
       done:()=>extraTime>=12, buy:()=>{ extraTime += 4; } },
   ];
   if(difficulty === 'hard'){
-    items.push({ name:'❤️ 戰地急救（+1 命）', desc:'補回 1 條命（上限 3）', cost:400,
+    items.push({ name:'❤️ 戰地急救（+1 命）', desc:'補回 1 條命（上限 3）', cost:250,
       done:()=>lives>=MAX_LIVES, buy:()=>{ lives = Math.min(MAX_LIVES, lives+1); } });
   }
   items.forEach(it=>{
     const sold = it.done();
-    const can = !sold && money >= it.cost;
+    const locked = !sold && it.locked && it.locked();
+    const can = !sold && !locked && money >= it.cost;
     const b = document.createElement('button');
     b.className = 'set-row'; b.disabled = !can; if(!can) b.style.opacity = '0.55';
+    const right = sold ? '已擁有' : (locked ? '🔒 '+it.lockText : '$'+it.cost);
+    const rcol = sold ? '#34d399' : (locked ? '#64748b' : (can ? '#fbbf24' : '#64748b'));
     b.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
       <span><b>${it.name}</b><br><span style="font-size:13px;color:#94a3b8">${it.desc}</span></span>
-      <span style="white-space:nowrap;font-weight:bold;color:${sold?'#34d399':(can?'#fbbf24':'#64748b')}">${sold?'已擁有':'$'+it.cost}</span></div>`;
+      <span style="white-space:nowrap;font-weight:bold;color:${rcol}">${right}</span></div>`;
     b.addEventListener('click', ()=>{
-      if(!it.done() && money >= it.cost){ money -= it.cost; it.buy(); updateHUD(); renderShop(); }
+      if(it.done() || (it.locked && it.locked()) || money < it.cost) return;
+      money -= it.cost; it.buy();
+      if(!it.isAP) spentAny = true;   // 買了其他裝備 → 鎖住穿甲彈
+      updateHUD(); renderShop();
     });
     box.appendChild(b);
   });
