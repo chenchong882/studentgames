@@ -63,6 +63,11 @@
   .uiBtn:hover{background:#3d4659;}
   #overlay .guideLink{color:#ffd878;text-decoration:underline;cursor:pointer;
     font-size:15px;margin-top:6px;}
+  #diffSel{margin-top:16px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;}
+  #diffSel .diffLab{font-size:14px;color:rgba(255,255,255,.65);}
+  .diffBtn{padding:8px 16px;font-size:15px;font-weight:700;border-radius:9px;cursor:pointer;
+    background:#2c3242;color:#fff;border:2px solid rgba(255,216,120,.4);}
+  .diffBtn.on{background:#ffd878;color:#2a2030;border-color:#ffd878;}
   #guide{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
     background:rgba(6,9,16,.84);z-index:12;}
   #guide .card{max-width:660px;width:88%;background:rgba(20,24,32,.97);
@@ -152,6 +157,11 @@
   <div class="sub">J U R A S S I C&nbsp;&nbsp;T A N K</div>
   <p>到發光的樹上射下正確的英文單字，邊打恐龍邊學單字！</p>
   <p class="guideLink" id="guideLink">📖 查看玩法說明</p>
+  <div id="diffSel">
+    <span class="diffLab">砲彈下墜</span>
+    <button class="diffBtn" data-diff="easy">🟢 簡單（下墜小）</button>
+    <button class="diffBtn" data-diff="hard">🔴 困難（下墜大）</button>
+  </div>
   <div class="go" id="goText">— 按空白鍵、點擊滑鼠 或 輕觸螢幕 開始 —</div>
 </div>
 <div id="pauseOverlay" class="hidden">
@@ -165,7 +175,7 @@
     <div class="sec"><b>🎮 操作</b>　W/S 前進後退　・　A/D 轉向　・　<span class="hl">按住前進越久越快</span>（Shift 直接頂速）　・　滑鼠瞄準　・　空白鍵 / 左鍵 開砲　・　ESC 暫停</div>
     <div class="sec"><b>🎯 主線任務</b>　畫面上方出題（中文），到<span class="hl">發光的樹</span>上找出對應的<span class="hl">正確英文單字牌</span>，用砲彈射下來。射對加分又回血；射錯恐龍會狂暴！</div>
     <div class="sec"><b>🛸 神祕能量</b>　射擊空中的「?」方塊並答對英文題，隨機獲得隕石風暴、全屏清場、回血護盾、雙倍分數、超速連發等強力獎勵。</div>
-    <div class="sec"><b>💥 砲彈是拋物線</b>　目標越遠，準心要抬得越高，瞄準時自己微調高度。</div>
+    <div class="sec"><b>💥 砲彈是拋物線</b>　目標越遠，準心要抬得越高，瞄準時自己微調高度。可在開始畫面選難度：<span class="hl">簡單</span>下墜小好瞄、<span class="hl">困難</span>下墜明顯更挑戰。</div>
     <div class="sec wn"><b>⚠️ 危險</b>　霸王龍與腕龍會把坦克一腳踩扁！被攻擊時螢幕邊緣會亮<span class="wn">紅色弧光</span>指出方向，右側也會即時播報敵人方位與距離。</div>
     <button id="guideBtn" class="uiBtn">✓ 我知道了</button>
   </div>
@@ -656,6 +666,10 @@ let shake=0;
 const keys={},mouse={x:innerWidth/2,y:innerHeight*0.4,down:false};
 const effects={slow:0,gold:0,rapid:0};
 let spawnT=2,pteroT=3,ufoT=14,mysT=9,pendingMeteors=0,meteorT=0,volSmokeT=0;
+// 難度：影響砲彈下墜重力。簡單＝下墜不明顯(好瞄)，困難＝下墜明顯(要抬高補償)
+let difficulty=(()=>{try{return localStorage.getItem('tankDiff')||'easy'}catch(e){return 'easy'}})();
+const SHELL_GRAV={easy:12,hard:32};
+function shellGrav(){return SHELL_GRAV[difficulty]||SHELL_GRAV.easy;}
 const raycaster=new THREE.Raycaster();
 let aimPoint=new THREE.Vector3();
 
@@ -1250,7 +1264,7 @@ function updUFO(u,dt){
 }
 function updShell(s,dt){
   s.life-=dt;
-  s.vel.y-=28*dt;
+  s.vel.y-=shellGrav()*dt;
   s.m.position.addScaledVector(s.vel,dt);
   const p=s.m.position;
   spawnP(p.x,p.y,p.z,0,0,0,0.12,0xffaa55,0);
@@ -1583,6 +1597,17 @@ function closeGuide(){guideOpen=false;guideEl.classList.add('hidden');
 document.getElementById('guideBtn').addEventListener('click',e=>{e.stopPropagation();closeGuide();});
 document.getElementById('guidePauseBtn').addEventListener('click',e=>{e.stopPropagation();openGuide();});
 document.getElementById('guideLink').addEventListener('mousedown',e=>{e.stopPropagation();openGuide();});
+function setDifficulty(d){
+  difficulty=(d==='hard')?'hard':'easy';
+  try{localStorage.setItem('tankDiff',difficulty);}catch(e){}
+  document.querySelectorAll('.diffBtn').forEach(b=>b.classList.toggle('on',b.dataset.diff===difficulty));
+}
+document.querySelectorAll('.diffBtn').forEach(b=>{   // 比照 guideLink：用 mousedown/touchstart 擋掉「點到就開始遊戲」
+  const pick=e=>{e.stopPropagation();setDifficulty(b.dataset.diff);};
+  b.addEventListener('mousedown',pick);
+  b.addEventListener('touchstart',pick,{passive:true});
+});
+setDifficulty(difficulty);   // 初始高亮目前選擇
 try{if(!localStorage.getItem('tankGuideSeen'))openGuide();}catch(e){openGuide();}
 
 /* ============ 輸入 ============ */
