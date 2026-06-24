@@ -607,7 +607,8 @@ function loop(t){
       feedbackUntil = performance.now() + (killSuccess ? 150 : 850);
     }
   } else {
-    cx = scoped ? aim.x : 0; cy = scoped ? aim.y : COVER_CAM_Y; cz = targetZoom; follow = 14;
+    cx = scoped ? aim.x : 0; cy = scoped ? aim.y : COVER_CAM_Y; cz = targetZoom;
+    follow = scoped ? 30 : 16;   // 開鏡時相機緊貼準星(畫面跟著滑鼠/手指速度走, 不拖)
     cinematic += (0 - cinematic) * Math.min(1, rawdt*6);
   }
   cam.x += (cx - cam.x) * Math.min(1, rawdt*follow);
@@ -666,6 +667,7 @@ function render(){
   drawSky();
   if(state === 'menu' || state === 'over'){ return; }
 
+  drawGround();
   drawBuilding();
   drawParticles();
   if(state !== 'killcam') drawForeground();    // 我方掩體牆 + 蹲姿狙擊手(隨開鏡淡出)
@@ -780,6 +782,38 @@ function drawVignette(){
   const g = ctx.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*0.35, VW/2,VH/2,Math.max(VW,VH)*0.62);
   g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.45)');
   ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
+}
+
+// 大樓底部的地面(街道), 讓一樓不會像浮在空中
+function drawGround(){
+  const gy = BY + BH;                          // 大樓底部世界 y
+  const top = worldToScreen(BX, gy).y;         // 地平線螢幕 y
+  if(top > VH) return;                          // 地面在畫面下方外, 不用畫
+  ctx.save();
+  // 街道(往下填到畫面底)
+  const g = ctx.createLinearGradient(0, top, 0, VH);
+  g.addColorStop(0, '#222a38'); g.addColorStop(1, '#0c1018');
+  ctx.fillStyle = g; ctx.fillRect(0, top, VW, VH-top);
+  // 大樓基座接地陰影
+  const bl = worldToScreen(BX, gy), br = worldToScreen(BX+BW, gy);
+  const sh = ctx.createLinearGradient(0, top, 0, top + 40*zoom);
+  sh.addColorStop(0, 'rgba(0,0,0,0.45)'); sh.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = sh; ctx.fillRect(bl.x, top, br.x-bl.x, 40*zoom);
+  // 人行道前緣(亮邊 + 路緣陰影)
+  ctx.fillStyle = '#2c3442'; ctx.fillRect(0, top, VW, 8*zoom);
+  ctx.fillStyle = 'rgba(180,200,230,0.10)'; ctx.fillRect(0, top, VW, 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(0, top + 8*zoom, VW, 3*zoom);
+  // 濕地面反光條(雨夜)
+  ctx.globalAlpha = 0.12; ctx.fillStyle = '#9fc0ff';
+  for(let i=0;i<5;i++){ const ry = top + (18 + i*22)*zoom; if(ry>VH) break; ctx.fillRect(0, ry, VW, 1.5); }
+  ctx.globalAlpha = 1;
+  // 道路中線(虛線)
+  const midY = top + 80*zoom;
+  if(midY < VH){
+    ctx.strokeStyle = 'rgba(250,204,21,0.25)'; ctx.lineWidth = 3*zoom; ctx.setLineDash([22*zoom, 18*zoom]);
+    ctx.beginPath(); ctx.moveTo(0, midY); ctx.lineTo(VW, midY); ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.restore();
 }
 
 function drawBuilding(){
