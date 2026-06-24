@@ -129,7 +129,7 @@
 <!-- 開始畫面 -->
 <div class="overlay" id="start-overlay">
   <h1>狙擊暗殺 <span class="accent">單字特務</span></h1>
-  <p>對面大樓很遠，<b>必須開鏡</b>才看得清每層樓的單字與走動的目標。讀懂情報，找出對應單字的那一層，趁目標<b>經過窗戶</b>時將他狙殺。</p>
+  <p>你<b>蹲在圍牆後</b>，對面大樓很遠。按<b>開鏡＝探頭瞄準</b>看清每層樓的單字與目標；放開就<b>縮回掩體</b>。讀懂情報，找出對應單字的那一層，趁目標<b>經過窗戶</b>時將他狙殺。</p>
   <p>每關<b>限時間、限彈藥</b>。打錯樓層＝情報判讀失敗。</p>
   <div class="help">
     <div class="row phone">📱 <b>手機</b>：單指<b>拖曳</b>平移視野瞄準，按 <b>🔭 開鏡</b>放大，按 <b>🔫 開火</b>射擊（雙指捏合也可開/收鏡）</div>
@@ -140,7 +140,7 @@
     <button class="btn" id="start-easy">🎯 簡單模式</button>
     <button class="btn" id="start-hard" style="background:#f87171;color:#fff">💀 困難模式</button>
   </div>
-  <p style="font-size:13px;color:#94a3b8;margin-top:10px">簡單：專心認字與抓時機　｜　困難：目標會察覺並<b>開槍反擊</b>，有 3 條命</p>
+  <p style="font-size:13px;color:#94a3b8;margin-top:10px">簡單：專心認字與抓時機　｜　困難：<b>開槍沒中就被發現</b>，3 秒內沒收鏡蹲回掩體就挨打，有 3 條命</p>
   <button id="open-settings" style="margin-top:14px;background:rgba(255,255,255,0.08);color:#cbd5e1;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:8px 18px;font-size:13px;cursor:pointer">⚙️ 操控設定</button>
 </div>
 
@@ -247,10 +247,25 @@ const WIN_W = 320;              // 每層窗戶寬度(置中)
 function floorRect(i){ // i: 0=最上層
   return { x: BX, y: BY + i*FLOOR_H, w: BW, h: FLOOR_H };
 }
-function windowRect(i){
-  const r = floorRect(i);
-  return { x1: r.x + r.w/2 - WIN_W/2, x2: r.x + r.w/2 + WIN_W/2, y: r.y, h: r.h };
+
+/* ---------- 牆面材質(窗戶/木牆可打穿、石牆不行) ---------- */
+const SEG = 9;                  // 每層牆面水平分成幾段
+const SEGW = BW / SEG;
+const MAT = { STONE:'stone', WOOD:'wood', WINDOW:'window' };
+function genSegs(){
+  const segs = new Array(SEG);
+  for(let k=0;k<SEG;k++){
+    const r = Math.random();
+    segs[k] = r < 0.34 ? MAT.WINDOW : (r < 0.62 ? MAT.WOOD : MAT.STONE);
+  }
+  segs[Math.floor(SEG/2)] = MAT.WINDOW;          // 中央保證一片窗(必有破綻)
+  let breakableN = segs.filter(m=>m!==MAT.STONE).length;
+  while(breakableN < 3){ const k = randi(0,SEG-1); if(segs[k]===MAT.STONE){ segs[k]=MAT.WINDOW; breakableN++; } }
+  return segs;
 }
+function segIndexAt(worldX){ return clamp(Math.floor((worldX - BX)/SEGW), 0, SEG-1); }
+function segMatAt(f, worldX){ return f.segs[segIndexAt(worldX)]; }
+function isBreakable(mat){ return mat !== MAT.STONE; }
 
 /* ---------- 相機 / 準星（對齊 ship.html 的 aim 模式） ---------- */
 // ship 的做法: 場景內有一個準星 aim, 滑鼠/拖曳移動它; 開鏡 = 以 aim 為中心放大。
@@ -258,8 +273,10 @@ const cam = { x: 0, y: 0 };     // 渲染中心(世界座標), 平滑跟隨 camT
 const aim = { x: 0, y: 0 };     // 準星(世界座標)
 let zoom = 1;                   // 目前縮放
 let targetZoom = 1;             // 目標縮放(開鏡=ZOOM_IN)
-const ZOOM_OUT = 0.62, ZOOM_IN = 1.6;
+const ZOOM_OUT = 0.46, ZOOM_IN = 1.6;
+const COVER_CAM_Y = 80;        // 未開鏡(蹲掩體)時相機下移, 把大樓推到畫面上半, 下方留給我方掩體牆
 let scoped = false;
+let scopeBlend = 0;            // 0=蹲在牆後(第三人稱) .. 1=探頭進鏡; 用來淡入鏡框、淡出前景
 let recoil = 0;                 // 後座抖動量
 let flash = 0;                  // 槍口閃光
 let shake = {x:0,y:0};
@@ -299,12 +316,11 @@ let timeScale = 1, targetTimeScale = 1;
 let killTarget = null, killSuccess = false, killUntil = 0;
 let cinematic = 0;              // 電影黑邊/特寫淡入 0..1
 
-// 困難模式: 察覺 + 反擊
-let alertLevel = 0;            // 0..1 警覺度, 滿了目標就「發現運作方式」
-let alerted = false;          // 已察覺狙擊手
-let threat = null;            // 正在瞄準玩家的目標 {i, t, dur}
-let nextThreatAt = 0;        // 下次反擊時間戳
-let damageFlash = 0;        // 中彈紅閃 0..1
+// 困難模式: 開槍沒擊中 → 被發現 → 限時內收鏡蹲回掩體, 否則挨打
+let spotted = false;          // 沒擊中而暴露行蹤, 倒數中
+let duckDeadline = 0;         // 必須在此時間戳前收鏡(蹲回掩體)
+let shooterIdx = -1;          // 反擊的目標樓層 index
+let damageFlash = 0;          // 中彈紅閃 0..1
 
 /* 粒子(特效) */
 let particles = [];
@@ -315,7 +331,10 @@ function spawnParticles(wx, wy, color, n, spd){
       life:1, color, size:rand(2,5) });
   }
 }
-let bulletHoles = []; // {x,y,glass}
+let bulletHoles = []; // {x,y,mat:'stone'|'wood'|'glass'}
+// 雨滴(螢幕座標, 純裝飾)
+let rain = [];
+for(let i=0;i<80;i++) rain.push({ x:Math.random(), y:Math.random(), len:rand(8,18), sp:rand(0.35,0.8) });
 
 /* ---------- 音效(Web Audio 合成槍聲) ---------- */
 let actx = null;
@@ -396,20 +415,20 @@ function startRound(){
       speed: rand(55, 75) + roundNo*3,
       alive: true,
       falling: 0,
-      // 霓虹字外觀
-      hue: [180,300,50,140,260][i],
+      walk: rand(0, 6.28),       // 走路動畫相位
+      segs: genSegs(),           // 該層牆面材質
+      hue: [200,28,150,330,55][i], // 衣服色(各層不同, 純美觀, 與答案無關)
     };
   });
 
   // 準星置中、相機回到大樓中央、收鏡
   aim.x = 0; aim.y = 0;
   cam.x = 0; cam.y = 0;
-  scoped = false; targetZoom = ZOOM_OUT; zoom = ZOOM_OUT;
+  scoped = false; scopeBlend = 0; targetZoom = ZOOM_OUT; zoom = ZOOM_OUT;
   particles = []; bulletHoles = [];
   // 重置慢動作 / killcam / 反擊
   timeScale = 1; targetTimeScale = 1; cinematic = 0; killTarget = null;
-  alertLevel = 0; alerted = false; threat = null; damageFlash = 0;
-  nextThreatAt = performance.now() + rand(2500, 4500);
+  spotted = false; shooterIdx = -1; damageFlash = 0;
 
   const sb = document.getElementById('scope-btn');
   sb.classList.remove('on'); sb.querySelector('span:last-child').textContent = '開鏡';
@@ -441,59 +460,60 @@ function tryFire(){
   ammo--;
   recoil = 1; flash = 1;
   gunshot();
-  if(difficulty==='hard' && !alerted) alertLevel = Math.min(1, alertLevel + 0.12); // 槍聲暴露位置
   updateHUD();
 
   // 命中世界座標 = 準星 + 風偏移
   const hitX = aim.x + wind*120;
   const hitY = aim.y;
 
-  // 找命中的人: 須存活、在窗戶可見範圍、且落點在身體範圍
-  let hit = null;
+  // 找子彈落點對到的人, 並看子彈穿過的牆段材質
+  let target = null, blocked = false;
   for(const f of floorsData){
     if(!f.alive) continue;
-    const win = windowRect(f.i);
-    const visible = f.px > win.x1 && f.px < win.x2; // 初版: 只能打經過窗戶的人
-    if(!visible) continue;
     const r = floorRect(f.i);
-    const bodyY = r.y + r.h*0.5;       // 人物中心y
-    const dx = Math.abs(hitX - f.px);
-    const dy = Math.abs(hitY - bodyY);
-    if(dx < 38 && dy < r.h*0.42){ hit = f; break; }
+    const bodyY = r.y + FLOOR_H*0.58;
+    if(Math.abs(hitX - f.px) < SEGW*0.55 && Math.abs(hitY - bodyY) < FLOOR_H*0.42){
+      if(segMatAt(f, hitX) === MAT.STONE) blocked = true;  // 石牆擋在前面
+      else target = f;
+      break;
+    }
   }
 
-  if(hit){
-    if(hit.word.word === answer.word){
-      // 正確擊殺
-      hit.alive = false; hit.falling = 0.01;
-      spawnParticles(hit.px, floorRect(hit.i).y + FLOOR_H*0.4, '#ef4444', 26, 260);
-      const win = windowRect(hit.i);
-      bulletHoles.push({ x:hitX, y:hitY, glass:true });
+  if(blocked){
+    // 石牆打不穿
+    spawnParticles(hitX, hitY, '#d2d2d2', 16, 180);
+    bulletHoles.push({ x:hitX, y:hitY, mat:'stone' });
+    showToast('🧱 石牆擋住了，打不穿', '#94a3b8');
+    triggerSpotted();
+  } else if(target){
+    const broke = segMatAt(target, hitX) === MAT.WOOD;
+    target.alive = false; target.falling = 0.01;
+    const cy = floorRect(target.i).y + FLOOR_H*0.5;
+    spawnParticles(target.px, cy, '#ef4444', 24, 250);
+    if(broke){ spawnParticles(hitX, hitY, '#b07a3c', 14, 160); bulletHoles.push({ x:hitX, y:hitY, mat:'wood' }); }
+    else bulletHoles.push({ x:hitX, y:hitY, mat:'glass' });
+    if(target.word.word === answer.word){
       combo++;
       const base = 100, timeBonus = Math.round(timeLeft*4), ammoBonus = ammo*30, comboBonus = (combo-1)*25;
       const gained = base + timeBonus + ammoBonus + comboBonus;
       score += gained; money += Math.round(gained*0.5);
       speakWord(answer.word);
       showToast(`✅ ${answer.word}  +${gained}` + (combo>1?`  🔥x${combo}`:''), '#34d399');
-      flashScreen('#34d399');
-      enterKillcam(hit, true);
+      enterKillcam(target, true);
     } else {
-      // 打錯樓層 = 情報判讀失敗
-      hit.alive = false; hit.falling = 0.01;
-      spawnParticles(hit.px, floorRect(hit.i).y + FLOOR_H*0.4, '#ef4444', 22, 240);
       combo = 0;
       score = Math.max(0, score - 60);
-      showToast(`❌ 判讀錯誤！那是 ${hit.word.word}（${hit.word.meaning}）`, '#f87171');
-      flashScreen('#f87171');
-      enterKillcam(hit, false);
+      showToast(`❌ 判讀錯誤！那是 ${target.word.word}（${target.word.meaning}）`, '#f87171');
+      enterKillcam(target, false);
     }
   } else {
-    // 沒打中人(打到牆/玻璃/空氣)
-    bulletHoles.push({ x:hitX, y:hitY, glass:true });
-    spawnParticles(hitX, hitY, '#a8d8ff', 14, 180);
+    // 沒打到人
+    bulletHoles.push({ x:hitX, y:hitY, mat:'glass' });
+    spawnParticles(hitX, hitY, '#a8d8ff', 12, 170);
+    triggerSpotted();
     if(ammo <= 0){
       showToast(`彈藥耗盡！目標是 ${answer.word}`, '#f87171');
-      endRound(false);
+      combo = 0; endRound(false);
     }
   }
   updateHUD();
@@ -511,7 +531,7 @@ function enterKillcam(f, success){
   killTarget = f; killSuccess = success;
   targetTimeScale = 0.20;          // 慢動作
   killUntil = performance.now() + 1700;
-  threat = null;                   // 取消反擊
+  spotted = false; shooterIdx = -1;   // 取消反擊倒數
   document.getElementById('fire-btn').disabled = true;
 }
 
@@ -548,8 +568,9 @@ function loop(t){
     for(const f of floorsData){
       if(f.alive){
         const r = floorRect(f.i);
-        const sp = f.speed * (alerted ? 1.5 : 1);   // 察覺後加速、更難打
+        const sp = f.speed;
         f.px += f.dir * sp * sdt;
+        f.walk += sp * sdt * 0.05;                   // 走路擺動
         if(f.px < r.x + WALL_PAD){ f.px = r.x + WALL_PAD; f.dir = 1; }
         if(f.px > r.x + r.w - WALL_PAD){ f.px = r.x + r.w - WALL_PAD; f.dir = -1; }
       } else if(f.falling > 0){
@@ -567,7 +588,7 @@ function loop(t){
       showToast(`⏰ 時間到！目標是 ${answer.word}`, '#f87171');
       combo = 0; endRound(false);
     }
-    if(difficulty === 'hard') updateThreat(rawdt);
+    if(difficulty === 'hard') updateHardMode(rawdt);
     updateHUD();
   }
 
@@ -586,7 +607,7 @@ function loop(t){
       feedbackUntil = performance.now() + (killSuccess ? 150 : 850);
     }
   } else {
-    cx = scoped ? aim.x : 0; cy = scoped ? aim.y : 0; cz = targetZoom; follow = 14;
+    cx = scoped ? aim.x : 0; cy = scoped ? aim.y : COVER_CAM_Y; cz = targetZoom; follow = 14;
     cinematic += (0 - cinematic) * Math.min(1, rawdt*6);
   }
   cam.x += (cx - cam.x) * Math.min(1, rawdt*follow);
@@ -602,112 +623,246 @@ function loop(t){
   const sh = recoil*14;
   shake.x = rand(-sh, sh); shake.y = rand(-sh, sh);
 
+  // 開鏡淡入 / 蹲掩體淡出 的過場混合
+  scopeBlend += ((scoped?1:0) - scopeBlend) * Math.min(1, rawdt*9);
+
   render();
   requestAnimationFrame(loop);
 }
 
-/* ---------- 困難模式: 察覺 + 反擊 ---------- */
-function updateThreat(dt){
-  if(!alerted){
-    // 警覺累積: 時間 + 開鏡(鏡片反光暴露)會更快; 開槍在 tryFire 另外加
-    alertLevel += dt * (0.05 + (scoped ? 0.09 : 0));
-    if(alertLevel >= 1){
-      alerted = true;
-      showToast('⚠️ 目標發現你的位置了！', '#fbbf24');
-      nextThreatAt = performance.now() + rand(700, 1500);
-    }
+/* ---------- 困難模式: 開槍沒中 → 被發現 → 3 秒內收鏡蹲下, 否則挨打 ---------- */
+function triggerSpotted(){
+  if(difficulty !== 'hard' || spotted) return;
+  spotted = true;
+  duckDeadline = performance.now() + 3000;
+  // 選一個還活著、且不躲在石牆後的目標當反擊者(看得到你才打得到)
+  const vis = floorsData.filter(f=> f.alive && isBreakable(segMatAt(f, f.px)));
+  const pool = vis.length ? vis : floorsData.filter(f=>f.alive);
+  shooterIdx = pool.length ? pick(pool).i : -1;
+  showToast('⚠️ 沒擊中！對方警覺了 — 3 秒內收鏡蹲下', '#fbbf24');
+}
+function updateHardMode(dt){
+  if(!spotted) return;
+  if(!scoped){                       // 已收鏡蹲回掩體 → 安全
+    spotted = false; shooterIdx = -1;
+    showToast('🛡️ 縮回掩體，躲過反擊', '#34d399');
     return;
   }
-  if(!threat){
-    if(performance.now() >= nextThreatAt){
-      const visible = floorsData.filter(f=>{ if(!f.alive) return false; const w=windowRect(f.i); return f.px>w.x1 && f.px<w.x2; });
-      const pool = visible.length ? visible : floorsData.filter(f=>f.alive);
-      if(pool.length) threat = { i: pick(pool).i, t: 0, dur: 1.4 };
-      else nextThreatAt = performance.now() + 700;
-    }
-  } else {
-    threat.t += dt;
-    if(threat.t >= threat.dur){ enemyFire(); threat = null; nextThreatAt = performance.now() + rand(1800, 3200); }
-  }
+  if(performance.now() >= duckDeadline) enemyFire();   // 沒蹲, 探頭被狙
 }
 function enemyFire(){
   gunshot();
-  if(scoped){
-    // 玩家還在鏡中(暴露) → 中彈
-    lives--; damageFlash = 1;
-    for(let k=0;k<3;k++) bulletHoles.push({ x: aim.x+rand(-70,70), y: aim.y+rand(-70,70), glass:true });
-    if(lives <= 0){ failGame(); return; }
-    showToast(`🩸 中彈！剩 ${lives} 命 — 看到紅色預警就收鏡躲避`, '#f87171');
-    updateHUD();
-  } else {
-    showToast('🛡️ 你已收鏡，躲過反擊', '#34d399');
-  }
+  lives--; damageFlash = 1;
+  for(let k=0;k<3;k++) bulletHoles.push({ x: aim.x+rand(-70,70), y: aim.y+rand(-70,70), mat:'glass' });
+  spotted = false; shooterIdx = -1;
+  if(lives <= 0){ failGame(); return; }
+  showToast(`🩸 中彈！剩 ${lives} 命 — 開槍沒中要馬上收鏡蹲下`, '#f87171');
+  updateHUD();
 }
 
 /* ---------- 繪製 ---------- */
 function render(){
   ctx.clearRect(0,0,VW,VH);
-
-  // 夜空背景
-  const bg = ctx.createLinearGradient(0,0,0,VH);
-  bg.addColorStop(0,'#0a0f1f'); bg.addColorStop(1,'#161b2e');
-  ctx.fillStyle = bg; ctx.fillRect(0,0,VW,VH);
-
+  drawSky();
   if(state === 'menu' || state === 'over'){ return; }
 
   drawBuilding();
   drawParticles();
-  if(difficulty === 'hard') drawThreat();
+  if(state !== 'killcam') drawForeground();    // 我方掩體牆 + 蹲姿狙擊手(隨開鏡淡出)
+  if(difficulty === 'hard') drawSpotted();
+  drawVignette();
   drawScopeOverlay();
   drawCrosshair();
   drawMuzzleFlash();
   drawDamageFlash();
   if(state === 'killcam') drawCinematic();
-  if(difficulty === 'hard') drawAlertBar();
+}
+
+/* ---------- 前景: 我方掩體牆 + 蹲姿狙擊手(第三人稱) ---------- */
+function drawForeground(){
+  const a = clamp(1 - scopeBlend*1.6, 0, 1);   // 開鏡時整個前景淡出(換成鏡頭內畫面)
+  if(a <= 0.01) return;
+  const wallTop = VH*0.66;
+  ctx.save();
+  ctx.globalAlpha = a;
+  drawAllySniper(wallTop);   // 先畫人
+  drawCoverWall(wallTop);    // 再畫牆蓋住下半身 → 視覺上「蹲在牆後」
+  ctx.restore();
+}
+function drawCoverWall(top){
+  const g = ctx.createLinearGradient(0, top, 0, VH);
+  g.addColorStop(0,'#3a404b'); g.addColorStop(1,'#191d24');
+  ctx.fillStyle = g; ctx.fillRect(0, top, VW, VH-top);
+  // 頂部壓條(亮邊 + 下方陰影)
+  ctx.fillStyle = '#4b515d'; ctx.fillRect(0, top, VW, 11);
+  ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(0, top, VW, 3);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, top+11, VW, 5);
+  // 磚縫
+  ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 1;
+  const rows = 3, bh = (VH-top-16)/rows;
+  for(let r=0;r<rows;r++){
+    const y = top+16+r*bh;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(VW,y); ctx.stroke();
+    const off = (r%2) ? VW/16 : 0;
+    for(let c=-1;c<9;c++){ const x = c*VW/8 + off; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+bh); ctx.stroke(); }
+  }
+}
+// 我方狙擊手(背面視角, 蹲↔起身由 scopeBlend 控制)
+function drawAllySniper(wallTop){
+  const up = clamp(scopeBlend,0,1);
+  const left = SETTINGS.leftHanded;
+  const sx = left ? VW*0.70 : VW*0.30;
+  const S = clamp(VH*0.0013, 0.72, 1.3);
+  ctx.save();
+  ctx.translate(sx, wallTop + 42 - up*48);   // 起身時整體上移露出更多
+  if(left) ctx.scale(-1,1);
+  ctx.scale(S, S);
+  const cloth='#3c4a39', clothD='#2b3729', clothL='#52624c', skin='#c69a70';
+  // 步槍: 蹲下時收低, 起身時舉高指向大樓(畫面右上)
+  ctx.save();
+  ctx.rotate(-0.10 - up*0.16);
+  ctx.strokeStyle = '#14171c'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+  const bl = 70 + up*95;
+  ctx.beginPath(); ctx.moveTo(6, -6); ctx.lineTo(30, -bl); ctx.stroke();
+  if(up > 0.25){ ctx.fillStyle = '#0e1116'; ctx.fillRect(14, -bl*0.55, 16, 24); } // 瞄準鏡
+  ctx.restore();
+  // 肩背(寬圓漸層)
+  const bg = ctx.createLinearGradient(-48,0, 48,0);
+  bg.addColorStop(0,clothD); bg.addColorStop(0.5,cloth); bg.addColorStop(1,clothL);
+  ctx.fillStyle = bg; roundRectPath(-48,-8,96,92,28); ctx.fill();
+  // 背帶
+  ctx.strokeStyle = clothD; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.moveTo(-20,-4); ctx.lineTo(-10,76); ctx.moveTo(22,-4); ctx.lineTo(10,76); ctx.stroke();
+  // 後腦 + 毛帽
+  ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(2,-24,20,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#2b3530'; ctx.beginPath(); ctx.arc(2,-28,21,Math.PI*0.96,Math.PI*2.04); ctx.fill();
+  ctx.fillRect(-19,-28,42,7);
+  // 握槍手臂(前伸)
+  ctx.strokeStyle = cloth; ctx.lineWidth = 16; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(24,8); ctx.lineTo(16,-26); ctx.stroke();
+  ctx.restore();
+}
+
+// 夜空 + 月 + 遠景天際線(視差) + 雨
+function drawSky(){
+  const bg = ctx.createLinearGradient(0,0,0,VH);
+  bg.addColorStop(0,'#090d1b'); bg.addColorStop(0.6,'#111a30'); bg.addColorStop(1,'#1a2236');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,VW,VH);
+  // 月
+  const mx = VW*0.78 - cam.x*0.02, my = VH*0.18;
+  const mg = ctx.createRadialGradient(mx,my,4, mx,my,70);
+  mg.addColorStop(0,'rgba(210,224,255,0.5)'); mg.addColorStop(1,'rgba(210,224,255,0)');
+  ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(mx,my,70,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#e6edff'; ctx.beginPath(); ctx.arc(mx,my,20,0,Math.PI*2); ctx.fill();
+  // 遠景天際線
+  const par = -cam.x*0.04, horizon = VH*0.74, n = 11, bw = VW/n;
+  ctx.fillStyle = 'rgba(36,48,80,0.5)';
+  for(let i=-1;i<=n;i++){
+    const seed = ((i*73)%17 + 17)%17;
+    const bh = VH*(0.08 + seed/55);
+    const bx = i*bw + ((par % bw) + bw) % bw;
+    ctx.fillRect(bx, horizon-bh, bw*0.72, bh);
+    // 零星窗光
+    ctx.fillStyle = 'rgba(120,140,190,0.18)';
+    if(seed%3===0) ctx.fillRect(bx+bw*0.2, horizon-bh*0.7, bw*0.12, bh*0.1);
+    ctx.fillStyle = 'rgba(36,48,80,0.5)';
+  }
+  // 雨
+  ctx.strokeStyle = 'rgba(150,180,220,0.22)'; ctx.lineWidth = 1;
+  for(const d of rain){
+    d.y += d.sp*0.02; if(d.y>1) d.y -= 1;
+    const x = d.x*VW, y = d.y*VH;
+    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-3, y+d.len); ctx.stroke();
+  }
+}
+
+function drawVignette(){
+  const g = ctx.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*0.35, VW/2,VH/2,Math.max(VW,VH)*0.62);
+  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.45)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
 }
 
 function drawBuilding(){
-  // 大樓外牆
   const tl = worldToScreen(BX, BY);
-  const br = worldToScreen(BX+BW, BY+BH);
-  const x = tl.x, y = tl.y, w = br.x-tl.x, h = br.y-tl.y;
+  const fw = BW*zoom, fhAll = BH*zoom;
 
-  ctx.fillStyle = '#1f2433';
-  ctx.fillRect(x, y, w, h);
-  // 樓層
+  // 1. 室內暗底
+  ctx.fillStyle = '#0c1019';
+  ctx.fillRect(tl.x, tl.y, fw, fhAll);
+
+  // 2. 各層室內 + 人物(會被牆遮)
   for(let i=0;i<FLOORS;i++){
     const r = floorRect(i);
-    const a = worldToScreen(r.x, r.y);
-    const fw = w, fh = FLOOR_H*zoom;
-    // 牆面漸層
-    const g = ctx.createLinearGradient(a.x, a.y, a.x, a.y+fh);
-    g.addColorStop(0, '#262c3f'); g.addColorStop(1, '#1b2030');
-    ctx.fillStyle = g; ctx.fillRect(a.x, a.y, fw, fh);
-    // 樓板分隔線
-    ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x+fw, a.y); ctx.stroke();
-
-    // 窗戶(透光)
-    const win = windowRect(i);
-    const ws = worldToScreen(win.x1, win.y + FLOOR_H*0.18);
-    const we = worldToScreen(win.x2, win.y + FLOOR_H*0.92);
-    const wx = ws.x, wy = ws.y, wW = we.x-ws.x, wH = we.y-ws.y;
-    const wg = ctx.createLinearGradient(wx, wy, wx, wy+wH);
-    wg.addColorStop(0,'rgba(120,170,220,0.30)'); wg.addColorStop(1,'rgba(60,90,130,0.18)');
-    ctx.fillStyle = wg; ctx.fillRect(wx, wy, wW, wH);
-    ctx.strokeStyle = 'rgba(140,180,220,0.5)'; ctx.lineWidth = 2; ctx.strokeRect(wx, wy, wW, wH);
-    // 窗框中線
-    ctx.beginPath(); ctx.moveTo(wx+wW/2, wy); ctx.lineTo(wx+wW/2, wy+wH); ctx.stroke();
-
-    drawFloorWord(i);
+    const a = worldToScreen(r.x, r.y), fh = FLOOR_H*zoom;
+    const ig = ctx.createLinearGradient(a.x, a.y, a.x, a.y+fh);
+    ig.addColorStop(0,'#18203360'); ig.addColorStop(0.55,'#141b2c'); ig.addColorStop(1,'#0d1320');
+    ctx.fillStyle = ig; ctx.fillRect(a.x, a.y, fw, fh);
+    // 室內地板
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y+fh*0.9); ctx.lineTo(a.x+fw, a.y+fh*0.9); ctx.stroke();
     drawPerson(floorsData[i]);
   }
 
-  // 彈孔
-  for(const b of bulletHoles){
-    const s = worldToScreen(b.x, b.y);
-    drawBulletHole(s.x, s.y);
+  // 3. 牆面材質(遮蓋): 窗戶透、木牆半透、石牆不透
+  for(let i=0;i<FLOORS;i++){
+    const f = floorsData[i], r = floorRect(i);
+    const a = worldToScreen(r.x, r.y), fh = FLOOR_H*zoom;
+    for(let k=0;k<SEG;k++){
+      const sx = worldToScreen(r.x + k*SEGW, r.y).x;
+      drawWallSegment(f.segs[k], sx, a.y, SEGW*zoom + 0.5, fh);
+    }
+    // 樓板橫樑
+    ctx.fillStyle = '#06090f'; ctx.fillRect(tl.x, a.y - 4*zoom, fw, 7*zoom);
   }
+
+  // 4. 霓虹單字(外牆招牌) + 彈孔
+  for(let i=0;i<FLOORS;i++) drawFloorWord(i);
+  for(const b of bulletHoles){ const s = worldToScreen(b.x, b.y); drawBulletHole(s.x, s.y, b.mat); }
+
+  // 5. killcam: 把被擊目標重畫在最上(特寫不被牆遮)
+  if(state === 'killcam' && killTarget) drawPerson(killTarget);
+
+  // 大樓外框
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 3; ctx.strokeRect(tl.x, tl.y, fw, fhAll);
+}
+
+function drawWallSegment(mat, x, y, w, h){
+  ctx.save();
+  if(mat === MAT.WINDOW){
+    // 玻璃: 大致透明, 露出室內的人
+    const g = ctx.createLinearGradient(x, y, x, y+h);
+    g.addColorStop(0,'rgba(130,170,210,0.16)'); g.addColorStop(1,'rgba(70,100,140,0.10)');
+    ctx.fillStyle = g; ctx.fillRect(x+w*0.07, y+h*0.12, w*0.86, h*0.78);
+    ctx.strokeStyle = 'rgba(150,190,230,0.45)'; ctx.lineWidth = 2; ctx.strokeRect(x+w*0.07, y+h*0.12, w*0.86, h*0.78);
+    ctx.beginPath();
+    ctx.moveTo(x+w*0.5, y+h*0.12); ctx.lineTo(x+w*0.5, y+h*0.9);
+    ctx.moveTo(x+w*0.07, y+h*0.5); ctx.lineTo(x+w*0.93, y+h*0.5);
+    ctx.stroke();
+    ctx.globalAlpha = 0.12; ctx.strokeStyle = '#cfe6ff'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(x+w*0.22, y+h*0.85); ctx.lineTo(x+w*0.62, y+h*0.22); ctx.stroke();
+  } else if(mat === MAT.WOOD){
+    // 木牆: 半透明(人在後隱約可見) + 直木紋
+    ctx.globalAlpha = 0.8;
+    const g = ctx.createLinearGradient(x, y, x+w, y);
+    g.addColorStop(0,'#5a3f28'); g.addColorStop(0.5,'#714f33'); g.addColorStop(1,'#523619');
+    ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = 0.3; ctx.strokeStyle = '#3a2716'; ctx.lineWidth = 1;
+    for(let k=1;k<4;k++){ const xx = x+w*k/4; ctx.beginPath(); ctx.moveTo(xx, y); ctx.lineTo(xx, y+h); ctx.stroke(); }
+  } else {
+    // 石牆: 不透明灰磚(完全遮住)
+    const g = ctx.createLinearGradient(x, y, x+w, y+h);
+    g.addColorStop(0,'#3c4049'); g.addColorStop(1,'#2a2d34');
+    ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1;
+    const rows = 4, rh = h/rows;
+    for(let rr=0;rr<rows;rr++){
+      const yy = y+rr*rh;
+      ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x+w, yy); ctx.stroke();
+      const off = (rr%2) ? w*0.5 : 0;
+      ctx.beginPath(); ctx.moveTo(x+off, yy); ctx.lineTo(x+off, yy+rh); ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 function drawFloorWord(i){
@@ -729,30 +884,52 @@ function drawFloorWord(i){
   ctx.restore();
 }
 
+// 膠囊狀肢體(圓端粗線)
+function limb(x1,y1,x2,y2,w,color){
+  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+}
+
+// 立體卡通人偶(原點在腳底, 往上畫)
+function drawHumanoid(h, f){
+  const shirt = `hsl(${f.hue} 48% 55%)`, shirtD = `hsl(${f.hue} 48% 42%)`;
+  const pants = '#2c3344', pantsD = '#222838';
+  const hipY = -h*0.46, shY = -h*0.78, headY = -h*0.90, hr = h*0.13;
+  const w = f.alive ? Math.sin(f.walk) : 0;
+  const stride = w*h*0.12, armS = Math.sin(f.walk+Math.PI)*h*0.10;
+  // 後腿 / 後臂
+  limb(0,hipY, -stride, 0, h*0.11, pantsD);
+  limb(0,shY, -armS, hipY+h*0.06, h*0.075, shirtD);
+  // 軀幹(左右漸層做立體)
+  const tg = ctx.createLinearGradient(-h*0.12,0, h*0.12,0);
+  tg.addColorStop(0,shirtD); tg.addColorStop(0.5,shirt); tg.addColorStop(1,shirtD);
+  ctx.strokeStyle = tg; ctx.lineWidth = h*0.22; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0,hipY); ctx.lineTo(0,shY); ctx.stroke();
+  // 前腿 / 前臂
+  limb(0,hipY, stride, 0, h*0.11, pants);
+  limb(0,shY, armS, hipY+h*0.06, h*0.08, shirt);
+  // 頭(球狀漸層)
+  const hg = ctx.createRadialGradient(-hr*0.3,headY-hr*0.3,hr*0.2, 0,headY,hr);
+  hg.addColorStop(0,'#f3d8b4'); hg.addColorStop(1,'#c69a70');
+  ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(0,headY,hr,0,Math.PI*2); ctx.fill();
+  // 頭髮
+  ctx.fillStyle = '#33271d'; ctx.beginPath(); ctx.arc(0,headY,hr,Math.PI*1.0,Math.PI*2.0); ctx.fill();
+}
+
 function drawPerson(f){
+  if(!f) return;
   const r = floorRect(f.i);
-  const s = worldToScreen(f.px, r.y + FLOOR_H*0.5);
-  const win = windowRect(f.i);
-  const visible = f.px > win.x1 && f.px < win.x2;
-  const ph = FLOOR_H*0.62*zoom;
+  const s = worldToScreen(f.px, r.y + FLOOR_H*0.9);  // 腳底站樓板
+  const h = FLOOR_H*0.62*zoom;
   ctx.save();
   ctx.translate(s.x, s.y);
-  if(f.falling > 0){ ctx.rotate(f.falling * Math.PI/2); ctx.globalAlpha = 1 - f.falling*0.6; }
-  // 不在窗戶(在牆後): 半透明剪影, 暗示"穿牆槍才打得到"
-  ctx.globalAlpha *= visible ? 1 : 0.18;
-  ctx.fillStyle = visible ? '#0f1420' : '#0f1420';
-  // 身體
-  const bw = ph*0.34;
-  ctx.fillStyle = '#10151f';
-  roundRectPath(-bw/2, -ph*0.18, bw, ph*0.55, 4); ctx.fill();
-  // 頭
-  ctx.beginPath(); ctx.arc(0, -ph*0.30, ph*0.14, 0, Math.PI*2); ctx.fill();
-  // 目標標記(在窗戶內時, 開鏡可見紅點)
-  if(visible && f.alive && zoom > 1){
-    ctx.globalAlpha = 0.9;
-    ctx.fillStyle = '#ef4444';
-    ctx.beginPath(); ctx.arc(0, -ph*0.30, 3, 0, Math.PI*2); ctx.fill();
+  // 落地陰影
+  if(f.falling < 0.4){
+    ctx.save(); ctx.globalAlpha = 0.3*(1 - f.falling*2.5); ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(0,0, h*0.2, h*0.045, 0,0,Math.PI*2); ctx.fill(); ctx.restore();
   }
+  if(f.falling > 0) ctx.rotate(f.dir * f.falling * Math.PI/2); // 中彈往側倒
+  drawHumanoid(h, f);
   ctx.restore();
 }
 
@@ -762,12 +939,20 @@ function roundRectPath(x,y,w,h,r){
   ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
 }
 
-function drawBulletHole(x,y){
+function drawBulletHole(x,y,mat){
   ctx.save();
-  ctx.strokeStyle = 'rgba(200,225,255,0.6)'; ctx.lineWidth = 1;
-  ctx.fillStyle = 'rgba(10,15,25,0.8)';
-  ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
-  for(let k=0;k<6;k++){ const a=k*Math.PI/3; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*rand(8,16), y+Math.sin(a)*rand(8,16)); ctx.stroke(); }
+  if(mat === 'stone'){
+    ctx.fillStyle = 'rgba(15,15,18,0.8)'; ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(210,210,210,0.4)'; ctx.lineWidth = 1;
+    for(let k=0;k<5;k++){ const a=k*1.3; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*9, y+Math.sin(a)*9); ctx.stroke(); }
+  } else if(mat === 'wood'){
+    ctx.fillStyle = 'rgba(28,16,7,0.85)'; ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(150,100,55,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x,y,7,0,Math.PI*2); ctx.stroke();
+  } else {
+    ctx.strokeStyle = 'rgba(200,225,255,0.6)'; ctx.lineWidth = 1; ctx.fillStyle = 'rgba(10,15,25,0.8)';
+    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
+    for(let k=0;k<6;k++){ const a=k*Math.PI/3; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*12, y+Math.sin(a)*12); ctx.stroke(); }
+  }
   ctx.restore();
 }
 
@@ -783,20 +968,21 @@ function drawParticles(){
 
 function drawScopeOverlay(){
   if(state === 'killcam') return;
-  if(!scoped){
-    // 收鏡: 提示
+  const sb = clamp(scopeBlend, 0, 1);
+  if(sb < 0.02){
+    // 蹲在掩體後: 操作提示
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0,0,VW,VH);
-    ctx.fillStyle = 'rgba(226,232,240,0.8)';
-    ctx.font = '600 16px "Noto Sans TC", sans-serif'; ctx.textAlign='center';
-    ctx.fillText('🔭 按開鏡才能看清單字與目標', VW/2, VH-110);
+    ctx.fillStyle = 'rgba(226,232,240,0.85)';
+    ctx.font = '600 15px "Noto Sans TC", sans-serif'; ctx.textAlign='center';
+    ctx.fillText('🔭 開鏡＝探頭瞄準　·　收鏡＝縮回掩體躲避', VW/2, VH*0.66 - 18);
     ctx.restore();
     return;
   }
-  // 開鏡: 暗角圓 + 十字刻度
+  // 開鏡: 暗角圓 + 十字刻度(整體 alpha 隨 scopeBlend 淡入)
   const cx = VW/2, cy = VH/2;
   const R = Math.min(VW, VH) * 0.46;
   ctx.save();
+  ctx.globalAlpha = sb;
   // 圓外塗黑
   ctx.fillStyle = 'rgba(0,0,0,0.92)';
   ctx.beginPath();
@@ -850,27 +1036,32 @@ function drawCrosshair(){
   ctx.restore();
 }
 
-// 困難模式: 敵人反擊預警
-function drawThreat(){
-  if(!threat) return;
-  const f = floorsData[threat.i]; if(!f) return;
-  const r = floorRect(threat.i);
-  const s = worldToScreen(f.px, r.y + FLOOR_H*0.4);
-  const p = clamp(threat.t/threat.dur, 0, 1);
-  const blink = 0.6 + 0.4*Math.sin(performance.now()/60);
+// 困難模式: 開槍沒中被發現 → 倒數預警(逼你收鏡蹲下)
+function drawSpotted(){
+  if(!spotted) return;
+  const remain = Math.max(0, (duckDeadline - performance.now())/1000);
+  const p = clamp(1 - remain/3, 0, 1);                 // 越接近 deadline 越緊張
+  const blink = 0.6 + 0.4*Math.sin(performance.now()/70);
   ctx.save();
-  ctx.fillStyle = `rgba(239,68,68,${(0.3+0.6*p)*blink})`;
-  ctx.beginPath(); ctx.arc(s.x, s.y, 8+10*p, 0, Math.PI*2); ctx.fill();
-  ctx.strokeStyle = `rgba(239,68,68,${0.25+0.5*p})`; ctx.lineWidth = 1+2*p;
-  ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(VW/2, VH/2); ctx.stroke();
+  // 反擊者紅點 + 對玩家連線
+  const f = shooterIdx>=0 ? floorsData[shooterIdx] : null;
+  if(f && f.alive){
+    const r = floorRect(f.i);
+    const s = worldToScreen(f.px, r.y + FLOOR_H*0.4);
+    ctx.fillStyle = `rgba(239,68,68,${(0.4+0.5*p)*blink})`;
+    ctx.beginPath(); ctx.arc(s.x, s.y, 8+8*p, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = `rgba(239,68,68,${0.3+0.5*p})`; ctx.lineWidth = 1+2*p;
+    ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(VW/2, VH/2); ctx.stroke();
+  }
   // 邊緣紅色警示
-  ctx.globalAlpha = 0.2 + 0.5*p;
-  const g = ctx.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*0.2, VW/2,VH/2,Math.max(VW,VH)*0.6);
-  g.addColorStop(0,'rgba(239,68,68,0)'); g.addColorStop(1,'rgba(239,68,68,0.55)');
+  ctx.globalAlpha = (0.25 + 0.5*p)*blink;
+  const g = ctx.createRadialGradient(VW/2,VH/2,Math.min(VW,VH)*0.2, VW/2,VH/2,Math.max(VW,VH)*0.62);
+  g.addColorStop(0,'rgba(239,68,68,0)'); g.addColorStop(1,'rgba(239,68,68,0.6)');
   ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
   ctx.globalAlpha = 1;
-  ctx.fillStyle = '#fecaca'; ctx.font = '700 18px "Noto Sans TC",sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText(scoped ? '⚠️ 被瞄準！立刻收鏡躲避' : '⚠️ 目標正在反擊', VW/2, 98);
+  // 倒數提示
+  ctx.fillStyle = '#fecaca'; ctx.font = '800 22px "Noto Sans TC",sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(`⚠️ 被發現！${remain.toFixed(1)} 秒內收鏡蹲下`, VW/2, 100);
   ctx.restore();
 }
 
@@ -904,21 +1095,6 @@ function drawCinematic(){
     ctx.fillStyle = '#fecaca'; ctx.font = '700 18px "Noto Sans TC",sans-serif';
     if(answer) ctx.fillText(`正解是 ${answer.word}`, VW/2, bar+34);
   }
-  ctx.restore();
-}
-
-// 困難模式: 警覺度條
-function drawAlertBar(){
-  if(state!=='playing' && state!=='feedback') return;
-  const w=160, h=6, x=VW/2-w/2, y=VH-52;
-  ctx.save();
-  ctx.fillStyle = 'rgba(255,255,255,0.15)'; roundRectPath(x,y,w,h,3); ctx.fill();
-  const p = clamp(alertLevel,0,1);
-  ctx.fillStyle = alerted ? '#ef4444' : (p>0.6 ? '#fbbf24' : '#38bdf8');
-  roundRectPath(x,y,w*p,h,3); ctx.fill();
-  ctx.fillStyle = alerted ? '#fca5a5' : 'rgba(226,232,240,0.7)';
-  ctx.font = '600 11px "Noto Sans TC",sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText(alerted ? '⚠️ 已被察覺，當心反擊' : '目標警覺度', VW/2, y-6);
   ctx.restore();
 }
 
@@ -961,8 +1137,8 @@ try{
 
 /* ---------- 輸入(對齊 ship.html 的 aim 模式) ---------- */
 // 非開鏡: 桌機滑鼠絕對定位準星 / 觸控拖曳; 開鏡: 以 aim 為中心放大, 移動採相對(較細膩)。
-function pointerToAim(sx, sy){ // 非開鏡絕對定位(用收鏡縮放換算世界座標)
-  aim.x = (sx - VW/2)/ZOOM_OUT; aim.y = (sy - VH/2)/ZOOM_OUT; clampAim();
+function pointerToAim(sx, sy){ // 非開鏡絕對定位: 用目前相機/縮放換算, 才能對齊被拉遠的大樓
+  const w = screenToWorld(sx, sy); aim.x = w.x; aim.y = w.y; clampAim();
 }
 function moveAim(dxPx, dyPx){ // 相對移動(螢幕位移→世界位移, 開鏡時自動變細)
   aim.x += dxPx/zoom; aim.y += dyPx/zoom; clampAim();
@@ -1094,7 +1270,7 @@ function endGame(){ // 完成全部關卡
 function failGame(){ // 困難模式被反殺
   finishOverlay('任務失敗');
   document.getElementById('end-summary').textContent = `你暴露行蹤被反殺　總分 ${score}`;
-  document.getElementById('end-detail').textContent = `困難模式・撐到第 ${Math.min(roundNo,MAX_ROUNDS)} 關。看到紅色預警時記得立刻收鏡躲避。`;
+  document.getElementById('end-detail').textContent = `困難模式・撐到第 ${Math.min(roundNo,MAX_ROUNDS)} 關。開槍沒中會暴露行蹤，記得立刻收鏡蹲回掩體。`;
 }
 
 document.getElementById('start-easy').addEventListener('click', ()=> startGame('easy'));
