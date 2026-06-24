@@ -142,7 +142,7 @@
     <div id="moveKnob"></div>
   </div>
   <div id="fireBtn">開砲</div>
-  <div id="fireHint">按住開砲・左右上下滑調整砲管</div>
+  <div id="fireHint">按住開砲＋微調砲管・滑空白螢幕大幅轉砲</div>
   <button id="btnPause">⏸</button>
 </div>
 <div id="overlay">
@@ -1577,15 +1577,18 @@ addEventListener('mousedown',()=>{
   mouse.down=true;
 });
 addEventListener('mouseup',()=>mouse.down=false);
-/* ====== 觸控操控（平板 / 手機）：左半動態方向盤(可按固定圈或左側任意滑動) + 右下開砲鍵(按住開砲並滑動調整砲管) ====== */
+/* ====== 觸控操控（平板 / 手機）：左半動態方向盤(車體移動/轉向) + 右半轉砲管(開砲鍵按住開砲＋微調、空白處滑動大幅快轉) ====== */
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches || ('ontouchstart' in window);
 const stickEl=document.getElementById('moveStick'), knobEl=document.getElementById('moveKnob');
 const fireEl=document.getElementById('fireBtn');
 const STICK_R=58;          // 方向盤可拉半徑(px)
-const AIM_GAIN=1.6;        // 拖曳調整砲管的靈敏度
+// 砲管靈敏度：按住開砲鍵 = 微調(小幅穩)；右半空白處滑動 = 大幅快速轉砲塔
+const AIM_GX_FINE=0.85, AIM_GY_FINE=0.85;     // 開砲鍵：左右/上下都微調
+const AIM_GX_COARSE=2.7, AIM_GY_COARSE=1.5;   // 空白滑動：左右大幅、上下適中
 let moveId=null, aimId=null;            // 移動 / 砲管 觸點 id
 let moveCx=0, moveCy=0;                 // 方向盤浮動原點（按下處）
 let aimSX=0,aimSY=0,aimAX=0,aimAY=0;    // 砲管拖曳起點 + 基準準心位置
+let aimOnFire=false;                    // 此次砲管拖曳是否從開砲鍵起（用微調靈敏度）
 let fireRect=null;                      // 開砲鍵範圍（快取）
 function refreshTouchRects(){fireRect=fireEl.getBoundingClientRect();}
 function placeStick(cx,cy){stickEl.style.left=(cx-75)+'px';stickEl.style.top=(cy-75)+'px';} // 圓心移到手指處
@@ -1593,7 +1596,7 @@ function restStick(){stickEl.style.left='';stickEl.style.top='';}               
 function clearMoveKeys(){keys['KeyW']=keys['KeyS']=keys['KeyA']=keys['KeyD']=keys['ShiftLeft']=false;}
 function updMoveKnob(dx,dy){knobEl.style.left=(75+dx)+'px';knobEl.style.top=(75+dy)+'px';}
 function resetTouch(){
-  moveId=aimId=null;clearMoveKeys();mouse.down=false;
+  moveId=aimId=null;aimOnFire=false;clearMoveKeys();mouse.down=false;
   updMoveKnob(0,0);restStick();stickEl.classList.remove('boost');fireEl.classList.remove('active');
 }
 function applyStick(x,y){                // 依浮動原點換算方向
@@ -1624,15 +1627,19 @@ addEventListener('touchstart',e=>{
   let acted=false;
   for(const t of e.changedTouches){
     if(isUIEl(document.elementFromPoint(t.clientX,t.clientY)))continue; // 暫停鈕 / 答題鈕走自己事件
-    if(aimId===null&&inRect(fireRect,t.clientX,t.clientY,28)){          // 右下 → 開砲鍵（按住開砲＋拖曳調整砲管）
-      aimId=t.identifier; if(!quiz)mouse.down=true;
-      aimSX=t.clientX;aimSY=t.clientY;aimAX=mouse.x;aimAY=mouse.y;
-      fireEl.classList.add('active');acted=true;
-    }else if(moveId===null&&t.clientX<innerWidth*0.5){                  // 左半 → 動態方向盤（圓心浮現在手指處）
+    if(t.clientX<innerWidth*0.5){                                       // 左半 → 移動（動態方向盤，圓心浮現在手指處）
+      if(moveId!==null)continue;
       moveId=t.identifier;
       moveCx=clamp(t.clientX,80,innerWidth*0.5);
       moveCy=clamp(t.clientY,80,innerHeight-80);
       placeStick(moveCx,moveCy);updMoveKnob(0,0);clearMoveKeys();acted=true;
+    }else{                                                             // 右半 → 滑動轉砲管；開砲鍵上＝按住開砲＋微調，空白處＝大幅快轉
+      if(aimId!==null)continue;
+      aimId=t.identifier;
+      aimSX=t.clientX;aimSY=t.clientY;aimAX=mouse.x;aimAY=mouse.y;
+      aimOnFire=inRect(fireRect,t.clientX,t.clientY,28);
+      if(aimOnFire){if(!quiz)mouse.down=true;fireEl.classList.add('active');}
+      acted=true;
     }
   }
   if(acted)e.preventDefault();
@@ -1642,9 +1649,10 @@ addEventListener('touchmove',e=>{
   let acted=false;
   for(const t of e.changedTouches){
     if(t.identifier===moveId){applyStick(t.clientX,t.clientY);acted=true;}
-    else if(t.identifier===aimId){                                     // 相對拖曳調整砲管落點
-      mouse.x=clamp(aimAX+(t.clientX-aimSX)*AIM_GAIN,0,innerWidth);
-      mouse.y=clamp(aimAY+(t.clientY-aimSY)*AIM_GAIN,0,innerHeight);
+    else if(t.identifier===aimId){                                     // 相對拖曳轉砲管：開砲鍵微調、空白處大幅
+      const gx=aimOnFire?AIM_GX_FINE:AIM_GX_COARSE, gy=aimOnFire?AIM_GY_FINE:AIM_GY_COARSE;
+      mouse.x=clamp(aimAX+(t.clientX-aimSX)*gx,0,innerWidth);
+      mouse.y=clamp(aimAY+(t.clientY-aimSY)*gy,0,innerHeight);
       acted=true;
     }
   }
