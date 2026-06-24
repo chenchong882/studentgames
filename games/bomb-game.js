@@ -240,9 +240,10 @@ function readLessonDataFromHash() {
 // ══════════════════════════════════════════
 const Audio = (() => {
   let ctx = null;
+  let speaking = false;   // iOS 唸字中：讓出音訊工作階段給人聲，期間別硬把 ctx resume 回來
   function ensure() {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'suspended' && !speaking) ctx.resume();
   }
 
   function primeSpeech() {
@@ -278,6 +279,7 @@ const Audio = (() => {
   // 不被 iOS 採信，導致整路靜音。所以第一次觸碰時，先在手勢裡 speak() 一個無聲語句把
   // 語音引擎解鎖，之後（含 setTimeout / 換題）的唸字才會出聲。
   let speechUnlocked = false;
+  let speechGen = 0;   // 世代 token：連續換題時只有「最新的字」負責恢復音效，避免 race
   function unlockSpeech() {
     if (speechUnlocked || !('speechSynthesis' in window)) return;
     speechUnlocked = true;
@@ -299,6 +301,25 @@ const Audio = (() => {
     msg.lang  = voice?.lang || 'en-US';
     msg.rate  = 0.82;
     msg.pitch = 1;
+
+    // iOS：唸字瞬間把音訊工作階段讓給人聲——暫停 Web Audio 音效 + BGM，唸完再恢復。
+    // 桌機本來就能混音，不做讓位（免得每唸一字 BGM 停一秒）。
+    if (IS_IOS) {
+      const myGen = ++speechGen;
+      speaking = true;
+      if (ctx && ctx.state === 'running') { try { ctx.suspend(); } catch (e) {} }
+      if (bgmAudio && bgmWanted) { try { bgmAudio.pause(); } catch (e) {} }
+      const restore = () => {
+        if (myGen !== speechGen) return;            // 已被更新的字接手，交給它恢復
+        speaking = false;
+        if (ctx && ctx.state === 'suspended') { try { ctx.resume(); } catch (e) {} }
+        if (bgmWanted && bgmAudio) { const p = bgmAudio.play(); if (p && p.catch) p.catch(() => {}); }
+      };
+      msg.onend = restore;
+      msg.onerror = restore;
+      setTimeout(restore, 6000);                    // 安全網：onend 沒觸發時也別讓音效卡死
+    }
+
     try { window.speechSynthesis.resume(); } catch (e) {}  // iOS 有時會自動 pause
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(msg);
@@ -364,10 +385,10 @@ const Audio = (() => {
     try { bgmAudio.pause(); } catch (e) {}
   }
 
-  // 測試開關：true = 暫停「唸題以外」的所有聲音（合成音效 + BGM），只留 speechSynthesis，
-  // 把 iOS 的音訊工作階段完全讓給人聲，用來驗證平板/手機唸不出來是不是被搶走音訊。
-  // 測完把這行改回 false 即可恢復全部音效與背景音樂（程式沒刪，只是被暫停）。
-  const MUTE_NON_SPEECH = true;
+  // 測試開關：true = 暫停「唸題以外」的所有聲音（合成音效 + BGM），只留 speechSynthesis。
+  // （已確認 iOS 唸不出來的根因是 canvas touch 無法解鎖語音、需真實 DOM 按鈕，與搶音訊無關，
+  //   故恢復 false；iOS 唸字時改用 speak() 內的 suspend/resume 讓位來避免 Web Audio 搶音訊。）
+  const MUTE_NON_SPEECH = false;
 
   const api = {
     init: ensure,
