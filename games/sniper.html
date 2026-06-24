@@ -346,7 +346,12 @@ function spawnParticles(wx, wy, color, n, spd){
       life:1, color, size:rand(2,5) });
   }
 }
-let bulletHoles = []; // {x,y,mat:'stone'|'wood'|'glass'}
+let bulletHoles = []; // {x,y,mat:'stone'|'wood'|'glass', sz:隨機大小, shape:石牆不規則輪廓}
+function addHole(x, y, mat){
+  const h = { x, y, mat, sz: rand(0.7, 1.5) };
+  if(mat === 'stone') h.shape = Array.from({length:9}, ()=> rand(0.6, 1.32));  // 石牆: 不規則多邊形輪廓
+  bulletHoles.push(h);
+}
 // 雨滴(螢幕座標, 純裝飾)
 let rain = [];
 for(let i=0;i<80;i++) rain.push({ x:Math.random(), y:Math.random(), len:rand(8,18), sp:rand(0.35,0.8) });
@@ -498,7 +503,7 @@ function tryFire(){
   if(blocked){
     // 石牆打不穿
     spawnParticles(hitX, hitY, '#d2d2d2', 16, 180);
-    bulletHoles.push({ x:hitX, y:hitY, mat:'stone' });
+    addHole(hitX, hitY, 'stone');
     showToast('🧱 石牆擋住了，打不穿', '#94a3b8');
     triggerSpotted();
   } else if(target){
@@ -506,9 +511,9 @@ function tryFire(){
     target.alive = false; target.falling = 0.01;
     const cy = floorRect(target.i).y + FLOOR_H*0.5;
     spawnParticles(target.px, cy, '#ef4444', 24, 250);
-    if(hitMat === MAT.WOOD){ spawnParticles(hitX, hitY, '#b07a3c', 14, 160); bulletHoles.push({ x:hitX, y:hitY, mat:'wood' }); }
-    else if(hitMat === MAT.STONE){ spawnParticles(hitX, hitY, '#d2d2d2', 16, 180); bulletHoles.push({ x:hitX, y:hitY, mat:'stone' }); } // 穿甲彈貫穿石牆
-    else bulletHoles.push({ x:hitX, y:hitY, mat:'glass' });
+    if(hitMat === MAT.WOOD){ spawnParticles(hitX, hitY, '#b07a3c', 14, 160); addHole(hitX, hitY, 'wood'); }
+    else if(hitMat === MAT.STONE){ spawnParticles(hitX, hitY, '#d2d2d2', 16, 180); addHole(hitX, hitY, 'stone'); } // 穿甲彈貫穿石牆
+    else addHole(hitX, hitY, 'glass');
     if(target.word.word === answer.word){
       combo++;
       const base = 100, timeBonus = Math.round(timeLeft*4), ammoBonus = ammo*30, comboBonus = (combo-1)*25;
@@ -530,7 +535,7 @@ function tryFire(){
       const m = segMatAt(floorsData[fi], hitX);
       const hm = m===MAT.STONE ? 'stone' : (m===MAT.WOOD ? 'wood' : 'glass');
       const col = hm==='stone' ? '#d2d2d2' : (hm==='wood' ? '#b07a3c' : '#a8d8ff');
-      bulletHoles.push({ x:hitX, y:hitY, mat:hm });
+      addHole(hitX, hitY, hm);
       spawnParticles(hitX, hitY, col, 13, 175);
     } else {
       spawnParticles(hitX, hitY, '#a8d8ff', 10, 160);
@@ -680,7 +685,7 @@ function updateHardMode(dt){
 function enemyFire(){
   gunshot();
   lives--; damageFlash = 1;
-  for(let k=0;k<3;k++) bulletHoles.push({ x: aim.x+rand(-70,70), y: aim.y+rand(-70,70), mat:'glass' });
+  for(let k=0;k<3;k++) addHole(aim.x+rand(-70,70), aim.y+rand(-70,70), 'glass');
   spotted = false; shooterIdx = -1;
   if(lives <= 0){ failGame('shot'); return; }
   showToast(`🩸 中彈！剩 ${lives} 命 — 開槍沒中要馬上收鏡蹲下`, '#f87171');
@@ -713,8 +718,38 @@ function drawForeground(){
   const wallTop = VH*0.66;
   ctx.save();
   ctx.globalAlpha = a;
-  drawAllySniper(wallTop);   // 先畫人
-  drawCoverWall(wallTop);    // 再畫牆蓋住下半身 → 視覺上「蹲在牆後」
+  drawAllySniper(wallTop);    // 先畫人
+  drawCoverWall(wallTop);     // 再畫牆蓋住下半身 → 視覺上「蹲在牆後」
+  drawMountedRifle(wallTop);  // 牆角架著的備用狙擊槍(沙袋+腳架), 增加狙擊巢臨場感
+  ctx.restore();
+}
+// 牆角架在沙袋上的備用狙擊槍(放在狙擊手對側、畫面邊緣, 不擋大樓)
+function drawMountedRifle(wallTop){
+  const left = SETTINGS.leftHanded;
+  const rx = left ? VW*0.18 : VW*0.82;
+  const S = clamp(VH*0.0012, 0.7, 1.2);
+  ctx.save();
+  ctx.translate(rx, wallTop + 2);
+  if(left) ctx.scale(-1, 1);          // 左撇子: 整組鏡像到左側
+  ctx.scale(S, S);
+  // 沙袋支撐(疊兩層)
+  ctx.fillStyle = '#4f4a36'; roundRectPath(-30,-12,60,16,8); ctx.fill();
+  ctx.fillStyle = '#574f39'; roundRectPath(-22,-23,46,14,7); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-22,-16); ctx.lineTo(24,-16); ctx.stroke();
+  // 槍(架在沙袋上, 槍口=左端, 微上揚朝大樓)
+  ctx.save();
+  ctx.translate(0,-26); ctx.rotate(0.34);
+  ctx.strokeStyle = '#1a1d22'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(-50,0); ctx.lineTo(38,3); ctx.stroke();           // 槍管
+  ctx.strokeStyle = '#23282f'; ctx.lineWidth = 11; ctx.beginPath(); ctx.moveTo(38,3); ctx.lineTo(58,8); ctx.stroke();  // 槍托
+  ctx.fillStyle = '#0e1116'; ctx.fillRect(-8,-9,24,8);                          // 瞄準鏡
+  ctx.fillStyle = '#16324a'; ctx.fillRect(-8,-8,4,6);                           // 鏡片反光
+  ctx.fillStyle = '#15181d'; ctx.beginPath(); ctx.moveTo(4,3); ctx.lineTo(12,3); ctx.lineTo(10,17); ctx.lineTo(6,17); ctx.closePath(); ctx.fill(); // 彈匣
+  // 腳架(槍管前段撐到沙袋)
+  ctx.strokeStyle = '#15181d'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(-30,1); ctx.lineTo(-36,22); ctx.moveTo(-30,1); ctx.lineTo(-20,22); ctx.stroke();
+  ctx.restore();
   ctx.restore();
 }
 function drawCoverWall(top){
@@ -877,7 +912,7 @@ function drawBuilding(){
 
   // 4. 霓虹單字(外牆招牌) + 彈孔
   for(let i=0;i<FLOORS;i++) drawFloorWord(i);
-  for(const b of bulletHoles){ const s = worldToScreen(b.x, b.y); drawBulletHole(s.x, s.y, b.mat); }
+  for(const b of bulletHoles){ const s = worldToScreen(b.x, b.y); drawBulletHole(s.x, s.y, b); }
 
   // 4.5 透過木牆/石牆的洞窺視: 洞後是房間, 有人經過時會露出一塊(可預判位置)
   drawPeekHoles();
@@ -1004,19 +1039,36 @@ function roundRectPath(x,y,w,h,r){
   ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
 }
 
-function drawBulletHole(x,y,mat){
+// 石牆不規則孔輪廓(依 hole.shape 各點半徑倍率畫多邊形)
+function stonePath(cx, cy, r, shape){
+  ctx.beginPath();
+  const n = shape.length;
+  for(let i=0;i<n;i++){
+    const a = (i/n)*Math.PI*2, rr = r*shape[i];
+    const px = cx+Math.cos(a)*rr, py = cy+Math.sin(a)*rr;
+    if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.closePath();
+}
+
+function drawBulletHole(x,y,b){
+  const mat = b.mat, sz = b.sz || 1;
   ctx.save();
   if(mat === 'stone'){
-    ctx.fillStyle = 'rgba(15,15,18,0.8)'; ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle = 'rgba(210,210,210,0.4)'; ctx.lineWidth = 1;
-    for(let k=0;k<5;k++){ const a=k*1.3; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*9, y+Math.sin(a)*9); ctx.stroke(); }
+    const R = 4.5*sz;
+    stonePath(x, y, R, b.shape || [1,1,1,1,1,1,1,1,1]);
+    ctx.fillStyle = 'rgba(15,15,18,0.85)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(210,210,210,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+    for(let k=0;k<5;k++){ const a=k*1.3; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*R*2.2, y+Math.sin(a)*R*2.2); ctx.stroke(); }
   } else if(mat === 'wood'){
-    ctx.fillStyle = 'rgba(28,16,7,0.85)'; ctx.beginPath(); ctx.arc(x,y,5,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle = 'rgba(150,100,55,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x,y,7,0,Math.PI*2); ctx.stroke();
+    const R = 5*sz;
+    ctx.fillStyle = 'rgba(28,16,7,0.85)'; ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(150,100,55,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x,y,R*1.4,0,Math.PI*2); ctx.stroke();
   } else {
+    const R = 4*sz;
     ctx.strokeStyle = 'rgba(200,225,255,0.6)'; ctx.lineWidth = 1; ctx.fillStyle = 'rgba(10,15,25,0.8)';
-    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2); ctx.fill();
-    for(let k=0;k<6;k++){ const a=k*Math.PI/3; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*12, y+Math.sin(a)*12); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2); ctx.fill();
+    for(let k=0;k<6;k++){ const a=k*Math.PI/3; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*R*3, y+Math.sin(a)*R*3); ctx.stroke(); }
   }
   ctx.restore();
 }
@@ -1028,16 +1080,18 @@ function drawPeekHoles(){
     const fi = clamp(Math.floor((b.y - BY)/FLOOR_H), 0, FLOORS-1);
     const f = floorsData[fi];
     const s = worldToScreen(b.x, b.y);
-    const rad = (b.mat==='stone' ? 6 : 7) * zoom;
+    const sz = b.sz || 1;
+    const rad = (b.mat==='stone' ? 6 : 7) * sz * zoom;
     if(rad < 1.2) continue;                                 // 太遠(收鏡)時洞太小, 略過
+    const isStone = b.mat==='stone' && b.shape;
+    const cut = ()=>{ if(isStone) stonePath(s.x, s.y, rad, b.shape); else { ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI*2); } };
     ctx.save();
-    ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI*2); ctx.clip();
-    ctx.fillStyle = '#0c1119'; ctx.fillRect(s.x-rad, s.y-rad, rad*2, rad*2);  // 洞後的暗室
+    cut(); ctx.clip();
+    ctx.fillStyle = '#0c1119'; ctx.fillRect(s.x-rad-2, s.y-rad-2, rad*2+4, rad*2+4);  // 洞後的暗室
     if(f && f.alive) drawPerson(f);                         // 有人經過 → 露出一塊
     ctx.restore();
     // 洞口暗邊, 讓窺視孔更明顯
-    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.5; cut(); ctx.stroke();
   }
 }
 
