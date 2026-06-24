@@ -461,7 +461,7 @@ function buildTank(){
 
 /* ============ 恐龍 ============ */
 const DT={
-  raptor :{hp:25, sp:9.0,r:1.7,cy:1.1,score:50, big:0,name:'迅猛龍'},
+  raptor :{hp:25, sp:8.0,r:1.7,cy:1.1,score:50, big:0,name:'迅猛龍'},
   trike  :{hp:160,sp:3.6,r:2.8,cy:1.7,score:200,big:0,name:'三角龍'},
   stego  :{hp:130,sp:2.4,r:2.8,cy:1.9,score:150,big:0,name:'劍龍'},
   trex   :{hp:420,sp:4.5,r:3.6,cy:3.2,score:500,big:1,name:'霸王龍'},
@@ -1069,7 +1069,7 @@ function updTank(dt){
     tank.boost=Math.min(1,tank.boost+dt/1.4);
     sp=-(6+(shiftHeld?1:tank.boost)*4);                    // -6 → -10
   }else{
-    tank.boost=Math.max(0,tank.boost-dt/0.4);              // 放開快速重置
+    tank.boost=Math.max(0,tank.boost-dt/0.9);              // 放開漸退（短暫鬆手/轉向不會瞬間掉速）
   }
   let turn=0;
   if(keys['KeyA']||keys['ArrowLeft'])turn=1;
@@ -1643,10 +1643,10 @@ function applyStick(x,y){                // 依浮動原點換算方向
   let dx=x-moveCx, dy=y-moveCy; const len=Math.hypot(dx,dy);
   if(len>STICK_R){dx*=STICK_R/len;dy*=STICK_R/len;}
   updMoveKnob(dx,dy);
-  const nx=dx/STICK_R, ny=dy/STICK_R;
+  const nx=dx/STICK_R, ny=dy/STICK_R, mag=Math.min(1,len/STICK_R);
   clearMoveKeys();
-  if(ny<-0.30)keys['KeyW']=true;
-  if(ny<-0.78)keys['ShiftLeft']=true;    // 推到底加速
+  if(ny<-0.28)keys['KeyW']=true;
+  if(keys['KeyW']&&mag>0.8)keys['ShiftLeft']=true;   // 往前推到外圈＝頂速（含轉彎甩尾時，方便甩開迅猛龍）
   if(ny> 0.40)keys['KeyS']=true;
   if(nx<-0.32)keys['KeyA']=true;
   if(nx> 0.32)keys['KeyD']=true;
