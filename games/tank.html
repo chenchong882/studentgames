@@ -1430,9 +1430,12 @@ function update(dt){
 
 /* ============ 相機 ============ */
 let camLift=0;                                            // 抬砲時相機仰角（平滑值 0~1）
+let camYaw=0;                                             // 相機環繞方位（平滑跟著砲管世界方位）
 function updCamera(dt){
   const tp=tankG.position;
-  const fx=Math.sin(tank?tank.yaw:0),fz=Math.cos(tank?tank.yaw:0);
+  const turretYaw=(tank?tank.yaw:0)+(turretG?turretG.rotation.y:0); // 砲管在世界座標的朝向
+  camYaw=lerpAng(camYaw,turretYaw,1-Math.pow(0.0015,dt));   // 平滑跟隨，左右滑動轉砲管時鏡頭跟著繞
+  const fx=Math.sin(camYaw),fz=Math.cos(camYaw);
   const aimUp=barrelG?clamp(-barrelG.rotation.x,0,0.95)/0.95:0;  // 砲管抬高程度 0~1
   camLift+=(aimUp-camLift)*(1-Math.pow(0.02,dt));               // 平滑跟隨，避免瞄準跳動時鏡頭抖
   _v1.set(tp.x-fx*14,tp.y+6.5-camLift*1.5,tp.z-fz*14);
