@@ -524,9 +524,17 @@ function tryFire(){
       enterKillcam(target, false);
     }
   } else {
-    // 沒打到人
-    bulletHoles.push({ x:hitX, y:hitY, mat:'glass' });
-    spawnParticles(hitX, hitY, '#a8d8ff', 12, 170);
+    // 沒打到人: 依命中點的牆面材質留洞(可作為窺視/預判的窗口)
+    if(hitX>BX && hitX<BX+BW && hitY>BY && hitY<BY+BH){
+      const fi = clamp(Math.floor((hitY-BY)/FLOOR_H), 0, FLOORS-1);
+      const m = segMatAt(floorsData[fi], hitX);
+      const hm = m===MAT.STONE ? 'stone' : (m===MAT.WOOD ? 'wood' : 'glass');
+      const col = hm==='stone' ? '#d2d2d2' : (hm==='wood' ? '#b07a3c' : '#a8d8ff');
+      bulletHoles.push({ x:hitX, y:hitY, mat:hm });
+      spawnParticles(hitX, hitY, col, 13, 175);
+    } else {
+      spawnParticles(hitX, hitY, '#a8d8ff', 10, 160);
+    }
     triggerSpotted();
     if(ammo <= 0){
       showToast(`彈藥耗盡！目標是 ${answer.word}`, '#f87171');
@@ -871,6 +879,9 @@ function drawBuilding(){
   for(let i=0;i<FLOORS;i++) drawFloorWord(i);
   for(const b of bulletHoles){ const s = worldToScreen(b.x, b.y); drawBulletHole(s.x, s.y, b.mat); }
 
+  // 4.5 透過木牆/石牆的洞窺視: 洞後是房間, 有人經過時會露出一塊(可預判位置)
+  drawPeekHoles();
+
   // 5. killcam: 把被擊目標重畫在最上(特寫不被牆遮)
   if(state === 'killcam' && killTarget) drawPerson(killTarget);
 
@@ -1008,6 +1019,26 @@ function drawBulletHole(x,y,mat){
     for(let k=0;k<6;k++){ const a=k*Math.PI/3; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*12, y+Math.sin(a)*12); ctx.stroke(); }
   }
   ctx.restore();
+}
+
+// 透過木牆/石牆上的彈孔, 看到後面的房間與經過的人(用圓形裁切只露出一小塊)
+function drawPeekHoles(){
+  for(const b of bulletHoles){
+    if(b.mat !== 'wood' && b.mat !== 'stone') continue;   // 玻璃本來就看得到, 不需窺視
+    const fi = clamp(Math.floor((b.y - BY)/FLOOR_H), 0, FLOORS-1);
+    const f = floorsData[fi];
+    const s = worldToScreen(b.x, b.y);
+    const rad = (b.mat==='stone' ? 6 : 7) * zoom;
+    if(rad < 1.2) continue;                                 // 太遠(收鏡)時洞太小, 略過
+    ctx.save();
+    ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI*2); ctx.clip();
+    ctx.fillStyle = '#0c1119'; ctx.fillRect(s.x-rad, s.y-rad, rad*2, rad*2);  // 洞後的暗室
+    if(f && f.alive) drawPerson(f);                         // 有人經過 → 露出一塊
+    ctx.restore();
+    // 洞口暗邊, 讓窺視孔更明顯
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI*2); ctx.stroke();
+  }
 }
 
 function drawParticles(){
