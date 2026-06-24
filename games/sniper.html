@@ -352,9 +352,14 @@ function addHole(x, y, mat){
   if(mat === 'stone') h.shape = Array.from({length:9}, ()=> rand(0.6, 1.32));  // 石牆: 不規則多邊形輪廓
   bulletHoles.push(h);
 }
-// 雨滴(螢幕座標, 純裝飾)
+// 天氣(每關隨機): rain 下雨 / snow 下雪 / clear 普通夜晚
+let weather = 'rain';
+// 降水粒子(螢幕座標, 純裝飾): 雨滴用 len, 雪花用 r/ph
 let rain = [];
-for(let i=0;i<80;i++) rain.push({ x:Math.random(), y:Math.random(), len:rand(8,18), sp:rand(0.35,0.8) });
+for(let i=0;i<90;i++) rain.push({ x:Math.random(), y:Math.random(), len:rand(8,18), sp:rand(0.35,0.8), r:rand(1,2.5), ph:rand(0,6.28) });
+// 星星(普通夜晚才明顯)
+let stars = [];
+for(let i=0;i<70;i++) stars.push({ x:Math.random(), y:Math.random()*0.6, r:rand(0.4,1.4), tw:rand(0,6.28) });
 
 /* ---------- 音效(Web Audio 合成槍聲) ---------- */
 let actx = null;
@@ -417,6 +422,9 @@ function startRound(){
 
   // 風速: 前 4 關為 0, 之後逐步加入(進階調味)
   wind = roundNo <= 4 ? 0 : rand(-1, 1) * (roundNo-4) * 0.12;
+
+  // 天氣: 每關隨機(下雨/下雪/普通夜晚)
+  weather = pick(['rain','rain','rain','snow','snow','clear']);
 
   // 限時/限彈: 隨關卡略增難度
   timeMax = Math.max(14, 24 - roundNo*0.8) + extraTime;
@@ -726,8 +734,8 @@ function drawForeground(){
 // 牆角架在沙袋上的備用狙擊槍(放在狙擊手對側、畫面邊緣, 不擋大樓)
 function drawMountedRifle(wallTop){
   const left = SETTINGS.leftHanded;
-  const rx = left ? VW*0.18 : VW*0.82;
-  const S = clamp(VH*0.0012, 0.7, 1.2);
+  const rx = left ? VW*0.16 : VW*0.84;
+  const S = clamp(VH*0.0021, 1.15, 2.0);
   ctx.save();
   ctx.translate(rx, wallTop + 2);
   if(left) ctx.scale(-1, 1);          // 左撇子: 整組鏡像到左側
@@ -830,12 +838,29 @@ function drawSky(){
     if(seed%3===0) ctx.fillRect(bx+bw*0.2, horizon-bh*0.7, bw*0.12, bh*0.1);
     ctx.fillStyle = 'rgba(36,48,80,0.5)';
   }
-  // 雨
-  ctx.strokeStyle = 'rgba(150,180,220,0.22)'; ctx.lineWidth = 1;
-  for(const d of rain){
-    d.y += d.sp*0.02; if(d.y>1) d.y -= 1;
-    const x = d.x*VW, y = d.y*VH;
-    ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-3, y+d.len); ctx.stroke();
+  // 降水(依天氣)
+  if(weather === 'rain'){
+    ctx.strokeStyle = 'rgba(150,180,220,0.22)'; ctx.lineWidth = 1;
+    for(const d of rain){
+      d.y += d.sp*0.02; if(d.y>1) d.y -= 1;
+      const x = d.x*VW, y = d.y*VH;
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-3, y+d.len); ctx.stroke();
+    }
+  } else if(weather === 'snow'){
+    const t = performance.now()/1000;
+    ctx.fillStyle = 'rgba(235,242,255,0.9)';
+    for(const d of rain){
+      d.y += d.sp*0.006; if(d.y>1) d.y -= 1;
+      const x = (d.x*VW) + Math.sin(t*0.6 + d.ph)*14;
+      ctx.beginPath(); ctx.arc(x, d.y*VH, d.r, 0, Math.PI*2); ctx.fill();
+    }
+  } else {  // clear: 普通夜晚 → 點綴星星
+    const t = performance.now()/700;
+    for(const st of stars){
+      const a = 0.35 + 0.4*Math.sin(t + st.tw);
+      ctx.fillStyle = `rgba(220,230,255,${a})`;
+      ctx.beginPath(); ctx.arc(st.x*VW, st.y*VH, st.r, 0, Math.PI*2); ctx.fill();
+    }
   }
 }
 
