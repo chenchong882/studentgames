@@ -274,6 +274,21 @@ const Audio = (() => {
   loadVoices();
   if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = loadVoices;
 
+  // iOS Safari 只認「真實使用者手勢」內的第一次 speak()。canvas 的 touchstart 常常
+  // 不被 iOS 採信，導致整路靜音。所以第一次觸碰時，先在手勢裡 speak() 一個無聲語句把
+  // 語音引擎解鎖，之後（含 setTimeout / 換題）的唸字才會出聲。
+  let speechUnlocked = false;
+  function unlockSpeech() {
+    if (speechUnlocked || !('speechSynthesis' in window)) return;
+    speechUnlocked = true;
+    try {
+      window.speechSynthesis.resume();
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
   function speak(word) {
     if (!('speechSynthesis' in window)) return;
     const text = speechTextFor(word);
@@ -284,6 +299,7 @@ const Audio = (() => {
     msg.lang  = voice?.lang || 'en-US';
     msg.rate  = 0.82;
     msg.pitch = 1;
+    try { window.speechSynthesis.resume(); } catch (e) {}  // iOS 有時會自動 pause
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(msg);
   }
@@ -357,7 +373,7 @@ const Audio = (() => {
     init: ensure,
     primeSpeech,
     startBgm, stopBgm,
-    speak,
+    speak, unlockSpeech,
     // ── Bigger, more cinematic SFX ──
     explosion()    {
       noise(0.7, 0.65);                       // impact crack
@@ -2048,6 +2064,7 @@ function hitPauseBtn(x, y) {
 }
 
 function handleStart(touches) {
+  Audio.unlockSpeech();  // 第一次觸碰：在使用者手勢內解鎖 iOS 語音
   Audio.primeSpeech();   // 第一次觸碰：確保背景音樂開始播放
   for (const t of touches) {
     const {clientX:x, clientY:y} = t;
@@ -2063,12 +2080,12 @@ function handleStart(touches) {
 
 canvas.addEventListener('touchstart', e => { e.preventDefault(); handleStart(e.changedTouches); }, {passive:false});
 canvas.addEventListener('touchmove',  e => { e.preventDefault(); for(const t of e.changedTouches) joystick.move(t); }, {passive:false});
-canvas.addEventListener('touchend',   e => { e.preventDefault(); for(const t of e.changedTouches){ joystick.end(t); bombButton.release(t); } }, {passive:false});
+canvas.addEventListener('touchend',   e => { e.preventDefault(); Audio.unlockSpeech(); for(const t of e.changedTouches){ joystick.end(t); bombButton.release(t); } }, {passive:false});
 
 // Mouse fallback (desktop testing)
 let mDown=false;
 canvas.addEventListener('mousedown', e => {
-  mDown=true; Audio.primeSpeech();
+  mDown=true; Audio.unlockSpeech(); Audio.primeSpeech();
   const ft={clientX:e.clientX, clientY:e.clientY, identifier:0};
   handleStart([ft]);
 });
