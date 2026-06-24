@@ -245,10 +245,47 @@ const Audio = (() => {
     if (ctx.state === 'suspended') ctx.resume();
   }
 
-  // 發音（唸單字）已整段移除：這個遊戲只保留背景音樂 + 音效，不唸單字。
   function primeSpeech() {
     // First user gesture: just make sure BGM is running if it's wanted.
     if (bgmWanted) startBgm();
+  }
+
+  // ── Speech: read the target word aloud（發音規則沿用「挖金礦」miner.html）──
+  let availableVoices = [];
+  function loadVoices() {
+    if (!('speechSynthesis' in window)) return;
+    availableVoices = window.speechSynthesis.getVoices();
+  }
+  function pickEnglishVoice() {
+    return availableVoices.find(v => /^en[-_]?US/i.test(v.lang))
+        || availableVoices.find(v => /^en/i.test(v.lang))
+        || null;
+  }
+  function speechTextFor(word) {
+    return String(word || '')
+      .replace(/\bA\b/g, 'something')
+      .replace(/\bB\b/g, 'something')
+      .replace(/\s*\/\s*/g, ' or ')
+      .replace(/[()]/g, ' ')
+      .replace(/…|\.\.\./g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  loadVoices();
+  if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = loadVoices;
+
+  function speak(word) {
+    if (!('speechSynthesis' in window)) return;
+    const text = speechTextFor(word);
+    if (!text) return;
+    const voice = pickEnglishVoice();
+    const msg = new SpeechSynthesisUtterance(text);
+    if (voice) msg.voice = voice;
+    msg.lang  = voice?.lang || 'en-US';
+    msg.rate  = 0.82;
+    msg.pitch = 1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(msg);
   }
 
   function noise(dur, vol = 0.5) {
@@ -315,7 +352,7 @@ const Audio = (() => {
     init: ensure,
     primeSpeech,
     startBgm, stopBgm,
-    speak() {},   // 發音已停用：保留空殼以免呼叫端報錯
+    speak,
     // ── Bigger, more cinematic SFX ──
     explosion()    {
       noise(0.7, 0.65);                       // impact crack
@@ -1624,7 +1661,7 @@ class Game {
     const i = Math.floor(Math.random() * this.wordsLeft.length);
     this.targetWord = this.wordsLeft[i];
     this.wrongAtt = 0;
-    // （發音已停用，這裡不再唸出目標單字）
+    Audio.speak(this.targetWord);   // 進場 / 換題：唸出目標單字
   }
 
   // ── Drop Bomb ──────────────────────────
@@ -1983,7 +2020,10 @@ function hitPauseScreen(x, y) {
 }
 
 function hitWordPanel(x, y) {
-  // 發音已停用：點題目面板不再唸單字。
+  // 按題目面板（含 🔊 喇叭）重播目標單字發音
+  if (game.phase !== 'playing' || !game.targetWord) return;
+  const pw=210, ph=42, px=W/2-pw/2, py=55;
+  if (x>px && x<px+pw && y>py && y<py+ph) Audio.speak(game.targetWord);
 }
 
 function hitPauseBtn(x, y) {
