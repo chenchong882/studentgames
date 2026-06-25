@@ -279,8 +279,9 @@
       ⬆️ 上滑＝跳躍（跳過矮牆）<br>
       ⬇️ 下滑＝滑鏟（鑽過橫樑）<br>
       ⬅️ ➡️ 左右滑＝切換跑道（閃開路障）<br>
-      📋 遇到「題目門」：題目會先出現在上方，<br>
-      　 邊跑邊想，門靠近時滑向正確答案的方向！<br>
+      📋 遇到「題目門」：會反覆唸出單字並出題，<br>
+      　 聽單字、想答案，門靠近時滑向正確方向！<br>
+      　 想選 ⬆️上跳／⬇️下滑，要先回中間跑道才算數<br>
       ❤️ 三條命，撞到障礙或答錯扣一命
     </div>
     <button class="bigbtn" id="startBtn">開始遊戲</button>
@@ -315,7 +316,8 @@
       ⬇️ 下滑 / ↓：滑鏟（鑽過橫樑）<b>按住 ↓ 或 S 可持續滑行</b><br>
       ⬅️ ➡️ / ← →：左右換道（閃開路障）<br>
       <br>
-      🎯 遇到「單字門」會出題；門靠近時，往<b>正確答案的方向</b>滑（上／下／左／右）就能通過。<br>
+      🎯 遇到「單字門」會<b>反覆唸出單字</b>並出題；聽懂後往<b>正確答案的方向</b>滑（上／下／左／右）就能通過。<br>
+      想選 <b>⬆️上跳</b> 或 <b>⬇️下滑</b> 時，要先回到<b>中間跑道</b>才算數！<br>
       答錯或撞到障礙會扣 ❤️，撐越久分數越高！<br>
       ⏸ 遊戲中可按 <b>ESC</b> 暫停。
     </div>
@@ -468,6 +470,45 @@ function noiseBurst(dur, vol, freq){
 }
 const sndJump  = () => { sweep(520, 1180, 0.16, 'square', 0.18); };   // 蹬！往上滑音
 const sndSlide = () => { noiseBurst(0.34, 0.17, 1500); };            // 刷～刮地聲
+
+/* ================= 單字發音（Web Speech）================= */
+let _voices = [];
+function loadVoices(){ try{ _voices = window.speechSynthesis.getVoices() || []; }catch(e){} }
+if ('speechSynthesis' in window){ loadVoices(); window.speechSynthesis.onvoiceschanged = loadVoices; }
+function pickEnVoice(){
+  return _voices.find(v=>/^en[-_]?US/i.test(v.lang)) || _voices.find(v=>/^en/i.test(v.lang)) || null;
+}
+function speakWord(word){
+  if (!('speechSynthesis' in window) || !word) return;
+  try{
+    const u = new SpeechSynthesisUtterance(String(word));
+    const v = pickEnVoice(); if (v) u.voice = v;
+    u.lang = (v && v.lang) || 'en-US'; u.rate = 0.85; u.pitch = 1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+// iOS：speechSynthesis 需由真實按鈕點擊解鎖一次（開始／再玩按鈕觸發）
+function unlockSpeech(){
+  if (!('speechSynthesis' in window)) return;
+  try{ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); }catch(e){}
+}
+// 題目門接近時：反覆唸出單字，答完即停。唸字時 suspend AudioContext，讓出 iOS 音訊工作階段
+function startGateSpeech(o){
+  if (o.spoke || !o.q || !o.q.say) return;
+  o.spoke = true;
+  try{ ac && ac.suspend && ac.suspend(); }catch(e){}
+  speakWord(o.q.say);
+  o.speakTimer = setInterval(()=>{
+    if (o.resolved || state !== 'play'){ clearInterval(o.speakTimer); o.speakTimer = null; return; }
+    if (!paused) speakWord(o.q.say);
+  }, 1500);
+}
+function stopGateSpeech(o){
+  if (o && o.speakTimer){ clearInterval(o.speakTimer); o.speakTimer = null; }
+  try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
+  try{ ac && ac.resume && ac.resume(); }catch(e){}
+}
 
 /* ================= 背景音樂（Pixel Sprint Parade.mp3）================= */
 let bgmAudio=null,bgmFade=null;
@@ -694,9 +735,12 @@ function drawQuestion(){
   const diff = n <= 5 ? 'easy' : n <= 10 ? 'medium' : 'hard';
   if (!decks[diff] || decks[diff].length === 0) decks[diff] = shuffle(BANK[diff].slice());
   const raw = decks[diff].pop();
+  const correctText = raw.opts[raw.a];
+  // 要反覆唸的英文單字：題庫有標 say 就用，否則正解本身是英文時拿來唸
+  const say = raw.say || (/^[A-Za-z][A-Za-z .'\-]*$/.test(correctText) ? correctText : '');
   const order = shuffle([0,1,2,3]);
   const opts = order.map(i => raw.opts[i]);   // opts[0..3] 對應 上/下/左/右
-  return { q: raw.q, opts, answerDir: DIRS[order.indexOf(raw.a)] };
+  return { q: raw.q, opts, answerDir: DIRS[order.indexOf(raw.a)], say };
 }
 function thinkBuffer(){ const n = gateNum + 1; return n <= 5 ? 1500 : n <= 10 ? 1050 : 700; }
 
@@ -760,8 +804,7 @@ function spawnGate(){
     left:  addLabel(o.el, -126, 110, 116, 40, '⬅️ ' + q.opts[2]),
     right: addLabel(o.el,  126, 110, 116, 40, q.opts[3] + ' ➡️'),
   };
-  // 第一道題目門：標亮正確答案當教學
-  if (gateNum === 0) o.labels[q.answerDir].classList.add('correctHint');
+  // 不預先標亮正確答案：玩家要聽單字、自己判斷
   obstacles.push(o);
   showHud(o);
 }
@@ -789,7 +832,7 @@ function showHud(o){
   DIRS.forEach((d, i) => {
     const el = $(map[d]);
     el.textContent = DIR_ICON[d] + ' ' + o.q.opts[i];
-    el.className = 'qopt' + (gateNum === 0 && d === o.answerDir ? ' hint' : '');
+    el.className = 'qopt';
   });
   $('qhud').classList.remove('hidden', 'urgent');
 }
@@ -847,6 +890,11 @@ function resolveObstacle(o){
   else { // gate：優先採計鎖定的答案，沒滑就看當下動作/位置
     gateChoice = o.choice ||
       (isJumping() ? 'up' : isSliding() ? 'down' : lane === 0 ? 'left' : lane === 2 ? 'right' : null);
+    // 往上跳／下滑只有在「中間跑道」才算數，否則改以實際所在跑道判定
+    if ((gateChoice === 'up' || gateChoice === 'down') && lane !== 1) {
+      gateChoice = lane === 0 ? 'left' : lane === 2 ? 'right' : null;
+    }
+    stopGateSpeech(o);
     pass = gateChoice === o.answerDir;
   }
 
@@ -951,6 +999,8 @@ function loop(now){
       o.el.style.transform = 'translate3d(0,0,' + (-o.dist).toFixed(1) + 'px)';
 
       if (o.type === 'gate' && !o.resolved) {
+        // 接近到剩約 3 秒時：開始反覆唸出單字
+        if (!o.spoke && o.dist < speed * 3) startGateSpeech(o);
         // 接近時觸發慢動作思考時間
         if (!o.slowed && o.dist < speed * 1.05) {
           o.slowed = true;
@@ -1057,7 +1107,8 @@ window.addEventListener('blur', () => { if (slideHeld) endSlideHold(); });
 
 /* ================= 開始 / 結束 ================= */
 function startGame(){
-  obstacles.forEach(o => o.el.remove());
+  unlockSpeech();   // iOS：趁真實按鈕點擊解鎖語音
+  obstacles.forEach(o => { stopGateSpeech(o); o.el.remove(); });
   obstacles = [];
   score = 0; lives = 3; combo = 0; passed = 0;
   gateNum = 0; gateCorrect = 0; wrongAnswers = [];
@@ -1079,6 +1130,7 @@ function startGame(){
 function gameOver(){
   state = 'over';
   stopBgm();
+  try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
   hideHud();
   const total = gateCorrect + wrongAnswers.length;
   const acc = total ? Math.round(gateCorrect / total * 100) : 0;
@@ -1111,6 +1163,7 @@ function togglePause(){
   if (state !== 'play') return;
   paused = !paused;
   $('pauseScreen').classList.toggle('hidden', !paused);
+  if (paused) { try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){} }
   duckBgm(paused);
 }
 function openGuide(){ guideOpen = true; $('guideScreen').classList.remove('hidden'); }
@@ -1154,8 +1207,8 @@ function makeRunnerBank(pool){
     for(const w of _shuf(pool)){ const v=w[field]; if(!seen.has(v)){ seen.add(v); out.push(v); } if(out.length===3) break; }
     return out;
   }
-  const cn2en = pool.map(w=>{ const ds=distract(w.word,'word'); return ds.length<3?null:{ q:'「'+w.chinese+'」的英文是？', opts:[w.word,...ds], a:0 }; }).filter(Boolean);
-  const en2cn = pool.map(w=>{ const ds=distract(w.chinese,'chinese'); return ds.length<3?null:{ q:'「'+w.word+'」的中文是？', opts:[w.chinese,...ds], a:0 }; }).filter(Boolean);
+  const cn2en = pool.map(w=>{ const ds=distract(w.word,'word'); return ds.length<3?null:{ q:'「'+w.chinese+'」的英文是？', opts:[w.word,...ds], a:0, say:w.word }; }).filter(Boolean);
+  const en2cn = pool.map(w=>{ const ds=distract(w.chinese,'chinese'); return ds.length<3?null:{ q:'「'+w.word+'」的中文是？', opts:[w.chinese,...ds], a:0, say:w.word }; }).filter(Boolean);
   if(!cn2en.length||!en2cn.length) return null;
   return { easy: cn2en, medium: en2cn, hard: _shuf(en2cn) };
 }
