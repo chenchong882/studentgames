@@ -119,23 +119,6 @@
   }
   #fire-btn:active { transform: scale(.94); filter: brightness(1.15); }
   #fire-btn:disabled { filter: grayscale(.8) brightness(.7); }
-  #scope-btn {
-    font-size: clamp(16px, 4vw, 22px);
-    background: rgba(255,255,255,.14);
-    border: 1.5px solid rgba(255,255,255,.45);
-    color: #fff;
-    border-radius: 999px;
-    padding: 10px 18px;
-    cursor: pointer;
-    touch-action: manipulation;
-  }
-  #scope-btn:active { transform: scale(.94); }
-  #mode-hint {
-    text-align: center;
-    margin-top: 5px;
-    font-size: clamp(11px, 2.6vw, 14px);
-    color: rgba(255,255,255,.65);
-  }
   #pause-btn {
     position: absolute;
     top: calc(8px + env(safe-area-inset-top));
@@ -247,17 +230,15 @@
     </div>
     <div id="conditions"></div>
     <div id="btn-row">
-      <button id="scope-btn">🔭 瞄準鏡</button>
       <button id="fire-btn">🚀 發射</button>
     </div>
-    <div id="mode-hint">雙指縮合進入瞄準鏡｜雙指張開返回海面</div>
   </div>
 
   <div id="start-screen" class="overlay">
     <h1>🌊 海岸防線</h1>
     <div class="sub">Coast Defense ─ 英文單字 3D 海防遊戲</div>
     <div class="rules">
-      🖱️ 海面<b>準星跟著滑鼠</b>、<b>左鍵發射</b>；<b>右鍵按住</b>（或 Z／滾輪）開瞄準鏡<br>
+      🖱️ <b>準星跟著滑鼠</b>移動、<b>左鍵或空白鍵發射</b>（手機單指拖曳瞄準）<br>
       🚀 擊沉<b>符合天空所有條件</b>的船，<b>越遠分數越高</b>；連續命中累積<b>連擊倍率（最高 ×3）</b><br>
       📖 天空題目會輪流出兩種：<b>意思題</b>（給中文找對應單字）與 <b>句子題</b>（讀挖空句子 ＿＿＿，找填得進去的單字）<br>
       🏁 每關需擊沉 <b>2 艘</b>目標才過關；失敗不前進、會扣命<br>
@@ -291,14 +272,6 @@
   <div id="pause-screen" class="overlay hidden">
     <h1>⏸️ 暫停</h1>
     <div class="sub">深呼吸，海岸交給你了</div>
-    <div class="rules" style="text-align:left;">
-      ⚙️ <b>系統設定</b><br>
-      雙指縮放方向（手機／平板）
-      <div style="margin-top:8px;">
-        <button id="invert-btn" style="background:rgba(255,255,255,.16); color:#fff; font-size:clamp(14px,3.4vw,18px); padding:9px 22px;">🔄 雙指縮放：標準</button>
-      </div>
-      <div id="invert-desc" style="margin-top:6px; font-size:clamp(11px,2.6vw,14px); color:rgba(255,255,255,.7);"></div>
-    </div>
     <button id="resume-btn">▶️ 繼續遊戲</button>
     <button id="menu-btn" style="background:rgba(255,255,255,.16); color:#fff; font-size:clamp(15px,3.6vw,20px); padding:10px 32px;">回主選單</button>
   </div>
@@ -360,8 +333,6 @@ const MONSTER_SPAWN = 45;    // 海怪平均多久出現一隻（秒）
 const AMMO_PER_ROUND  = 3;   // 困難模式每回合彈藥
 const AMMO_MAX        = 5;   // 彈藥上限（一發命中可累積）
 const SWAY_FROM_LEVEL = 3;   // 第幾關開始船隻橫向搖擺
-const SCOPE_ZOOM   = 5;      // 瞄準鏡倍率
-const PINCH_THRESH = 30;     // 雙指距離變化門檻（px）
 const SPAWN_Z      = 330;    // 船隻出生距離
 const SHORE_Z      = 42;     // 抵達岸邊距離
 const CAM_H        = 15;     // 攝影機高度（世界單位）
@@ -412,9 +383,7 @@ const game = {
   conditions: [],         // 本回合條件 key 列表
   target: null,           // 目標屬性 {word,color,flag,size}
   boss: null,             // 魔王回合資料（null = 一般回合）
-  scopeMode: false,
-  scopeAnim: 0,           // 0 = 海面, 1 = 完全進入瞄準鏡
-  aimX: 0, aimY: 0,       // 瞄準點（海面模式的螢幕座標）
+  aimX: 0, aimY: 0,       // 瞄準點（螢幕座標）
   rockets: [],            // 飛行中的火箭（支援三連發）
   burst: 0,               // 剩餘三連發次數
   particles: [],
@@ -424,7 +393,6 @@ const game = {
   roundEnding: false,     // 回合結算中：擋掉 update 每幀重複觸發逃走／扣命
   activeDims: [],         // 特殊模式：本回合的判定維度
   bossesDone: {},         // 已擊敗的魔王 { "4": true, ... }
-  pinchInvert: false,     // 雙指縮放方向：false=標準（張開進瞄準鏡），true=相反
 };
 
 const $ = id => document.getElementById(id);
@@ -510,7 +478,6 @@ const sfx = {
   splash:  () => playNoise(0.5, 900, 0.3),
   good:    () => { playTone(660, 0.12, 0.3, "triangle"); setTimeout(() => playTone(990, 0.2, 0.3, "triangle"), 110); },
   bad:     () => playTone(160, 0.4, 0.4, "square"),
-  scope:   () => playTone(420, 0.1, 0.15, "sine"),
   monster: () => { playTone(70, 0.8, 0.5, "sawtooth"); setTimeout(() => playNoise(0.6, 280, 0.35), 70); },
 };
 
@@ -751,17 +718,13 @@ function fire() {
   game.shotsThisRound++;
   if (game.difficulty === "hard") { game.ammo--; updateHUD(); }
   sfx.launch();
-  // 命中判定用場景座標（aim），但瞄準鏡模式下視覺落點是鏡頭中心
-  const inScope = game.scopeAnim > 0.5;
-  const baseX = inScope ? W / 2 : game.aimX;
-  const baseY = inScope ? H / 2 - H * 0.04 : game.aimY;
   // 三連發：一次扇形三發（命中範圍變大）；否則單發
   const spread = game.burst > 0 ? [-72, 0, 72] : [0];
   if (game.burst > 0) game.burst--;
   for (const dx of spread) {
     game.rockets.push({
       x0: W / 2, y0: H + 30,
-      x1: baseX + dx, y1: baseY,
+      x1: game.aimX + dx, y1: game.aimY,
       sceneX: game.aimX + dx, sceneY: game.aimY,
       t: 0, burst: spread.length > 1,
     });
@@ -1258,7 +1221,7 @@ function spawnBossWave() {
   }
   game.ships = ships;
   renderSkyChips("擊落符合意思的護衛艦", [`📖 意思：${targetWord.meaning}（${targetWord.pos}）`], false);
-  skyQ.classList.toggle("hidden", game.scopeMode);
+  skyQ.classList.remove("hidden");
 }
 
 function resolveBossImpact(x, y, fxX, fxY) {
@@ -1412,7 +1375,6 @@ function startGame(difficulty) {
     state: "playing", difficulty: diff, level: 1, score: 0, lives: 3, combo: 0,
     clearProgress: 0, lastRoundWon: false, threatPhase: "idle", threatT: 0,
     monster: null, monsterCd: rand(30, 45), burst: 0,
-    scopeMode: false, scopeAnim: 0,
     rockets: [], particles: [], splashes: [], fireLock: false, roundEnding: false,
     boss: null, bossesDone: {}, nextAmmoBonus: 0, activeDims: [],
     roundTime: diff === "easy" ? ROUND_TIME_EASY : diff === "special" ? ROUND_TIME_SPECIAL : ROUND_TIME_HARD,
@@ -1426,8 +1388,6 @@ function startGame(difficulty) {
   $("pause-btn").classList.remove("hidden");
   hud.classList.remove("hidden");
   skyQ.classList.remove("hidden");
-  $("scope-btn").textContent = "🔭 瞄準鏡";
-  $("mode-hint").textContent = scopeHint(false);
   newRound();
   updateHUD();
 }
@@ -1438,76 +1398,25 @@ $("start-special").addEventListener("click", () => startGame("special"));
 $("restart-btn").addEventListener("click", () => startGame());
 $("winagain-btn").addEventListener("click", () => startGame());
 $("fire-btn").addEventListener("click", fire);
-$("scope-btn").addEventListener("click", () => setScope(!game.scopeMode));
 $("pause-btn").addEventListener("click", togglePause);
 $("resume-btn").addEventListener("click", togglePause);
 $("menu-btn").addEventListener("click", backToMenu);
 
-/* ── 雙指縮放方向設定（玩家可在暫停選單反轉，記在 localStorage） ── */
-try { game.pinchInvert = localStorage.getItem("shoreHunterPinchInvert") === "1"; } catch (e) {}
-function refreshInvertUI() {
-  $("invert-btn").textContent = "🔄 雙指縮放：" + (game.pinchInvert ? "相反" : "標準");
-  $("invert-desc").textContent = game.pinchInvert
-    ? "目前：往內滑（縮合）進瞄準鏡、往外滑（張開）放大回海面"
-    : "目前：往外滑（張開）進瞄準鏡、往內滑（縮合）放大回海面";
-}
-$("invert-btn").addEventListener("click", () => {
-  game.pinchInvert = !game.pinchInvert;
-  try { localStorage.setItem("shoreHunterPinchInvert", game.pinchInvert ? "1" : "0"); } catch (e) {}
-  refreshInvertUI();
-  $("mode-hint").textContent = scopeHint(game.scopeMode);
-});
-refreshInvertUI();
-
-/* ════════════════ 視角切換 ════════════════ */
-// 依目前的雙指方向設定，回傳對應的底部操作提示
-function scopeHint(on) {
-  const enter = game.pinchInvert ? "縮合" : "張開";  // 進瞄準鏡的手勢
-  const back  = game.pinchInvert ? "張開" : "縮合";  // 返回海面的手勢
-  return on
-    ? `單指拖曳移動瞄準鏡｜雙指${back}返回海面`
-    : `雙指${enter}進入瞄準鏡｜雙指${back}返回海面`;
-}
-function setScope(on) {
-  if (game.scopeMode === on || game.state !== "playing") return;
-  game.scopeMode = on;
-  sfx.scope();
-  skyQ.classList.toggle("hidden", on);
-  $("scope-btn").textContent = on ? "🌊 海面" : "🔭 瞄準鏡";
-  $("mode-hint").textContent = scopeHint(on);
-}
-
 /* ════════════════ 觸控手勢 ════════════════ */
-let lastPinchDist = 0;
 let dragId = null, dragX = 0, dragY = 0;
 
 canvas.addEventListener("touchstart", e => {
   e.preventDefault();
-  if (e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    lastPinchDist = Math.hypot(dx, dy);
-    dragId = null;
-  } else if (e.touches.length === 1) {
-    dragId = e.touches[0].identifier;
-    dragX = e.touches[0].clientX; dragY = e.touches[0].clientY;
+  const t = e.touches[0];
+  if (t) {
+    dragId = t.identifier;
+    dragX = t.clientX; dragY = t.clientY;
   }
 }, { passive: false });
 
 canvas.addEventListener("touchmove", e => {
   e.preventDefault();
-  if (e.touches.length === 2) {
-    const dx = e.touches[0].clientX - e.touches[1].clientX;
-    const dy = e.touches[0].clientY - e.touches[1].clientY;
-    const dist = Math.hypot(dx, dy);
-    if (lastPinchDist > 0) {
-      // 標準：往外滑（張開）進瞄準鏡、往內滑（縮合）回海面；pinchInvert 時對調
-      if (dist > lastPinchDist + PINCH_THRESH)      { setScope(!game.pinchInvert); lastPinchDist = dist; }
-      else if (dist < lastPinchDist - PINCH_THRESH) { setScope(game.pinchInvert);  lastPinchDist = dist; }
-    } else lastPinchDist = dist;
-    return;
-  }
-  if (e.touches.length === 1 && dragId !== null) {
+  if (dragId !== null && e.touches.length) {
     const t = e.touches[0];
     const mvX = t.clientX - dragX, mvY = t.clientY - dragY;
     dragX = t.clientX; dragY = t.clientY;
@@ -1517,42 +1426,29 @@ canvas.addEventListener("touchmove", e => {
 
 canvas.addEventListener("touchend", e => {
   e.preventDefault();
-  if (e.touches.length < 2) lastPinchDist = 0;
   if (e.touches.length === 0) dragId = null;
 }, { passive: false });
 
-// 桌面操作（手感優化）：
-//  · 海面模式：準星直接跟著滑鼠游標（絕對定位，不用按住）
-//  · 瞄準鏡模式：移動滑鼠相對平移鏡頭（畫面已放大，故走相對量較細膩）
-//  · 左鍵發射、右鍵按住進入瞄準鏡（放開回海面）、滾輪 / Z 切換
-let lastMouseX = W / 2, lastMouseY = H / 2;
+// 桌面操作：準星直接跟著滑鼠游標（絕對定位，不用按住）、左鍵或空白鍵發射
 window.addEventListener("mousemove", e => {
   if (game.state !== "playing") return;
   const overUI = e.target !== canvas;     // 滑鼠在按鈕等 UI 上時不要移動準星
   if (!overUI) {
-    if (game.scopeMode) moveAim(e.clientX - lastMouseX, e.clientY - lastMouseY);
-    else { game.aimX = clamp(e.clientX, 0, W); game.aimY = clamp(e.clientY, horizonY - H * 0.1, H); }
+    game.aimX = clamp(e.clientX, 0, W);
+    game.aimY = clamp(e.clientY, horizonY - H * 0.1, H);
   }
-  lastMouseX = e.clientX; lastMouseY = e.clientY;
 });
 canvas.addEventListener("mousedown", e => {
   if (e.button === 0) fire();             // 左鍵發射
-  else if (e.button === 2) setScope(true); // 右鍵按住瞄準鏡
 });
-window.addEventListener("mouseup", e => { if (e.button === 2) setScope(false); });
-canvas.addEventListener("contextmenu", e => e.preventDefault());
-canvas.addEventListener("wheel", e => { e.preventDefault(); setScope(e.deltaY > 0); }, { passive: false });
 window.addEventListener("keydown", e => {
   if (e.code === "Escape" || e.code === "KeyP") { e.preventDefault(); togglePause(); }
   if (e.code === "Space") { e.preventDefault(); fire(); }
-  if (e.code === "KeyZ")  { e.preventDefault(); setScope(!game.scopeMode); }
 });
 
 function moveAim(dx, dy) {
-  // 瞄準鏡中移動較細膩（除以倍率）
-  const k = game.scopeMode ? 1 / (SCOPE_ZOOM * 0.55) : 1;
-  game.aimX = clamp(game.aimX + dx * k, 0, W);
-  game.aimY = clamp(game.aimY + dy * k, horizonY - H * 0.1, H);
+  game.aimX = clamp(game.aimX + dx, 0, W);
+  game.aimY = clamp(game.aimY + dy, horizonY - H * 0.1, H);
 }
 
 /* ════════════════ 特效 ════════════════ */
@@ -1821,11 +1717,9 @@ function drawRockets(dt) {
   }
 }
 
-/* ── 火箭筒（海面模式右下角） ── */
+/* ── 火箭筒（右下角） ── */
 function drawLauncher() {
-  if (game.scopeAnim > 0.4) return;
   ctx.save();
-  ctx.globalAlpha = 1 - game.scopeAnim * 2.5;
   const bx = W * 0.78, by = H * 1.02;
   ctx.translate(bx, by);
   ctx.rotate(-0.62);
@@ -1841,84 +1735,20 @@ function drawLauncher() {
   ctx.fillStyle = "#2c3526";
   ctx.fillRect(len * 0.35, -38, 30, 12);   // 準星座
   ctx.restore();
-  ctx.globalAlpha = 1;
 }
 
-/* ── 準星 / 瞄準鏡 ── */
+/* ── 準星 ── */
 function drawCrosshair() {
   const x = game.aimX, y = game.aimY;
   ctx.strokeStyle = "rgba(120,255,140,.9)";
   ctx.lineWidth = 1.5;
-  if (game.scopeAnim < 0.5) {
-    // 海面模式：小準星
-    ctx.beginPath();
-    ctx.arc(x, y, 14, 0, Math.PI * 2);
-    ctx.moveTo(x - 22, y); ctx.lineTo(x - 8, y);
-    ctx.moveTo(x + 8, y);  ctx.lineTo(x + 22, y);
-    ctx.moveTo(x, y - 22); ctx.lineTo(x, y - 8);
-    ctx.moveTo(x, y + 8);  ctx.lineTo(x, y + 22);
-    ctx.stroke();
-  }
-}
-
-function drawScopeOverlay() {
-  const k = game.scopeAnim;
-  if (k <= 0.01) return;
-  const cx = W / 2, cy = H / 2 - H * 0.04;
-  const R = Math.min(W, H) * lerp(0.9, 0.4, k);
-
-  // 黑色暗角
-  ctx.save();
   ctx.beginPath();
-  ctx.rect(0, 0, W, H);
-  ctx.arc(cx, cy, R, 0, Math.PI * 2, true);
-  ctx.fillStyle = `rgba(0,0,0,${0.96 * k})`;
-  ctx.fill();
-  ctx.restore();
-
-  if (k < 0.6) return;
-
-  // 鏡框 + 刻度
-  ctx.strokeStyle = "rgba(40,60,45,.95)";
-  ctx.lineWidth = 10;
-  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
-  ctx.strokeStyle = "rgba(130,255,150,.8)";
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(cx, cy, R - 8, 0, Math.PI * 2); ctx.stroke();
-
-  for (let i = 0; i < 24; i++) {
-    const a = (i / 24) * Math.PI * 2;
-    const r1 = R - 10, r2 = R - (i % 6 === 0 ? 26 : 18);
-    ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
-    ctx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
-    ctx.stroke();
-  }
-
-  // 十字線
-  ctx.strokeStyle = "rgba(120,255,140,.95)";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(cx - R + 14, cy); ctx.lineTo(cx - 24, cy);
-  ctx.moveTo(cx + 24, cy); ctx.lineTo(cx + R - 14, cy);
-  ctx.moveTo(cx, cy - R + 14); ctx.lineTo(cx, cy - 24);
-  ctx.moveTo(cx, cy + 24); ctx.lineTo(cx, cy + R - 14);
+  ctx.arc(x, y, 14, 0, Math.PI * 2);
+  ctx.moveTo(x - 22, y); ctx.lineTo(x - 8, y);
+  ctx.moveTo(x + 8, y);  ctx.lineTo(x + 22, y);
+  ctx.moveTo(x, y - 22); ctx.lineTo(x, y - 8);
+  ctx.moveTo(x, y + 8);  ctx.lineTo(x, y + 22);
   ctx.stroke();
-  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(120,255,140,.95)";
-  ctx.fill();
-  // 測距刻度
-  for (const d of [-60, -30, 30, 60]) {
-    ctx.beginPath();
-    ctx.moveTo(cx + d, cy - 6); ctx.lineTo(cx + d, cy + 6);
-    ctx.moveTo(cx - 6, cy + d); ctx.lineTo(cx + 6, cy + d);
-    ctx.stroke();
-  }
-  // 倍率標示
-  ctx.font = "700 14px monospace";
-  ctx.fillStyle = "rgba(130,255,150,.85)";
-  ctx.textAlign = "center";
-  ctx.fillText(`x${SCOPE_ZOOM}.0`, cx, cy - R + 34);
 }
 
 /* ════════════════ 主迴圈 ════════════════ */
@@ -1928,11 +1758,6 @@ function tick(now) {
   requestAnimationFrame(tick);
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
-
-  // 瞄準鏡開合動畫
-  const targetAnim = game.scopeMode ? 1 : 0;
-  game.scopeAnim += (targetAnim - game.scopeAnim) * Math.min(1, dt * 9);
-  if (Math.abs(game.scopeAnim - targetAnim) < 0.005) game.scopeAnim = targetAnim;
 
   if (game.state === "playing") update(dt);
 
@@ -1999,16 +1824,6 @@ function render(now, dt) {
     ctx.translate(rand(-sh, sh), rand(-sh, sh));
   }
 
-  // ── 場景變換：瞄準鏡放大 ──
-  const k = game.scopeAnim;
-  if (k > 0.01) {
-    const zoom = lerp(1, SCOPE_ZOOM, k);
-    const cx = W / 2, cy = H / 2 - H * 0.04;
-    ctx.translate(cx, cy);
-    ctx.scale(zoom, zoom);
-    ctx.translate(-game.aimX, -game.aimY);
-  }
-
   drawSky(now);
   drawSea(now);
   if (!game.boss) drawMonster(now);   // 海怪畫在船之前（較遠深度）
@@ -2022,7 +1837,7 @@ function render(now, dt) {
 
   ctx.restore();
 
-  // ── 螢幕空間圖層（不受縮放影響） ──
+  // ── 螢幕空間圖層 ──
   ctx.save();
   if (game.shakeT > 0) {
     const sh = game.shakeT * 10;
@@ -2036,15 +1851,11 @@ function render(now, dt) {
   }
   if (game.state === "playing" && game.threatPhase === "aim" && !game.roundEnding) {
     drawThreatWarning(now);
-    if (game.scopeAnim < 0.5) drawThreatTelegraph();
+    drawThreatTelegraph();
   }
-  drawScopeOverlay();
   drawDmgArc(dt);
   ctx.restore();
 }
-
-/* 瞄準鏡模式下，命中判定使用「瞄準點」也就是鏡頭中心對到的場景座標。
-   因為縮放是以 aim 為中心，鏡心 = aimX/aimY，邏輯一致。 */
 
 requestAnimationFrame(tick);
 
