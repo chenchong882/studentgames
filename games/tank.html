@@ -1049,15 +1049,16 @@ function raySphere(ro,rd,c,r){
 }
 function computeAim(){
   let ro,rd;
-  if(IS_TOUCH){                                   // 觸控：方向由滑動累積的 aimYaw/aimPitch 決定，不靠鏡頭
-    const tp=tankG.position;
-    const horiz=Math.cos(aimPitch);
+  if(IS_TOUCH){                                   // 觸控：方位＝車身 yaw＋手指相對角度(aimYaw)；準心放砲管正前方固定距離、不吸附 → 滑動連續平滑不跳格
+    const tp=tankG.position, wy=(tank?tank.yaw:0)+aimYaw, horiz=Math.cos(aimPitch);
     ro=_v3.set(tp.x,tp.y+2.6,tp.z);
-    rd=_v2.set(Math.sin(aimYaw)*horiz,Math.sin(aimPitch),Math.cos(aimYaw)*horiz);
-  }else{                                          // 桌機：維持原本「鏡頭穿過準心」的射線瞄準
-    raycaster.setFromCamera({x:mouse.x/innerWidth*2-1,y:-(mouse.y/innerHeight*2-1)},camera);
-    ro=raycaster.ray.origin;rd=raycaster.ray.direction;
+    rd=_v2.set(Math.sin(wy)*horiz,Math.sin(aimPitch),Math.cos(wy)*horiz);
+    aimPoint.copy(ro).addScaledVector(rd,90);
+    return;
   }
+  // 桌機：維持原本「鏡頭穿過準心」的射線瞄準（含自動吸附輔助）
+  raycaster.setFromCamera({x:mouse.x/innerWidth*2-1,y:-(mouse.y/innerHeight*2-1)},camera);
+  ro=raycaster.ray.origin;rd=raycaster.ray.direction;
   let bestT=Infinity;
   const test=(c,r)=>{const t=raySphere(ro,rd,c,r);if(t>0&&t<bestT)bestT=t;};
   if(round)for(const it of round.items)test(it.pos,2.8); // 字牌可瞄準
@@ -1124,13 +1125,17 @@ function updTank(dt){
     dustPuff(nx-fx*3,tankG.position.y,nz-fz*3,1,1);
   // 砲塔瞄準
   const tp=tankG.position;
-  const wantYaw=Math.atan2(aimPoint.x-tp.x,aimPoint.z-tp.z);
-  let relYaw=wantYaw-tank.yaw;
-  relYaw=Math.atan2(Math.sin(relYaw),Math.cos(relYaw));   // 正規化到 -π~π
-  relYaw=clamp(relYaw,-TURRET_ARC,TURRET_ARC);            // 夾在車頭正面，瞄到背面就停在側邊極限
+  let relYaw,pitch;
+  if(IS_TOUCH){                                            // 觸控：直接用手指累積的相對角度，連續、不經吸附 → 砲管/鏡頭順順轉
+    relYaw=aimYaw;                                         // aimYaw 已是「相對車身」且夾在 ±TURRET_ARC（見 touchmove）
+    pitch=aimPitch;
+  }else{                                                   // 桌機：滑鼠射線命中點換算（保留自動吸附）
+    const wantYaw=Math.atan2(aimPoint.x-tp.x,aimPoint.z-tp.z);
+    relYaw=clamp(Math.atan2(Math.sin(wantYaw-tank.yaw),Math.cos(wantYaw-tank.yaw)),-TURRET_ARC,TURRET_ARC);
+    const dxz=Math.hypot(aimPoint.x-tp.x,aimPoint.z-tp.z);
+    pitch=Math.atan2(aimPoint.y-(tp.y+2.6),dxz);
+  }
   turretG.rotation.y=lerpAng(turretG.rotation.y,relYaw,10*dt);
-  const dxz=Math.hypot(aimPoint.x-tp.x,aimPoint.z-tp.z);
-  const pitch=Math.atan2(aimPoint.y-(tp.y+2.6),dxz);
   barrelG.rotation.x=clamp(-pitch,-0.95,0.12);
   barrelG.position.z=Math.min(0.9,barrelG.position.z+1.6*dt);
   tank.reload=Math.max(0,tank.reload-dt);
@@ -1748,7 +1753,7 @@ addEventListener('touchmove',e=>{
     if(t.identifier===moveId){applyStick(t.clientX,t.clientY);acted=true;}
     else if(t.identifier===aimId){                                     // 相對拖曳轉砲管：開砲鍵微調、空白處大幅
       const gx=aimOnFire?AIM_GX_FINE:AIM_GX_COARSE, gy=aimOnFire?AIM_GY_FINE:AIM_GY_COARSE;
-      aimYaw  += (t.clientX-aimLX)*gx*AIM_YAW_PP;                       // 左右滑 → 砲管/鏡頭一起繞
+      aimYaw=clamp(aimYaw+(t.clientX-aimLX)*gx*AIM_YAW_PP,-TURRET_ARC,TURRET_ARC); // 左右滑→砲管/鏡頭一起繞；夾在車頭±ARC，過界即停不空滑
       aimPitch =clamp(aimPitch-(t.clientY-aimLY)*gy*AIM_PITCH_PP,-0.12,0.95); // 上滑抬砲、下滑壓砲
       aimLX=t.clientX;aimLY=t.clientY;
       acted=true;
