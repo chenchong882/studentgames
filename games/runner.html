@@ -99,6 +99,9 @@
     text-align:center; line-height:1.1; white-space:nowrap;
     box-shadow:0 4px 10px rgba(0,0,0,.35);
   }
+  /* 只在第一道題目門用綠框標亮正解（教學用），其餘門一律不亮 */
+  .gateLabel.correctHint { border-color:#2ecc71; background:#0f5132; animation:hintPulse .7s infinite alternate; }
+  @keyframes hintPulse { from{box-shadow:0 0 0 0 rgba(46,204,113,.8);} to{box-shadow:0 0 0 10px rgba(46,204,113,0);} }
   .obHint {
     position:absolute; display:flex; align-items:center; justify-content:center;
     color:#fff; font-weight:900; font-size:26px; white-space:nowrap;
@@ -153,6 +156,7 @@
     min-width:96px; text-align:center;
   }
   .qopt.sel { border-color:#3a7bd5; background:#e3efff; }
+  .qopt.hint { border-color:#2ecc71; background:#e8ffee; }
 
   /* ===== 回饋 ===== */
   #flash { position:absolute; inset:0; z-index:30; pointer-events:none; opacity:0; }
@@ -801,7 +805,8 @@ function spawnGate(){
     left:  addLabel(o.el, -126, 110, 116, 40, '⬅️ ' + q.opts[2]),
     right: addLabel(o.el,  126, 110, 116, 40, q.opts[3] + ' ➡️'),
   };
-  // 不預先標亮正確答案：玩家要聽單字、自己判斷
+  // 只有第一道題目門標亮正解當教學引導，其餘門全靠聽單字判斷、不透露解答
+  if (gateNum === 0) o.labels[q.answerDir].classList.add('correctHint');
   obstacles.push(o);
   showHud(o);
 }
@@ -829,7 +834,7 @@ function showHud(o){
   DIRS.forEach((d, i) => {
     const el = $(map[d]);
     el.textContent = DIR_ICON[d] + ' ' + o.q.opts[i];
-    el.className = 'qopt';
+    el.className = 'qopt' + (gateNum === 0 && d === o.answerDir ? ' hint' : '');
   });
   $('qhud').classList.remove('hidden', 'urgent');
 }
@@ -883,7 +888,7 @@ function resolveObstacle(o){
   let pass, gateChoice = null;
   if (o.type === 'wall')  pass = isJumping();
   else if (o.type === 'beam')  pass = isSliding();
-  else if (o.type === 'block') pass = (lane === o.openLane) && !isJumping();
+  else if (o.type === 'block') pass = (lane === o.openLane);   // 在空跑道就算過，跳起來也不該撞（上面沒東西）
   else { // gate：優先採計鎖定的答案，沒滑就看當下動作/位置
     gateChoice = o.choice ||
       (isJumping() ? 'up' : isSliding() ? 'down' : lane === 0 ? 'left' : lane === 2 ? 'right' : null);
