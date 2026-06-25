@@ -189,6 +189,7 @@ const rnd=(a=1,b)=>b===undefined?Math.random()*a:a+Math.random()*(b-a);
 const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
 const TURRET_ARC=Math.PI/4;   // 砲管固定朝車頭，只能左右各擺 ±45°（不能整個轉過去）
 const TURRET_SPEED=1.6;       // 砲塔最大轉速(弧度/秒)，限制瞄準速度不讓它瞬間甩到極限
+const AIM_RETICLE_DIST=60;    // 觸控準心放在砲管射擊線上的距離，永遠跟著砲管方向不亂跑
 function lerpAng(a,b,t){let d=(b-a)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU;return a+d*Math.min(1,t);}
 const _v1=new THREE.Vector3(),_v2=new THREE.Vector3(),_v3=new THREE.Vector3();
 
@@ -1049,15 +1050,11 @@ function raySphere(ro,rd,c,r){
   return t>0?t:-1;
 }
 function computeAim(){
+  if(IS_TOUCH)return;                             // 觸控：準心改由砲管實際射擊線決定（見 updTank），不在此做射線吸附 → 不會被飛行物吸走、不會甩上天/消失
+  // 桌機：維持原本「鏡頭穿過準心」的射線瞄準（含自動吸附輔助）
   let ro,rd;
-  if(IS_TOUCH){                                   // 觸控：方位＝車身 yaw＋手指相對角度(aimYaw)；準心仍走射線打到目標/地形，貼在真正會命中的點（砲塔/鏡頭吃 aimYaw 不讀 aimPoint，故吸附不影響平滑）
-    const tp=tankG.position, wy=(tank?tank.yaw:0)+aimYaw, horiz=Math.cos(aimPitch);
-    ro=_v3.set(tp.x,tp.y+2.6,tp.z);
-    rd=_v2.set(Math.sin(wy)*horiz,Math.sin(aimPitch),Math.cos(wy)*horiz);
-  }else{                                          // 桌機：維持原本「鏡頭穿過準心」的射線瞄準
-    raycaster.setFromCamera({x:mouse.x/innerWidth*2-1,y:-(mouse.y/innerHeight*2-1)},camera);
-    ro=raycaster.ray.origin;rd=raycaster.ray.direction;
-  }
+  raycaster.setFromCamera({x:mouse.x/innerWidth*2-1,y:-(mouse.y/innerHeight*2-1)},camera);
+  ro=raycaster.ray.origin;rd=raycaster.ray.direction;
   let bestT=Infinity;
   const test=(c,r)=>{const t=raySphere(ro,rd,c,r);if(t>0&&t<bestT)bestT=t;};
   if(round)for(const it of round.items)test(it.pos,2.8); // 字牌可瞄準
@@ -1139,6 +1136,10 @@ function updTank(dt){
   turretG.rotation.y+=clamp(tStep,-TURRET_SPEED*dt,TURRET_SPEED*dt);     // 再夾住每幀轉速上限
   barrelG.rotation.x=clamp(-pitch,-0.95,0.12);
   barrelG.position.z=Math.min(0.9,barrelG.position.z+1.6*dt);
+  if(IS_TOUCH){                                                          // 觸控準心＝砲管實際射擊線(tipObj，與 fire() 同源)：永遠跟砲管同方向、同開槍位置，不吸附不亂飛
+    tipObj.getWorldPosition(_v1);tipObj.getWorldDirection(_v2);
+    aimPoint.copy(_v1).addScaledVector(_v2,AIM_RETICLE_DIST);
+  }
   tank.reload=Math.max(0,tank.reload-dt);
   tank.muzzle-=dt;tank.shield=Math.max(0,tank.shield-dt);
   shieldMesh.visible=tank.shield>0;
