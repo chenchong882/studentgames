@@ -73,8 +73,9 @@
       <a class="game-card" href="./games/sniper.html" data-href="./games/sniper.html"><h2>狙擊暗殺：單字特務</h2><span>開鏡讀情報，狙殺正確樓層的目標。</span></a>
       <a class="game-card" href="./games/runner.html" data-href="./games/runner.html"><h2>英文跑酷</h2><span>邊跑邊選正確答案閃避障礙。</span></a>
       <a class="game-card" href="./games/battle.html" data-href="./games/battle.html"><h2>英文攻防戰</h2><span>派兵攻防，答對單字才能出兵。</span></a>
+      <a class="game-card" href="https://english-memory-game.pages.dev" target="_blank" rel="noopener"><h2>記憶翻牌</h2><span>翻牌配對單字與圖卡，考驗記憶力。（外部連結）</span></a>
     </section>
-    <p class="note">※ 選「系統內建單字」可在上方<b>勾選練習主題</b>（共 360 字，分 12 主題），選好再點遊戲就會帶入；選「本次段考單字」需由學生頁面開啟才會帶入該單元的單字，此時主題選單會自動隱藏。</p>
+    <p class="note">※ 選「系統內建單字」可在上方<b>勾選練習主題</b>（共 360 字，分 12 主題），選好再點遊戲就會帶入；選「本次段考單字」需由學生頁面開啟才會帶入該單元的單字，此時主題選單會自動隱藏。<br>※「記憶翻牌」是外部連結（另開分頁），用它自己的題庫，不會帶入這裡選的單字。</p>
   </main>
   <script src="./data/wordbank.js"></script>
   <script>
@@ -169,8 +170,9 @@
     // 點遊戲卡：依範圍把單字用 hash 帶進遊戲
     document.querySelectorAll('.game-card').forEach(card => {
       card.addEventListener('click', e => {
-        e.preventDefault();
         const base = card.getAttribute('data-href');
+        if(!base) return; // 外部連結（如記憶翻牌）走原本 href，不攔截、不帶段考單字
+        e.preventDefault();
         let raw = null;
         if(scope === 'lesson' && lesson.raw) raw = lesson.raw;
         else if(scope === 'builtin') raw = builtinRaw();
