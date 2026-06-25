@@ -12,7 +12,9 @@ const IS_IOS = /iP(hone|od|ad)/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 function resizeCanvas() {
-  const dpr = window.devicePixelRatio || 1;
+  // 手機 devicePixelRatio 常是 3，canvas 實際像素 = 螢幕 ×3，漸層/陰影很吃效能、
+  // 幀率掉一半。上限壓到 2 倍：畫面幾乎看不出差別，但手機效能省一大截。
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const rect = canvas.getBoundingClientRect();
   W = Math.max(1, Math.round(rect.width || window.innerWidth));
   H = Math.max(1, Math.round(rect.height || window.innerHeight));
@@ -25,7 +27,7 @@ function resizeCanvas() {
 
   const controlY = Math.min(H * 0.80, H - Math.max(78, H * 0.14));
   if (joystick)    { joystick.baseX = W * 0.14; joystick.baseY = controlY; joystick.r = clamp(Math.min(W, H) * 0.105, 54, 84); joystick.reset(); }
-  if (bombButton)  { bombButton.cx  = W * 0.86; bombButton.cy  = controlY; bombButton.r = clamp(Math.min(W, H) * 0.098, 52, 80); }
+  if (bombButton)  { bombButton.cx  = W * 0.88; bombButton.cy  = controlY; bombButton.r = clamp(Math.min(W, H) * 0.078, 42, 62); }
 }
 window.addEventListener('resize', () => {
   resizeCanvas();
@@ -195,20 +197,38 @@ function chunkWords(words, size) {
   return chunks;
 }
 
+function shuffleWords(words) {
+  const a = [...words];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// 課程題庫（lessonData）才隨機；打散整池再切關，所以每次開新局第一關出現的
+// 單字都不一樣，不會永遠是題庫前 5 個。
+let bombWordPool = null;
+function buildLessonLevels() {
+  LEVELS = chunkWords(shuffleWords(bombWordPool), 5).map((chunk, index) => ({
+    id: index + 1,
+    themeEN: bombLessonTitle,
+    themeZH: `💣 ${bombLessonTitle} ${index + 1}`,
+    ...LESSON_LEVEL_COLORS[index % LESSON_LEVEL_COLORS.length],
+    words: chunk,
+  }));
+}
+
 function applyBombData(payload) {
   const words = normalizeBombWords(payload?.words);
   if (words.length === 0) {
+    bombWordPool = null;
     LEVELS = DEFAULT_LEVELS.map(level => ({ ...level, words: [...level.words] }));
     bombLessonTitle = '示範題庫';
   } else {
     bombLessonTitle = payload?.unitTitle || payload?.title || '目前課程';
-    LEVELS = chunkWords(words, 5).map((chunk, index) => ({
-      id: index + 1,
-      themeEN: bombLessonTitle,
-      themeZH: `💣 ${bombLessonTitle} ${index + 1}`,
-      ...LESSON_LEVEL_COLORS[index % LESSON_LEVEL_COLORS.length],
-      words: chunk,
-    }));
+    bombWordPool = words;
+    buildLessonLevels();
   }
 
   if (typeof game !== 'undefined') {
@@ -1439,8 +1459,8 @@ function drawHUD(c, game) {
   c.fillText(lv ? lv.themeZH : '🏆 Complete!', W/2, 34);
 
   // ── CENTER: thin progress bar ──
-  const total = lv ? lv.words.length : 5;
-  const done  = total - game.wordsLeft.length;
+  const total = game.clearGoal || (lv ? lv.words.length : 5);
+  const done  = Math.min(game.solvedCount, total);
   const barW=W*0.26, barH=5, barX=W/2-barW/2, barY=44;
   c.fillStyle='rgba(255,255,255,0.20)'; roundRect(c,barX,barY,barW,barH,3); c.fill();
   if (done>0) {
@@ -1612,6 +1632,8 @@ class Game {
     this._timerInterval = null;
     this.targetWord  = '';
     this.wordsLeft   = [];
+    this.solvedCount = 0;  // correct houses destroyed this level
+    this.clearGoal   = 5;  // destroy this many to clear (set per level)
     this.wrongAtt    = 0;  // wrong attempts this target
     this.levelClearT = 0;  // countdown before moving to next level
     this.planeRespawnT = 0;
@@ -1632,6 +1654,7 @@ class Game {
 
   // ── Start ──────────────────────────────
   start(difficulty) {
+    if (bombWordPool) buildLessonLevels();   // 每次開新局重洗，關卡單字組合都不同
     this.difficulty = difficulty;
     this.lvIdx     = 0;
     this.lives     = CFG.LIVES;
@@ -1676,6 +1699,9 @@ class Game {
     const lv = LEVELS[this.lvIdx];
     if (!lv) { this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); return; }
     this.wordsLeft = [...lv.words];
+    this.solvedCount = 0;
+    // 留最後兩間不打：5 間打掉 3 間就通關，避免剩兩間時答案太好猜。
+    this.clearGoal = Math.max(1, lv.words.length - 2);
     this.bombs = []; this.missiles = []; this.shells = []; this.exps = []; this.floats = [];
     this.turretFireT = Math.floor(lerp(CFG.TURRET_FIRE_MIN, CFG.TURRET_FIRE_MAX, Math.random())) + 90;
     this.wrongAtt  = 0;
@@ -1747,6 +1773,20 @@ class Game {
     this.levelClearT = 150; // ~2.5s at 60fps
   }
 
+  // ── Plane crash (ground or house): explode, lose a life, respawn ──
+  _crashPlane() {
+    this.exps.push(new Explosion(this.plane.x, this.plane.y, true));
+    Audio.explosion();
+    this._float(this.plane.x, this.plane.y - 42, 'CRASH!', '#FF3300', 24);
+    this._loseLife();
+    if (this.phase === 'playing') {
+      this.plane.hidden = true;
+      this.plane.trail = [];
+      this.planeRespawnT = 45;
+      joystick.reset();
+    }
+  }
+
   // ── Lose Life ──────────────────────────
   _loseLife() {
     this.lives = Math.max(0, this.lives - 1);
@@ -1781,15 +1821,17 @@ class Game {
     } else {
       planeEvent = this.plane.update(getControl());
       if (planeEvent === 'ground') {
-        this.exps.push(new Explosion(this.plane.x, this.plane.y, true));
-        Audio.explosion();
-        this._float(this.plane.x, this.plane.y - 42, 'CRASH!', '#FF3300', 24);
-        this._loseLife();
-        if (this.phase === 'playing') {
-          this.plane.hidden = true;
-          this.plane.trail = [];
-          this.planeRespawnT = 45;
-          joystick.reset();
+        this._crashPlane();
+      } else if (this.plane.invincible === 0) {
+        // 撞到還沒被炸掉的房子 → 爆炸墜機（和撞地面一樣）
+        const pb = this.plane.getBounds();
+        for (const h of this.houses) {
+          if (h.destroyed) continue;
+          if (pb.x < h.x + h.width/2 && pb.x + pb.w > h.x - h.width/2 &&
+              pb.y + pb.h > h.y && pb.y < h.groundY) {
+            this._crashPlane();
+            break;
+          }
         }
       }
     }
@@ -1824,7 +1866,12 @@ class Game {
           this._float(h.x, h.y - 30, `✅ +${pts}`, '#FFD700', 24);
           Audio.success();
           this.wordsLeft = this.wordsLeft.filter(w => w !== h.word);
-          setTimeout(() => { if (this.phase==='playing') this._nextTarget(); }, 900);
+          this.solvedCount++;
+          if (this.solvedCount >= this.clearGoal) {
+            setTimeout(() => { if (this.phase==='playing') this._levelClear(); }, 900);
+          } else {
+            setTimeout(() => { if (this.phase==='playing') this._nextTarget(); }, 900);
+          }
         } else {
           // ❌ WRONG
           h.shaking = 2.5; h.wrongFlash = 40; h.wrongBubble = 60;
@@ -2210,8 +2257,20 @@ const _speechOverlay = (() => {
 // ══════════════════════════════════════════
 //  MAIN LOOP
 // ══════════════════════════════════════════
-function loop() {
-  game.update();
+// 固定步長累加器：邏輯恆定跑 60 次/秒，不管畫面幾 fps。
+// 手機掉幀時一幀補跑多步，120Hz 平板則隔幀才更新——三邊速度因此一致。
+const _STEP = 1000 / 60;
+let _lastT = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+let _acc = 0;
+function loop(now) {
+  if (now === undefined) now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  let dt = now - _lastT;
+  _lastT = now;
+  if (dt > 250) dt = 250;          // 切分頁回來/卡頓時夾住，避免一次補太多步
+  _acc += dt;
+  let steps = 0;
+  while (_acc >= _STEP && steps < 5) { game.update(); _acc -= _STEP; steps++; }
+  if (steps === 5) _acc = 0;       // 補不完就放棄積欠，別陷入死亡螺旋
   game.draw(ctx);
   _speechOverlay();
   requestAnimationFrame(loop);
