@@ -187,6 +187,7 @@
 const TAU=Math.PI*2;
 const rnd=(a=1,b)=>b===undefined?Math.random()*a:a+Math.random()*(b-a);
 const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const TURRET_ARC=Math.PI/4;   // 砲管固定朝車頭，只能左右各擺 ±45°（不能整個轉過去）
 function lerpAng(a,b,t){let d=(b-a)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU;return a+d*Math.min(1,t);}
 const _v1=new THREE.Vector3(),_v2=new THREE.Vector3(),_v3=new THREE.Vector3();
 
@@ -1124,7 +1125,10 @@ function updTank(dt){
   // 砲塔瞄準
   const tp=tankG.position;
   const wantYaw=Math.atan2(aimPoint.x-tp.x,aimPoint.z-tp.z);
-  turretG.rotation.y=lerpAng(turretG.rotation.y,wantYaw-tank.yaw,10*dt);
+  let relYaw=wantYaw-tank.yaw;
+  relYaw=Math.atan2(Math.sin(relYaw),Math.cos(relYaw));   // 正規化到 -π~π
+  relYaw=clamp(relYaw,-TURRET_ARC,TURRET_ARC);            // 夾在車頭正面，瞄到背面就停在側邊極限
+  turretG.rotation.y=lerpAng(turretG.rotation.y,relYaw,10*dt);
   const dxz=Math.hypot(aimPoint.x-tp.x,aimPoint.z-tp.z);
   const pitch=Math.atan2(aimPoint.y-(tp.y+2.6),dxz);
   barrelG.rotation.x=clamp(-pitch,-0.95,0.12);
