@@ -61,6 +61,10 @@
         <span id="scope-lesson-info" class="scope-info"></span>
       </div>
     </section>
+    <section class="scope" id="theme-section" style="display:none">
+      <div class="scope-title">📚 選擇練習主題（可複選，不選＝全部 360 字）：</div>
+      <div class="scope-opts" id="theme-chips"></div>
+    </section>
     <section class="grid">
       <a class="game-card" href="./games/miner.html" data-href="./games/miner.html"><h2>單字挖金礦</h2><span>聽發音，抓正確金塊。</span></a>
       <a class="game-card" href="./games/bomb.html" data-href="./games/bomb.html"><h2>炸彈英文</h2><span>駕駛飛機，炸掉目標單字。</span></a>
@@ -70,8 +74,9 @@
       <a class="game-card" href="./games/runner.html" data-href="./games/runner.html"><h2>英文跑酷</h2><span>邊跑邊選正確答案閃避障礙。</span></a>
       <a class="game-card" href="./games/battle.html" data-href="./games/battle.html"><h2>英文攻防戰</h2><span>派兵攻防，答對單字才能出兵。</span></a>
     </section>
-    <p class="note">※ 選「系統內建單字」會用內建示範題庫；選「本次段考單字」需由學生頁面開啟才會帶入該單元的單字。</p>
+    <p class="note">※ 選「系統內建單字」可在上方<b>勾選練習主題</b>（共 360 字，分 12 主題），選好再點遊戲就會帶入；選「本次段考單字」需由學生頁面開啟才會帶入該單元的單字，此時主題選單會自動隱藏。</p>
   </main>
+  <script src="./data/wordbank.js"></script>
   <script>
   (function(){
     // 從網址 hash 讀學生頁帶進來的段考單字
@@ -102,9 +107,46 @@
     if(!hasLesson) scope = 'builtin';
     else if(scope !== 'builtin') scope = 'lesson';
 
+    // ── 主題選擇（系統內建單字時用，資料來自 data/wordbank.js）──
+    const themeSection = document.getElementById('theme-section');
+    const themeChips = document.getElementById('theme-chips');
+    let selectedThemes = [];
+    try { selectedThemes = JSON.parse(sessionStorage.getItem('sg_themes') || '[]'); } catch(e){ selectedThemes = []; }
+    if(!Array.isArray(selectedThemes)) selectedThemes = [];
+
+    function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+    function paintChips(){
+      themeChips.querySelectorAll('.scope-btn').forEach(c=>{
+        const on = selectedThemes.length === 0 || selectedThemes.indexOf(c.dataset.id) >= 0;
+        c.classList.toggle('active', on);
+      });
+    }
+    function buildChips(){
+      if(!window.WORD_BANK){ return; }
+      window.WORD_BANK.themes().forEach(t=>{
+        const c = document.createElement('div');
+        c.className = 'scope-btn'; c.dataset.id = t.id; c.setAttribute('role','button'); c.tabIndex = 0;
+        c.textContent = t.name + '（' + t.count + '）';
+        const toggle = ()=>{
+          const i = selectedThemes.indexOf(t.id);
+          if(i >= 0) selectedThemes.splice(i,1); else selectedThemes.push(t.id);
+          sessionStorage.setItem('sg_themes', JSON.stringify(selectedThemes));
+          paintChips();
+        };
+        c.addEventListener('click', toggle);
+        c.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
+        themeChips.appendChild(c);
+      });
+      paintChips();
+    }
+    buildChips();
+
     function render(){
       lessonBtn.classList.toggle('active', scope === 'lesson');
       builtinBtn.classList.toggle('active', scope === 'builtin');
+      // 段考單字時隱藏主題選單；系統內建單字時才顯示
+      themeSection.style.display = (scope === 'builtin' && window.WORD_BANK) ? '' : 'none';
     }
     function setScope(s){
       if(s === 'lesson' && !hasLesson) return;
@@ -116,14 +158,23 @@
     builtinBtn.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); setScope('builtin'); } });
     render();
 
-    // 點遊戲卡：依選擇決定是否把段考單字用 hash 帶進遊戲
+    // 系統內建單字：依選定主題抽字，打包成與段考單字相同的 lessonData 格式
+    function builtinRaw(){
+      const all = window.WORD_BANK ? window.WORD_BANK.getWords(selectedThemes) : [];
+      if(!all.length) return null;
+      const words = shuffle(all).slice(0, 80).map(w => ({ word:w.word, chinese:w.chinese, emoji:w.emoji, example:w.example }));
+      return JSON.stringify({ unitTitle:'自選主題', builtin:true, words });
+    }
+
+    // 點遊戲卡：依範圍把單字用 hash 帶進遊戲
     document.querySelectorAll('.game-card').forEach(card => {
       card.addEventListener('click', e => {
         e.preventDefault();
         const base = card.getAttribute('data-href');
-        const url = (scope === 'lesson' && lesson.raw)
-          ? base + '#lessonData=' + encodeURIComponent(lesson.raw)
-          : base;
+        let raw = null;
+        if(scope === 'lesson' && lesson.raw) raw = lesson.raw;
+        else if(scope === 'builtin') raw = builtinRaw();
+        const url = raw ? base + '#lessonData=' + encodeURIComponent(raw) : base;
         location.href = url;
       });
     });
