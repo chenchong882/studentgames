@@ -445,7 +445,7 @@ function dustPuff(x,y,z,n,spread){
 }
 
 /* ============ 坦克 ============ */
-let tankG,turretG,barrelG,tipObj,shieldMesh,tank;
+let tankG,turretG,barrelG,tipObj,reticleObj,shieldMesh,tank;
 function lamb(c){return new THREE.MeshLambertMaterial({color:c});}
 function addBox(parent,w,h,d,c,x,y,z){
   const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),lamb(c));
@@ -466,6 +466,7 @@ function buildTank(){
   const mGeo=new THREE.CylinderGeometry(0.2,0.2,0.5,8);mGeo.rotateX(Math.PI/2);
   const muzzle=new THREE.Mesh(mGeo,lamb(0x2e3a24));muzzle.position.set(0,0,4.2);barrelG.add(muzzle);
   tipObj=new THREE.Object3D();tipObj.position.set(0,0,4.5);barrelG.add(tipObj);
+  reticleObj=new THREE.Object3D();reticleObj.position.set(0,0,AIM_RETICLE_DIST);tipObj.add(reticleObj); // 準心錨點：砲口射擊線上的子物件，世界座標純由砲管姿態決定 → 永遠跟砲口一致、不可能飛走
   shieldMesh=new THREE.Mesh(new THREE.SphereGeometry(5.2,18,12),
     new THREE.MeshBasicMaterial({color:0x66ddff,transparent:true,opacity:0.14,depthWrite:false}));
   shieldMesh.position.y=2;shieldMesh.visible=false;tankG.add(shieldMesh);
@@ -1136,10 +1137,6 @@ function updTank(dt){
   turretG.rotation.y+=clamp(tStep,-TURRET_SPEED*dt,TURRET_SPEED*dt);     // 再夾住每幀轉速上限
   barrelG.rotation.x=clamp(-pitch,-0.95,0.12);
   barrelG.position.z=Math.min(0.9,barrelG.position.z+1.6*dt);
-  if(IS_TOUCH){                                                          // 觸控準心＝砲管實際射擊線(tipObj，與 fire() 同源)：永遠跟砲管同方向、同開槍位置，不吸附不亂飛
-    tipObj.getWorldPosition(_v1);tipObj.getWorldDirection(_v2);
-    aimPoint.copy(_v1).addScaledVector(_v2,AIM_RETICLE_DIST);
-  }
   tank.reload=Math.max(0,tank.reload-dt);
   tank.muzzle-=dt;tank.shield=Math.max(0,tank.shield-dt);
   shieldMesh.visible=tank.shield>0;
@@ -1517,8 +1514,8 @@ function updHUD(){
   if(effects.rapid>0)fx+='🔥 連發砲 '+Math.ceil(effects.rapid)+'s<br>';
   elFx.innerHTML=fx;
   let crx=mouse.x,cry=mouse.y;
-  if(IS_TOUCH){                                  // 觸控：準心畫在砲管實際瞄準點，反映方位與俯仰
-    const v=_v1.copy(aimPoint).project(camera);
+  if(reticleObj){                                // 準心一律畫在砲口子物件(reticleObj)的投影位置：與砲口同一物件，永遠一致、不會飛走（平板＋桌機）
+    const v=reticleObj.getWorldPosition(_v1).project(camera);
     crx=(v.x*0.5+0.5)*innerWidth;cry=(-v.y*0.5+0.5)*innerHeight;
   }
   elCross.style.left=crx+'px';elCross.style.top=cry+'px';
