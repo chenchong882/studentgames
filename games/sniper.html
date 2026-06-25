@@ -136,6 +136,11 @@
     <div class="row tablet">📲 <b>平板</b>：左手 <b>🔭 開鏡</b>、右手 <b>🔫 開火</b>，單指<b>拖曳</b>瞄準（雙指捏合也可開/收鏡）</div>
     <div class="row desktop">💻 <b>電腦</b>：<b>移動滑鼠</b>瞄準，<kbd>右鍵</kbd>按住或 <kbd>Z</kbd> 開鏡，<kbd>左鍵</kbd>或<kbd>空白</kbd>開火，滾輪切換</div>
   </div>
+  <div id="theme-pick" style="margin-top:16px;width:min(640px,92vw)">
+    <div style="color:#fbbf24;font-size:14px;font-weight:700;margin-bottom:8px">📚 選擇練習主題（可複選，不選＝全部）</div>
+    <div id="theme-chips" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center"></div>
+    <p style="font-size:12px;color:#94a3b8;margin-top:8px">由學生頁面開啟、帶入段考單字時，會自動改用段考單字。</p>
+  </div>
   <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:18px">
     <button class="btn" id="start-easy">🎯 簡單模式</button>
     <button class="btn" id="start-hard" style="background:#f87171;color:#fff">💀 困難模式</button>
@@ -171,6 +176,7 @@
   <button class="btn" id="restart-btn">再來一次</button>
 </div>
 
+<script src="../data/wordbank.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -227,10 +233,16 @@ function normalizeWords(arr){
   });
   return out;
 }
+let selectedThemes = []; // 空陣列＝全部主題
 function buildWordBank(){
   const lesson = readLesson();
   const lessonWords = lesson ? normalizeWords(lesson.words) : [];
   if(lessonWords.length >= 5) return { bank: lessonWords, source:'lesson' };
+  // 共用題庫（data/wordbank.js）：依學生選的主題取字
+  if(window.WORD_BANK){
+    const picked = normalizeWords(window.WORD_BANK.getWords(selectedThemes));
+    if(picked.length >= 5) return { bank: shuffle(picked), source:'builtin' };
+  }
   return { bank: BUILTIN.slice(), source:'builtin' };
 }
 
@@ -1547,6 +1559,37 @@ function renderShop(){
     box.appendChild(b);
   });
 }
+
+/* ---------- 主題選擇 chips（共用題庫 data/wordbank.js）---------- */
+(function initThemeChips(){
+  const box = document.getElementById('theme-chips');
+  const wrap = document.getElementById('theme-pick');
+  // 學生帶段考單字進來時，藏掉主題選擇（反正會用段考單字）
+  if(readLesson() && normalizeWords(readLesson().words||[]).length >= 5){ if(wrap) wrap.style.display='none'; return; }
+  if(!box || !window.WORD_BANK){ if(wrap) wrap.style.display='none'; return; }
+  const themes = window.WORD_BANK.themes();
+  function paint(){
+    box.querySelectorAll('.tchip').forEach(c=>{
+      const on = selectedThemes.length===0 || selectedThemes.indexOf(c.dataset.id)>=0;
+      c.style.background = on ? '#fbbf24' : 'rgba(255,255,255,0.08)';
+      c.style.color = on ? '#1a1d24' : '#cbd5e1';
+      c.style.fontWeight = on ? '700' : '500';
+    });
+  }
+  themes.forEach(t=>{
+    const c = document.createElement('button');
+    c.className = 'tchip'; c.dataset.id = t.id;
+    c.textContent = t.name + '（' + t.count + '）';
+    c.style.cssText = 'border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:7px 14px;font-size:13px;cursor:pointer';
+    c.addEventListener('click', ()=>{
+      const i = selectedThemes.indexOf(t.id);
+      if(i>=0) selectedThemes.splice(i,1); else selectedThemes.push(t.id);
+      paint();
+    });
+    box.appendChild(c);
+  });
+  paint();
+})();
 
 document.getElementById('start-easy').addEventListener('click', ()=> startGame('easy'));
 document.getElementById('start-hard').addEventListener('click', ()=> startGame('hard'));
