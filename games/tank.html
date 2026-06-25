@@ -1106,8 +1106,8 @@ function updTank(dt){
       tank.boost=Math.max(0,tank.boost-dt/0.9);              // 放開漸退（短暫鬆手/轉向不會瞬間掉速）
     }
     let turn=0;
-    if(keys['KeyA']||keys['ArrowLeft'])turn=1;
-    if(keys['KeyD']||keys['ArrowRight'])turn=-1;
+    if(keys['KeyA']||keys['ArrowLeft'])turn=-1;
+    if(keys['KeyD']||keys['ArrowRight'])turn=1;
     tank.yaw+=turn*1.7*dt*(sp<0?-1:1);
   }
   tank.speed=sp;
