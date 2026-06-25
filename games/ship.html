@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>海岸狙擊手 Shore Hunter</title>
+<title>海岸防線 Coast Defense</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -58,6 +58,14 @@
   #sky-chips .bigchip.special {
     border-color: rgba(195,155,255,.9);
     background: rgba(96,64,156,.55);
+  }
+  #sky-chips .bigchip.sentence {
+    font-size: clamp(15px, 3.1vw, 22px);
+    font-weight: 700;
+    max-width: min(680px, 92vw);
+    line-height: 1.5;
+    border-color: rgba(120,210,255,.8);
+    background: rgba(16,46,72,.66);
   }
   @keyframes floatY { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } }
   @keyframes driftX { 0%,100% { letter-spacing: .12em } 50% { letter-spacing: .2em } }
@@ -246,11 +254,12 @@
   </div>
 
   <div id="start-screen" class="overlay">
-    <h1>🌊 海岸狙擊手</h1>
-    <div class="sub">Shore Hunter ─ 英文單字 3D 狙擊遊戲</div>
+    <h1>🌊 海岸防線</h1>
+    <div class="sub">Coast Defense ─ 英文單字 3D 海防遊戲</div>
     <div class="rules">
       🖱️ 海面<b>準星跟著滑鼠</b>、<b>左鍵發射</b>；<b>右鍵按住</b>（或 Z／滾輪）開瞄準鏡<br>
       🚀 擊沉<b>符合天空所有條件</b>的船，<b>越遠分數越高</b>；連續命中累積<b>連擊倍率（最高 ×3）</b><br>
+      📖 天空題目會輪流出兩種：<b>意思題</b>（給中文找對應單字）與 <b>句子題</b>（讀挖空句子 ＿＿＿，找填得進去的單字）<br>
       🏁 每關需擊沉 <b>2 艘</b>目標才過關；失敗不前進、會扣命<br>
       💥 <b>困難模式</b>：船開來約 10 秒後會<b>反擊</b>，沒先打掉就扣命！<br>
       🦑 海怪約每 45 秒現身：<b>連打 5 下才打得死</b>，打死換隨機大獎（三連發／加時／加分…）；<b>沒打死它會襲擊你</b><br>
@@ -300,14 +309,14 @@
 
 /* ════════════════ 題庫與設定 ════════════════ */
 let wordBank = [
-  { word: "ATTACK",  meaning: "攻擊",   pos: "動詞" },
-  { word: "BRAVE",   meaning: "勇敢的", pos: "形容詞" },
-  { word: "CAPTAIN", meaning: "船長",   pos: "名詞" },
-  { word: "DANGER",  meaning: "危險",   pos: "名詞" },
-  { word: "ESCAPE",  meaning: "逃脫",   pos: "動詞" },
-  { word: "FIERCE",  meaning: "兇猛的", pos: "形容詞" },
-  { word: "GUARD",   meaning: "守衛",   pos: "動詞/名詞" },
-  { word: "HIDDEN",  meaning: "隱藏的", pos: "形容詞" },
+  { word: "ATTACK",  meaning: "攻擊",   pos: "動詞",    example: "The soldiers {W} the enemy base at night." },
+  { word: "BRAVE",   meaning: "勇敢的", pos: "形容詞",  example: "The {W} sailor jumped into the stormy sea." },
+  { word: "CAPTAIN", meaning: "船長",   pos: "名詞",    example: "The {W} steers the ship through the storm." },
+  { word: "DANGER",  meaning: "危險",   pos: "名詞",    example: "A red flag warns us of {W} ahead." },
+  { word: "ESCAPE",  meaning: "逃脫",   pos: "動詞",    example: "The prisoners tried to {W} from the island." },
+  { word: "FIERCE",  meaning: "兇猛的", pos: "形容詞",  example: "A {W} tiger guarded the hidden cave." },
+  { word: "GUARD",   meaning: "守衛",   pos: "動詞/名詞", example: "Two soldiers {W} the castle gate all night." },
+  { word: "HIDDEN",  meaning: "隱藏的", pos: "形容詞",  example: "They found a {W} door behind the bookshelf." },
 ];
 
 const shipColors = [
@@ -429,8 +438,10 @@ function renderSkyChips(title, chips, special) {
   box.innerHTML = "";
   chips.forEach(c => {
     const el = document.createElement("span");
-    el.className = special ? "bigchip special" : "bigchip";
-    el.textContent = c;
+    const text = (c && typeof c === "object") ? c.text : c;
+    const cls = (c && typeof c === "object" && c.cls) ? c.cls : (special ? "special" : "");
+    el.className = ("bigchip " + cls).trim();
+    el.textContent = text;
     box.appendChild(el);
   });
 }
@@ -555,6 +566,8 @@ function newRound() {
     size:  pick(sizes),
   };
   game.target = target;
+  // 題型：有例句時 50% 出「句子題」（挖空，像狙擊），否則「意思題（單字）」
+  game.qType = (target.word.example && Math.random() < 0.5) ? "sentence" : "word";
 
   const count = clamp(2 + lv, 3, 5);
   const otherWords = wordBank.filter(w => w.word !== target.word.word);
@@ -663,11 +676,19 @@ function makeShip(attrs, idx, count, isTarget) {
 function updateQuestionUI() {
   const t = game.target;
   if (game.difficulty === "special") { updateQuestionUISpecial(t); return; }
-  const chips = [`📖 意思：${t.word.meaning}`];
+  let title, chips;
+  if (game.qType === "sentence" && t.word.example) {
+    const cloze = t.word.example.replace("{W}", "＿＿＿");
+    title = `讀句子，擊沉填入空格的正確單字（${t.word.pos}）`;
+    chips = [{ text: `📝 ${cloze}`, cls: "sentence" }];
+  } else {
+    title = `擊沉符合條件的船（${t.word.pos}）`;
+    chips = [`📖 意思：${t.word.meaning}`];
+  }
   if (game.conditions.includes("color")) chips.push(`${t.color.icon} 顏色：${t.color.name}`);
   if (game.conditions.includes("flag"))  chips.push(`🚩 旗幟：${t.flag.emoji} ${t.flag.name}`);
   if (game.conditions.includes("size"))  chips.push(`📏 大小：${t.size.name}`);
-  renderSkyChips(`擊沉符合條件的船（${t.word.pos}）`, chips, false);
+  renderSkyChips(title, chips, false);
   $("conditions").innerHTML = "";   // 重點已移到上方，底部不再重複
 }
 
@@ -2035,9 +2056,10 @@ function normalizeShipWords(words){
     const word=String((w&&(w.word||w.en))||'').trim();
     const meaning=String((w&&(w.chinese||w.meaning||w.zh))||'').trim();
     const pos=String((w&&(w.part_of_speech||w.pos))||'').trim();
+    const example=String((w&&(w.example||w.sentence))||'').trim();
     if(!word||!meaning) return;
     const k=word.toLowerCase(); if(seen.has(k)) return; seen.add(k);
-    out.push({ word: word.toUpperCase(), meaning, pos: pos||"單字" });
+    out.push({ word: word.toUpperCase(), meaning, pos: pos||"單字", example });
   });
   return out;
 }
