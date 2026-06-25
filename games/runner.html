@@ -157,6 +157,8 @@
   }
   .qopt.sel { border-color:#3a7bd5; background:#e3efff; }
   .qopt.hint { border-color:#2ecc71; background:#e8ffee; }
+  .qopt.bigopt { font-size:30px; min-width:62px; padding:2px 12px; line-height:1.15; }
+  .gemoji { font-size:30px; line-height:1; }
 
   /* ===== 回饋 ===== */
   #flash { position:absolute; inset:0; z-index:30; pointer-events:none; opacity:0; }
@@ -210,6 +212,14 @@
     background:rgba(255,255,255,.12); border-radius:16px; padding:13px 18px;
     font-size:14px; line-height:1.95; text-align:left; margin-bottom:20px;
   }
+  .typePanel {
+    background:rgba(255,255,255,.14); border-radius:16px;
+    padding:12px 18px; margin-bottom:18px; max-width:320px; width:88%;
+  }
+  .typePanel.hidden { display:none; }
+  .tpTitle { font-size:15px; font-weight:800; margin-bottom:8px; text-align:center; }
+  .tpItem { display:flex; align-items:center; gap:9px; font-size:14.5px; padding:6px 2px; cursor:pointer; }
+  .tpItem input { width:19px; height:19px; flex:none; accent-color:#ff8c1a; }
   .bigbtn {
     font-family:inherit; font-size:21px; font-weight:800; color:#fff;
     background:linear-gradient(#ffb347,#ff8c1a); border:none; border-radius:50px;
@@ -284,6 +294,10 @@
       　 聽單字、想答案，門靠近時滑向正確方向！<br>
       　 想選 ⬆️上跳／⬇️下滑，要先回中間跑道才算數<br>
       ❤️ 三條命，撞到障礙或答錯扣一命
+    </div>
+    <div id="typePanel" class="typePanel hidden">
+      <div class="tpTitle">📋 這次要出現哪些題型？</div>
+      <div id="typeList"></div>
     </div>
     <button class="bigbtn" id="startBtn">開始遊戲</button>
   </div>
@@ -737,11 +751,11 @@ function drawQuestion(){
   if (!decks[diff] || decks[diff].length === 0) decks[diff] = shuffle(BANK[diff].slice());
   const raw = decks[diff].pop();
   const correctText = raw.opts[raw.a];
-  // 要反覆唸的英文單字：題庫有標 say 就用，否則正解本身是英文時拿來唸
-  const say = raw.say || (/^[A-Za-z][A-Za-z .'\-]*$/.test(correctText) ? correctText : '');
+  // 要反覆唸的英文單字：題庫明確標 say 就照用（看圖選字標 '' = 靜音），否則正解是英文時拿來唸
+  const say = ('say' in raw) ? raw.say : (/^[A-Za-z][A-Za-z .'\-]*$/.test(correctText) ? correctText : '');
   const order = shuffle([0,1,2,3]);
   const opts = order.map(i => raw.opts[i]);   // opts[0..3] 對應 上/下/左/右
-  return { q: raw.q, opts, answerDir: DIRS[order.indexOf(raw.a)], say };
+  return { q: raw.q, opts, answerDir: DIRS[order.indexOf(raw.a)], say, bigOpts: !!raw.bigOpts };
 }
 function thinkBuffer(){ const n = gateNum + 1; return n <= 5 ? 1500 : n <= 10 ? 1050 : 700; }
 
@@ -799,16 +813,17 @@ function spawnGate(){
   // 中央：滑鏟橫樑（下答案）＋上方看板（上答案）
   const hz = 'repeating-linear-gradient(45deg, #ff8c1a 0 14px, #ffd23f 14px 28px)';
   addCube(o.el, 0, 52, 122, 22, 16, '#ff8c1a', { near:hz, far:hz });
+  const gl = (i, pre, post) => q.bigOpts ? '<span class="gemoji">' + q.opts[i] + '</span>' : (pre + q.opts[i] + post);
   o.labels = {
-    up:    addLabel(o.el, 0,    132, 118, 40, '⬆️ ' + q.opts[0]),
-    down:  addLabel(o.el, 0,     80, 118, 40, '⬇️ ' + q.opts[1]),
-    left:  addLabel(o.el, -126, 110, 116, 40, '⬅️ ' + q.opts[2]),
-    right: addLabel(o.el,  126, 110, 116, 40, q.opts[3] + ' ➡️'),
+    up:    addLabel(o.el, 0,    132, 118, 40, gl(0, '⬆️ ', '')),
+    down:  addLabel(o.el, 0,     80, 118, 40, gl(1, '⬇️ ', '')),
+    left:  addLabel(o.el, -126, 110, 116, 40, gl(2, '⬅️ ', '')),
+    right: addLabel(o.el,  126, 110, 116, 40, gl(3, '', ' ➡️')),
   };
   // 只有第一道題目門標亮正解當教學引導，其餘門全靠聽單字判斷、不透露解答
   if (gateNum === 0) o.labels[q.answerDir].classList.add('correctHint');
   obstacles.push(o);
-  showHud(o);
+  refreshHud();
 }
 
 function spawnNext(){
@@ -831,11 +846,13 @@ function showHud(o){
   hudGate = o;
   $('qtext').innerHTML = o.q.q;
   const map = { up:'qUp', down:'qDown', left:'qLeft', right:'qRight' };
+  const big = !!o.q.bigOpts;
   DIRS.forEach((d, i) => {
     const el = $(map[d]);
-    el.textContent = DIR_ICON[d] + ' ' + o.q.opts[i];
-    el.className = 'qopt' + (gateNum === 0 && d === o.answerDir ? ' hint' : '');
+    el.textContent = big ? o.q.opts[i] : (DIR_ICON[d] + ' ' + o.q.opts[i]);   // 聽音選圖：選項是圖片，位置已代表方向
+    el.className = 'qopt' + (big ? ' bigopt' : '') + (gateNum === 0 && d === o.answerDir ? ' hint' : '');
   });
+  if (o.choice) markHudChoice(o.choice);   // 交棒時還原已鎖定的答案高亮
   $('qhud').classList.remove('hidden', 'urgent');
 }
 function hideHud(){
@@ -846,6 +863,17 @@ function hideHud(){
 function markHudChoice(dir){
   const map = { up:'qUp', down:'qDown', left:'qLeft', right:'qRight' };
   DIRS.forEach(d => $(map[d]).classList.toggle('sel', d === dir));
+}
+function nearestGate(){
+  let best = null;
+  for (const o of obstacles) { if (o.type === 'gate' && !o.resolved && (!best || o.dist < best.dist)) best = o; }
+  return best;
+}
+// HUD 永遠顯示「最近一道未解決的題目門」，門答完自動交棒下一道（修：避免重疊時只唸字、題目空白）
+function refreshHud(){
+  const g = nearestGate();
+  if (!g) { hideHud(); return; }
+  if (g !== hudGate) showHud(g);
 }
 
 /* ================= 計分 / UI ================= */
@@ -912,7 +940,7 @@ function resolveObstacle(o){
       bonus ? sndCombo() : sndGood();
       renderCombo();
       flash(true);
-      hideHud();
+      refreshHud();
       $('levelTag').textContent = '第 ' + (gateNum + 1) + ' 題';
       speed = Math.min(470 + 55 * Math.floor(gateNum / 5), 950);
       applyTheme();
@@ -945,7 +973,7 @@ function crash(o){
     const correctText = DIR_ICON[o.answerDir] + ' ' + o.q.opts[idx];
     wrongAnswers.push({ q: o.q.q, correct: correctText });
     showToast('💥 正確答案：' + correctText, 1600);
-    hideHud();
+    refreshHud();
     $('levelTag').textContent = '第 ' + (gateNum + 1) + ' 題';
     applyTheme();
   } else {
@@ -1116,6 +1144,7 @@ function startGame(){
   gateNum = 0; gateCorrect = 0; wrongAnswers = [];
   speed = 470; roadY = 0; surviveTimer = 0; slowUntil = 0;
   sinceGate = 0; reflexTarget = 3; nextIn = 500;
+  if (runnerPool) rebuildRunnerBank();   // 套用本局勾選的題型
   decks = {}; shownHints = new Set(); themeIdx = -1;
   applyTheme();
   decos.forEach((d, i) => { d.dist = 200 + i * DECO_SPACING * 0.5 + (i % 2) * 120; d.el.textContent = decoEmoji(); });
@@ -1196,28 +1225,85 @@ function normalizeRunnerWords(words){
   (words||[]).forEach(w=>{
     const word=String((w&&(w.word||w.en))||'').trim();
     const chinese=String((w&&(w.chinese||w.meaning||w.zh))||'').trim();
+    const emoji=String((w&&(w.emoji||w.sticker||w.icon))||'').trim();
     if(!word||!chinese) return;
     const k=word.toLowerCase(); if(seen.has(k)) return; seen.add(k);
-    out.push({word, chinese});
+    out.push({word, chinese, emoji});
   });
   return out;
 }
-function makeRunnerBank(pool){
+// 可自選題型：en2cn/cn2en 文字題（永遠可用）；pic2en/say2pic 圖片題（需題庫帶 emoji，即預設主題）
+const TYPE_LABEL = {
+  en2cn:'🔤 英文題（看英文選中文）',
+  cn2en:'🀄 中文題（看中文選英文）',
+  pic2en:'🖼️ 看圖選字（看圖片選單字）',
+  say2pic:'🔊 聽音選圖（聽單字選圖片）',
+};
+function makeRunnerBank(pool, types){
   if(pool.length<4) return null;
+  types = (types&&types.length) ? types : ['en2cn','cn2en'];
   function distract(exclude, field){
     const out=[], seen=new Set([exclude]);
-    for(const w of _shuf(pool)){ const v=w[field]; if(!seen.has(v)){ seen.add(v); out.push(v); } if(out.length===3) break; }
+    for(const w of _shuf(pool)){ const v=w[field]; if(v&&!seen.has(v)){ seen.add(v); out.push(v); } if(out.length===3) break; }
     return out;
   }
-  const cn2en = pool.map(w=>{ const ds=distract(w.word,'word'); return ds.length<3?null:{ q:'「'+w.chinese+'」的英文是？', opts:[w.word,...ds], a:0, say:w.word }; }).filter(Boolean);
-  const en2cn = pool.map(w=>{ const ds=distract(w.chinese,'chinese'); return ds.length<3?null:{ q:'「'+w.word+'」的中文是？', opts:[w.chinese,...ds], a:0, say:w.word }; }).filter(Boolean);
-  if(!cn2en.length||!en2cn.length) return null;
-  return { easy: cn2en, medium: en2cn, hard: _shuf(en2cn) };
+  function distractEmoji(self){
+    const out=[], seen=new Set([self.emoji]);
+    for(const w of _shuf(pool)){ if(w.emoji&&!seen.has(w.emoji)){ seen.add(w.emoji); out.push(w.emoji); } if(out.length===3) break; }
+    return out;
+  }
+  const gen = {
+    cn2en: w=>{ const d=distract(w.word,'word'); return d.length<3?null:{ q:'「'+w.chinese+'」的英文是？', opts:[w.word,...d], a:0, say:w.word }; },
+    en2cn: w=>{ const d=distract(w.chinese,'chinese'); return d.length<3?null:{ q:'「'+w.word+'」的中文是？', opts:[w.chinese,...d], a:0, say:w.word }; },
+    pic2en: w=>{ if(!w.emoji) return null; const d=distract(w.word,'word'); return d.length<3?null:{ q:'<span class="big">'+w.emoji+'</span> 這是什麼？', opts:[w.word,...d], a:0, say:'' }; },
+    say2pic: w=>{ if(!w.emoji) return null; const d=distractEmoji(w); return d.length<3?null:{ q:'🔊 聽聽看，選出正確的圖片', opts:[w.emoji,...d], a:0, say:w.word, bigOpts:true }; },
+  };
+  let all=[];
+  types.forEach(t=>{ if(gen[t]) all=all.concat(pool.map(gen[t]).filter(Boolean)); });
+  if(!all.length) return null;
+  return { easy:_shuf(all), medium:_shuf(all.slice()), hard:_shuf(all.slice()) };
 }
-function applyRunnerData(payload){
-  const gen=makeRunnerBank(normalizeRunnerWords(payload&&payload.words));
+let runnerPool=null, typesAvail=['en2cn','cn2en'], enabledTypes=['en2cn','cn2en'];
+function rebuildRunnerBank(){
+  const gen = runnerPool && makeRunnerBank(runnerPool, enabledTypes);
   BANK = gen || DEFAULT_RUNNER_BANK;
   decks = {};
+}
+function applyRunnerData(payload){
+  const pool = normalizeRunnerWords(payload&&payload.words);
+  if(pool.length>=4){
+    runnerPool = pool;
+    const emojiOk = pool.filter(w=>w.emoji).length>=4;   // 有貼圖＝預設主題，才開放圖片題；學校單字沒 emoji 只有文字題
+    typesAvail = emojiOk ? ['en2cn','cn2en','pic2en','say2pic'] : ['en2cn','cn2en'];
+    enabledTypes = typesAvail.slice();
+    rebuildRunnerBank();
+  } else {
+    runnerPool = null;
+    typesAvail = ['en2cn','cn2en']; enabledTypes = typesAvail.slice();
+    BANK = DEFAULT_RUNNER_BANK; decks = {};
+  }
+  renderTypePanel();
+}
+// 進場前的題型勾選面板（只在預設主題＝有圖片題時出現；學校單字不顯示，只跑文字題）
+function renderTypePanel(){
+  const panel = $('typePanel'); if(!panel) return;
+  const show = typesAvail.length > 2;
+  panel.classList.toggle('hidden', !show);
+  if(!show) return;
+  const box = $('typeList'); box.innerHTML='';
+  typesAvail.forEach(t=>{
+    const lab = document.createElement('label'); lab.className='tpItem';
+    lab.innerHTML = '<input type="checkbox" data-type="'+t+'"'+(enabledTypes.includes(t)?' checked':'')+'> '+TYPE_LABEL[t];
+    box.appendChild(lab);
+  });
+  box.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.addEventListener('change', onTypeToggle));
+}
+function onTypeToggle(){
+  const box = $('typeList');
+  const checked = [...box.querySelectorAll('input:checked')].map(c=>c.dataset.type);
+  if(!checked.length){ this.checked = true; return; }   // 至少留一種題型
+  enabledTypes = typesAvail.filter(t=>checked.includes(t));
+  rebuildRunnerBank();
 }
 function readRunnerHash(){
   const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash;
