@@ -348,6 +348,8 @@ let vocabPos = 0;
 let grammarPos = 0;
 let currentQuestion = null;
 let lastTime = 0;
+let paused = false;
+let pauseStart = 0;
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -766,7 +768,7 @@ function drawWeapon(u, dir, cx, groundY, attackPower){
     ctx.strokeStyle = '#d97706';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(cx + dir * 14, handY - 2, 14, dir > 0 ? -1.2 : Math.PI - 1.2, dir > 0 ? 1.2 : Math.PI + 1.2, dir < 0);
+    ctx.arc(cx + dir * 14, handY - 2, 14, dir > 0 ? -1.2 : Math.PI - 1.2, dir > 0 ? 1.2 : Math.PI + 1.2);
     ctx.stroke();
     ctx.strokeStyle = '#e5e7eb';
     ctx.lineWidth = 1.5;
@@ -1062,6 +1064,42 @@ function loop(ts){
   requestAnimationFrame(loop);
 }
 
+/* ── 暫停 / 玩法說明 ── */
+function pauseGame(){
+  if(paused || !state || state.phase !== 'playing') return;
+  paused = true;
+  pauseStart = Date.now();
+  stopBgm();
+  document.getElementById('battle-pause').classList.add('show');
+}
+function resumeGame(){
+  if(!paused) return;
+  paused = false;
+  document.getElementById('battle-pause').classList.remove('show');
+  document.getElementById('battle-guide').classList.remove('show');
+  // 把暫停的這段時間補回 wall-clock 計時，避免倒數流失與敵兵爆衝
+  const gap = Date.now() - pauseStart;
+  if(state){
+    state.startMs += gap;
+    state.lastPassiveGold += gap;
+    state.lastEnemySpawn += gap;
+  }
+  lastTime = performance.now();
+  if(state && state.phase === 'playing') startBgm();
+}
+function togglePause(){ paused ? resumeGame() : pauseGame(); }
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && state && state.phase === 'playing'){ e.preventDefault(); togglePause(); }
+});
+document.getElementById('battle-resume').addEventListener('click', resumeGame);
+document.getElementById('battle-guide-pause').addEventListener('click', () => {
+  document.getElementById('battle-guide').classList.add('show');
+});
+document.getElementById('battle-guide-ok').addEventListener('click', () => {
+  document.getElementById('battle-guide').classList.remove('show');
+});
+
 function updateHUD(){
   document.getElementById('gold-display').textContent = state.gold;
   document.getElementById('time-display').textContent = `${Math.floor(state.timeLeft/60)}:${String(state.timeLeft%60).padStart(2,'0')}`;
@@ -1348,7 +1386,6 @@ addEventListener('visibilitychange',()=>{
   let LESSON_RAW=rawFromHash();
   window.addEventListener('message',e=>{ if(e.data&&e.data.type==='BATTLE_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
   function backToMenu(){
-    if(history.length>1 && /index\.html/.test(document.referrer)){ history.back(); return; }
     location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
   }
   const b=document.createElement('button');

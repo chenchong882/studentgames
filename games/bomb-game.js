@@ -2227,7 +2227,6 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden&&game&&gam
   let LESSON_RAW=rawFromHash();
   window.addEventListener('message',e=>{ if(e.data&&e.data.type==='BOMB_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
   function backToMenu(){
-    if(history.length>1 && /index\.html/.test(document.referrer)){ history.back(); return; }
     location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
   }
   const b=document.createElement('button');
