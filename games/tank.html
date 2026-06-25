@@ -1088,7 +1088,7 @@ function updTank(dt){
   let sp=0;
   if(touchMove.active){                                    // 觸控：相對鏡頭推桿 → 車身轉向該方位並前進
     const heading=camYaw+Math.atan2(-touchMove.x,-touchMove.y); // 推桿「上」＝往畫面深處（鏡頭朝向）；左右反號修正平板鏡像
-    tank.yaw=lerpAng(tank.yaw,heading,4.5*dt);             // 車身平滑轉向移動方向（放慢左右轉速）
+    tank.yaw=lerpAng(tank.yaw,heading,2.8*dt);             // 車身平滑轉向移動方向（左右轉速再放慢，坦克感；鏡頭才跟得上砲管）
     tank.boost=Math.min(1,tank.boost+dt/1.2);
     sp=(10+(touchMove.boost?1:tank.boost)*9)*touchMove.mag; // 推到外圈＝頂速，輕推＝慢行
   }else{
@@ -1106,7 +1106,7 @@ function updTank(dt){
     let turn=0;
     if(keys['KeyA']||keys['ArrowLeft'])turn=-1;
     if(keys['KeyD']||keys['ArrowRight'])turn=1;
-    tank.yaw+=turn*1.1*dt*(sp<0?-1:1);                    // 放慢左右轉速（原 1.7）
+    tank.yaw+=turn*0.7*dt*(sp<0?-1:1);                    // 放慢左右轉速（原 1.7→1.1→0.7）
   }
   tank.speed=sp;
   const fx=Math.sin(tank.yaw),fz=Math.cos(tank.yaw);
