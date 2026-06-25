@@ -352,7 +352,7 @@ const Audio = (() => {
   }
 
   // ── Background music: user-provided MP3, kept quiet under the speech ──
-  const BGM_SRC = '../悠然小步.mp3';
+  const BGM_SRC = '../assets/music/悠然小步.mp3';
   const BGM_VOLUME = 0.10;
   let bgmAudio = null;
   let bgmWanted = false;
@@ -2219,6 +2219,7 @@ function loop() {
 
 resizeCanvas();
 loop();
+document.addEventListener('visibilitychange',()=>{ if(document.hidden&&game&&game.phase==='playing')game.togglePause(); });
 
 /* 返回選單按鈕：記住目前單字，返回時帶回主機 */
 (function(){

@@ -352,6 +352,30 @@ let lastTime = 0;
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
+/* ── 背景音樂（Siege at Dawn.mp3） ── */
+let bgmAudio=null,bgmFade=null;
+function ensureBgmAudio(){
+  if(bgmAudio)return bgmAudio;
+  bgmAudio=new Audio('../assets/music/Siege at Dawn.mp3');
+  bgmAudio.loop=true; bgmAudio.preload='auto'; bgmAudio.volume=0;
+  return bgmAudio;
+}
+function fadeBgm(to,ms,onDone){
+  clearInterval(bgmFade);
+  const a=bgmAudio; if(!a)return;
+  const steps=Math.ceil(ms/30),from=a.volume,d=(to-from)/steps; let i=0;
+  bgmFade=setInterval(()=>{ i++; a.volume=Math.min(1,Math.max(0,from+d*i)); if(i>=steps){clearInterval(bgmFade);if(onDone)onDone();} },30);
+}
+function startBgm(){
+  const a=ensureBgmAudio(); a.volume=0;
+  const p=a.play(); if(p&&p.catch)p.catch(()=>{});
+  fadeBgm(0.12,800);
+}
+function stopBgm(){
+  if(!bgmAudio)return;
+  fadeBgm(0,500,()=>{try{bgmAudio.pause();}catch(e){}});
+}
+
 let audioCtx = null;
 const soundGate = {};
 
@@ -676,6 +700,7 @@ function addAttackEffect(attacker, target, now){
 
 function startGame(){
   getAudioCtx();
+  startBgm();
   applyDifficultyConfig();
   state = initState();
   spawnEnemy('sword', 'opening');
@@ -1272,6 +1297,7 @@ function checkAnswer(chosen, btn){
 }
 
 function endGame(result){
+  stopBgm();
   state.phase = 'ended';
   playSound(result === 'win' ? 'win' : result === 'lose' ? 'lose' : 'draw');
   const titleMap = {
@@ -1310,6 +1336,11 @@ function endGame(result){
   } catch(e){}
 })();
 buildQuestionPools(battleData);
+addEventListener('visibilitychange',()=>{
+  if(!bgmAudio)return;
+  if(document.hidden){ try{bgmAudio.pause();}catch(e){} }
+  else if(state&&state.phase==='playing'){ const p=bgmAudio.play(); if(p&&p.catch)p.catch(()=>{}); }
+});
 
 /* 返回選單按鈕：記住目前單字，返回時帶回主機 */
 (function(){

@@ -469,52 +469,32 @@ function noiseBurst(dur, vol, freq){
 const sndJump  = () => { sweep(520, 1180, 0.16, 'square', 0.18); };   // 蹬！往上滑音
 const sndSlide = () => { noiseBurst(0.34, 0.17, 1500); };            // 刷～刮地聲
 
-/* ================= 背景音樂（Web Audio 合成輕快循環）================= */
-let bgmOn = false, bgmTimer = null, bgmGain = null, bgmStep = 0;
-// 八步循環：低音貝斯走 C–G–F–Dm，上方旋律點綴，營造跑酷節奏感
-const BGM_BASS = [130.81, 130.81, 196.00, 196.00, 174.61, 174.61, 146.83, 146.83];
-const BGM_LEAD = [523.25, 659.25, 784.00, 659.25, 587.33, 698.46, 587.33, 493.88];
-function bgmVoice(freq, dur, type, vol){
-  try {
-    const o = ac.createOscillator(), g = ac.createGain();
-    o.type = type; o.frequency.value = freq;
-    const t0 = ac.currentTime;
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.linearRampToValueAtTime(vol, t0 + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    o.connect(g); g.connect(bgmGain);
-    o.start(t0); o.stop(t0 + dur + 0.02);
-  } catch(e){}
+/* ================= 背景音樂（Pixel Sprint Parade.mp3）================= */
+let bgmAudio=null,bgmFade=null;
+function ensureBgmAudio(){
+  if(bgmAudio)return bgmAudio;
+  bgmAudio=new Audio('../assets/music/Pixel Sprint Parade.mp3');
+  bgmAudio.loop=true; bgmAudio.preload='auto'; bgmAudio.volume=0;
+  return bgmAudio;
 }
-function bgmTick(){
-  if (!ac || !bgmOn) return;
-  bgmVoice(BGM_BASS[bgmStep % BGM_BASS.length], 0.26, 'triangle', 0.13);
-  bgmVoice(BGM_LEAD[bgmStep % BGM_LEAD.length], 0.20, 'square', 0.05);
-  bgmStep++;
+function fadeBgm(to,ms,onDone){
+  clearInterval(bgmFade);
+  const a=bgmAudio; if(!a)return;
+  const steps=Math.ceil(ms/30),from=a.volume,d=(to-from)/steps; let i=0;
+  bgmFade=setInterval(()=>{ i++; a.volume=Math.min(1,Math.max(0,from+d*i)); if(i>=steps){clearInterval(bgmFade);if(onDone)onDone();} },30);
 }
 function startBgm(){
-  try {
-    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
-    if (ac.state === 'suspended') ac.resume();
-    if (bgmOn) return;
-    bgmOn = true; bgmStep = 0;
-    bgmGain = ac.createGain();
-    bgmGain.gain.setValueAtTime(0.0001, ac.currentTime);
-    bgmGain.gain.exponentialRampToValueAtTime(0.09, ac.currentTime + 1.2);
-    bgmGain.connect(ac.destination);
-    bgmTick();
-    bgmTimer = setInterval(bgmTick, 250);   // ≈ 八分音符
-  } catch(e){}
+  const a=ensureBgmAudio(); a.volume=0;
+  const p=a.play(); if(p&&p.catch)p.catch(()=>{});
+  fadeBgm(0.12,800);
 }
 function stopBgm(){
-  if (!bgmOn) return;
-  bgmOn = false;
-  clearInterval(bgmTimer); bgmTimer = null;
-  if (bgmGain && ac) { try { bgmGain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.4); } catch(e){} }
+  if(!bgmAudio)return;
+  fadeBgm(0,500,()=>{try{bgmAudio.pause();}catch(e){}});
 }
 function duckBgm(on){   // 暫停時降低音量，繼續時拉回
-  if (!bgmGain || !ac) return;
-  try { bgmGain.gain.exponentialRampToValueAtTime(on ? 0.0001 : 0.09, ac.currentTime + 0.3); } catch(e){}
+  if(!bgmAudio)return;
+  fadeBgm(on?0.02:0.12,300);
 }
 
 /* ================= 3D 方塊產生器 ================= */
@@ -1148,6 +1128,10 @@ try { if (!localStorage.getItem('runnerGuideSeen')) openGuide(); } catch(e){ ope
 resetPlayer();
 themeIdx = -1; gateNum = 0; applyTheme();
 requestAnimationFrame(loop);
+addEventListener('visibilitychange',()=>{
+  if(!document.hidden)return;
+  if(state==='play'&&!paused)togglePause(); else stopBgm();
+});
 
 /* ===== 外部單字介面：用本單元單字自動出題（與 miner/bomb 同標準）===== */
 const DEFAULT_RUNNER_BANK = BANK;
