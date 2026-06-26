@@ -63,12 +63,31 @@ button{font-family:'Outfit',sans-serif;}
 #feedback{margin-top:8px;font-size:.88rem;min-height:20px;font-weight:900;}
 .fb-correct{color:#4cc864;}
 .fb-wrong{color:#ff6b6b;}
-#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:99;padding:20px;text-align:center;}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:99;padding:20px;text-align:center;overflow:hidden;}
 #overlay.show{display:flex;}
-#overlay h2{font-size:2.8rem;font-weight:900;}
-#overlay .stats{font-size:1rem;color:#d1d5db;line-height:2;}
-#overlay .note{color:#9ca3af;font-size:.9rem;font-weight:800;}
-.overlay-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+#overlay h2{font-size:2.8rem;font-weight:900;position:relative;z-index:2;}
+#overlay .stats{font-size:1rem;color:#d1d5db;line-height:2;position:relative;z-index:2;}
+#overlay .note{color:#9ca3af;font-size:.9rem;font-weight:800;position:relative;z-index:2;}
+.overlay-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;position:relative;z-index:2;}
+/* ── 勝利畫面強化 ── */
+#confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;display:none;}
+#overlay.win #confetti{display:block;}
+#overlay.win{background:radial-gradient(circle at 50% 35%,rgba(249,199,79,.28),rgba(0,0,0,.88) 62%);}
+#overlay-emoji{display:none;font-size:5rem;line-height:1;position:relative;z-index:2;filter:drop-shadow(0 6px 18px rgba(0,0,0,.5));}
+#overlay.win #overlay-emoji{display:block;animation:trophyPop .6s cubic-bezier(.2,1.4,.4,1) both,trophyFloat 2.4s ease-in-out .6s infinite;}
+#overlay-stars{display:none;font-size:2.4rem;letter-spacing:.15em;position:relative;z-index:2;}
+#overlay.win #overlay-stars{display:block;}
+#overlay-stars .star{display:inline-block;opacity:0;transform:scale(0) rotate(-40deg);animation:starPop .45s cubic-bezier(.2,1.5,.4,1) both;}
+#overlay-stars .star.on{color:#ffd24a;text-shadow:0 0 14px rgba(255,210,74,.85);}
+#overlay-stars .star.off{color:#475569;text-shadow:none;}
+#overlay-stars .star:nth-child(1){animation-delay:.5s;}
+#overlay-stars .star:nth-child(2){animation-delay:.72s;}
+#overlay-stars .star:nth-child(3){animation-delay:.94s;}
+#overlay.win #overlay-title{animation:titlePop .55s cubic-bezier(.2,1.5,.4,1) both;text-shadow:0 0 24px rgba(249,199,79,.7);}
+@keyframes titlePop{0%{transform:scale(.4);opacity:0;}60%{transform:scale(1.15);}100%{transform:scale(1);opacity:1;}}
+@keyframes trophyPop{0%{transform:scale(0) rotate(-25deg);opacity:0;}70%{transform:scale(1.25) rotate(8deg);}100%{transform:scale(1) rotate(0);opacity:1;}}
+@keyframes trophyFloat{0%,100%{transform:translateY(0) rotate(-3deg);}50%{transform:translateY(-10px) rotate(3deg);}}
+@keyframes starPop{0%{opacity:0;transform:scale(0) rotate(-40deg);}70%{transform:scale(1.3) rotate(8deg);}100%{opacity:1;transform:scale(1) rotate(0);}}
 .battle-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);align-items:center;justify-content:center;flex-direction:column;z-index:120;padding:20px;text-align:center;}
 .battle-ov.show{display:flex;}
 .battle-ov .card{max-width:560px;width:90%;background:#15182b;border:1px solid rgba(249,199,79,.4);border-radius:16px;padding:24px 28px;color:#fff;}
@@ -137,8 +156,8 @@ button{font-family:'Outfit',sans-serif;}
   <section id="game-screen">
     <div id="topbar">
       <div class="stat">金幣 <span id="gold-display">30</span></div>
-      <div class="stat">強化值 <span id="power-display">0</span></div>
-      <div class="stat">等級 <span id="level-display">Lv1</span></div>
+      <div class="stat" id="stat-power">強化值 <span id="power-display">0</span></div>
+      <div class="stat" id="stat-level">等級 <span id="level-display">Lv1</span></div>
       <div class="stat">時間 <span id="time-display">2:30</span></div>
       <div class="stat">答題 <span id="score-display">0 / 0</span></div>
       <div class="stat">派兵 <span id="deployed-display">0</span></div>
@@ -160,20 +179,21 @@ button{font-family:'Outfit',sans-serif;}
           <span class="icon">🔮</span>
           <span class="info"><span class="name">法師</span><span class="cost">85 金</span></span>
         </button>
-        <div class="section-title">兵種進化（文法題賺強化值）</div>
-        <button class="unit-btn" id="up-sword" onclick="upgradeUnit('sword')">
-          <span class="icon">⚔️</span>
-          <span class="info"><span class="name">劍士進化</span><span class="cost">升 Lv2・2 強化值</span></span>
-        </button>
-        <button class="unit-btn" id="up-archer" onclick="upgradeUnit('archer')">
-          <span class="icon">🏹</span>
-          <span class="info"><span class="name">弓箭手進化</span><span class="cost">升 Lv2・2 強化值</span></span>
-        </button>
-        <button class="unit-btn" id="up-mage" onclick="upgradeUnit('mage')">
-          <span class="icon">🔮</span>
-          <span class="info"><span class="name">法師進化</span><span class="cost">升 Lv2・2 強化值</span></span>
-        </button>
-      </div>
+        <div id="upgrade-section">
+          <div class="section-title">兵種進化（文法題賺強化值）</div>
+          <button class="unit-btn" id="up-sword" onclick="upgradeUnit('sword')">
+            <span class="icon">⚔️</span>
+            <span class="info"><span class="name">劍士進化</span><span class="cost">升 Lv2・2 強化值</span></span>
+          </button>
+          <button class="unit-btn" id="up-archer" onclick="upgradeUnit('archer')">
+            <span class="icon">🏹</span>
+            <span class="info"><span class="name">弓箭手進化</span><span class="cost">升 Lv2・2 強化值</span></span>
+          </button>
+          <button class="unit-btn" id="up-mage" onclick="upgradeUnit('mage')">
+            <span class="icon">🔮</span>
+            <span class="info"><span class="name">法師進化</span><span class="cost">升 Lv2・2 強化值</span></span>
+          </button>
+        </div>
       <div id="quiz-panel" class="panel">
         <div id="quiz-type">準備中</div>
         <div id="question">按開始戰鬥後出題</div>
@@ -185,7 +205,10 @@ button{font-family:'Outfit',sans-serif;}
 </div>
 
 <div id="overlay">
+  <canvas id="confetti"></canvas>
+  <div id="overlay-emoji">🏆</div>
   <h2 id="overlay-title"></h2>
+  <div id="overlay-stars"></div>
   <div class="stats" id="overlay-stats"></div>
   <div class="note" id="overlay-note"></div>
   <div class="overlay-actions">
@@ -252,7 +275,9 @@ const DIFFICULTY_CONFIG = {
     wrongSpawnAdvanceMs: 4000,
     bossChipMode: 'count',           // 每答對一題就扣 BOSS 血
     bossWrong: 'none',               // 答錯不影響 BOSS 血量
-    summary: '簡單：45 金開局，每 5 秒 +10 金；敵人 12 / 10 / 8 秒出兵，答錯只讓出兵倒數提前。BOSS：答對就扣血。'
+    useFill: false,                  // 簡單：不出填空題
+    allowLevelUp: false,             // 簡單：不開放兵種升級（無填空題養強化值）
+    summary: '簡單：45 金開局，每 5 秒 +10 金；敵人 12 / 10 / 8 秒出兵，答錯只讓出兵倒數提前。只考單字題，不出填空、不能升級。'
   },
   normal: {
     label: '普通',
@@ -263,7 +288,9 @@ const DIFFICULTY_CONFIG = {
     wrongPenalty: 'spawn_sword',
     bossChipMode: 'peak',            // 只在刷新「連續答對最高紀錄」時扣 BOSS 血
     bossWrong: 'none',               // 答錯中斷連續但不補血
-    summary: '普通：30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士。BOSS：需連續答對刷新紀錄才扣血。'
+    useFill: true,                   // 普通：穿插填空題
+    allowLevelUp: true,
+    summary: '普通：30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士。有填空題可升級。BOSS：需連續答對刷新紀錄才扣血。'
   },
   hard: {
     label: '困難',
@@ -274,7 +301,9 @@ const DIFFICULTY_CONFIG = {
     wrongPenalty: 'spawn_scaling',
     bossChipMode: 'peak',            // 連續答對才扣血
     bossWrong: 'full',               // 答錯補滿血，須一路連續答對
-    summary: '困難：20 金開局，每 6 秒 +5 金；敵人 7 / 5 / 3.8 秒出兵，連錯會追加弓箭手。BOSS：答錯回滿血，須連續答對。'
+    useFill: true,                   // 困難：穿插填空題
+    allowLevelUp: true,
+    summary: '困難：20 金開局，每 6 秒 +5 金；敵人 7 / 5 / 3.8 秒出兵，連錯會追加弓箭手。有填空題可升級。BOSS：答錯回滿血，須連續答對。'
   }
 };
 
@@ -454,6 +483,11 @@ function playSound(type, throttleMs=0){
       noiseBurst(.16, .04, 500);
     } else if(type === 'win'){
       [0, .12, .24, .38].forEach((d, i) => tone([523, 659, 784, 1047][i], [659, 784, 1047, 1397][i], .18, 'sine', .06, d));
+    } else if(type === 'victory'){
+      // 結算勝利：上行號角 + 收尾大和弦
+      [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, f, .16, 'triangle', .055, i * .11));
+      [523, 659, 784, 1047].forEach(f => tone(f, f, .9, 'sine', .05, .62));
+      [392, 523].forEach(f => tone(f, f, 1.1, 'sawtooth', .02, .62));
     } else if(type === 'lose'){
       tone(220, 110, .28, 'sawtooth', .045);
       tone(165, 70, .35, 'sawtooth', .035, .16);
@@ -555,9 +589,12 @@ function nextFromPool(pool, name){
   return pool[q.order[q.pos++]];
 }
 
+// 簡單模式不出填空題（CONFIG.useFill === false）
+function fillAvailable(){ return CONFIG.useFill !== false && fillQuestions.length > 0; }
+
 // 強化值題：填空、填空、填空、文法 這樣輪（缺哪邊就只出另一邊）
 function nextPowerQuestion(){
-  const hasFill = fillQuestions.length > 0;
+  const hasFill = fillAvailable();
   const hasGrammar = grammarQuestions.length > 0;
   if(!hasFill && !hasGrammar) return null;
   let useGrammar;
@@ -569,13 +606,13 @@ function nextPowerQuestion(){
 }
 
 function getNextQuestion(){
-  const hasPower = fillQuestions.length || grammarQuestions.length;
-  // BOSS 期間：全部強化值題，盡快擊退
+  const hasPower = fillAvailable() || grammarQuestions.length;
+  // BOSS 期間：全部強化值題，盡快擊退（簡單模式只會出文法題）
   if(state && state.boss && hasPower){
     return nextPowerQuestion() || nextFromPool(vocabQuestions, 'vocab');
   }
-  // 平時：每 3 題單字穿插 1 題強化值題
-  if(state && hasPower && (state.vocabSincePower || 0) >= 3){
+  // 平時：有升級機制時，每 3 題單字穿插 1 題強化值題；簡單模式無升級 → 平時只考單字
+  if(state && CONFIG.allowLevelUp !== false && hasPower && (state.vocabSincePower || 0) >= 3){
     state.vocabSincePower = 0;
     const pq = nextPowerQuestion();
     if(pq) return pq;
@@ -756,9 +793,16 @@ function startGame(){
   state = initState();
   spawnEnemy('sword', 'opening');
   resetQuestionQueues();
+  // 簡單模式：隱藏強化值／等級與兵種進化（無升級機制）
+  const showLevel = CONFIG.allowLevelUp !== false;
+  ['stat-power','stat-level','upgrade-section'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = showLevel ? '' : 'none';
+  });
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('game-screen').style.display = 'block';
-  document.getElementById('overlay').classList.remove('show');
+  Confetti.stop();
+  document.getElementById('overlay').classList.remove('show','win');
   loadQuestion();
   lastTime = performance.now();
   requestAnimationFrame(loop);
@@ -1043,9 +1087,10 @@ function getTimedResult(){
 }
 
 function showStartScreen(){
+  Confetti.stop();
   document.getElementById('start-screen').style.display = 'flex';
   document.getElementById('game-screen').style.display = 'none';
-  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show','win');
   updateDifficultyUI();
 }
 
@@ -1091,8 +1136,9 @@ function loop(ts){
     state.bossDefeated += 1;
     state.grammarStreak = 0;
     state.gold += 60;
-    state.power += 1;
-    state.floats.push({ x:450, y:120, text:'擊退 BOSS！+60 金 +1 強化值', color:'#4cc864', life:1500, born:now });
+    const lvUp = CONFIG.allowLevelUp !== false;
+    if(lvUp) state.power += 1;
+    state.floats.push({ x:450, y:120, text:lvUp ? '擊退 BOSS！+60 金 +1 強化值' : '擊退 BOSS！+60 金', color:'#4cc864', life:1500, born:now });
     playSound('win');
   }
 
@@ -1212,6 +1258,7 @@ function deployUnit(type){
 
 function upgradeUnit(type){
   if(!state || state.phase !== 'playing') return;
+  if(CONFIG.allowLevelUp === false) return;          // 簡單模式：不開放升級
   if(!UNIT_DEF[type] || state.levels[type] >= 3) return;
   const next = state.levels[type] + 1;
   const cost = CONFIG.levelCost[next];
@@ -1291,7 +1338,9 @@ function loadQuestion(){
   const isGrammar = isPowerQuestion(currentQuestion);
   const qt = document.getElementById('quiz-type');
   qt.textContent = isGrammar
-    ? `📐 ${currentQuestion.type}｜答對 +${CONFIG.powerPerGrammar} 強化值（升級／擊退 BOSS）`
+    ? (CONFIG.allowLevelUp !== false
+        ? `📐 ${currentQuestion.type}｜答對 +${CONFIG.powerPerGrammar} 強化值（升級／擊退 BOSS）`
+        : `📐 ${currentQuestion.type}｜答對擊退 BOSS`)
     : `📘 ${currentQuestion.type}｜答對 +${CONFIG.correctGold} 金，連對 ${CONFIG.comboNeed} 題 +${CONFIG.comboBonus}`;
   qt.className = isGrammar ? 'qt-grammar' : 'qt-vocab';
   const qEl = document.getElementById('question');
@@ -1327,9 +1376,12 @@ function checkAnswer(chosen, btn){
     state.correctCount += 1;
     state.wrongStreak = 0;
     if(isGrammar){
-      state.power += CONFIG.powerPerGrammar;
-      state.floats.push({ x:450, y:145, text:'+'+CONFIG.powerPerGrammar+' 強化值', color:'#7dd3fc', life:900, born:Date.now() });
-      let msg = `答對！+${CONFIG.powerPerGrammar} 強化值`;
+      const lvUp = CONFIG.allowLevelUp !== false;
+      if(lvUp){
+        state.power += CONFIG.powerPerGrammar;
+        state.floats.push({ x:450, y:145, text:'+'+CONFIG.powerPerGrammar+' 強化值', color:'#7dd3fc', life:900, born:Date.now() });
+      }
+      let msg = lvUp ? `答對！+${CONFIG.powerPerGrammar} 強化值` : '答對！';
       if(state.boss){
         const boss = state.boss;
         boss.streak = (boss.streak || 0) + 1;
@@ -1387,30 +1439,99 @@ function checkAnswer(chosen, btn){
   updateHUD();
 }
 
+// ── 勝利彩帶 ──
+const Confetti = (function(){
+  let cv, c, raf, parts = [], running = false;
+  const COLORS = ['#f9c74f','#4cc9f0','#f94144','#90be6d','#c77dff','#ffd166','#fff'];
+  function resize(){ if(!cv) return; cv.width = cv.clientWidth; cv.height = cv.clientHeight; }
+  function spawn(n){
+    for(let i=0;i<n;i++){
+      parts.push({
+        x: Math.random()*cv.width, y: -20 - Math.random()*cv.height*0.4,
+        vx: (Math.random()-0.5)*3, vy: 2.5 + Math.random()*3.5,
+        sz: 6 + Math.random()*7, rot: Math.random()*Math.PI, vr: (Math.random()-0.5)*0.3,
+        col: COLORS[(Math.random()*COLORS.length)|0], sway: Math.random()*Math.PI*2,
+      });
+    }
+  }
+  function frame(){
+    if(!running) return;
+    c.clearRect(0,0,cv.width,cv.height);
+    for(const p of parts){
+      p.sway += 0.05; p.x += p.vx + Math.sin(p.sway)*0.8; p.y += p.vy; p.rot += p.vr;
+      c.save(); c.translate(p.x,p.y); c.rotate(p.rot); c.fillStyle = p.col;
+      c.fillRect(-p.sz/2,-p.sz/2,p.sz,p.sz*0.6); c.restore();
+    }
+    parts = parts.filter(p => p.y < cv.height + 30);
+    if(parts.length) raf = requestAnimationFrame(frame);
+    else running = false;
+  }
+  return {
+    start(){
+      cv = document.getElementById('confetti'); if(!cv) return;
+      c = cv.getContext('2d'); resize(); parts = [];
+      spawn(160); running = true;
+      setTimeout(()=>{ if(running) spawn(90); }, 700);
+      cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
+    },
+    stop(){ running = false; cancelAnimationFrame(raf); parts = []; if(c&&cv) c.clearRect(0,0,cv.width,cv.height); },
+  };
+})();
+
+// 勝利星等：依存活基地血量與答題正確率評 1~3 星
+function winStars(){
+  const hpRatio = state.maxHP ? Math.max(0, state.playerHP) / state.maxHP : 0;
+  const totalQ = state.correctCount + state.wrongCount;
+  const acc = totalQ ? state.correctCount / totalQ : 0;
+  const score = hpRatio * 0.6 + acc * 0.4;
+  if(score >= 0.7) return 3;
+  if(score >= 0.4) return 2;
+  return 1;
+}
+
 function endGame(result){
   stopBgm();
   state.phase = 'ended';
-  playSound(result === 'win' ? 'win' : result === 'lose' ? 'lose' : 'draw');
+  const overlay = document.getElementById('overlay');
+  const isWin = result === 'win';
+  overlay.classList.toggle('win', isWin);
+  if(!isWin){ Confetti.stop(); }
+  playSound(isWin ? 'victory' : result === 'lose' ? 'lose' : 'draw');
+
   const titleMap = {
-    win:['勝利！','#f9c74f'],
-    lose:['敗北','#ff5050'],
+    win:['🎉 大勝利！🎉','#f9c74f'],
+    lose:['敗北…','#ff5050'],
     draw:['平手','#ff9f1c'],
   };
   const [title, color] = titleMap[result] || titleMap.draw;
   document.getElementById('overlay-title').textContent = title;
   document.getElementById('overlay-title').style.color = color;
+
+  const starsEl = document.getElementById('overlay-stars');
+  if(isWin){
+    const n = winStars();
+    starsEl.innerHTML = [0,1,2].map(i =>
+      `<span class="star ${i < n ? 'on':'off'}">★</span>`).join('');
+  } else {
+    starsEl.innerHTML = '';
+  }
+
+  const lvLine = CONFIG.allowLevelUp !== false
+    ? `兵種等級：⚔️${state.levels.sword} 🏹${state.levels.archer} 🔮${state.levels.mage}　擊退 BOSS：${state.bossDefeated} 次<br>`
+    : `擊退 BOSS：${state.bossDefeated} 次<br>`;
   document.getElementById('overlay-stats').innerHTML =
     `難度：${CONFIG.label}<br>` +
     `答對：${state.correctCount} 題　答錯：${state.wrongCount} 題<br>` +
-    `兵種等級：⚔️${state.levels.sword} 🏹${state.levels.archer} 🔮${state.levels.mage}　擊退 BOSS：${state.bossDefeated} 次<br>` +
+    lvLine +
     `最高連勝：${state.maxCombo}　派兵：${state.deployCount} 次<br>` +
     `我方基地：${Math.max(0, Math.ceil(state.playerHP))} / ${state.maxHP}<br>` +
     `敵方基地：${Math.max(0, Math.ceil(state.enemyHP))} / ${state.maxHP}`;
-  const note = result === 'win' ? '敵方基地血量較低，判定勝利。'
+  const note = isWin ? (winStars() === 3 ? '完美壓制，敵方基地被攻破！' : '敵方基地血量較低，判定勝利！')
     : result === 'lose' ? '我方基地血量較低，判定敗北。'
     : '雙方基地血量相同，這局平手。';
   document.getElementById('overlay-note').textContent = note;
-  document.getElementById('overlay').classList.add('show');
+  overlay.classList.add('show');
+  if(isWin) requestAnimationFrame(() => Confetti.start());   // 等 overlay 顯示後再量尺寸啟動彩帶
 }
 
 // 本機 file:// 時，從網址 hash 讀單字（與其他遊戲同標準）
