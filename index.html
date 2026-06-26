@@ -173,7 +173,7 @@
     function builtinRaw(){
       const all = window.WORD_BANK ? window.WORD_BANK.getWords(selectedThemes) : [];
       if(!all.length) return null;
-      const words = shuffle(all).slice(0, 80).map(w => ({ word:w.word, chinese:w.chinese, emoji:w.emoji, example:w.example }));
+      const words = shuffle(all).slice(0, 80).map(w => ({ word:w.word, chinese:w.chinese, emoji:w.emoji, sentence:w.sentence, example:w.sentence }));
       return JSON.stringify({ unitTitle:'自選主題', builtin:true, words });
     }
 
