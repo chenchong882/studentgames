@@ -342,10 +342,8 @@ let state = null;
 let battleData = { unitTitle:'示範題庫', builtin:true, words:FALLBACK_WORDS, grammarQuiz:DEFAULT_GRAMMAR };
 let vocabQuestions = [];
 let grammarQuestions = [];
-let vocabQueue = [];
-let grammarQueue = [];
-let vocabPos = 0;
-let grammarPos = 0;
+let fillQuestions = [];        // 內建單字的英文填空題（與文法題同屬「強化值題」）
+let queues = {};               // 各題庫的輪替佇列：{ vocab, fill, grammar }
 let currentQuestion = null;
 let lastTime = 0;
 let paused = false;
@@ -515,54 +513,74 @@ function buildQuestionPools(payload){
     }
   });
 
-  // ── 強化值題（打 BOSS / 升級用）：內建單字出「英文填空題」，學生單字維持「文法選擇題」──
+  // ── 強化值題（打 BOSS / 升級用）：內建單字才出「英文填空題」；文法選擇題兩種來源都有，穿插使用 ──
+  fillQuestions = [];
   if(isBuiltin){
-    grammarQuestions = [];
     wordPool.forEach(target => {
       if(!target.sentence || target.sentence.indexOf('{W}') < 0) return;
       const sentence = target.sentence.replace(/\{W\}/g, '________');
       const others = shuffle(wordPool.filter(w => w.word !== target.word));
-      grammarQuestions.push(makeQuestion('英文填空題', sentence, target.word, others.map(w => w.word), target.word));
+      fillQuestions.push(makeQuestion('英文填空題', sentence, target.word, others.map(w => w.word), target.word));
     });
-    if(grammarQuestions.length === 0) grammarQuestions = buildDefaultGrammar();
-  } else {
-    grammarQuestions = (payload.grammarQuiz || []).filter(q => q && q.question && q.options && q.answer).map(q => {
-      const opts = uniqueTexts(q.options);
-      const answer = String(q.answer);
-      return { type:'文法選擇題', prompt:q.question, opts, ans:opts.indexOf(answer), audio:null };
-    }).filter(q => q.ans >= 0 && q.opts.length >= 2);
-    if(grammarQuestions.length === 0) grammarQuestions = buildDefaultGrammar();
   }
+  grammarQuestions = buildGrammarPool(payload);
+
   resetQuestionQueues();
   updateStartInfo();
 }
 
-function resetQuestionQueues(){
-  vocabQueue = shuffle([...Array(vocabQuestions.length).keys()]);
-  grammarQueue = shuffle([...Array(grammarQuestions.length).keys()]);
-  vocabPos = 0;
-  grammarPos = 0;
+function buildGrammarPool(payload){
+  const fromPayload = (payload.grammarQuiz || []).filter(q => q && q.question && q.options && q.answer).map(q => {
+    const opts = uniqueTexts(q.options);
+    const answer = String(q.answer);
+    return { type:'文法選擇題', prompt:q.question, opts, ans:opts.indexOf(answer), audio:null };
+  }).filter(q => q.ans >= 0 && q.opts.length >= 2);
+  return fromPayload.length ? fromPayload : buildDefaultGrammar();
 }
 
-function nextFromPool(pool, queueName){
-  if(queueName === 'grammar'){
-    if(grammarPos >= grammarQueue.length){grammarQueue = shuffle([...Array(pool.length).keys()]); grammarPos = 0;}
-    return pool[grammarQueue[grammarPos++]];
-  }
-  if(vocabPos >= vocabQueue.length){vocabQueue = shuffle([...Array(pool.length).keys()]); vocabPos = 0;}
-  return pool[vocabQueue[vocabPos++]];
+function makeQueue(len){ return { order: shuffle([...Array(len).keys()]), pos:0 }; }
+
+function resetQuestionQueues(){
+  queues = {
+    vocab:   makeQueue(vocabQuestions.length),
+    fill:    makeQueue(fillQuestions.length),
+    grammar: makeQueue(grammarQuestions.length),
+  };
+}
+
+function nextFromPool(pool, name){
+  const q = queues[name];
+  if(!q || !pool.length) return null;
+  if(q.pos >= q.order.length){ q.order = shuffle([...Array(pool.length).keys()]); q.pos = 0; }
+  return pool[q.order[q.pos++]];
+}
+
+// 強化值題：填空、填空、填空、文法 這樣輪（缺哪邊就只出另一邊）
+function nextPowerQuestion(){
+  const hasFill = fillQuestions.length > 0;
+  const hasGrammar = grammarQuestions.length > 0;
+  if(!hasFill && !hasGrammar) return null;
+  let useGrammar;
+  if(!hasFill) useGrammar = true;
+  else if(!hasGrammar) useGrammar = false;
+  else useGrammar = (state.powerCount % 4 === 3);     // 每 3 題填空後第 4 題出文法
+  if(state) state.powerCount = (state.powerCount || 0) + 1;
+  return useGrammar ? nextFromPool(grammarQuestions, 'grammar') : nextFromPool(fillQuestions, 'fill');
 }
 
 function getNextQuestion(){
-  let kind;
-  if(state && state.boss && grammarQuestions.length){
-    kind = 'grammar';                                   // BOSS 期間：全部文法題
-  } else {
-    kind = (state && state.lastKind === 'vocab') ? 'grammar' : 'vocab'; // 平時：單字／文法交叉
-    if(kind === 'grammar' && grammarQuestions.length === 0) kind = 'vocab';
+  const hasPower = fillQuestions.length || grammarQuestions.length;
+  // BOSS 期間：全部強化值題，盡快擊退
+  if(state && state.boss && hasPower){
+    return nextPowerQuestion() || nextFromPool(vocabQuestions, 'vocab');
   }
-  if(state) state.lastKind = kind;
-  if(kind === 'grammar') return nextFromPool(grammarQuestions, 'grammar');
+  // 平時：每 3 題單字穿插 1 題強化值題
+  if(state && hasPower && (state.vocabSincePower || 0) >= 3){
+    state.vocabSincePower = 0;
+    const pq = nextPowerQuestion();
+    if(pq) return pq;
+  }
+  if(state) state.vocabSincePower = (state.vocabSincePower || 0) + 1;
   return nextFromPool(vocabQuestions, 'vocab');
 }
 
@@ -683,7 +701,8 @@ function initState(){
     bossQueuePos:0,
     bossDefeated:0,
     grammarStreak:0,         // 連續答對文法（擊退 BOSS 用）
-    lastKind:'grammar',      // 上一題類型（用來單字/文法交叉出題，首題為單字）
+    vocabSincePower:0,       // 已連續出幾題單字（每 3 題穿插 1 題強化值題）
+    powerCount:0,            // 已出幾題強化值題（用來「填空×3 → 文法×1」輪替）
   };
 }
 
