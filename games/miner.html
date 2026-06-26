@@ -53,33 +53,62 @@
             gap: 12px;
         }
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            padding: 14px 16px;
-            border: 1px solid rgba(255, 213, 74, 0.26);
-            border-radius: 8px;
-            background: linear-gradient(180deg, rgba(49, 36, 28, 0.92), rgba(21, 16, 14, 0.92));
-            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
-        }
-
-        h1 {
-            margin: 0;
-            font-size: clamp(24px, 3vw, 38px);
-            line-height: 1;
-            color: var(--gold);
-            text-shadow: 0 3px 0 rgba(91, 45, 6, 0.9), 0 0 20px rgba(255, 201, 79, 0.38);
-            letter-spacing: 0;
-            white-space: nowrap;
-        }
-
         .hud {
-            display: grid;
-            grid-template-columns: 1.3fr auto auto auto auto;
+            display: flex;
+            align-items: stretch;
             gap: 10px;
+        }
+
+        .stat-cluster {
+            display: flex;
+            gap: 10px;
+            flex: 0 0 auto;
+        }
+
+        .stat {
+            min-width: 86px;
+            display: grid;
+            align-content: center;
+            text-align: center;
+        }
+
+        .task-panel {
+            flex: 1 1 auto;
+            display: flex;
             align-items: center;
+            justify-content: center;
+            gap: 12px;
+            text-align: center;
+        }
+
+        .task-title {
+            font-size: clamp(17px, 1.7vw, 23px);
+            font-weight: 900;
+            color: var(--gold);
+            white-space: nowrap;
+            text-shadow: 0 2px 0 rgba(91, 45, 6, 0.85), 0 0 16px rgba(255, 201, 79, 0.32);
+        }
+
+        .task-text {
+            font-size: clamp(15px, 1.7vw, 21px) !important;
+            color: var(--cream);
+        }
+
+        .task-speak {
+            flex: 0 0 auto;
+            min-height: 0;
+            width: 46px;
+            height: 46px;
+            padding: 0;
+            border-radius: 50%;
+            font-size: 21px;
+            color: #eefaff;
+            background: linear-gradient(180deg, #34c6f3, #1685bd 58%, #0d4f7d);
+            box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.38), 0 4px 0 #06334f, 0 8px 14px rgba(0, 0, 0, 0.28);
+        }
+
+        .task-speak:disabled {
+            opacity: 0.4;
         }
 
         .panel {
@@ -108,13 +137,6 @@
 
         .score-value {
             color: var(--gold);
-        }
-
-        .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: flex-end;
         }
 
         button {
@@ -184,12 +206,6 @@
             font-size: 14px;
         }
 
-        .hint-inline {
-            text-align: right;
-            font-size: 13px;
-            align-self: center;
-        }
-
         /* 左下／右下方向圓鈕（桌機＋手機皆顯示） */
         .corner-btn {
             position: fixed;
@@ -239,16 +255,8 @@
             box-shadow: none;
         }
 
-        #miner-speak-btn {
-            left: 84px;
-        }
-
         #miner-settings-btn {
             right: 10px;
-        }
-
-        .touch-controls {
-            display: none;
         }
 
         @media (max-width: 860px) {
@@ -264,35 +272,6 @@
                 width: 100%;
             }
 
-            header {
-                position: sticky;
-                top: 0;
-                z-index: 4;
-                display: grid;
-                grid-template-columns: auto 1fr;
-                align-items: center;
-                gap: 10px;
-                padding: 8px;
-                backdrop-filter: blur(10px);
-            }
-
-            h1 {
-                max-width: 5.2em;
-                white-space: normal;
-                font-size: 24px;
-                line-height: 0.95;
-            }
-
-            .controls {
-                display: grid;
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-                gap: 8px;
-            }
-
-            .desktop-play-control {
-                display: none;
-            }
-
             button {
                 min-height: 54px;
                 padding: 0 10px;
@@ -300,12 +279,32 @@
             }
 
             .hud {
-                grid-template-columns: repeat(4, minmax(0, 1fr));
+                flex-direction: column;
                 gap: 7px;
             }
 
-            .hud .panel:first-child {
-                grid-column: 1 / -1;
+            .task-panel {
+                order: -1;
+                width: 100%;
+                gap: 8px;
+            }
+
+            .task-title {
+                font-size: 18px;
+            }
+
+            .stat-cluster {
+                width: 100%;
+            }
+
+            .stat-cluster .stat {
+                flex: 1;
+            }
+
+            .task-speak {
+                width: 50px;
+                height: 50px;
+                font-size: 22px;
             }
 
             .panel {
@@ -335,8 +334,7 @@
                 border-width: 2px;
             }
 
-            .hint,
-            .hint-inline {
+            .hint {
                 display: none;
             }
 
@@ -349,22 +347,13 @@
             }
 
             @media (orientation: landscape) {
-                header {
-                    grid-template-columns: auto 1fr;
-                }
-
-                h1 {
-                    font-size: 21px;
-                    max-width: none;
-                    white-space: nowrap;
-                }
-
                 .hud {
-                    grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr));
+                    flex-direction: row;
+                    align-items: stretch;
                 }
 
-                .hud .panel:first-child {
-                    grid-column: auto;
+                .task-panel {
+                    order: 0;
                 }
 
                 .corner-btn {
@@ -392,31 +381,33 @@
 </head>
 <body>
     <main class="shell">
-        <header>
-            <h1>單字挖金礦</h1>
-            <div class="hint hint-inline">聽英文 → 左右移動礦車 → 點畫面發射鉤子，抓對應的金塊</div>
-        </header>
-
         <section class="hud" aria-label="遊戲狀態">
-            <div class="panel">
-                <span class="panel-label">任務</span>
-                <span class="panel-value" id="target-word">聽英文，抓英文單字或中文意思</span>
+            <div class="stat-cluster">
+                <div class="panel stat">
+                    <span class="panel-label">關卡</span>
+                    <span class="panel-value" id="level">1 / 3</span>
+                </div>
+                <div class="panel stat">
+                    <span class="panel-label">時間</span>
+                    <span class="panel-value" id="time-left">60</span>
+                </div>
             </div>
-            <div class="panel">
-                <span class="panel-label">時間</span>
-                <span class="panel-value" id="time-left">60</span>
+
+            <div class="panel task-panel">
+                <span class="task-title">⛏️ 單字挖金礦</span>
+                <span class="panel-value task-text" id="target-word">點一下螢幕開始</span>
+                <button class="task-speak" id="miner-speak-btn" type="button" aria-label="重聽發音">🔊</button>
             </div>
-            <div class="panel">
-                <span class="panel-label">分數</span>
-                <span class="panel-value score-value" id="score">0</span>
-            </div>
-            <div class="panel">
-                <span class="panel-label">連續答對</span>
-                <span class="panel-value" id="streak">0</span>
-            </div>
-            <div class="panel">
-                <span class="panel-label">狀態</span>
-                <span class="panel-value" id="status">準備中</span>
+
+            <div class="stat-cluster">
+                <div class="panel stat">
+                    <span class="panel-label">分數</span>
+                    <span class="panel-value score-value" id="score">0</span>
+                </div>
+                <div class="panel stat">
+                    <span class="panel-label">連擊</span>
+                    <span class="panel-value" id="streak">0</span>
+                </div>
             </div>
         </section>
 
@@ -424,14 +415,13 @@
             <canvas id="gameCanvas" width="1080" height="675"></canvas>
         </section>
 
-        <div class="hint">左右角方向鈕（或 ← → / A D）移動礦車，點畫面或空白鍵發射，🔊 或 R 重聽。題型混合英文單字與中文意思，抓對加 20 分，抓錯扣 5 秒。</div>
+        <div class="hint">左右角方向鈕（或 ← → / A D）移動礦車，點畫面或空白鍵發射。題目用單字／中文／圖片互相出題，抓對應的金塊；分數夠高就進下一關，共三關！</div>
     </main>
 
     <button class="corner-btn secondary" id="move-left-btn" type="button" aria-label="礦車往左">←</button>
     <button class="corner-btn secondary" id="move-right-btn" type="button" aria-label="礦車往右">→</button>
-    <button class="icon-btn" id="miner-speak-btn" type="button" aria-label="重聽發音">🔊</button>
     <button class="icon-btn" id="miner-settings-btn" type="button" aria-label="設定選單">⚙</button>
-    <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"></div>
+    <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"><span id="status"></span></div>
 
     <div id="miner-pause" class="mOverlay hidden">
         <div class="mCard">
@@ -445,12 +435,13 @@
         <div class="mCard">
             <h2>⛏️ 如何遊玩</h2>
             <div class="r">
-                🎧 每題會<b>自動播放英文發音</b>（左上角 🔊 可重聽）。<br>
+                🎯 看畫面上方的<b>題目卡</b>（單字／中文／圖片），把鉤爪射向<b>對應的金塊</b>。<br>
+                🔊 題目是英文單字時會自動發音（任務旁 🔊 可重聽）。<br>
                 ⬅️➡️ <b>左下／右下方向鈕</b>（或鍵盤 ←→、A／D）：移動礦車<br>
                 👆 <b>點畫面任一處</b>（或空白鍵）：放出鉤爪<br>
                 <br>
-                🎯 聽完發音，把鉤爪射向<b>正確的金塊</b>（對應的英文單字或中文意思）。<br>
-                抓對 +20 分，抓錯倒扣時間。限時 60 秒，連續答對有連擊加成！<br>
+                🏆 <b>分數夠高就進下一關，共三關</b>，每進一關加 12 秒、難度提升。<br>
+                抓對 +20 分，抓錯倒扣時間，炸彈扣分、石頭會彈開。<br>
                 ⚙ 右上角設定可<b>重新開始</b>或暫停。
             </div>
             <button class="mBtn" id="miner-guide-ok">✓ 開始遊戲（點螢幕開始）</button>
@@ -465,6 +456,7 @@
     const timeLeftEl = document.getElementById("time-left");
     const scoreEl = document.getElementById("score");
     const streakEl = document.getElementById("streak");
+    const levelEl = document.getElementById("level");
     const statusEl = document.getElementById("status");
     const moveLeftBtn = document.getElementById("move-left-btn");
     const moveRightBtn = document.getElementById("move-right-btn");
@@ -499,6 +491,7 @@
     }
 
     const GAME_SECONDS = 60;
+    const MAX_TIME = 99;
     const WRONG_TIME_PENALTY = 5;
     const CORRECT_POINTS = 20;
     const BOMB_PENALTY = 10;
@@ -506,22 +499,33 @@
     const CART_MIN_X = 125;
     const CART_MAX_X = canvas.width - 125;
 
+    /* ── 三關卡：達門檻(累積分)進關，每關難度遞增 ── */
+    const LEVELS = [
+        { goal: 120, swing: 0.018, obstacles: 4, extraBomb: 0, goldBonus: 0 },
+        { goal: 280, swing: 0.024, obstacles: 5, extraBomb: 1, goldBonus: 0 },
+        { goal: 480, swing: 0.030, obstacles: 6, extraBomb: 2, goldBonus: 1 }
+    ];
+    const LEVEL_TIME_BONUS = 12;
+
     const DEFAULT_GOLD_WORDS = [
-        { word: "market", chinese: "市場" },
-        { word: "travel", chinese: "旅行" },
-        { word: "garden", chinese: "花園" },
-        { word: "friendly", chinese: "友善的" },
-        { word: "weather", chinese: "天氣" },
-        { word: "collect", chinese: "收集" },
-        { word: "bottle", chinese: "瓶子" },
-        { word: "holiday", chinese: "假日" }
+        { word: "market", chinese: "市場", emoji: "🏪" },
+        { word: "travel", chinese: "旅行", emoji: "✈️" },
+        { word: "garden", chinese: "花園", emoji: "🌷" },
+        { word: "umbrella", chinese: "雨傘", emoji: "☂️" },
+        { word: "weather", chinese: "天氣", emoji: "⛅" },
+        { word: "guitar", chinese: "吉他", emoji: "🎸" },
+        { word: "bottle", chinese: "瓶子", emoji: "🍼" },
+        { word: "holiday", chinese: "假日", emoji: "🎉" }
     ];
 
     const OBSTACLES = [
         { word: "bomb", type: "bomb", radius: 31 },
         { word: "bomb", type: "bomb", radius: 31 },
+        { word: "bomb", type: "bomb", radius: 31 },
+        { word: "bomb", type: "bomb", radius: 31 },
         { word: "rock", type: "rock", radius: 52 },
-        { word: "rock", type: "rock", radius: 47 }
+        { word: "rock", type: "rock", radius: 47 },
+        { word: "rock", type: "rock", radius: 50 }
     ];
 
     let availableVoices = [];
@@ -548,12 +552,15 @@
     let bombCount = 0;
     let rockCount = 0;
     let timeLeft = GAME_SECONDS;
+    let level = 1;
+    let gameWon = false;
     let lastFrameTime = performance.now();
     let pendingNextRoundTimer = null;
     let items = [];
     let targetWordObj = null;
-    let currentQuestionMode = "english";
-    let message = { text: "聽發音，找到正確的金塊", tone: "info", timer: 180 };
+    let currentQ = "word";
+    let currentA = "chinese";
+    let message = { text: "看題目，抓正確的金塊", tone: "info", timer: 180 };
     const input = {
         left: false,
         right: false
@@ -616,6 +623,24 @@
         return String(entry?.chinese || entry?.meaning || entry?.translation || entry?.definition || "").trim();
     }
 
+    function getEntryEmoji(entry) {
+        return String(entry?.emoji || entry?.image || entry?.img || "").trim();
+    }
+
+    /* representation：word(英文單字) / chinese(中文) / image(emoji) */
+    function repText(entry, rep) {
+        if (rep === "chinese") return getEntryChinese(entry);
+        if (rep === "image") return getEntryEmoji(entry);
+        return getEntryWord(entry);
+    }
+
+    function hasRep(entry, rep) {
+        return !!repText(entry, rep);
+    }
+
+    const REP_VERB = { word: "聽單字", chinese: "看中文", image: "看圖片" };
+    const REP_ANS = { word: "英文單字", chinese: "中文意思", image: "對應圖片" };
+
     function labelLength(text) {
         return [...String(text || "")].reduce((sum, char) => sum + (/[\u3400-\u9fff]/.test(char) ? 1.35 : 1), 0);
     }
@@ -624,19 +649,24 @@
         return window.matchMedia("(max-width: 860px)").matches;
     }
 
-    function makeGoldItem(entry, index = 0, mode = "english") {
+    function makeGoldItem(entry, index = 0, answerRep = "chinese") {
         const word = getEntryWord(entry);
         const chinese = getEntryChinese(entry);
-        const label = mode === "chinese" && chinese ? chinese : word;
+        const emoji = getEntryEmoji(entry);
+        const label = repText(entry, answerRep) || word;
         const compact = isCompactLayout();
+        if (answerRep === "image") {
+            return { word, chinese, emoji, label, answerType: answerRep, type: "gold", radius: compact ? 76 : 50 };
+        }
         const baseRadius = compact ? 54 : 36;
         const maxRadius = compact ? 88 : 58;
         const labelScale = compact ? 1.7 : 1.08;
         return {
             word,
             chinese,
+            emoji,
             label,
-            mode,
+            answerType: answerRep,
             type: "gold",
             radius: Math.max(baseRadius, Math.min(maxRadius, 34 + labelLength(label) * labelScale + (index % 3) * 2))
         };
@@ -647,7 +677,8 @@
         return (words || [])
             .map(item => ({
                 word: getEntryWord(item),
-                chinese: getEntryChinese(item)
+                chinese: getEntryChinese(item),
+                emoji: getEntryEmoji(item)
             }))
             .filter(item => item.word)
             .filter(item => {
@@ -696,33 +727,40 @@
 
     function displayAnswer(item) {
         if (!item) return "";
-        return item.mode === "chinese" ? item.label : displayWord(item.label || item.word);
+        const rep = item.answerType || "word";
+        if (rep === "chinese") return item.chinese || item.label;
+        if (rep === "image") return item.emoji || item.label;
+        return displayWord(item.word || item.label);
     }
 
-    function pickQuestionMode() {
-        const hasChinese = vocabulary.some(entry => getEntryChinese(entry));
-        if (!hasChinese) return "english";
-        return round % 2 === 1 ? "chinese" : "english";
+    /* 依題庫可用的呈現方式，隨機抽一組「題目→答案」組合（兩者不同） */
+    function pickRoundMode() {
+        const reps = ["word"];
+        if (vocabulary.some(entry => getEntryChinese(entry))) reps.push("chinese");
+        if (vocabulary.some(entry => getEntryEmoji(entry))) reps.push("image");
+        const pairs = [];
+        reps.forEach(q => reps.forEach(a => { if (q !== a) pairs.push({ q, a }); }));
+        if (pairs.length === 0) return { q: "word", a: "word" };
+        return pairs[Math.floor(Math.random() * pairs.length)];
     }
 
-    function buildRoundGolds(mode) {
-        const source = mode === "chinese"
-            ? vocabulary.filter(entry => getEntryChinese(entry))
-            : vocabulary;
+    function buildRoundGolds(q, a) {
+        const source = vocabulary.filter(entry => hasRep(entry, q) && hasRep(entry, a));
         const candidates = source.length > 0 ? source : vocabulary;
         const seenLabels = new Set();
         const golds = [];
+        const cap = (isCompactLayout() ? 4 : 5) + (LEVELS[level - 1]?.goldBonus || 0);
 
         shuffle(candidates).forEach((entry) => {
-            if (golds.length >= (isCompactLayout() ? 4 : 5)) return;
-            const item = makeGoldItem(entry, golds.length, source.length > 0 ? mode : "english");
-            const labelKey = item.label.toLowerCase();
+            if (golds.length >= cap) return;
+            const item = makeGoldItem(entry, golds.length, a);
+            const labelKey = String(item.label).toLowerCase();
             if (!item.word || !item.label || seenLabels.has(labelKey)) return;
             seenLabels.add(labelKey);
             golds.push(item);
         });
 
-        return golds.length > 0 ? golds : DEFAULT_GOLD_WORDS.map((entry, index) => makeGoldItem(entry, index, "english"));
+        return golds.length > 0 ? golds : DEFAULT_GOLD_WORDS.map((entry, index) => makeGoldItem(entry, index, "chinese"));
     }
 
     function buildItemSlots() {
@@ -755,7 +793,12 @@
         const playing = gamePhase === "PLAYING";
         moveLeftBtn.disabled = !playing;
         moveRightBtn.disabled = !playing;
-        speakBtn.disabled = !playing;
+        speakBtn.disabled = !playing || currentQ !== "word";
+    }
+
+    function applyLevelCfg() {
+        const cfg = LEVELS[level - 1] || LEVELS[0];
+        angleSpeed = cfg.swing;
     }
 
     function resetStats() {
@@ -767,6 +810,9 @@
         wrongCount = 0;
         bombCount = 0;
         rockCount = 0;
+        level = 1;
+        gameWon = false;
+        applyLevelCfg();
         timeLeft = GAME_SECONDS;
         origin.x = canvas.width / 2;
         particles.length = 0;
@@ -777,9 +823,42 @@
         resetStats();
         gamePhase = "PLAYING";
         startBgm();
-        setStatus("挑戰開始");
-        setMessage("60 秒挑戰開始，聽英文抓正確金塊", "good", 170);
+        setStatus("第 1 關");
+        setMessage("第 1 關開始！看題目抓正確金塊", "good", 170);
         initLevel(true);
+        updateHud();
+        updateControls();
+    }
+
+    /* 分數達門檻：進下一關（加時、難度提升）；通過最後一關＝全破 */
+    function maybeLevelUp() {
+        if (gamePhase !== "PLAYING") return;
+        const goal = LEVELS[level - 1]?.goal ?? Infinity;
+        if (score < goal) return;
+        if (level >= LEVELS.length) {
+            winGame();
+            return;
+        }
+        level += 1;
+        applyLevelCfg();
+        timeLeft = Math.min(MAX_TIME, timeLeft + LEVEL_TIME_BONUS);
+        setStatus(`第 ${level} 關`);
+        setMessage(`🎉 進入第 ${level} 關！加 ${LEVEL_TIME_BONUS} 秒，難度提升`, "good", 210);
+        addSparkles(canvas.width / 2, 150, "gold", 44);
+        updateHud();
+    }
+
+    function winGame() {
+        if (gamePhase === "ENDED") return;
+        stopBgm();
+        if (pendingNextRoundTimer) clearTimeout(pendingNextRoundTimer);
+        gamePhase = "ENDED";
+        gameWon = true;
+        state = "IDLE";
+        caughtItem = null;
+        setStatus("全部過關");
+        setMessage("🏆 三關全破！太厲害了！", "good", 240);
+        window.speechSynthesis?.cancel();
         updateHud();
         updateControls();
     }
@@ -789,18 +868,19 @@
         stopBgm();
         if (pendingNextRoundTimer) clearTimeout(pendingNextRoundTimer);
         gamePhase = "ENDED";
+        gameWon = false;
         state = "IDLE";
         caughtItem = null;
         timeLeft = 0;
         setStatus("時間到");
-        setMessage("時間到！看看這次挖到多少分", "neutral", 220);
+        setMessage("時間到！看看打到第幾關", "neutral", 220);
         window.speechSynthesis?.cancel();
         updateHud();
         updateControls();
     }
 
     function addTime(seconds) {
-        timeLeft = Math.max(0, Math.min(GAME_SECONDS, timeLeft + seconds));
+        timeLeft = Math.max(0, Math.min(MAX_TIME, timeLeft + seconds));
         if (timeLeft <= 0) finishGame();
         updateHud();
     }
@@ -839,10 +919,15 @@
         angle = rand(-Math.PI / 3.8, Math.PI / 3.8);
         angleDir = Math.random() > 0.5 ? 1 : -1;
 
-        currentQuestionMode = pickQuestionMode();
-        const golds = buildRoundGolds(currentQuestionMode);
+        const mode = pickRoundMode();
+        currentQ = mode.q;
+        currentA = mode.a;
+        const golds = buildRoundGolds(currentQ, currentA);
         targetWordObj = golds[Math.floor(Math.random() * golds.length)];
-        const obstacles = shuffle(OBSTACLES).slice(0, isCompactLayout() ? 3 : 4);
+        const slotCount = isCompactLayout() ? 9 : 13;
+        const maxObs = Math.max(2, slotCount - golds.length - 1);
+        const obsCount = Math.min(LEVELS[level - 1]?.obstacles || 4, maxObs);
+        const obstacles = shuffle(OBSTACLES).slice(0, obsCount);
         const spawn = shuffle([...golds, ...obstacles]);
         const slots = buildItemSlots();
 
@@ -860,13 +945,13 @@
             });
         });
 
-        const taskText = currentQuestionMode === "chinese" ? "聽英文，抓中文意思" : "聽英文，抓英文單字";
-        targetWordEl.textContent = gamePhase === "PLAYING" ? taskText : "點螢幕開始，限時 60 秒";
-        setStatus(gamePhase === "PLAYING" ? `第 ${round} 題` : "準備中");
-        setMessage(gamePhase === "PLAYING" ? `${taskText}，瞄準對應的金塊` : "點一下螢幕開始，會播放第一題發音", "info", 170);
+        const taskText = `${REP_VERB[currentQ]}，抓${REP_ANS[currentA]}`;
+        targetWordEl.textContent = gamePhase === "PLAYING" ? taskText : "點一下螢幕開始";
+        setStatus(gamePhase === "PLAYING" ? `第 ${level} 關 · 第 ${round} 題` : "準備中");
+        setMessage(gamePhase === "PLAYING" ? taskText : "點一下螢幕開始挑戰", "info", 150);
         updateHud();
 
-        if (autoSpeak && gamePhase === "PLAYING") {
+        if (autoSpeak && gamePhase === "PLAYING" && currentQ === "word") {
             setTimeout(() => speakWord(targetWordObj.word), 450);
         }
     }
@@ -875,6 +960,7 @@
         timeLeftEl.textContent = Math.ceil(timeLeft);
         scoreEl.textContent = score;
         streakEl.textContent = streak;
+        levelEl.textContent = `${level} / ${LEVELS.length}`;
         updateControls();
     }
 
@@ -1034,6 +1120,8 @@
         updateHud();
         caughtItem = null;
 
+        if (isCorrect) maybeLevelUp();
+
         if (gamePhase !== "PLAYING") return;
 
         if (shouldAdvanceRound) {
@@ -1061,11 +1149,65 @@
         drawCaveFrame();
         drawTrack();
         drawItems();
+        drawPrompt();
         drawHookSystem();
         drawParticles();
         drawMessage();
         drawGameOverlay();
         requestAnimationFrame(loop);
+    }
+
+    /* 題目卡：畫面上方大大顯示「要找」的內容（單字／中文／emoji） */
+    function drawPrompt() {
+        if (gamePhase !== "PLAYING" || !targetWordObj) return;
+        const isImg = currentQ === "image";
+        const content = isImg ? (targetWordObj.emoji || "❓")
+            : currentQ === "chinese" ? (targetWordObj.chinese || "")
+            : displayWord(targetWordObj.word);
+        if (!content) return;
+
+        const cy = 138;
+        const labelTxt = "要找";
+        ctx.save();
+        ctx.textBaseline = "middle";
+
+        ctx.font = "800 22px Arial, \"Noto Sans TC\", sans-serif";
+        const labelW = ctx.measureText(labelTxt).width;
+        const contentFont = isImg ? "58px" : "900 40px";
+        ctx.font = `${contentFont} Arial, "Noto Sans TC", sans-serif`;
+        const contentW = ctx.measureText(content).width;
+
+        const padX = 26, gap = 16;
+        const innerW = labelW + gap + contentW + (currentQ === "word" ? 36 : 0);
+        const boxW = Math.min(canvas.width - 80, innerW + padX * 2);
+        const boxH = 78;
+        const x = canvas.width / 2 - boxW / 2;
+        const y = cy - boxH / 2;
+
+        roundRect(x, y, boxW, boxH, 14);
+        ctx.fillStyle = "rgba(18, 13, 10, 0.86)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 213, 74, 0.9)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        let cx = canvas.width / 2 - innerW / 2;
+        ctx.textAlign = "left";
+        ctx.font = "800 22px Arial, \"Noto Sans TC\", sans-serif";
+        ctx.fillStyle = "rgba(255, 243, 207, 0.78)";
+        ctx.fillText(labelTxt, cx, cy + 1);
+        cx += labelW + gap;
+
+        ctx.font = `${contentFont} Arial, "Noto Sans TC", sans-serif`;
+        ctx.fillStyle = isImg ? "#ffffff" : "#ffd54a";
+        ctx.fillText(content, cx, cy + (isImg ? 3 : 1));
+        cx += contentW;
+
+        if (currentQ === "word") {
+            ctx.font = "26px Arial, sans-serif";
+            ctx.fillText(" 🔊", cx, cy + 1);
+        }
+        ctx.restore();
     }
 
     function drawBackground() {
@@ -1298,7 +1440,25 @@
         drawFacet(item.radius * 0.1, item.radius * 0.04, item.radius * 0.28);
         ctx.globalAlpha = 1;
 
-        drawLabel(item.label, item.radius);
+        if (item.answerType === "image") drawEmojiLabel(item.label, item.radius);
+        else drawLabel(item.label, item.radius);
+        ctx.restore();
+    }
+
+    function drawEmojiLabel(emoji, radius) {
+        ctx.save();
+        ctx.shadowColor = "transparent";
+        ctx.beginPath();
+        ctx.arc(0, 0, radius * 0.74, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 248, 225, 0.95)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(100, 55, 10, 0.7)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.font = `${radius * 0.95}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(emoji, 0, radius * 0.04);
         ctx.restore();
     }
 
@@ -1543,25 +1703,25 @@
 
         if (gamePhase === "READY") {
             ctx.fillStyle = "#ffd54a";
-            ctx.font = "900 48px Arial, sans-serif";
-            ctx.fillText("60 秒挖金礦挑戰", canvas.width / 2, y + 72);
+            ctx.font = "900 46px Arial, sans-serif";
+            ctx.fillText("單字挖金礦 · 三關挑戰", canvas.width / 2, y + 70);
             ctx.fillStyle = "#fff3cf";
-            ctx.font = "800 25px Arial, sans-serif";
-            ctx.fillText("聽英文發音，抓英文單字或中文意思", canvas.width / 2, y + 128);
+            ctx.font = "800 24px Arial, sans-serif";
+            ctx.fillText("看單字／中文／圖片，抓正確的金塊", canvas.width / 2, y + 124);
             ctx.fillStyle = "rgba(255, 243, 207, 0.82)";
-            ctx.font = "700 20px Arial, sans-serif";
-            ctx.fillText("答錯扣 5 秒，石頭會彈開，炸彈扣 10 分", canvas.width / 2, y + 172);
+            ctx.font = "700 19px Arial, sans-serif";
+            ctx.fillText("分數夠高就進下一關，全破共三關！", canvas.width / 2, y + 168);
             ctx.fillStyle = "#42d8ff";
             ctx.font = "900 24px Arial, sans-serif";
-            ctx.fillText("👆 點一下螢幕開始", canvas.width / 2, y + 220);
+            ctx.fillText("👆 點一下螢幕開始", canvas.width / 2, y + 218);
         } else {
-            ctx.fillStyle = "#ffd54a";
-            ctx.font = "900 52px Arial, sans-serif";
-            ctx.fillText("時間到！", canvas.width / 2, y + 64);
+            ctx.fillStyle = gameWon ? "#7bed5b" : "#ffd54a";
+            ctx.font = "900 50px Arial, sans-serif";
+            ctx.fillText(gameWon ? "🏆 三關全破！" : "時間到！", canvas.width / 2, y + 64);
 
             ctx.fillStyle = "#fff3cf";
-            ctx.font = "900 32px Arial, sans-serif";
-            ctx.fillText(`總分：${score}`, canvas.width / 2, y + 120);
+            ctx.font = "900 30px Arial, sans-serif";
+            ctx.fillText(gameWon ? `總分：${score}` : `打到第 ${level} 關 · 總分 ${score}`, canvas.width / 2, y + 118);
 
             drawResultRow("答對題數", correctCount, x + 86, y + 174);
             drawResultRow("抓錯次數", wrongCount, x + 326, y + 174);
@@ -1624,7 +1784,7 @@
     }
 
     speakBtn.addEventListener("click", () => {
-        if (gamePhase === "PLAYING" && targetWordObj) speakWord(targetWordObj.word);
+        if (gamePhase === "PLAYING" && currentQ === "word" && targetWordObj) speakWord(targetWordObj.word);
     });
 
     /* 點畫面任一處：開始 / 再玩一次 / 發射鉤子 */
@@ -1706,7 +1866,7 @@
             if (gamePhase === "READY" || gamePhase === "ENDED") startGame();
             else shoot();
         }
-        if (event.code === "KeyR" && gamePhase === "PLAYING" && targetWordObj) speakWord(targetWordObj.word);
+        if (event.code === "KeyR" && gamePhase === "PLAYING" && currentQ === "word" && targetWordObj) speakWord(targetWordObj.word);
         if (event.code === "KeyN") startGame();
     });
 
