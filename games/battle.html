@@ -107,7 +107,7 @@ button{font-family:'Outfit',sans-serif;}
         <div class="rule"><strong>勝利目標</strong><br>推倒敵方基地，或時間到時基地血量較高。</div>
         <div class="rule"><strong>答對獎勵</strong><br>+25 金，連對 3 題再 +15 金。</div>
         <div class="rule" id="difficulty-summary"><strong>敵方壓力</strong><br>普通：開場 30 金，答錯敵方增援。</div>
-        <div class="rule"><strong>題型</strong><br>中英互選為主，穿插文法選擇題。</div>
+        <div class="rule"><strong>題型</strong><br>單字題（中英互選、看圖選答）賺金幣；穿插填空／文法題賺強化值。</div>
       </div>
     </div>
     <div class="panel">
@@ -207,9 +207,9 @@ button{font-family:'Outfit',sans-serif;}
   <div class="card">
     <h2>⚔️ 如何遊玩</h2>
     <div class="r">
-      這是一場<b>答題攻防戰</b>：畫面下方出英文／文法題，<b>點選正確答案</b>。<br>
-      ✅ 答對單字題 → 獲得金幣、派我方士兵攻向敵方基地。<br>
-      📘 答對文法題 → 累積強化值，可<b>升級全軍</b>（攻擊與血量倍率提升）。<br>
+      這是一場<b>答題攻防戰</b>：畫面下方出單字／填空文法題，<b>點選正確答案</b>。<br>
+      ✅ 答對單字題（中英互選、看圖選答）→ 獲得金幣、派我方士兵攻向敵方基地。<br>
+      📘 答對填空／文法題 → 累積強化值，可<b>升級全軍</b>（攻擊與血量倍率提升）。<br>
       ⏳ 限時內把<b>敵方基地血量打到 0</b> 就獲勝；小心敵軍與 BOSS 反推你的基地！<br>
       ⏸ 戰鬥中可按 <b>ESC</b> 暫停。
     </div>
@@ -330,16 +330,16 @@ const DEFAULT_GRAMMAR = [
 ];
 
 const FALLBACK_WORDS = [
-  { id:'fallback-1', word:'market', chinese:'市場' },
-  { id:'fallback-2', word:'travel', chinese:'旅行' },
-  { id:'fallback-3', word:'friendly', chinese:'友善的' },
-  { id:'fallback-4', word:'collect', chinese:'收集' },
-  { id:'fallback-5', word:'weather', chinese:'天氣' },
+  { id:'fallback-1', word:'market', chinese:'市場', emoji:'🛒', sentence:'My mom buys fresh fruit at the {W} every weekend.' },
+  { id:'fallback-2', word:'travel', chinese:'旅行', emoji:'✈️', sentence:'They love to {W} to new countries during summer vacation.' },
+  { id:'fallback-3', word:'friendly', chinese:'友善的', emoji:'😊', sentence:'The new student is very {W} and says hi to everyone.' },
+  { id:'fallback-4', word:'collect', chinese:'收集', emoji:'📦', sentence:'He likes to {W} old stamps from many different countries.' },
+  { id:'fallback-5', word:'weather', chinese:'天氣', emoji:'⛅', sentence:'The {W} is sunny and warm, so let’s go to the park.' },
 ];
 
 let uid = 0;
 let state = null;
-let battleData = { unitTitle:'示範題庫', words:FALLBACK_WORDS, grammarQuiz:DEFAULT_GRAMMAR };
+let battleData = { unitTitle:'示範題庫', builtin:true, words:FALLBACK_WORDS, grammarQuiz:DEFAULT_GRAMMAR };
 let vocabQuestions = [];
 let grammarQuestions = [];
 let vocabQueue = [];
@@ -476,33 +476,62 @@ function uniqueTexts(items){
   return [...new Set(items.filter(Boolean).map(x => String(x).trim()).filter(Boolean))];
 }
 
+// 「強化值題」：答對賺強化值、可打 BOSS（文法選擇題 / 內建單字的英文填空題）
+function isPowerQuestion(q){ return q && (q.type === '文法選擇題' || q.type === '英文填空題'); }
+
 function makeQuestion(type, prompt, answer, choices, audio){
   const opts = shuffle(uniqueTexts([answer, ...choices])).slice(0,4);
   if(!opts.includes(answer)) opts[Math.floor(Math.random()*opts.length)] = answer;
   return { type, prompt, opts, ans: opts.indexOf(answer), audio };
 }
 
+function buildDefaultGrammar(){
+  return DEFAULT_GRAMMAR.map(q => {
+    const opts = uniqueTexts(q.options);
+    return { type:'文法選擇題', prompt:q.question, opts, ans:opts.indexOf(q.answer), audio:null };
+  });
+}
+
 function buildQuestionPools(payload){
+  const isBuiltin = !!payload.builtin;
   const words = (payload.words || []).filter(w => w && w.word && w.chinese);
   const wordPool = words.length >= 4 ? words : FALLBACK_WORDS;
+  const withEmoji = wordPool.filter(w => w.emoji);     // 圖片題用：自己與干擾選項都要有 emoji
+
+  // ── 單字題：英文出中文 / 中文出英文 / 圖片題（看圖選英文、看圖選中文、看字選圖片）混合輪流 ──
   vocabQuestions = [];
   wordPool.forEach(target => {
     const others = shuffle(wordPool.filter(w => w.word !== target.word));
     vocabQuestions.push(makeQuestion('英文選中文', target.word, target.chinese, others.map(w => w.chinese), target.word));
     vocabQuestions.push(makeQuestion('中文選英文', target.chinese, target.word, others.map(w => w.word), target.word));
+    if(target.emoji && withEmoji.length >= 2){
+      const others2 = shuffle(withEmoji.filter(w => w.word !== target.word));
+      const q1 = makeQuestion('看圖選英文', target.emoji, target.word, others2.map(w => w.word), target.word);
+      q1.bigPrompt = true; vocabQuestions.push(q1);
+      const q2 = makeQuestion('看圖選中文', target.emoji, target.chinese, others2.map(w => w.chinese), target.word);
+      q2.bigPrompt = true; vocabQuestions.push(q2);
+      const q3 = makeQuestion('看字選圖片', target.word, target.emoji, others2.map(w => w.emoji), target.word);
+      q3.bigOpts = true; vocabQuestions.push(q3);
+    }
   });
 
-  grammarQuestions = (payload.grammarQuiz || []).filter(q => q && q.question && q.options && q.answer).map(q => {
-    const opts = uniqueTexts(q.options);
-    const answer = String(q.answer);
-    return { type:'文法選擇題', prompt:q.question, opts, ans:opts.indexOf(answer), audio:null };
-  }).filter(q => q.ans >= 0 && q.opts.length >= 2);
-
-  if(grammarQuestions.length === 0){
-    grammarQuestions = DEFAULT_GRAMMAR.map(q => {
-      const opts = uniqueTexts(q.options);
-      return { type:'文法選擇題', prompt:q.question, opts, ans:opts.indexOf(q.answer), audio:null };
+  // ── 強化值題（打 BOSS / 升級用）：內建單字出「英文填空題」，學生單字維持「文法選擇題」──
+  if(isBuiltin){
+    grammarQuestions = [];
+    wordPool.forEach(target => {
+      if(!target.sentence || target.sentence.indexOf('{W}') < 0) return;
+      const sentence = target.sentence.replace(/\{W\}/g, '________');
+      const others = shuffle(wordPool.filter(w => w.word !== target.word));
+      grammarQuestions.push(makeQuestion('英文填空題', sentence, target.word, others.map(w => w.word), target.word));
     });
+    if(grammarQuestions.length === 0) grammarQuestions = buildDefaultGrammar();
+  } else {
+    grammarQuestions = (payload.grammarQuiz || []).filter(q => q && q.question && q.options && q.answer).map(q => {
+      const opts = uniqueTexts(q.options);
+      const answer = String(q.answer);
+      return { type:'文法選擇題', prompt:q.question, opts, ans:opts.indexOf(answer), audio:null };
+    }).filter(q => q.ans >= 0 && q.opts.length >= 2);
+    if(grammarQuestions.length === 0) grammarQuestions = buildDefaultGrammar();
   }
   resetQuestionQueues();
   updateStartInfo();
@@ -556,6 +585,7 @@ window.addEventListener('message', (event) => {
   if(!event.data || event.data.type !== 'BATTLE_DATA') return;
   battleData = {
     unitTitle: event.data.payload?.unitTitle || '目前單元',
+    builtin: !!event.data.payload?.builtin,
     words: event.data.payload?.words || FALLBACK_WORDS,
     grammarQuiz: event.data.payload?.grammarQuiz || DEFAULT_GRAMMAR,
   };
@@ -1239,19 +1269,23 @@ function bossProgress(boss){   // 由血量推算「已擊退幾格」，供顯�
 function loadQuestion(){
   if(!state || state.phase !== 'playing') return;
   currentQuestion = getNextQuestion();
-  const isGrammar = currentQuestion.type === '文法選擇題';
+  const isGrammar = isPowerQuestion(currentQuestion);
   const qt = document.getElementById('quiz-type');
   qt.textContent = isGrammar
     ? `📐 ${currentQuestion.type}｜答對 +${CONFIG.powerPerGrammar} 強化值（升級／擊退 BOSS）`
     : `📘 ${currentQuestion.type}｜答對 +${CONFIG.correctGold} 金，連對 ${CONFIG.comboNeed} 題 +${CONFIG.comboBonus}`;
   qt.className = isGrammar ? 'qt-grammar' : 'qt-vocab';
-  document.getElementById('question').textContent = currentQuestion.prompt;
+  const qEl = document.getElementById('question');
+  qEl.textContent = currentQuestion.prompt;
+  qEl.style.fontSize = currentQuestion.bigPrompt ? '3rem' : '';   // 圖片題：emoji 題目放大
+  qEl.style.textAlign = currentQuestion.bigPrompt ? 'center' : '';
   const optDiv = document.getElementById('options');
   optDiv.innerHTML = '';
   currentQuestion.opts.forEach((opt, i) => {
     const b = document.createElement('button');
     b.className = 'opt-btn';
     b.textContent = opt;
+    if(currentQuestion.bigOpts){ b.style.fontSize = '2rem'; b.style.textAlign = 'center'; }   // 看字選圖片：emoji 選項放大
     b.onclick = () => checkAnswer(i, b);
     optDiv.appendChild(b);
   });
@@ -1266,7 +1300,7 @@ function checkAnswer(chosen, btn){
   state.quizLocked = true;
   const btns = document.querySelectorAll('.opt-btn');
   btns.forEach(b => b.onclick = null);
-  const isGrammar = currentQuestion.type === '文法選擇題';
+  const isGrammar = isPowerQuestion(currentQuestion);
   const fb = document.getElementById('feedback');
   if(chosen === currentQuestion.ans){
     playSound('correct');
@@ -1368,6 +1402,7 @@ function endGame(result){
     const d = JSON.parse(new URLSearchParams(h).get('lessonData') || '');
     if(d) battleData = {
       unitTitle: d.unitTitle || '目前單元',
+      builtin: !!d.builtin,
       words: d.words || FALLBACK_WORDS,
       grammarQuiz: d.grammarQuiz || DEFAULT_GRAMMAR,
     };
