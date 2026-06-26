@@ -90,8 +90,10 @@
         }
 
         .task-text {
-            font-size: clamp(15px, 1.7vw, 21px) !important;
-            color: var(--cream);
+            font-size: clamp(20px, 2.3vw, 30px) !important;
+            font-weight: 900;
+            color: var(--gold);
+            text-shadow: 0 2px 0 rgba(91, 45, 6, 0.6);
         }
 
         .task-speak {
@@ -322,7 +324,7 @@
             }
 
             #target-word {
-                font-size: 20px;
+                font-size: 25px;
             }
 
             .game-wrap {
@@ -377,6 +379,29 @@
         background:linear-gradient(#ffd766,#ffb52e);border:none;border-radius:40px;
         padding:12px 34px;cursor:pointer;margin:5px;}
     .mBtn.sec{background:rgba(255,255,255,.16);color:#fff;border:2px solid #ffd24d;}
+
+    /* ===== 底部置中：遊戲回饋提示 + 累積分數進度條（在左右移動鈕中間） ===== */
+    #miner-bottom{position:fixed;left:50%;transform:translateX(-50%);
+        bottom:calc(20px + env(safe-area-inset-bottom));z-index:35;
+        width:min(560px,calc(100vw - 24px));display:flex;flex-direction:column;
+        align-items:center;gap:8px;pointer-events:none;}
+    #miner-toast{max-width:100%;padding:8px 16px;border-radius:999px;
+        background:rgba(18,13,10,.88);border:2px solid #42d8ff;color:#42d8ff;
+        font:800 16px/1.3 Arial,"Noto Sans TC",sans-serif;text-align:center;
+        opacity:0;transition:opacity .18s ease;box-shadow:0 6px 18px rgba(0,0,0,.4);}
+    #miner-progress{position:relative;width:min(300px,calc(100vw - 230px));height:24px;
+        border-radius:999px;background:rgba(12,9,7,.85);border:2px solid rgba(255,213,74,.6);
+        overflow:hidden;box-shadow:0 6px 16px rgba(0,0,0,.4);}
+    #miner-progress-fill{position:absolute;inset:0 auto 0 0;width:0%;
+        background:linear-gradient(90deg,#ffe27a,#f7a928);transition:width .35s ease;}
+    #miner-progress-label{position:absolute;inset:0;display:flex;align-items:center;
+        justify-content:center;color:#fff7e0;font:900 13px/1 Arial,"Noto Sans TC",sans-serif;
+        text-shadow:0 1px 3px rgba(0,0,0,.7);white-space:nowrap;}
+    @media (max-width:860px){
+        #miner-bottom{bottom:calc(14px + env(safe-area-inset-bottom));width:min(560px,calc(100vw - 16px));}
+        #miner-toast{font-size:14.5px;padding:7px 14px;}
+        #miner-progress{width:min(260px,calc(100vw - 234px));height:26px;}
+    }
     </style>
 </head>
 <body>
@@ -421,6 +446,13 @@
     <button class="corner-btn secondary" id="move-left-btn" type="button" aria-label="礦車往左">←</button>
     <button class="corner-btn secondary" id="move-right-btn" type="button" aria-label="礦車往右">→</button>
     <button class="icon-btn" id="miner-settings-btn" type="button" aria-label="設定選單">⚙</button>
+    <div id="miner-bottom" aria-hidden="true">
+        <div id="miner-toast"></div>
+        <div id="miner-progress">
+            <div id="miner-progress-fill"></div>
+            <span id="miner-progress-label"></span>
+        </div>
+    </div>
     <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"><span id="status"></span></div>
 
     <div id="miner-pause" class="mOverlay hidden">
@@ -462,6 +494,10 @@
     const moveRightBtn = document.getElementById("move-right-btn");
     const speakBtn = document.getElementById("miner-speak-btn");
     const settingsBtn = document.getElementById("miner-settings-btn");
+    const toastEl = document.getElementById("miner-toast");
+    const progressEl = document.getElementById("miner-progress");
+    const progressFillEl = document.getElementById("miner-progress-fill");
+    const progressLabelEl = document.getElementById("miner-progress-label");
 
     const bgImage = new Image();
     bgImage.src = "../assets/miner-visual-concept.png";
@@ -733,6 +769,14 @@
         return displayWord(item.word || item.label);
     }
 
+    /* 標題列要顯示的「這題題目」：依題目表示法給英文／中文／emoji */
+    function questionText(obj, rep) {
+        if (!obj) return "";
+        if (rep === "chinese") return obj.chinese || obj.label || "";
+        if (rep === "image") return obj.emoji || "❓";
+        return displayWord(obj.word || obj.label);
+    }
+
     /* 依題庫可用的呈現方式，隨機抽一組「題目→答案」組合（兩者不同） */
     function pickRoundMode() {
         const reps = ["word"];
@@ -946,9 +990,9 @@
         });
 
         const taskText = `${REP_VERB[currentQ]}，抓${REP_ANS[currentA]}`;
-        targetWordEl.textContent = gamePhase === "PLAYING" ? taskText : "點一下螢幕開始";
+        targetWordEl.textContent = gamePhase === "PLAYING" ? questionText(targetWordObj, currentQ) : "點一下螢幕開始";
         setStatus(gamePhase === "PLAYING" ? `第 ${level} 關 · 第 ${round} 題` : "準備中");
-        setMessage(gamePhase === "PLAYING" ? taskText : "點一下螢幕開始挑戰", "info", 150);
+        setMessage(gamePhase === "PLAYING" ? `${taskText}｜答對 +${CORRECT_POINTS} 分，答錯 −${WRONG_TIME_PENALTY} 秒` : "點一下螢幕開始挑戰", "info", 200);
         updateHud();
 
         if (autoSpeak && gamePhase === "PLAYING" && currentQ === "word") {
@@ -962,6 +1006,7 @@
         streakEl.textContent = streak;
         levelEl.textContent = `${level} / ${LEVELS.length}`;
         updateControls();
+        renderProgress();
     }
 
     function shoot() {
@@ -1149,125 +1194,11 @@
         drawCaveFrame();
         drawTrack();
         drawItems();
-        drawPrompt();
-        drawLevelProgress();
         drawHookSystem();
         drawParticles();
-        drawMessage();
         drawGameOverlay();
+        renderToast();
         requestAnimationFrame(loop);
-    }
-
-    /* 題目卡：畫面上方大大顯示「要找」的內容（單字／中文／emoji） */
-    function drawPrompt() {
-        if (gamePhase !== "PLAYING" || !targetWordObj) return;
-        const isImg = currentQ === "image";
-        const content = isImg ? (targetWordObj.emoji || "❓")
-            : currentQ === "chinese" ? (targetWordObj.chinese || "")
-            : displayWord(targetWordObj.word);
-        if (!content) return;
-
-        const cy = 138;
-        const labelTxt = "要找";
-        ctx.save();
-        ctx.textBaseline = "middle";
-
-        ctx.font = "800 22px Arial, \"Noto Sans TC\", sans-serif";
-        const labelW = ctx.measureText(labelTxt).width;
-        const contentFont = isImg ? "58px" : "900 40px";
-        ctx.font = `${contentFont} Arial, "Noto Sans TC", sans-serif`;
-        const contentW = ctx.measureText(content).width;
-
-        const padX = 26, gap = 16;
-        const innerW = labelW + gap + contentW + (currentQ === "word" ? 36 : 0);
-        const boxW = Math.min(canvas.width - 80, innerW + padX * 2);
-        const boxH = 78;
-        const x = canvas.width / 2 - boxW / 2;
-        const y = cy - boxH / 2;
-
-        roundRect(x, y, boxW, boxH, 14);
-        ctx.fillStyle = "rgba(18, 13, 10, 0.86)";
-        ctx.fill();
-        ctx.strokeStyle = "rgba(255, 213, 74, 0.9)";
-        ctx.lineWidth = 3;
-        ctx.stroke();
-
-        let cx = canvas.width / 2 - innerW / 2;
-        ctx.textAlign = "left";
-        ctx.font = "800 22px Arial, \"Noto Sans TC\", sans-serif";
-        ctx.fillStyle = "rgba(255, 243, 207, 0.78)";
-        ctx.fillText(labelTxt, cx, cy + 1);
-        cx += labelW + gap;
-
-        ctx.font = `${contentFont} Arial, "Noto Sans TC", sans-serif`;
-        ctx.fillStyle = isImg ? "#ffffff" : "#ffd54a";
-        ctx.fillText(content, cx, cy + (isImg ? 3 : 1));
-        cx += contentW;
-
-        if (currentQ === "word") {
-            ctx.font = "26px Arial, sans-serif";
-            ctx.fillText(" 🔊", cx, cy + 1);
-        }
-        ctx.restore();
-    }
-
-    /* 持續顯示的關卡進度條：清楚標出「再得幾分進下一關」，讓玩家知道進度 */
-    function drawLevelProgress() {
-        if (gamePhase !== "PLAYING") return;
-        const cfg = LEVELS[level - 1];
-        if (!cfg) return;
-        const goal = cfg.goal;
-        const prev = level > 1 ? (LEVELS[level - 2]?.goal || 0) : 0;
-        const span = Math.max(1, goal - prev);
-        const ratio = Math.max(0, Math.min(1, (score - prev) / span));
-        const remain = Math.max(0, goal - score);
-        const isLast = level >= LEVELS.length;
-        const compact = isCompactLayout();
-
-        const barW = compact ? canvas.width - 150 : 460;
-        const barH = compact ? 26 : 22;
-        const bx = canvas.width / 2 - barW / 2;
-        const by = 200;
-
-        ctx.save();
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-
-        const tip = remain > 0
-            ? (isLast ? `再得 ${remain} 分 → 🏆 三關全破` : `再得 ${remain} 分 → 進入第 ${level + 1} 關`)
-            : (isLast ? "🏆 達標！" : `達標！進入第 ${level + 1} 關`);
-        ctx.font = `800 ${compact ? 18 : 16}px Arial, "Noto Sans TC", sans-serif`;
-        ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
-        ctx.shadowBlur = 6;
-        ctx.fillStyle = "rgba(255, 243, 207, 0.95)";
-        ctx.fillText(tip, canvas.width / 2, by - (compact ? 18 : 16));
-        ctx.shadowBlur = 0;
-
-        roundRect(bx, by, barW, barH, barH / 2);
-        ctx.fillStyle = "rgba(12, 9, 7, 0.8)";
-        ctx.fill();
-        ctx.strokeStyle = "rgba(255, 213, 74, 0.6)";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        if (ratio > 0) {
-            ctx.save();
-            roundRect(bx, by, barW, barH, barH / 2);
-            ctx.clip();
-            const grd = ctx.createLinearGradient(bx, 0, bx + barW, 0);
-            grd.addColorStop(0, "#ffe27a");
-            grd.addColorStop(1, "#f7a928");
-            ctx.fillStyle = grd;
-            ctx.fillRect(bx, by, barW * ratio, barH);
-            ctx.restore();
-        }
-
-        ctx.font = `900 ${compact ? 15 : 14}px Arial, sans-serif`;
-        ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
-        ctx.shadowBlur = 4;
-        ctx.fillStyle = "#fff7e0";
-        ctx.fillText(`${score} / ${goal} 分`, canvas.width / 2, by + barH / 2 + 1);
-        ctx.restore();
     }
 
     function drawBackground() {
@@ -1714,29 +1645,37 @@
         });
     }
 
-    function drawMessage() {
-        if (message.timer <= 0) return;
+    const TOAST_COLORS = { good: "#7bed5b", bad: "#ff6c5d", neutral: "#d8c5a3", info: "#42d8ff" };
 
-        const alpha = Math.min(1, message.timer / 28);
-        const width = Math.min(700, 120 + message.text.length * 19);
-        const x = canvas.width / 2 - width / 2;
-        const y = canvas.height - 92;
-        const color = message.tone === "good" ? "#7bed5b" : message.tone === "bad" ? "#ff6c5d" : message.tone === "neutral" ? "#d8c5a3" : "#42d8ff";
+    /* 底部提示泡泡：每題的指示／計分、答對答錯回饋，顯示在進度條正上方，幾秒後淡出 */
+    function renderToast() {
+        if (!toastEl) return;
+        const show = gamePhase === "PLAYING" && message.timer > 0 && message.text;
+        if (!show) { toastEl.style.opacity = "0"; return; }
+        if (toastEl.dataset.text !== message.text) { toastEl.textContent = message.text; toastEl.dataset.text = message.text; }
+        const color = TOAST_COLORS[message.tone] || TOAST_COLORS.info;
+        toastEl.style.color = color;
+        toastEl.style.borderColor = color;
+        toastEl.style.opacity = String(Math.min(1, message.timer / 28));
+    }
 
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        roundRect(x, y, width, 50, 8);
-        ctx.fillStyle = "rgba(18, 13, 10, 0.82)";
-        ctx.fill();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        ctx.fillStyle = color;
-        ctx.font = "800 24px Arial, sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(message.text, canvas.width / 2, y + 25);
-        ctx.restore();
+    /* 底部置中進度條：標出「再得幾分進下一關」與累積進度 */
+    function renderProgress() {
+        if (!progressEl) return;
+        if (gamePhase !== "PLAYING") { progressEl.style.display = "none"; return; }
+        progressEl.style.display = "";
+        const cfg = LEVELS[level - 1];
+        if (!cfg) return;
+        const goal = cfg.goal;
+        const prev = level > 1 ? (LEVELS[level - 2]?.goal || 0) : 0;
+        const span = Math.max(1, goal - prev);
+        const ratio = Math.max(0, Math.min(1, (score - prev) / span));
+        const remain = Math.max(0, goal - score);
+        const isLast = level >= LEVELS.length;
+        progressFillEl.style.width = (ratio * 100).toFixed(1) + "%";
+        progressLabelEl.textContent = remain > 0
+            ? (isLast ? `再得 ${remain} 分 → 🏆 全破` : `再得 ${remain} 分 → 第 ${level + 1} 關`)
+            : (isLast ? "🏆 達標！" : `達標！→ 第 ${level + 1} 關`);
     }
 
     function drawGameOverlay() {
