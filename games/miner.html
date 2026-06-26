@@ -184,6 +184,69 @@
             font-size: 14px;
         }
 
+        .hint-inline {
+            text-align: right;
+            font-size: 13px;
+            align-self: center;
+        }
+
+        /* 左下／右下方向圓鈕（桌機＋手機皆顯示） */
+        .corner-btn {
+            position: fixed;
+            bottom: calc(20px + env(safe-area-inset-bottom));
+            z-index: 30;
+            width: 78px;
+            height: 78px;
+            min-height: 0;
+            padding: 0;
+            border-radius: 50%;
+            font-size: 32px;
+            display: grid;
+            place-items: center;
+            opacity: 0.94;
+        }
+
+        #move-left-btn {
+            left: 18px;
+        }
+
+        #move-right-btn {
+            right: 18px;
+        }
+
+        /* 左上喇叭、右上齒輪圖示鈕 */
+        .icon-btn {
+            position: fixed;
+            top: 10px;
+            z-index: 40;
+            width: 42px;
+            height: 42px;
+            min-height: 0;
+            padding: 0;
+            border-radius: 50%;
+            font-size: 20px;
+            line-height: 1;
+            color: #e2e8f0;
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            box-shadow: none;
+            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
+        }
+
+        .icon-btn:active {
+            transform: none;
+            box-shadow: none;
+        }
+
+        #miner-speak-btn {
+            left: 84px;
+        }
+
+        #miner-settings-btn {
+            right: 10px;
+        }
+
         .touch-controls {
             display: none;
         }
@@ -191,7 +254,7 @@
         @media (max-width: 860px) {
             body {
                 min-height: 100svh;
-                padding: 8px 8px calc(104px + env(safe-area-inset-bottom));
+                padding: 8px 8px calc(18px + env(safe-area-inset-bottom));
                 gap: 8px;
                 overflow-y: auto;
             }
@@ -272,38 +335,20 @@
                 border-width: 2px;
             }
 
-            .hint {
+            .hint,
+            .hint-inline {
                 display: none;
             }
 
-            .touch-controls {
-                position: fixed;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                z-index: 20;
-                display: grid;
-                grid-template-columns: 1fr 1.25fr 1fr;
-                gap: 8px;
-                padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
-                background: linear-gradient(180deg, rgba(18, 13, 10, 0.2), rgba(18, 13, 10, 0.96) 28%);
-                backdrop-filter: blur(10px);
-            }
-
-            .touch-controls button {
-                min-height: 72px;
-                font-size: 24px;
-            }
-
-            #touch-fire-btn {
-                font-size: 20px;
+            .corner-btn {
+                width: 92px;
+                height: 92px;
+                font-size: 38px;
+                bottom: calc(14px + env(safe-area-inset-bottom));
+                opacity: 0.96;
             }
 
             @media (orientation: landscape) {
-                body {
-                    padding-bottom: calc(88px + env(safe-area-inset-bottom));
-                }
-
                 header {
                     grid-template-columns: auto 1fr;
                 }
@@ -322,8 +367,10 @@
                     grid-column: auto;
                 }
 
-                .touch-controls button {
-                    min-height: 60px;
+                .corner-btn {
+                    width: 74px;
+                    height: 74px;
+                    font-size: 32px;
                 }
             }
         }
@@ -347,13 +394,7 @@
     <main class="shell">
         <header>
             <h1>單字挖金礦</h1>
-            <div class="controls">
-                <button class="secondary desktop-play-control" id="move-left-btn" type="button">←</button>
-                <button class="secondary" id="play-sound-btn" type="button">聽發音</button>
-                <button id="start-game-btn" type="button">開始挑戰</button>
-                <button class="desktop-play-control" id="fire-btn" type="button">發射鉤子</button>
-                <button class="secondary desktop-play-control" id="move-right-btn" type="button">→</button>
-            </div>
+            <div class="hint hint-inline">聽英文 → 左右移動礦車 → 點畫面發射鉤子，抓對應的金塊</div>
         </header>
 
         <section class="hud" aria-label="遊戲狀態">
@@ -383,20 +424,20 @@
             <canvas id="gameCanvas" width="1080" height="675"></canvas>
         </section>
 
-        <div class="hint">← → 或 A/D 移動礦車，空白鍵發射，R 重聽。題型會混合英文單字與中文意思，抓對加 20 分，抓錯扣 5 秒。</div>
+        <div class="hint">左右角方向鈕（或 ← → / A D）移動礦車，點畫面或空白鍵發射，🔊 或 R 重聽。題型混合英文單字與中文意思，抓對加 20 分，抓錯扣 5 秒。</div>
     </main>
 
-    <section class="touch-controls" aria-label="手機操作">
-        <button class="secondary" id="touch-left-btn" type="button" aria-label="礦車往左">←</button>
-        <button id="touch-fire-btn" type="button">發射</button>
-        <button class="secondary" id="touch-right-btn" type="button" aria-label="礦車往右">→</button>
-    </section>
+    <button class="corner-btn secondary" id="move-left-btn" type="button" aria-label="礦車往左">←</button>
+    <button class="corner-btn secondary" id="move-right-btn" type="button" aria-label="礦車往右">→</button>
+    <button class="icon-btn" id="miner-speak-btn" type="button" aria-label="重聽發音">🔊</button>
+    <button class="icon-btn" id="miner-settings-btn" type="button" aria-label="設定選單">⚙</button>
     <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"></div>
 
     <div id="miner-pause" class="mOverlay hidden">
         <div class="mCard">
-            <h2>⏸ 暫停</h2>
+            <h2>⚙ 設定</h2>
             <button class="mBtn" id="miner-resume">繼續遊戲</button>
+            <button class="mBtn sec" id="miner-restart">🔄 重新開始</button>
             <button class="mBtn sec" id="miner-guide-pause">📖 如何遊玩</button>
         </div>
     </div>
@@ -404,15 +445,15 @@
         <div class="mCard">
             <h2>⛏️ 如何遊玩</h2>
             <div class="r">
-                🎧 每題會<b>播放英文發音</b>（可按「聽發音」或 R 重聽）。<br>
-                ← → 或 A／D：移動礦車<br>
-                空白鍵 或「發射鉤子」：放出鉤爪<br>
+                🎧 每題會<b>自動播放英文發音</b>（左上角 🔊 可重聽）。<br>
+                ⬅️➡️ <b>左下／右下方向鈕</b>（或鍵盤 ←→、A／D）：移動礦車<br>
+                👆 <b>點畫面任一處</b>（或空白鍵）：放出鉤爪<br>
                 <br>
                 🎯 聽完發音，把鉤爪射向<b>正確的金塊</b>（對應的英文單字或中文意思）。<br>
                 抓對 +20 分，抓錯倒扣時間。限時 60 秒，連續答對有連擊加成！<br>
-                ⏸ 遊戲中可按 <b>ESC</b> 暫停。
+                ⚙ 右上角設定可<b>重新開始</b>或暫停。
             </div>
-            <button class="mBtn" id="miner-guide-ok">✓ 我知道了</button>
+            <button class="mBtn" id="miner-guide-ok">✓ 開始遊戲（點螢幕開始）</button>
         </div>
     </div>
 
@@ -425,14 +466,10 @@
     const scoreEl = document.getElementById("score");
     const streakEl = document.getElementById("streak");
     const statusEl = document.getElementById("status");
-    const startGameBtn = document.getElementById("start-game-btn");
     const moveLeftBtn = document.getElementById("move-left-btn");
-    const playSoundBtn = document.getElementById("play-sound-btn");
-    const fireBtn = document.getElementById("fire-btn");
     const moveRightBtn = document.getElementById("move-right-btn");
-    const touchLeftBtn = document.getElementById("touch-left-btn");
-    const touchFireBtn = document.getElementById("touch-fire-btn");
-    const touchRightBtn = document.getElementById("touch-right-btn");
+    const speakBtn = document.getElementById("miner-speak-btn");
+    const settingsBtn = document.getElementById("miner-settings-btn");
 
     const bgImage = new Image();
     bgImage.src = "../assets/miner-visual-concept.png";
@@ -716,15 +753,9 @@
 
     function updateControls() {
         const playing = gamePhase === "PLAYING";
-        startGameBtn.textContent = playing ? "重新開始" : gamePhase === "ENDED" ? "再玩一次" : "開始挑戰";
-        startGameBtn.disabled = false;
         moveLeftBtn.disabled = !playing;
         moveRightBtn.disabled = !playing;
-        playSoundBtn.disabled = !playing;
-        fireBtn.disabled = !playing || state !== "IDLE";
-        touchLeftBtn.disabled = !playing;
-        touchRightBtn.disabled = !playing;
-        touchFireBtn.disabled = !playing || state !== "IDLE";
+        speakBtn.disabled = !playing;
     }
 
     function resetStats() {
@@ -830,9 +861,9 @@
         });
 
         const taskText = currentQuestionMode === "chinese" ? "聽英文，抓中文意思" : "聽英文，抓英文單字";
-        targetWordEl.textContent = gamePhase === "PLAYING" ? taskText : "按開始挑戰，限時 60 秒";
+        targetWordEl.textContent = gamePhase === "PLAYING" ? taskText : "點螢幕開始，限時 60 秒";
         setStatus(gamePhase === "PLAYING" ? `第 ${round} 題` : "準備中");
-        setMessage(gamePhase === "PLAYING" ? `${taskText}，瞄準對應的金塊` : "按開始挑戰後會播放第一題發音", "info", 170);
+        setMessage(gamePhase === "PLAYING" ? `${taskText}，瞄準對應的金塊` : "點一下螢幕開始，會播放第一題發音", "info", 170);
         updateHud();
 
         if (autoSpeak && gamePhase === "PLAYING") {
@@ -1522,7 +1553,7 @@
             ctx.fillText("答錯扣 5 秒，石頭會彈開，炸彈扣 10 分", canvas.width / 2, y + 172);
             ctx.fillStyle = "#42d8ff";
             ctx.font = "900 24px Arial, sans-serif";
-            ctx.fillText("按上方「開始挑戰」開始", canvas.width / 2, y + 220);
+            ctx.fillText("👆 點一下螢幕開始", canvas.width / 2, y + 220);
         } else {
             ctx.fillStyle = "#ffd54a";
             ctx.font = "900 52px Arial, sans-serif";
@@ -1539,7 +1570,7 @@
 
             ctx.fillStyle = "#42d8ff";
             ctx.font = "900 23px Arial, sans-serif";
-            ctx.fillText("按「再玩一次」重新挑戰", canvas.width / 2, y + 318);
+            ctx.fillText("👆 點一下螢幕再玩一次", canvas.width / 2, y + 318);
         }
 
         ctx.restore();
@@ -1592,27 +1623,47 @@
         draw();
     }
 
-    playSoundBtn.addEventListener("click", () => {
-        if (targetWordObj) speakWord(targetWordObj.word);
+    speakBtn.addEventListener("click", () => {
+        if (gamePhase === "PLAYING" && targetWordObj) speakWord(targetWordObj.word);
     });
 
-    startGameBtn.addEventListener("click", startGame);
-    fireBtn.addEventListener("click", shoot);
+    /* 點畫面任一處：開始 / 再玩一次 / 發射鉤子 */
+    canvas.addEventListener("pointerdown", () => {
+        if (paused || guideOpen) return;
+        if (gamePhase === "PLAYING") {
+            if (state === "IDLE") shoot();
+        } else {
+            startGame();
+        }
+    });
 
-    /* ===== 暫停 + 玩法守則 ===== */
+    /* ===== 設定選單（含暫停） + 玩法守則 ===== */
     let paused = false, guideOpen = false;
+    const pauseEl = document.getElementById("miner-pause");
+    function openSettings() {
+        if (paused) return;
+        paused = true;
+        pauseEl.classList.remove("hidden");
+        stopBgm();
+    }
+    function closeSettings() {
+        if (!paused) return;
+        paused = false;
+        pauseEl.classList.add("hidden");
+        if (gamePhase === "PLAYING") startBgm();
+    }
     function togglePause() {
-        if (gamePhase !== "PLAYING") return;
-        paused = !paused;
-        document.getElementById("miner-pause").classList.toggle("hidden", !paused);
-        if(paused) stopBgm(); else startBgm();
+        if (paused) closeSettings();
+        else openSettings();
     }
     function openGuide() { guideOpen = true; document.getElementById("miner-guide").classList.remove("hidden"); }
     function closeGuide() {
         guideOpen = false; document.getElementById("miner-guide").classList.add("hidden");
         try { localStorage.setItem("minerGuideSeen", "1"); } catch (e) {}
     }
-    document.getElementById("miner-resume").addEventListener("click", togglePause);
+    settingsBtn.addEventListener("click", togglePause);
+    document.getElementById("miner-resume").addEventListener("click", closeSettings);
+    document.getElementById("miner-restart").addEventListener("click", () => { closeSettings(); startGame(); });
     document.getElementById("miner-guide-pause").addEventListener("click", openGuide);
     document.getElementById("miner-guide-ok").addEventListener("click", closeGuide);
     try { if (!localStorage.getItem("minerGuideSeen")) openGuide(); } catch (e) { openGuide(); }
@@ -1634,9 +1685,6 @@
 
     bindMoveButton(moveLeftBtn, "left");
     bindMoveButton(moveRightBtn, "right");
-    bindMoveButton(touchLeftBtn, "left");
-    bindMoveButton(touchRightBtn, "right");
-    touchFireBtn.addEventListener("click", shoot);
 
     window.addEventListener("keydown", (event) => {
         if (guideOpen) {
