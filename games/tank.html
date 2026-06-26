@@ -1086,11 +1086,16 @@ function updTank(dt){
     return;
   }
   let sp=0;
-  if(touchMove.active){                                    // 觸控：相對鏡頭推桿 → 車身轉向該方位並前進
-    const heading=camYaw+Math.atan2(-touchMove.x,-touchMove.y); // 推桿「上」＝往畫面深處（鏡頭朝向）；左右反號修正平板鏡像
-    tank.yaw=lerpAng(tank.yaw,heading,2.8*dt);             // 車身平滑轉向移動方向（左右轉速再放慢，坦克感；鏡頭才跟得上砲管）
+  if(touchMove.active){                                    // 觸控（平板）：垂直＝前後油門（沿車身），水平＝左右轉向
+    const throttle=-touchMove.y;                            // 上推(+)前進、下推(−)後退；皆沿車身方向，不轉頭
+    const steer=touchMove.x;                                // 右(+)右轉、左(−)左轉；越偏垂直＝水平分量越小＝越接近直走
     tank.boost=Math.min(1,tank.boost+dt/1.2);
-    sp=(10+(touchMove.boost?1:tank.boost)*9)*touchMove.mag; // 推到外圈＝頂速，輕推＝慢行
+    if(throttle>=0){
+      sp=(10+(touchMove.boost?1:tank.boost)*9)*throttle;   // 前進 0→19，依垂直分量
+    }else{
+      sp=-(6+(touchMove.boost?1:tank.boost)*4)*(-throttle);// 後退 0→−10，車身直接倒退（不再原地旋轉）
+    }
+    tank.yaw+=steer*0.5*dt*(sp<0?-1:1);                    // 左右轉速 0.5；倒車時方向相反（符合實車手感）
   }else{
     const fwd=keys['KeyW']||keys['ArrowUp'], back=keys['KeyS']||keys['ArrowDown'];
     const shiftHeld=keys['ShiftLeft']||keys['ShiftRight'];   // Shift / 推桿到底＝瞬間頂速
