@@ -1095,7 +1095,7 @@ function updTank(dt){
     }else{
       sp=-(6+(touchMove.boost?1:tank.boost)*4)*(-throttle);// 後退 0→−10，車身直接倒退（不再原地旋轉）
     }
-    tank.yaw+=steer*0.5*dt*(sp<0?-1:1);                    // 左右轉速 0.5；倒車時方向相反（符合實車手感）
+    tank.yaw-=steer*0.7*dt*(sp<0?-1:1);                    // 左右轉速 0.7；倒車時方向相反（符合實車手感）
   }else{
     const fwd=keys['KeyW']||keys['ArrowUp'], back=keys['KeyS']||keys['ArrowDown'];
     const shiftHeld=keys['ShiftLeft']||keys['ShiftRight'];   // Shift / 推桿到底＝瞬間頂速
