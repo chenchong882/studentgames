@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>單字挖金礦</title>
     <style>
         :root {
@@ -1150,6 +1150,7 @@
         drawTrack();
         drawItems();
         drawPrompt();
+        drawLevelProgress();
         drawHookSystem();
         drawParticles();
         drawMessage();
@@ -1207,6 +1208,65 @@
             ctx.font = "26px Arial, sans-serif";
             ctx.fillText(" 🔊", cx, cy + 1);
         }
+        ctx.restore();
+    }
+
+    /* 持續顯示的關卡進度條：清楚標出「再得幾分進下一關」，讓玩家知道進度 */
+    function drawLevelProgress() {
+        if (gamePhase !== "PLAYING") return;
+        const cfg = LEVELS[level - 1];
+        if (!cfg) return;
+        const goal = cfg.goal;
+        const prev = level > 1 ? (LEVELS[level - 2]?.goal || 0) : 0;
+        const span = Math.max(1, goal - prev);
+        const ratio = Math.max(0, Math.min(1, (score - prev) / span));
+        const remain = Math.max(0, goal - score);
+        const isLast = level >= LEVELS.length;
+        const compact = isCompactLayout();
+
+        const barW = compact ? canvas.width - 150 : 460;
+        const barH = compact ? 26 : 22;
+        const bx = canvas.width / 2 - barW / 2;
+        const by = 200;
+
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        const tip = remain > 0
+            ? (isLast ? `再得 ${remain} 分 → 🏆 三關全破` : `再得 ${remain} 分 → 進入第 ${level + 1} 關`)
+            : (isLast ? "🏆 達標！" : `達標！進入第 ${level + 1} 關`);
+        ctx.font = `800 ${compact ? 18 : 16}px Arial, "Noto Sans TC", sans-serif`;
+        ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = "rgba(255, 243, 207, 0.95)";
+        ctx.fillText(tip, canvas.width / 2, by - (compact ? 18 : 16));
+        ctx.shadowBlur = 0;
+
+        roundRect(bx, by, barW, barH, barH / 2);
+        ctx.fillStyle = "rgba(12, 9, 7, 0.8)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 213, 74, 0.6)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        if (ratio > 0) {
+            ctx.save();
+            roundRect(bx, by, barW, barH, barH / 2);
+            ctx.clip();
+            const grd = ctx.createLinearGradient(bx, 0, bx + barW, 0);
+            grd.addColorStop(0, "#ffe27a");
+            grd.addColorStop(1, "#f7a928");
+            ctx.fillStyle = grd;
+            ctx.fillRect(bx, by, barW * ratio, barH);
+            ctx.restore();
+        }
+
+        ctx.font = `900 ${compact ? 15 : 14}px Arial, sans-serif`;
+        ctx.shadowColor = "rgba(0, 0, 0, 0.55)";
+        ctx.shadowBlur = 4;
+        ctx.fillStyle = "#fff7e0";
+        ctx.fillText(`${score} / ${goal} 分`, canvas.width / 2, by + barH / 2 + 1);
         ctx.restore();
     }
 
@@ -1892,6 +1952,17 @@
       if(!document.hidden)return;
       if(gamePhase==='PLAYING'&&!paused)togglePause(); else stopBgm();
     });
+
+    /* iOS Safari 會忽略 user-scalable=no，補攔手勢縮放與雙擊放大，避免畫面卡在放大狀態 */
+    ["gesturestart", "gesturechange", "gestureend"].forEach(type =>
+        document.addEventListener(type, e => e.preventDefault(), { passive: false }));
+    document.addEventListener("dblclick", e => e.preventDefault(), { passive: false });
+    let lastTouchEnd = 0;
+    document.addEventListener("touchend", e => {
+        const now = Date.now();
+        if (now - lastTouchEnd < 320) e.preventDefault();
+        lastTouchEnd = now;
+    }, { passive: false });
 
     /* 返回選單按鈕：記住目前單字，返回時帶回主機 */
     (function(){
