@@ -209,6 +209,13 @@ function shuffleWords(words) {
 // 課程題庫（lessonData）才隨機；打散整池再切關，所以每次開新局第一關出現的
 // 單字都不一樣，不會永遠是題庫前 5 個。
 let bombWordPool = null;
+// 注入題庫（wordbank / 課程）帶來的 emoji：word(小寫) → emoji。
+// 畫字牌時優先用這張，查不到才退回內建 WORD_EMOJI 表，這樣 wordbank 改 emoji 會即時反映。
+let lessonEmoji = {};
+function emojiForWord(word) {
+  const k = String(word).toLowerCase();
+  return lessonEmoji[k] || WORD_EMOJI[k];
+}
 function buildLessonLevels() {
   LEVELS = chunkWords(shuffleWords(bombWordPool), 5).map((chunk, index) => ({
     id: index + 1,
@@ -223,9 +230,15 @@ function applyBombData(payload) {
   const words = normalizeBombWords(payload?.words);
   if (words.length === 0) {
     bombWordPool = null;
+    lessonEmoji = {};
     LEVELS = DEFAULT_LEVELS.map(level => ({ ...level, words: [...level.words] }));
     bombLessonTitle = '示範題庫';
   } else {
+    lessonEmoji = {};
+    (payload?.words || []).forEach(w => {
+      const word = getLessonWord(w), em = String(w?.emoji || '').trim();
+      if (word && em) lessonEmoji[word.toLowerCase()] = em;
+    });
     bombLessonTitle = payload?.unitTitle || payload?.title || '目前課程';
     bombWordPool = words;
     buildLessonLevels();
@@ -961,7 +974,7 @@ class House {
     const isHinted = this.hintFlash > 0;
     const isWrong  = this.wrongFlash > 0;
     const lY  = by - 18; // drawn closer to the smaller roof
-    const emoji = WORD_EMOJI[this.word.toLowerCase()];
+    const emoji = emojiForWord(this.word);
 
     // Glow / flash (reactive only)
     if (isHinted) {
