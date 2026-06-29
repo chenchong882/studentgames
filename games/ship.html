@@ -205,6 +205,12 @@
   .overlay button:active { transform: scale(.95); }
   .hidden { display: none !important; }
   #final-score, #win-score { font-size: clamp(28px, 7vw, 48px); color: #ffe082; font-weight: 900; }
+  #win-stars { font-size: clamp(30px, 9vw, 54px); letter-spacing: 6px; animation: starPop .6s ease-out; }
+  @keyframes starPop { 0% { transform: scale(0) rotate(-20deg); opacity: 0; } 70% { transform: scale(1.25); } 100% { transform: scale(1); opacity: 1; } }
+  #win-stats { font-size: clamp(13px, 3.2vw, 18px); color: #ffd9a0; line-height: 2.1; text-align: center; }
+  #win-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: inherit; }
+  .cf { position: absolute; border-radius: 2px; animation: cfFall linear forwards; }
+  @keyframes cfFall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(105vh) rotate(800deg); opacity: 0; } }
 </style>
 </head>
 <body>
@@ -263,10 +269,13 @@
   </div>
 
   <div id="win-screen" class="overlay hidden">
-    <h1>🏆 通關成功</h1>
-    <div class="sub">你擊沉了深海死神號，海岸安全了！</div>
+    <div id="win-confetti"></div>
+    <h1>🏆 通關成功！</h1>
+    <div class="sub">深海死神號已擊沉，海岸安全了！</div>
+    <div id="win-stars">⭐⭐⭐</div>
     <div id="win-score">0 分</div>
-    <button id="winagain-btn">再玩一次</button>
+    <div id="win-stats"></div>
+    <button id="winagain-btn">🌊 再戰一場</button>
   </div>
 
   <div id="pause-screen" class="overlay hidden">
@@ -348,8 +357,9 @@ function resize() {
   W = window.innerWidth; H = window.innerHeight;
   canvas.width = W * DPR; canvas.height = H * DPR;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const phone = W < H && W < 500;
   horizonY = H * 0.42;
-  focal = Math.max(W, H) * 0.62;
+  focal = phone ? W * 0.65 : Math.max(W, H) * 0.62;
 }
 window.addEventListener("resize", resize);
 resize();
@@ -357,7 +367,8 @@ resize();
 // 世界座標 (x 橫向, z 距離) → 螢幕座標；scale = 每世界單位的像素數
 function project(x, z) {
   const s = focal / z;
-  return { sx: W / 2 + x * s, waterY: horizonY + CAM_H * s, s };
+  const camH = (W < H && W < 500) ? 31 : CAM_H;
+  return { sx: W / 2 + x * s, waterY: horizonY + camH * s, s };
 }
 
 /* ════════════════ 遊戲狀態 ════════════════ */
@@ -368,6 +379,7 @@ const game = {
   score: 0,
   lives: 3,
   combo: 0,
+  maxCombo: 0,
   clearProgress: 0,       // 本關已擊沉目標數，滿 ROUNDS_PER_LEVEL 升關
   lastRoundWon: false,    // 上一回合是否成功擊沉
   threatPhase: "idle",    // 困難反擊：idle | aim | fired
@@ -558,10 +570,12 @@ function newRound() {
     }
     ships.push(makeShip(attrs, i, count, isTarget));
   }
-  // 打亂航道順序
+  // 打亂航道順序（三個座標欄位一起換，否則目標船永遠卡在最左側）
   for (let i = ships.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [ships[i].lane, ships[j].lane] = [ships[j].lane, ships[i].lane];
+    [ships[i].lane,   ships[j].lane]   = [ships[j].lane,   ships[i].lane];
+    [ships[i].spawnX, ships[j].spawnX] = [ships[j].spawnX, ships[i].spawnX];
+    [ships[i].shoreX, ships[j].shoreX] = [ships[j].shoreX, ships[i].shoreX];
   }
   game.ships = ships;
   updateQuestionUI();
@@ -609,34 +623,40 @@ function newRoundSpecial(lv) {
     ships.push(makeShip(attrs, i, count, false));
   }
 
-  // 打亂航道順序
+  // 打亂航道順序（三個座標欄位一起換）
   for (let i = ships.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [ships[i].lane, ships[j].lane] = [ships[j].lane, ships[i].lane];
+    [ships[i].lane,   ships[j].lane]   = [ships[j].lane,   ships[i].lane];
+    [ships[i].spawnX, ships[j].spawnX] = [ships[j].spawnX, ships[i].spawnX];
+    [ships[i].shoreX, ships[j].shoreX] = [ships[j].shoreX, ships[i].shoreX];
   }
   game.ships = ships;
   updateQuestionUI();
 }
 
 function makeShip(attrs, idx, count, isTarget) {
-  const laneSpread = 110;
+  // 依目前螢幕寬度動態算安全展開距離，防止手機直向模式船隻跑出螢幕
+  const safeH = (W / 2) * SPAWN_Z / focal;
+  const laneSpread = Math.min(110, safeH * 0.82);
+  const safeS = (W / 2) * SHORE_Z / focal;
+  const shoreSpread = Math.min(26, safeS * 0.72);
+  const laneRatio = laneSpread / 110;
   const lane = (idx / Math.max(1, count - 1) - 0.5) * 2; // -1 ~ 1
-  // 第 SWAY_FROM_LEVEL 關起導入橫向搖擺，幅度隨關卡加大
   const swayOn = game.level >= SWAY_FROM_LEVEL;
   return {
     ...attrs,
     isTarget,
     lane,
-    spawnX: lane * laneSpread + rand(-12, 12),
-    shoreX: lane * 26 + rand(-4, 4),
+    spawnX: lane * laneSpread + rand(-10, 10) * laneRatio,
+    shoreX: lane * shoreSpread + rand(-3, 3) * laneRatio,
     z: SPAWN_Z + idx * rand(20, 55),
     speed: rand(9.5, 12.5) * (1 + (game.level - 1) * 0.06),
     bobPhase: rand(0, Math.PI * 2),
-    swayAmp: swayOn ? rand(14, 22) * (1 + (game.level - SWAY_FROM_LEVEL) * 0.18) : 0,
+    swayAmp: swayOn ? rand(14, 22) * (1 + (game.level - SWAY_FROM_LEVEL) * 0.18) * laneRatio * (W < H && W < 500 ? 0.5 : 1) : 0,
     swaySpeed: rand(0.6, 1.0),
     swayPhase: rand(0, Math.PI * 2),
     alive: true,
-    sinking: 0,           // 0~1 下沉動畫
+    sinking: 0,
   };
 }
 
@@ -778,6 +798,7 @@ function resolveImpact(x, y, fxX, fxY, fromBurst) {
 
   if (hit.isTarget) {
     game.combo++;
+    game.maxCombo = Math.max(game.maxCombo, game.combo);
     // 連擊倍率：×1 → ×1.5 → ×2 → ×2.5 →（最高）×3
     const comboMult = Math.min(1 + (game.combo - 1) * 0.5, 3);
     // 距離加成：越遠擊沉分數越高（近 ×1 ～ 遠 ×2.5）
@@ -850,10 +871,29 @@ function winGame() {
   stopBgm();
   game.state = "win";
   $("win-score").textContent = game.score + " 分";
+  const stars = game.score >= 9000 ? "⭐⭐⭐" : game.score >= 4500 ? "⭐⭐" : "⭐";
+  $("win-stars").textContent = stars;
+  $("win-stats").innerHTML =
+    `❤️ 剩餘生命：${game.lives}&emsp;🔥 最大連擊：×${game.maxCombo || 1}&emsp;🏅 第 ${game.level} 關`;
+  spawnWinConfetti();
+  sfx.good(); setTimeout(() => sfx.good(), 250); setTimeout(() => sfx.good(), 550);
   $("win-screen").classList.remove("hidden");
   $("pause-btn").classList.add("hidden");
   hud.classList.add("hidden");
   skyQ.classList.add("hidden");
+}
+
+function spawnWinConfetti() {
+  const box = $("win-confetti");
+  box.innerHTML = "";
+  const colors = ["#ffe082","#ff8a65","#81d4fa","#a5d6a7","#f48fb1","#ce93d8","#fff59d","#fff"];
+  for (let i = 0; i < 72; i++) {
+    const el = document.createElement("div");
+    const sz = rand(7, 14);
+    el.className = "cf";
+    el.style.cssText = `left:${rand(0,100)}%;background:${pick(colors)};width:${sz}px;height:${sz}px;animation-duration:${rand(1.8,3.8)}s;animation-delay:${rand(0,1.5)}s;border-radius:${Math.random()<0.4?'50%':'2px'};`;
+    box.appendChild(el);
+  }
 }
 
 /* ════════════════ 暫停 ════════════════ */
@@ -1200,6 +1240,7 @@ function spawnBossWave() {
   const others = shuffle(wordBank.filter(w => w.word !== targetWord.word));
   const words = shuffle([targetWord, others[0], others[1], others[2]]);
 
+  const bossSpread = Math.min(95, (W / 2) * 0.82 * 150 / focal);
   const ships = [];
   for (let i = 0; i < count; i++) {
     const lane = (i / (count - 1) - 0.5) * 2;
@@ -1211,11 +1252,11 @@ function spawnBossWave() {
       size: sizes[0],
       isTarget, isEscort: true,
       lane,
-      spawnX: lane * 95, shoreX: lane * 95,   // 不前進，固定 x
+      spawnX: lane * bossSpread, shoreX: lane * bossSpread,
       z: 150 + rand(-10, 10),
       speed: 0,
       bobPhase: rand(0, Math.PI * 2),
-      swayAmp: 16, swaySpeed: rand(0.7, 1.1), swayPhase: rand(0, Math.PI * 2),
+      swayAmp: 16 * (bossSpread / 95), swaySpeed: rand(0.7, 1.1), swayPhase: rand(0, Math.PI * 2),
       alive: true, sinking: 0,
     });
   }
@@ -1372,7 +1413,7 @@ function startGame(difficulty) {
   startBgm();
   const diff = difficulty || game.difficulty || "hard";
   Object.assign(game, {
-    state: "playing", difficulty: diff, level: 1, score: 0, lives: 3, combo: 0,
+    state: "playing", difficulty: diff, level: 1, score: 0, lives: 3, combo: 0, maxCombo: 0,
     clearProgress: 0, lastRoundWon: false, threatPhase: "idle", threatT: 0,
     monster: null, monsterCd: rand(30, 45), burst: 0,
     rockets: [], particles: [], splashes: [], fireLock: false, roundEnding: false,
@@ -1720,10 +1761,11 @@ function drawRockets(dt) {
 /* ── 火箭筒（右下角） ── */
 function drawLauncher() {
   ctx.save();
-  const bx = W * 0.78, by = H * 1.02;
+  const phone = W < H && W < 500;
+  const bx = W * 0.78, by = H * (phone ? 1.05 : 1.02);
   ctx.translate(bx, by);
   ctx.rotate(-0.62);
-  const len = Math.min(W, H) * 0.5;
+  const len = Math.min(W, H) * (phone ? 0.40 : 0.50);
   const g = ctx.createLinearGradient(0, -28, 0, 28);
   g.addColorStop(0, "#5d6a55");
   g.addColorStop(0.5, "#3c4636");
