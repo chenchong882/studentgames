@@ -1631,6 +1631,78 @@ function drawEndScreen(c, game, victory) {
 }
 
 // ══════════════════════════════════════════
+//  SCREEN: VICTORY (all levels cleared)
+// ══════════════════════════════════════════
+function drawVictoryScreen(c, game) {
+  // Dark overlay
+  c.fillStyle = 'rgba(0,0,20,0.88)'; c.fillRect(0,0,W,H);
+
+  // Confetti
+  game.victoryConfetti.forEach(p => {
+    c.save();
+    c.translate(p.x, p.y); c.rotate(p.rot);
+    c.fillStyle = p.col;
+    if (p.isRect) c.fillRect(-p.sz/2, -p.sz*0.3, p.sz, p.sz*0.6);
+    else { c.beginPath(); c.arc(0, 0, p.sz*0.5, 0, Math.PI*2); c.fill(); }
+    c.restore();
+  });
+
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+
+  // Trophy — pulse animation
+  const sc = 1 + Math.sin(game._victoryPhase * 0.055) * 0.08;
+  c.save();
+  c.translate(W/2, H * 0.18);
+  c.scale(sc, sc);
+  c.shadowColor = '#FFD700'; c.shadowBlur = 38;
+  c.font = `${clamp(H * 0.10, 54, 82)}px Arial`;
+  c.fillText('🏆', 0, 0);
+  c.shadowBlur = 0;
+  c.restore();
+
+  // Title
+  c.font = `bold ${clamp(H * 0.068, 38, 60)}px "Arial Rounded MT Bold", Arial`;
+  c.fillStyle = '#FFD700';
+  c.shadowColor = '#FF8800'; c.shadowBlur = 24;
+  c.fillText('全關通過！', W/2, H * 0.35);
+  c.shadowBlur = 0;
+
+  c.font = `${clamp(H * 0.030, 18, 25)}px Arial`;
+  c.fillStyle = 'rgba(255,255,255,0.82)';
+  c.fillText('All Levels Complete! 🎉', W/2, H * 0.44);
+
+  // Score
+  c.font = `bold ${clamp(H * 0.040, 24, 34)}px Arial`;
+  c.fillStyle = '#FFD700';
+  c.fillText(`⭐ ${game.score} 分`, W/2, H * 0.54);
+
+  // Time
+  const m = Math.floor(game.timer/60), s = game.timer % 60;
+  c.font = `${clamp(H * 0.026, 17, 22)}px Arial`;
+  c.fillStyle = 'rgba(255,255,255,0.72)';
+  c.fillText(`完成時間  ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`, W/2, H * 0.62);
+
+  // Buttons — two side by side
+  const bw = clamp(W * 0.34, 180, 270), bh = 54, gap = 16;
+  const by = H * 0.76;
+  const bx1 = W/2 - bw - gap/2;
+  const bx2 = W/2 + gap/2;
+  const bfs = `bold ${clamp(H * 0.030, 18, 24)}px Arial`;
+
+  c.fillStyle = 'rgba(40,140,80,0.92)';
+  roundRect(c, bx1, by, bw, bh, 16); c.fill();
+  c.strokeStyle = 'rgba(255,255,255,0.42)'; c.lineWidth = 2; c.stroke();
+  c.fillStyle = 'white'; c.font = bfs;
+  c.fillText('再玩一次 🔄', bx1 + bw/2, by + bh/2);
+
+  c.fillStyle = 'rgba(50,100,210,0.92)';
+  roundRect(c, bx2, by, bw, bh, 16); c.fill();
+  c.strokeStyle = 'rgba(255,255,255,0.42)'; c.lineWidth = 2; c.stroke();
+  c.fillStyle = 'white'; c.font = bfs;
+  c.fillText('🏠 主選單', bx2 + bw/2, by + bh/2);
+}
+
+// ══════════════════════════════════════════
 //  GAME
 // ══════════════════════════════════════════
 class Game {
@@ -1663,6 +1735,8 @@ class Game {
     this.turretFireT = 0; // hard-mode: frames until next turret volley
     this.crate    = null; // active supply crate, if any
     this._crateCooldown = 150; // frames until another crate may spawn
+    this.victoryConfetti = []; this._victoryPhase = 0;
+    this._hardAutoMissileT = 360;
   }
 
   // ── Start ──────────────────────────────
@@ -1710,7 +1784,7 @@ class Game {
   // ── Load Level ─────────────────────────
   _loadLevel() {
     const lv = LEVELS[this.lvIdx];
-    if (!lv) { this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); return; }
+    if (!lv) { this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); this._initVictoryConfetti(); return; }
     this.wordsLeft = [...lv.words];
     this.solvedCount = 0;
     // 留最後兩間不打：5 間打掉 3 間就通關，避免剩兩間時答案太好猜。
@@ -1723,6 +1797,7 @@ class Game {
     this.bombsLeft = CFG.BOMBS_PER_LEVEL; // refill bombs each level
     this.crate = null;
     this._crateCooldown = 150;
+    this._hardAutoMissileT = Math.floor(lerp(200, 340, Math.random()));
     this._buildScene(lv.words);
     this._nextTarget();            // pick + read aloud the first target of the level
   }
@@ -1817,6 +1892,7 @@ class Game {
   // ══════════════════════════════════════
   update() {
     if (this.phase === 'paused') return;
+    if (this.phase === 'victory') { this._updateVictoryConfetti(); return; }
     if (this.phase === 'levelClear') {
       this.levelClearT--;
       this.exps.forEach(e=>e.update()); this.exps=this.exps.filter(e=>!e.done);
@@ -1956,6 +2032,8 @@ class Game {
 
     // Anti-air turrets (hard mode only)
     if (this.difficulty === 'hard') this._updateTurrets();
+    // Hard-mode level 2+ auto homing missiles
+    if (this.difficulty === 'hard' && this.lvIdx >= 1) this._updateHardMissiles();
 
     // Shells
     for (let i = this.shells.length-1; i >= 0; i--) {
@@ -2047,6 +2125,49 @@ class Game {
     Audio.cannon();
   }
 
+  // ── Hard-mode level 2+ auto homing missile ──
+  _updateHardMissiles() {
+    if (this.plane.hidden || this.planeRespawnT > 0) return;
+    if (this._hardAutoMissileT > 0) { this._hardAutoMissileT--; return; }
+    const live = this.houses.filter(h => !h.destroyed);
+    if (!live.length) { this._hardAutoMissileT = 180; return; }
+    const src = live[Math.floor(Math.random() * live.length)];
+    const missile = new Missile(src.x, src.muzzleY, this.plane);
+    missile.sourceHouse = src;
+    this.missiles.push(missile);
+    Audio.missile();
+    this._float(src.x, src.muzzleY - 30, '🚀 追蹤導彈！', '#FF3300', 18);
+    // Interval: ~5-8s at level 2, shortens slightly each level thereafter
+    const base = Math.max(200, 360 - this.lvIdx * 25);
+    this._hardAutoMissileT = Math.floor(lerp(base * 0.75, base * 1.4, Math.random()));
+  }
+
+  // ── Victory confetti ──
+  _initVictoryConfetti() {
+    const cols = ['#FFD700','#FF6B6B','#00E5FF','#69F0AE','#FF80AB','#FFAB40','#CE93D8'];
+    this.victoryConfetti = Array.from({length: 75}, (_, idx) => ({
+      x: Math.random() * W,
+      y: Math.random() < 0.55 ? Math.random() * H : -20 - Math.random() * 80,
+      vy: 1.2 + Math.random() * 2.5,
+      vx: (Math.random() - 0.5) * 1.8,
+      col: cols[idx % cols.length],
+      sz: 5 + Math.random() * 9,
+      rot: Math.random() * Math.PI * 2,
+      rotSpd: (Math.random() - 0.5) * 0.13,
+      isRect: Math.random() < 0.6,
+    }));
+    this._victoryPhase = 0;
+    Audio.levelClear();
+  }
+
+  _updateVictoryConfetti() {
+    this._victoryPhase++;
+    this.victoryConfetti.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.rot += p.rotSpd;
+      if (p.y > H + 20) { p.y = -15; p.x = Math.random() * W; }
+    });
+  }
+
   // ══════════════════════════════════════
   //  DRAW
   // ══════════════════════════════════════
@@ -2102,7 +2223,7 @@ class Game {
     if (this.phase === 'paused')     drawPauseScreen(c, this);
     if (this.phase === 'levelClear') drawLevelClear(c, this.score);
     if (this.phase === 'gameOver')   drawEndScreen(c, this, false);
-    if (this.phase === 'victory')    drawEndScreen(c, this, true);
+    if (this.phase === 'victory')    drawVictoryScreen(c, this);
   }
 }
 
@@ -2122,6 +2243,23 @@ function hitMenu(x, y) {
 function hitEndScreen(x, y) {
   const bw=250, bh=58, bx=W/2-bw/2, by=H*0.65;
   if (x>bx && x<bx+bw && y>by && y<by+bh) { game=new Game(); resizeCanvas(); }
+}
+
+function hitVictoryScreen(x, y) {
+  const bw = clamp(W * 0.34, 180, 270), bh = 54, gap = 16;
+  const by = H * 0.76;
+  const bx1 = W/2 - bw - gap/2;
+  const bx2 = W/2 + gap/2;
+  // 再玩一次：在相同難度重新開始
+  if (x > bx1 && x < bx1+bw && y > by && y < by+bh) {
+    const d = game.difficulty;
+    game = new Game(); resizeCanvas();
+    game.start(d);
+  }
+  // 主選單：回主選單
+  if (x > bx2 && x < bx2+bw && y > by && y < by+bh) {
+    game = new Game(); resizeCanvas();
+  }
 }
 
 function hitPauseScreen(x, y) {
@@ -2153,7 +2291,8 @@ function handleStart(touches) {
     joystick.tryStart(t);
     if (bombButton.tryPress(t) && game.phase==='playing') game.dropBomb();
     if (game.phase==='menu')                              hitMenu(x,y);
-    if (game.phase==='gameOver'||game.phase==='victory')  hitEndScreen(x,y);
+    if (game.phase==='gameOver')   hitEndScreen(x,y);
+    if (game.phase==='victory')    hitVictoryScreen(x,y);
     if (game.phase==='playing')                           hitPauseBtn(x,y);
     hitWordPanel(x,y);
   }
