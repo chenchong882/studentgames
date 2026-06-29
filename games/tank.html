@@ -1034,7 +1034,7 @@ function fire(){
   m.position.copy(tip);scene.add(m);
   shells.push({m,vel:dir.multiplyScalar(135),life:5,gone:false});
   tank.reloadMax=effects.rapid>0?0.13:0.45;
-  tank.reload=tank.reloadMax;tank.muzzle=0.06;shake+=0.35;sShoot();
+  tank.reload=tank.reloadMax;tank.muzzle=0.06;shake+=effects.rapid>0?0.06:0.35;sShoot();
   barrelG.position.z=0.55; // 後座
   for(let i=0;i<8;i++){
     const d2=tipObj.getWorldDirection(_v3.clone());
