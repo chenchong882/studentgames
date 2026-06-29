@@ -55,6 +55,29 @@
     .game-card h2 { margin: 0 0 8px; font-size: 22px; }
     .game-card span { color: #cbd5e1; font-size: 14px; line-height: 1.5; }
     .note { margin-top: 28px; color: #94a3b8; font-size: 13px; line-height: 1.7; }
+    .vocab-toggle {
+      cursor: pointer; font-size: 13px; color: #94a3b8;
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 999px;
+      padding: 5px 14px; background: transparent; white-space: nowrap;
+      transition: color .15s, border-color .15s;
+    }
+    .vocab-toggle:hover { color: #e2e8f0; border-color: rgba(255,255,255,0.32); }
+    #vocab-preview {
+      margin-top: 12px; padding: 14px 16px;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px; background: rgba(15,23,42,0.55);
+    }
+    #vocab-preview-title { font-size: 13px; color: #94a3b8; margin-bottom: 10px; }
+    .vocab-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+      gap: 7px; max-height: 340px; overflow-y: auto;
+    }
+    .vocab-item {
+      background: rgba(255,255,255,0.05); border-radius: 8px;
+      padding: 8px 10px; line-height: 1.35;
+    }
+    .vocab-en { font-size: 14px; font-weight: bold; color: #fbbf24; }
+    .vocab-zh { font-size: 12px; color: #94a3b8; margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -69,8 +92,13 @@
         <div id="scope-lesson" class="scope-btn" role="button" tabindex="0">本次段考單字</div>
         <div id="scope-builtin" class="scope-btn" role="button" tabindex="0">系統內建單字</div>
         <span id="scope-lesson-info" class="scope-info"></span>
+        <button id="vocab-toggle-btn" class="vocab-toggle">👁 預覽單字</button>
       </div>
     </section>
+    <div id="vocab-preview" style="display:none">
+      <div id="vocab-preview-title"></div>
+      <div class="vocab-grid" id="vocab-grid"></div>
+    </div>
     <section class="scope" id="theme-section" style="display:none">
       <div class="scope-title">📚 選擇練習主題（可複選，不選＝全部 360 字）：</div>
       <div class="scope-opts" id="theme-chips"></div>
@@ -144,6 +172,7 @@
           if(i >= 0) selectedThemes.splice(i,1); else selectedThemes.push(t.id);
           sessionStorage.setItem('sg_themes', JSON.stringify(selectedThemes));
           paintChips();
+          if(vocabOpen) buildVocabPreview();
         };
         c.addEventListener('click', toggle);
         c.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
@@ -162,6 +191,7 @@
     function setScope(s){
       if(s === 'lesson' && !hasLesson) return;
       scope = s; sessionStorage.setItem('sg_scope', s); render();
+      if(vocabOpen) buildVocabPreview();
     }
     lessonBtn.addEventListener('click', () => setScope('lesson'));
     builtinBtn.addEventListener('click', () => setScope('builtin'));
@@ -176,6 +206,37 @@
       const words = shuffle(all).slice(0, 80).map(w => ({ word:w.word, chinese:w.chinese, emoji:w.emoji, sentence:w.sentence, example:w.sentence }));
       return JSON.stringify({ unitTitle:'自選主題', builtin:true, words });
     }
+
+    // ── 單字預覽 ──
+    const vocabToggleBtn = document.getElementById('vocab-toggle-btn');
+    const vocabPreview = document.getElementById('vocab-preview');
+    const vocabGrid = document.getElementById('vocab-grid');
+    const vocabTitle = document.getElementById('vocab-preview-title');
+    let vocabOpen = false;
+
+    function buildVocabPreview(){
+      let words = [];
+      if(scope === 'lesson' && hasLesson){
+        words = lesson.data.words.map(w => ({ en: w.word||w.en||'', zh: w.chinese||w.zh||w.meaning||'', emoji: w.emoji||'' }));
+      } else if(scope === 'builtin' && window.WORD_BANK){
+        words = window.WORD_BANK.getWords(selectedThemes).map(w => ({ en: w.word||'', zh: w.chinese||'', emoji: w.emoji||'' }));
+      }
+      vocabTitle.textContent = `共 ${words.length} 個單字`;
+      vocabGrid.innerHTML = '';
+      words.forEach(w => {
+        const d = document.createElement('div');
+        d.className = 'vocab-item';
+        d.innerHTML = `<div class="vocab-en">${w.emoji ? w.emoji+' ' : ''}${w.en}</div><div class="vocab-zh">${w.zh}</div>`;
+        vocabGrid.appendChild(d);
+      });
+    }
+
+    vocabToggleBtn.addEventListener('click', () => {
+      vocabOpen = !vocabOpen;
+      vocabPreview.style.display = vocabOpen ? '' : 'none';
+      vocabToggleBtn.textContent = vocabOpen ? '✕ 收起單字' : '👁 預覽單字';
+      if(vocabOpen) buildVocabPreview();
+    });
 
     // 點遊戲卡：依範圍把單字用 hash 帶進遊戲
     document.querySelectorAll('.game-card').forEach(card => {
