@@ -220,6 +220,19 @@
   .tpTitle { font-size:15px; font-weight:800; margin-bottom:8px; text-align:center; }
   .tpItem { display:flex; align-items:center; gap:9px; font-size:14.5px; padding:6px 2px; cursor:pointer; }
   .tpItem input { width:19px; height:19px; flex:none; accent-color:#ff8c1a; }
+  /* 選擇模式：特製醒目外框（金色雙邊 + 漸層底 + 脈動光暈） */
+  #modePanel {
+    background:linear-gradient(145deg, rgba(255,210,63,.22), rgba(255,140,26,.16));
+    border:3px solid #ffd23f; border-radius:18px;
+    box-shadow:0 0 0 4px rgba(255,210,63,.25), 0 8px 22px rgba(0,0,0,.35);
+    animation:modeGlow 1.5s ease-in-out infinite alternate;
+  }
+  @keyframes modeGlow {
+    from { box-shadow:0 0 0 4px rgba(255,210,63,.18), 0 0 10px rgba(255,210,63,.35), 0 8px 22px rgba(0,0,0,.35); }
+    to   { box-shadow:0 0 0 4px rgba(255,210,63,.42), 0 0 26px rgba(255,210,63,.7),  0 8px 22px rgba(0,0,0,.35); }
+  }
+  #modePanel .tpTitle { font-size:17px; color:#ffe98a; text-shadow:0 2px 4px rgba(0,0,0,.4); }
+  #modePanel .tpItem { font-size:15px; font-weight:700; padding:7px 2px; }
   .bigbtn {
     font-family:inherit; font-size:21px; font-weight:800; color:#fff;
     background:linear-gradient(#ffb347,#ff8c1a); border:none; border-radius:50px;
