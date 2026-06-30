@@ -1459,14 +1459,21 @@ function drawTrajectory(c, plane, difficulty) {
 // ══════════════════════════════════════════
 //  HUD
 // ══════════════════════════════════════════
+// 「← 選單」返回鈕的右緣（canvas 座標）；左側 HUD 一律排在它右邊，才不會被選單蓋住
+function backBtnRight() {
+  const el = document.getElementById('back-to-menu');
+  if (el) return el.getBoundingClientRect().right;
+  return 10 + SAFE_L + 92;  // 按鈕還沒建立時的估計值
+}
+
 function drawHUD(c, game) {
   c.save();
 
   // ── Top bar background ──
   c.fillStyle='rgba(0,0,0,0.40)'; c.fillRect(0,0,W,50+SAFE_T);
 
-  // ── LEFT: Pause button（避開左側瀏海安全區）──
-  const pbtnX=14+SAFE_L, pbtnY=9, pbtnW=34, pbtnH=34;
+  // ── LEFT: Pause button（排在「← 選單」鈕右邊，避免重疊）──
+  const pbtnX=backBtnRight()+14, pbtnY=9, pbtnW=34, pbtnH=34;
   c.fillStyle='rgba(255,255,255,0.15)';
   roundRect(c,pbtnX,pbtnY,pbtnW,pbtnH,8); c.fill();
   c.fillStyle='white'; c.font='bold 16px Arial'; c.textBaseline='middle'; c.textAlign='center';
@@ -1484,18 +1491,34 @@ function drawHUD(c, game) {
   }
   c.globalAlpha=1;
 
-  // ── CENTER: Level label + theme ──
+  // ── CENTER: Level label + theme（同一行：主題名排在 Level 右邊，不蓋住 Level 與進度格）──
   const lv = LEVELS[game.lvIdx];
-  c.textAlign='center'; c.fillStyle='white'; c.font='bold 17px Arial'; c.textBaseline='middle';
-  c.fillText(`Level ${game.lvIdx+1}`, W/2, 16);
-  c.font='14px Arial'; c.fillStyle='rgba(255,255,255,0.75)';
-  c.fillText(lv ? lv.themeZH : '🏆 Complete!', W/2, 34);
+  const levelTxt = `Level ${game.lvIdx+1}`;
+  const fullTheme = lv ? lv.themeZH : '🏆 Complete!';
+  c.textBaseline='middle'; c.textAlign='left';
+  c.font='bold 16px Arial';
+  const lvW = c.measureText(levelTxt).width;
+  // 主題名過長就截斷，避免撞到左右兩側的分數/計時
+  c.font='13px Arial';
+  let themeTxt = fullTheme;
+  const maxThemeW = W * 0.30;
+  if (c.measureText(themeTxt).width > maxThemeW) {
+    while (themeTxt.length > 1 && c.measureText(themeTxt + '…').width > maxThemeW) themeTxt = themeTxt.slice(0, -1);
+    themeTxt += '…';
+  }
+  const thW = c.measureText(themeTxt).width;
+  const lineGap = 10;
+  const groupX = W/2 - (lvW + lineGap + thW) / 2;
+  c.font='bold 16px Arial'; c.fillStyle='white';
+  c.fillText(levelTxt, groupX, 14);
+  c.font='13px Arial'; c.fillStyle='rgba(255,255,255,0.72)';
+  c.fillText(themeTxt, groupX + lvW + lineGap, 14);
 
   // ── CENTER: 升級進度 — 答對 clearGoal 題過關，分格顯示（1│2│3）──
   const total = game.clearGoal || (lv ? lv.words.length : 3);
   const done  = Math.min(game.solvedCount, total);
   const segGap = 4;
-  const barW = clamp(W*0.26, 120, 240), barH = 11, barY = 37;
+  const barW = clamp(W*0.26, 120, 240), barH = 12, barY = 31;
   const barX = W/2 - barW/2;
   const segW = (barW - segGap*(total-1)) / total;
   for (let i = 0; i < total; i++) {
@@ -2397,8 +2420,8 @@ function hitWordPanel(x, y) {
 }
 
 function hitPauseBtn(x, y) {
-  // Pause button: 跟著左側安全區位移，多給一點觸控容錯
-  const px = 14 + SAFE_L;
+  // Pause button: 跟著「← 選單」鈕右邊位移，多給一點觸控容錯
+  const px = backBtnRight() + 14;
   if (x>px-6 && x<px+40 && y>5 && y<47) game.togglePause();
 }
 
@@ -2562,7 +2585,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden&&game&&gam
   }
   const b=document.createElement('button');
   b.type='button'; b.id='back-to-menu'; b.textContent='← 選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:10px;left:10px;z-index:99999;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));left:calc(10px + env(safe-area-inset-left, 0px));z-index:99999;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
   b.addEventListener('click',backToMenu);
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
