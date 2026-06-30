@@ -6,6 +6,24 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 let W = 0, H = 0;
+let SAFE_L = 0, SAFE_R = 0, SAFE_T = 0;  // 瀏海/動態島安全區內距（px），橫放時左右會有缺口
+
+// 用一個隱藏探針讀 env(safe-area-inset-*)：直接讀 CSS 變數常拿不到解析後的 px，
+// 但設成 padding 再讀 computed 值就一定是 px。
+let _safeProbe = null;
+function readSafeAreaInsets() {
+  if (!document.body) return;
+  if (!_safeProbe) {
+    _safeProbe = document.createElement('div');
+    _safeProbe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
+      'padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:env(safe-area-inset-top,0px);';
+    document.body.appendChild(_safeProbe);
+  }
+  const cs = getComputedStyle(_safeProbe);
+  SAFE_L = parseFloat(cs.paddingLeft) || 0;
+  SAFE_R = parseFloat(cs.paddingRight) || 0;
+  SAFE_T = parseFloat(cs.paddingTop) || 0;
+}
 
 // iOS (incl. iPadOS, which reports as Mac + touch). Kept for audio-unlock quirks.
 const IS_IOS = /iP(hone|od|ad)/.test(navigator.userAgent)
@@ -18,6 +36,7 @@ function resizeCanvas() {
   const rect = canvas.getBoundingClientRect();
   W = Math.max(1, Math.round(rect.width || window.innerWidth));
   H = Math.max(1, Math.round(rect.height || window.innerHeight));
+  readSafeAreaInsets();
   
   canvas.width = W * dpr;
   canvas.height = H * dpr;
@@ -1444,24 +1463,24 @@ function drawHUD(c, game) {
   c.save();
 
   // ── Top bar background ──
-  c.fillStyle='rgba(0,0,0,0.40)'; c.fillRect(0,0,W,50);
+  c.fillStyle='rgba(0,0,0,0.40)'; c.fillRect(0,0,W,50+SAFE_T);
 
-  // ── LEFT: Pause button ──
-  const pbtnX=14, pbtnY=9, pbtnW=34, pbtnH=34;
+  // ── LEFT: Pause button（避開左側瀏海安全區）──
+  const pbtnX=14+SAFE_L, pbtnY=9, pbtnW=34, pbtnH=34;
   c.fillStyle='rgba(255,255,255,0.15)';
   roundRect(c,pbtnX,pbtnY,pbtnW,pbtnH,8); c.fill();
   c.fillStyle='white'; c.font='bold 16px Arial'; c.textBaseline='middle'; c.textAlign='center';
   c.fillText('❚❚', pbtnX+pbtnW/2, pbtnY+pbtnH/2+1);
 
-  // ── LEFT: Score (after pause btn) ──
+  // ── LEFT: Score / Lives（放在暫停鈕右邊一點，不被選單蓋住）──
+  const infoX = pbtnX + pbtnW + 16;
   c.font='bold 18px Arial'; c.textAlign='left'; c.fillStyle='#FFD700'; c.textBaseline='middle';
-  c.fillText(`⭐ ${game.score}`, 56, 27);
+  c.fillText(`⭐ ${game.score}`, infoX, 27);
 
-  // ── LEFT: Lives ──
   c.font='17px Arial';
   for (let i=0; i<CFG.LIVES; i++) {
     c.globalAlpha = i < game.lives ? 1.0 : 0.20;
-    c.fillText('❤', 56+i*24, 27+18);
+    c.fillText('❤', infoX+i*24, 27+18);
   }
   c.globalAlpha=1;
 
@@ -1491,15 +1510,15 @@ function drawHUD(c, game) {
     c.fillText(String(i+1), sx + segW/2, barY + barH/2 + 0.5);
   }
 
-  // ── RIGHT: Timer ──
+  // ── RIGHT: Timer（避開右側瀏海安全區）──
   const m=Math.floor(game.timer/60), s=game.timer%60;
   c.textAlign='right'; c.font='bold 15px Arial'; c.textBaseline='middle';
   c.fillStyle = game.timer>90 ? '#FF6B6B' : 'rgba(255,255,255,0.85)';
-  c.fillText(`⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`, W-14, 15);
+  c.fillText(`⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`, W-14-SAFE_R, 15);
 
   // ── RIGHT: Bomb count (plane icon + number, like reference) ──
   // Small plane icon drawn on canvas
-  const bx = W - 70, by2 = 32;
+  const bx = W - 70 - SAFE_R, by2 = 32;
   c.save();
   c.translate(bx, by2); c.scale(0.55, 0.55);
   c.fillStyle='rgba(255,255,255,0.85)';
@@ -1508,7 +1527,7 @@ function drawHUD(c, game) {
   c.beginPath(); c.moveTo(-18,-1); c.lineTo(-24,-9); c.lineTo(-12,-1); c.closePath(); c.fill();
   c.restore();
   c.textAlign='left'; c.font='bold 18px Arial'; c.fillStyle='white'; c.textBaseline='middle';
-  c.fillText(game.bombsLeft, W-46, by2);
+  c.fillText(game.bombsLeft, W-46-SAFE_R, by2);
 
   c.restore();
 }
@@ -1537,6 +1556,13 @@ function drawWordPanel(c, game) {
 // ══════════════════════════════════════════
 function menuBtnW() { return clamp(W * 0.38, 340, 640); }
 function menuBtnH() { return clamp(H * 0.085, 58, 76); }
+// 兩顆模式鈕的中心 Y：用「按鈕高＋間距」算，數學上保證不重疊（小螢幕也不會疊）
+function menuBtnYs() {
+  const bh = menuBtnH();
+  const gap = clamp(H * 0.045, 18, 30);
+  const easyY = H * 0.46;
+  return { easyY, hardY: easyY + bh + gap };
+}
 
 function drawMenu(c) {
   c.fillStyle='rgba(5,10,30,0.88)'; c.fillRect(0,0,W,H);
@@ -1553,9 +1579,10 @@ function drawMenu(c) {
   c.restore();
 
   // Buttons
+  const ys = menuBtnYs();
   [
-    { label:'⭐ 簡單模式 (Easy)', y:H*0.50, col:'rgba(40,160,80,0.88)', id:'easy' },
-    { label:'🔥 困難模式 (Hard)', y:H*0.64, col:'rgba(210,50,50,0.88)',  id:'hard' },
+    { label:'⭐ 簡單模式 (Easy)', y:ys.easyY, col:'rgba(40,160,80,0.88)', id:'easy' },
+    { label:'🔥 困難模式 (Hard)', y:ys.hardY, col:'rgba(210,50,50,0.88)',  id:'hard' },
   ].forEach(btn => {
     const bw=menuBtnW(), bh=menuBtnH(), bx=W/2-bw/2;
     c.save();
@@ -1567,7 +1594,7 @@ function drawMenu(c) {
   });
 
   c.font='16px Arial'; c.fillStyle='rgba(255,255,255,0.35)';
-  c.fillText('點按模式開始遊戲', W/2, H*0.76);
+  c.fillText('點按模式開始遊戲', W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.05, 22, 40));
 }
 
 // ══════════════════════════════════════════
@@ -2328,8 +2355,9 @@ let game       = new Game();
 
 function hitMenu(x, y) {
   const bw=menuBtnW(), bh=menuBtnH(), bx=W/2-bw/2;
-  if (x>bx && x<bx+bw && y>H*0.50-bh/2 && y<H*0.50+bh/2) game.start('easy');
-  if (x>bx && x<bx+bw && y>H*0.64-bh/2 && y<H*0.64+bh/2) game.start('hard');
+  const ys = menuBtnYs();
+  if (x>bx && x<bx+bw && y>ys.easyY-bh/2 && y<ys.easyY+bh/2) game.start('easy');
+  if (x>bx && x<bx+bw && y>ys.hardY-bh/2 && y<ys.hardY+bh/2) game.start('hard');
 }
 
 function hitEndScreen(x, y) {
@@ -2369,8 +2397,9 @@ function hitWordPanel(x, y) {
 }
 
 function hitPauseBtn(x, y) {
-  // Pause button: top-left 14,9 → 48,43
-  if (x>14 && x<48 && y>9 && y<43) game.togglePause();
+  // Pause button: 跟著左側安全區位移，多給一點觸控容錯
+  const px = 14 + SAFE_L;
+  if (x>px-6 && x<px+40 && y>5 && y<47) game.togglePause();
 }
 
 function handleStart(touches) {
