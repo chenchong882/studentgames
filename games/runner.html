@@ -295,6 +295,11 @@
       　 想選 ⬆️上跳／⬇️下滑，要先回中間跑道才算數<br>
       ❤️ 三條命，撞到障礙或答錯扣一命
     </div>
+    <div id="modePanel" class="typePanel hidden">
+      <div class="tpTitle">🎮 選擇模式</div>
+      <label class="tpItem"><input type="radio" name="runnerMode" value="normal" checked> 一般模式：各種題型（看字、看圖）</label>
+      <label class="tpItem"><input type="radio" name="runnerMode" value="simple"> 簡單模式：每關只看圖片＋聽聲音</label>
+    </div>
     <div id="typePanel" class="typePanel hidden">
       <div class="tpTitle">📋 這次要出現哪些題型？</div>
       <div id="typeList"></div>
@@ -1264,8 +1269,11 @@ function makeRunnerBank(pool, types){
   return { easy:_shuf(all), medium:_shuf(all.slice()), hard:_shuf(all.slice()) };
 }
 let runnerPool=null, typesAvail=['en2cn','cn2en'], enabledTypes=['en2cn','cn2en'];
+let runnerMode='normal';   // normal=各種題型；simple=只看圖片＋聽聲音（聽音選圖）
 function rebuildRunnerBank(){
-  const gen = runnerPool && makeRunnerBank(runnerPool, enabledTypes);
+  // 簡單模式：只用 say2pic（每關都出現圖片並唸讀音），忽略題型勾選
+  const types = (runnerMode==='simple' && typesAvail.includes('say2pic')) ? ['say2pic'] : enabledTypes;
+  const gen = runnerPool && makeRunnerBank(runnerPool, types);
   BANK = gen || DEFAULT_RUNNER_BANK;
   decks = {};
 }
@@ -1282,12 +1290,29 @@ function applyRunnerData(payload){
     typesAvail = ['en2cn','cn2en']; enabledTypes = typesAvail.slice();
     BANK = DEFAULT_RUNNER_BANK; decks = {};
   }
+  renderModePanel();
   renderTypePanel();
 }
-// 進場前的題型勾選面板（只在預設主題＝有圖片題時出現；學校單字不顯示，只跑文字題）
+// 模式選擇面板（一般／簡單）：只有自選單字庫＝有圖片題時才提供「簡單模式」；段考單字不顯示
+function renderModePanel(){
+  const panel = $('modePanel'); if(!panel) return;
+  const show = typesAvail.includes('say2pic');
+  panel.classList.toggle('hidden', !show);
+  if(!show){ runnerMode = 'normal'; return; }   // 段考單字一律回到一般模式
+  panel.querySelectorAll('input[name=runnerMode]').forEach(r=>{
+    r.checked = (r.value === runnerMode);
+    r.onchange = onModeChange;
+  });
+}
+function onModeChange(){
+  runnerMode = this.value;
+  renderTypePanel();      // 簡單模式隱藏題型勾選，一般模式顯示
+  rebuildRunnerBank();
+}
+// 進場前的題型勾選面板（只在預設主題＝有圖片題且為一般模式時出現；學校單字／簡單模式不顯示）
 function renderTypePanel(){
   const panel = $('typePanel'); if(!panel) return;
-  const show = typesAvail.length > 2;
+  const show = typesAvail.length > 2 && runnerMode === 'normal';
   panel.classList.toggle('hidden', !show);
   if(!show) return;
   const box = $('typeList'); box.innerHTML='';
