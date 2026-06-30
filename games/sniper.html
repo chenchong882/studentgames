@@ -481,7 +481,7 @@ function startRound(){
   weather = pick(['rain','rain','rain','snow','snow','clear']);
 
   // 限時/限彈: 隨關卡略增難度
-  timeMax = Math.max(14, 24 - roundNo*0.8) + extraTime;
+  timeMax = Math.max(20, 32 - roundNo*0.8) + extraTime;
   timeLeft = timeMax;
   lastTickSec = -1;   // 重置滴答計時
   ammoMax = 3 + extraAmmo; ammo = ammoMax;
