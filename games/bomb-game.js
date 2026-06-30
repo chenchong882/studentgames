@@ -1636,17 +1636,26 @@ function drawPauseScreen(c, game) {
   c.font='22px Arial'; c.fillStyle='rgba(255,255,255,0.7)';
   c.fillText(`時間 ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}   分數 ${game.score}`, W/2, H*0.42);
 
+  const ys = pauseBtnYs();
   [
-    { label:'▶ 繼續遊戲',   y:H*0.56, col:'rgba(40,150,80,0.90)'  },
-    { label:'🏠 回主選單', y:H*0.68, col:'rgba(60,60,160,0.88)' },
+    { label:'▶ 繼續遊戲',   y:ys.resumeY, col:'rgba(40,150,80,0.90)'  },
+    { label:'🏠 回主選單', y:ys.menuY,   col:'rgba(60,60,160,0.88)' },
   ].forEach(btn => {
-    const bw=260, bh=55, bx=W/2-bw/2;
+    const bw=PAUSE_BTN_W, bh=PAUSE_BTN_H, bx=W/2-bw/2;
     c.fillStyle=btn.col; roundRect(c,bx,btn.y-bh/2,bw,bh,15); c.fill();
     c.strokeStyle='rgba(255,255,255,0.35)'; c.lineWidth=1.5; c.stroke();
     c.fillStyle='white'; c.font='bold 22px Arial';
     c.fillText(btn.label, W/2, btn.y);
   });
   c.restore();
+}
+
+// 暫停畫面兩顆鈕：用「按鈕高＋間距」算中心 Y，保證不重疊（小螢幕也是）
+const PAUSE_BTN_W = 260, PAUSE_BTN_H = 55;
+function pauseBtnYs() {
+  const gap = clamp(H * 0.045, 18, 30);
+  const resumeY = H * 0.54;
+  return { resumeY, menuY: resumeY + PAUSE_BTN_H + gap };
 }
 
 // ══════════════════════════════════════════
@@ -2405,11 +2414,12 @@ function hitVictoryScreen(x, y) {
 }
 
 function hitPauseScreen(x, y) {
-  const bw=260, bh=55, bx=W/2-bw/2;
+  const bw=PAUSE_BTN_W, bh=PAUSE_BTN_H, bx=W/2-bw/2;
+  const ys = pauseBtnYs();
   // Resume
-  if (x>bx && x<bx+bw && y>H*0.56-bh/2 && y<H*0.56+bh/2) game.togglePause();
+  if (x>bx && x<bx+bw && y>ys.resumeY-bh/2 && y<ys.resumeY+bh/2) game.togglePause();
   // Main menu
-  if (x>bx && x<bx+bw && y>H*0.68-bh/2 && y<H*0.68+bh/2) { game.returnToMenu(); game=new Game(); resizeCanvas(); }
+  if (x>bx && x<bx+bw && y>ys.menuY-bh/2 && y<ys.menuY+bh/2) { game.returnToMenu(); game=new Game(); resizeCanvas(); }
 }
 
 function hitWordPanel(x, y) {
