@@ -204,7 +204,13 @@
       const all = window.WORD_BANK ? window.WORD_BANK.getWords(selectedThemes) : [];
       if(!all.length) return null;
       const words = shuffle(all).slice(0, 80).map(w => ({ word:w.word, chinese:w.chinese, emoji:w.emoji, sentence:w.sentence, example:w.sentence }));
-      return JSON.stringify({ unitTitle:'自選主題', builtin:true, words });
+      // 標題用實際勾選的主題名；沒勾或全勾＝綜合主題
+      let title = '綜合主題';
+      if(window.WORD_BANK && selectedThemes.length){
+        const names = window.WORD_BANK.themes().filter(t => selectedThemes.indexOf(t.id) >= 0).map(t => t.name);
+        if(names.length) title = names.join('、');
+      }
+      return JSON.stringify({ unitTitle:title, builtin:true, words });
     }
 
     // ── 單字預覽 ──

@@ -151,6 +151,7 @@ const WORD_EMOJI = {
 // ══════════════════════════════════════════
 //  LEVEL DATA
 // ══════════════════════════════════════════
+const MAX_LEVELS = 6;   // 一局最多 6 關，打完就結算
 const DEFAULT_LEVELS = [
   { id:1, themeEN:'Picture Match 1', themeZH:'📷 圖片配對 1', skyTop:'#1565c0', skyBot:'#42a5f5', groundTop:'#66bb6a', words:['blanket','mirror','cousin','backpack','crayons'] },
   { id:2, themeEN:'Picture Match 2', themeZH:'📷 圖片配對 2', skyTop:'#4a148c', skyBot:'#ab47bc', groundTop:'#8bc34a', words:['scissors','puzzle','mountain','spaghetti','cookie'] },
@@ -161,7 +162,7 @@ const DEFAULT_LEVELS = [
   { id:7, themeEN:'Picture Match 7', themeZH:'📷 圖片配對 7', skyTop:'#1565c0', skyBot:'#42a5f5', groundTop:'#66bb6a', words:['toothbrush','calculator','microscope','telescope','compass'] },
   { id:8, themeEN:'Picture Match 8', themeZH:'📷 圖片配對 8', skyTop:'#4a148c', skyBot:'#ab47bc', groundTop:'#8bc34a', words:['calendar','envelope','headphones','microphone','skateboard'] },
 ];
-let LEVELS = DEFAULT_LEVELS.map(level => ({ ...level, words: [...level.words] }));
+let LEVELS = DEFAULT_LEVELS.slice(0, MAX_LEVELS).map(level => ({ ...level, words: [...level.words] }));
 let bombLessonTitle = '示範題庫';
 
 const LESSON_LEVEL_COLORS = [
@@ -217,7 +218,7 @@ function emojiForWord(word) {
   return lessonEmoji[k] || WORD_EMOJI[k];
 }
 function buildLessonLevels() {
-  LEVELS = chunkWords(shuffleWords(bombWordPool), 5).map((chunk, index) => ({
+  LEVELS = chunkWords(shuffleWords(bombWordPool), 5).slice(0, MAX_LEVELS).map((chunk, index) => ({
     id: index + 1,
     themeEN: bombLessonTitle,
     themeZH: `💣 ${bombLessonTitle} ${index + 1}`,
@@ -231,7 +232,7 @@ function applyBombData(payload) {
   if (words.length === 0) {
     bombWordPool = null;
     lessonEmoji = {};
-    LEVELS = DEFAULT_LEVELS.map(level => ({ ...level, words: [...level.words] }));
+    LEVELS = DEFAULT_LEVELS.slice(0, MAX_LEVELS).map(level => ({ ...level, words: [...level.words] }));
     bombLessonTitle = '示範題庫';
   } else {
     lessonEmoji = {};
@@ -1471,13 +1472,23 @@ function drawHUD(c, game) {
   c.font='14px Arial'; c.fillStyle='rgba(255,255,255,0.75)';
   c.fillText(lv ? lv.themeZH : '🏆 Complete!', W/2, 34);
 
-  // ── CENTER: thin progress bar ──
-  const total = game.clearGoal || (lv ? lv.words.length : 5);
+  // ── CENTER: 升級進度 — 答對 clearGoal 題過關，分格顯示（1│2│3）──
+  const total = game.clearGoal || (lv ? lv.words.length : 3);
   const done  = Math.min(game.solvedCount, total);
-  const barW=W*0.26, barH=5, barX=W/2-barW/2, barY=44;
-  c.fillStyle='rgba(255,255,255,0.20)'; roundRect(c,barX,barY,barW,barH,3); c.fill();
-  if (done>0) {
-    c.fillStyle='#00E5FF'; roundRect(c,barX,barY,barW*(done/total),barH,3); c.fill();
+  const segGap = 4;
+  const barW = clamp(W*0.26, 120, 240), barH = 11, barY = 37;
+  const barX = W/2 - barW/2;
+  const segW = (barW - segGap*(total-1)) / total;
+  for (let i = 0; i < total; i++) {
+    const sx = barX + i*(segW+segGap);
+    const onCell = i < done;
+    c.fillStyle = onCell ? '#00E5FF' : 'rgba(255,255,255,0.18)';
+    roundRect(c, sx, barY, segW, barH, 3); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,0.40)'; c.lineWidth = 1; roundRect(c, sx, barY, segW, barH, 3); c.stroke();
+    // 格子編號 1、2、3
+    c.fillStyle = onCell ? '#003844' : 'rgba(255,255,255,0.55)';
+    c.font = 'bold 9px Arial'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(String(i+1), sx + segW/2, barY + barH/2 + 0.5);
   }
 
   // ── RIGHT: Timer ──
@@ -1591,6 +1602,16 @@ function drawPauseScreen(c, game) {
 // ══════════════════════════════════════════
 //  SCREEN: LEVEL CLEAR
 // ══════════════════════════════════════════
+// 結算等級：用「實得總分 ÷ 完美總分」的百分比換算 S/A/B/C/D
+function computeGrade(game) {
+  const ratio = game.perfectScore > 0 ? game.score / game.perfectScore : 0;
+  if (ratio >= 0.90) return { g:'S', col:'#FFD700', tip:'完美！神準射手 🎯' };
+  if (ratio >= 0.80) return { g:'A', col:'#7CFC00', tip:'厲害！火力全開 🔥' };
+  if (ratio >= 0.65) return { g:'B', col:'#00E5FF', tip:'不錯！繼續加油 💪' };
+  if (ratio >= 0.50) return { g:'C', col:'#FFA726', tip:'再快一點就更棒 ⏱' };
+  return { g:'D', col:'#FF6B6B', tip:'多練習會更好 📚' };
+}
+
 function drawLevelClear(c, score) {
   c.fillStyle='rgba(0,0,0,0.55)'; c.fillRect(0,0,W,H);
   c.textAlign='center'; c.textBaseline='middle';
@@ -1612,18 +1633,28 @@ function drawEndScreen(c, game, victory) {
 
   const title = victory ? '🏆 完關！All Clear!' : '💥 Game Over';
   const col   = victory ? '#FFD700' : '#FF4444';
-  c.font='bold 52px Arial'; c.fillStyle=col;
+  c.font='bold 46px Arial'; c.fillStyle=col;
   c.shadowColor=col; c.shadowBlur=18;
-  c.fillText(title, W/2, H*0.3);
+  c.fillText(title, W/2, H*0.22);
   c.shadowBlur=0;
 
-  c.font='24px Arial'; c.fillStyle='white';
-  c.fillText(`最終分數 Score: ${game.score}`, W/2, H*0.45);
+  // 等級評分
+  const grade = computeGrade(game);
+  c.save();
+  c.font='bold 80px "Arial Rounded MT Bold", Arial'; c.fillStyle=grade.col;
+  c.shadowColor=grade.col; c.shadowBlur=28;
+  c.fillText(grade.g, W/2, H*0.42);
+  c.restore();
+  c.font='20px Arial'; c.fillStyle='rgba(255,255,255,0.9)';
+  c.fillText(grade.tip, W/2, H*0.55);
+
+  c.font='22px Arial'; c.fillStyle='white';
+  c.fillText(`最終分數 Score: ${game.score}`, W/2, H*0.63);
   const m=Math.floor(game.timer/60), s=game.timer%60;
-  c.fillText(`時間 Time: ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`, W/2, H*0.54);
+  c.fillText(`時間 Time: ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`, W/2, H*0.70);
 
   // Restart button
-  const bw=250, bh=58, bx=W/2-bw/2, by=H*0.65;
+  const bw=250, bh=58, bx=W/2-bw/2, by=H*0.79;
   c.fillStyle='rgba(40,140,80,0.88)'; roundRect(c,bx,by,bw,bh,16); c.fill();
   c.strokeStyle='rgba(255,255,255,0.4)'; c.lineWidth=2; c.stroke();
   c.fillStyle='white'; c.font='bold 23px Arial';
@@ -1652,54 +1683,71 @@ function drawVictoryScreen(c, game) {
   // Trophy — pulse animation
   const sc = 1 + Math.sin(game._victoryPhase * 0.055) * 0.08;
   c.save();
-  c.translate(W/2, H * 0.18);
+  c.translate(W/2, H * 0.13);
   c.scale(sc, sc);
   c.shadowColor = '#FFD700'; c.shadowBlur = 38;
-  c.font = `${clamp(H * 0.10, 54, 82)}px Arial`;
+  c.font = `${clamp(H * 0.085, 46, 70)}px Arial`;
   c.fillText('🏆', 0, 0);
   c.shadowBlur = 0;
   c.restore();
 
   // Title
-  c.font = `bold ${clamp(H * 0.068, 38, 60)}px "Arial Rounded MT Bold", Arial`;
+  c.font = `bold ${clamp(H * 0.056, 32, 50)}px "Arial Rounded MT Bold", Arial`;
   c.fillStyle = '#FFD700';
   c.shadowColor = '#FF8800'; c.shadowBlur = 24;
-  c.fillText('全關通過！', W/2, H * 0.35);
+  c.fillText('全關通過！', W/2, H * 0.25);
   c.shadowBlur = 0;
 
+  // 等級評分 — 大字母
+  const grade = computeGrade(game);
+  c.save();
+  c.font = `bold ${clamp(H * 0.16, 70, 120)}px "Arial Rounded MT Bold", Arial`;
+  c.fillStyle = grade.col;
+  c.shadowColor = grade.col; c.shadowBlur = 34;
+  c.fillText(grade.g, W/2, H * 0.42);
+  c.restore();
   c.font = `${clamp(H * 0.030, 18, 25)}px Arial`;
-  c.fillStyle = 'rgba(255,255,255,0.82)';
-  c.fillText('All Levels Complete! 🎉', W/2, H * 0.44);
+  c.fillStyle = 'rgba(255,255,255,0.92)';
+  c.fillText(grade.tip, W/2, H * 0.54);
 
   // Score
-  c.font = `bold ${clamp(H * 0.040, 24, 34)}px Arial`;
+  c.font = `bold ${clamp(H * 0.038, 22, 32)}px Arial`;
   c.fillStyle = '#FFD700';
-  c.fillText(`⭐ ${game.score} 分`, W/2, H * 0.54);
+  c.fillText(`⭐ ${game.score} 分`, W/2, H * 0.62);
 
   // Time
   const m = Math.floor(game.timer/60), s = game.timer % 60;
-  c.font = `${clamp(H * 0.026, 17, 22)}px Arial`;
+  c.font = `${clamp(H * 0.024, 16, 21)}px Arial`;
   c.fillStyle = 'rgba(255,255,255,0.72)';
-  c.fillText(`完成時間  ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`, W/2, H * 0.62);
+  c.fillText(`完成時間  ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`, W/2, H * 0.68);
 
-  // Buttons — two side by side
-  const bw = clamp(W * 0.34, 180, 270), bh = 54, gap = 16;
-  const by = H * 0.76;
-  const bx1 = W/2 - bw - gap/2;
-  const bx2 = W/2 + gap/2;
+  // Buttons — 繼續（上排）＋ 再玩一次 / 主選單（下排）
+  const r = victoryBtnRects();
   const bfs = `bold ${clamp(H * 0.030, 18, 24)}px Arial`;
+  const drawBtn = (rect, fill, label) => {
+    c.fillStyle = fill;
+    roundRect(c, rect.x, rect.y, rect.w, rect.h, 16); c.fill();
+    c.strokeStyle = 'rgba(255,255,255,0.42)'; c.lineWidth = 2; c.stroke();
+    c.fillStyle = 'white'; c.font = bfs; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(label, rect.x + rect.w/2, rect.y + rect.h/2);
+  };
+  drawBtn(r.cont,  'rgba(225,140,30,0.95)', '▶️ 繼續');
+  drawBtn(r.retry, 'rgba(40,140,80,0.92)',  '再玩一次 🔄');
+  drawBtn(r.menu,  'rgba(50,100,210,0.92)', '🏠 主選單');
+}
 
-  c.fillStyle = 'rgba(40,140,80,0.92)';
-  roundRect(c, bx1, by, bw, bh, 16); c.fill();
-  c.strokeStyle = 'rgba(255,255,255,0.42)'; c.lineWidth = 2; c.stroke();
-  c.fillStyle = 'white'; c.font = bfs;
-  c.fillText('再玩一次 🔄', bx1 + bw/2, by + bh/2);
-
-  c.fillStyle = 'rgba(50,100,210,0.92)';
-  roundRect(c, bx2, by, bw, bh, 16); c.fill();
-  c.strokeStyle = 'rgba(255,255,255,0.42)'; c.lineWidth = 2; c.stroke();
-  c.fillStyle = 'white'; c.font = bfs;
-  c.fillText('🏠 主選單', bx2 + bw/2, by + bh/2);
+// 勝利畫面三顆按鈕的座標（draw 與點擊判定共用，避免兩邊不同步）
+function victoryBtnRects() {
+  const bh = 54, gap = 16;
+  const topW = clamp(W * 0.42, 220, 360);
+  const botW = clamp(W * 0.34, 180, 270);
+  const by1 = H * 0.74;
+  const by2 = by1 + bh + gap;
+  return {
+    cont:  { x: W/2 - topW/2,        y: by1, w: topW, h: bh },
+    retry: { x: W/2 - botW - gap/2,  y: by2, w: botW, h: bh },
+    menu:  { x: W/2 + gap/2,         y: by2, w: botW, h: bh },
+  };
 }
 
 // ══════════════════════════════════════════
@@ -1720,6 +1768,11 @@ class Game {
     this.solvedCount = 0;  // correct houses destroyed this level
     this.clearGoal   = 5;  // destroy this many to clear (set per level)
     this.wrongAtt    = 0;  // wrong attempts this target
+    this.streak      = 0;  // 連續答對數（答錯歸零），用於連擊加分
+    this.totalCorrect= 0;  // 整局答對總題數（給結算等級基準用）
+    this.perfectScore= 0;  // 完美基準分：每題滿分＋完美連擊＋過關獎勵的理論上限
+    this.qStartT     = 0;  // 本題開始計時的時間戳（performance.now）
+    this.endless     = false; // 按過「繼續」後 = true，之後打完不再跳結算
     this.levelClearT = 0;  // countdown before moving to next level
     this.planeRespawnT = 0;
     this._prevPhase  = 'playing'; // for pause/resume
@@ -1747,6 +1800,10 @@ class Game {
     this.lives     = CFG.LIVES;
     this.score     = 0;
     this.timer     = 0;
+    this.streak       = 0;
+    this.totalCorrect = 0;
+    this.perfectScore = 0;
+    this.endless      = false;
     this.bombsLeft = CFG.BOMBS_PER_LEVEL;
     this.planeRespawnT = 0;
     this.phase     = 'playing';
@@ -1782,9 +1839,31 @@ class Game {
   }
 
   // ── Load Level ─────────────────────────
+  // 重洗下一輪 6 關（自選/課程題庫重新打散，預設題庫重置）
+  _reshuffleRound() {
+    if (bombWordPool) buildLessonLevels();
+    else LEVELS = DEFAULT_LEVELS.slice(0, MAX_LEVELS).map(l => ({ ...l, words: [...l.words] }));
+    this.lvIdx = 0;
+  }
+
+  // 結算後按「繼續」：開啟無限模式，保留分數/愛心/時間接著玩
+  continueEndless() {
+    this.endless = true;
+    this._reshuffleRound();
+    this.phase = 'playing';
+    this.plane.reset();
+    this._loadLevel();
+    Audio.startBgm();
+    this._startTimer();
+  }
+
   _loadLevel() {
     const lv = LEVELS[this.lvIdx];
-    if (!lv) { this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); this._initVictoryConfetti(); return; }
+    if (!lv) {
+      // 無限模式：打完 6 關就重洗接著玩，不再跳結算
+      if (this.endless) { this._reshuffleRound(); return this._loadLevel(); }
+      this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); this._initVictoryConfetti(); return;
+    }
     this.wordsLeft = [...lv.words];
     this.solvedCount = 0;
     // 留最後兩間不打：5 間打掉 3 間就通關，避免剩兩間時答案太好猜。
@@ -1828,6 +1907,7 @@ class Game {
     const i = Math.floor(Math.random() * this.wordsLeft.length);
     this.targetWord = this.wordsLeft[i];
     this.wrongAtt = 0;
+    this.qStartT = performance.now();   // 本題開始計時：答得越快速度分越高
     Audio.speak(this.targetWord);   // 進場 / 換題：唸出目標單字
   }
 
@@ -1854,8 +1934,9 @@ class Game {
 
   // ── Level Clear ────────────────────────
   _levelClear() {
-    const bonus = Math.max(50, 600 - this.timer * 3);
+    const bonus = 50;            // 過關固定獎勵（快慢已反映在每題速度分上）
     this.score += bonus;
+    this.perfectScore += bonus;  // 完美基準同步加，等級換算才準
     this.phase = 'levelClear';
     Audio.levelClear();
     this.levelClearT = 150; // ~2.5s at 60fps
@@ -1950,9 +2031,19 @@ class Game {
         if (h.word === this.targetWord) {
           // ✅ CORRECT
           h.destroyed = true;
-          const pts = Math.max(10, 80 - this.timer);
-          this.score += pts;
-          this._float(h.x, h.y - 30, `✅ +${pts}`, '#FFD700', 24);
+          // 單題速度分：2 秒內答對 = 滿分 100，之後每秒 −12，最低 10
+          const qSec = (performance.now() - this.qStartT) / 1000;
+          const speedPts = clamp(Math.round(100 - Math.max(0, qSec - 2) * 12), 10, 100);
+          // 連擊加分：連續答對第 2 題起額外加分，每題 +5 遞增，上限 +25；答錯歸零
+          this.streak++;
+          this.totalCorrect++;
+          const comboPts = this.streak >= 2 ? Math.min((this.streak - 1) * 5, 25) : 0;
+          this.score += speedPts + comboPts;
+          // 完美基準（給結算等級換算）：每題理論滿分 100 ＋ 完美連擊
+          const perfectCombo = this.totalCorrect >= 2 ? Math.min((this.totalCorrect - 1) * 5, 25) : 0;
+          this.perfectScore += 100 + perfectCombo;
+          this._float(h.x, h.y - 30, `✅ +${speedPts}`, '#FFD700', 24);
+          if (comboPts > 0) this._float(h.x, h.y - 58, `🔥 連擊 ×${this.streak}  +${comboPts}`, '#FF8C00', 20);
           Audio.success();
           this.wordsLeft = this.wordsLeft.filter(w => w !== h.word);
           this.solvedCount++;
@@ -1966,6 +2057,7 @@ class Game {
           h.shaking = 2.5; h.wrongFlash = 40; h.wrongBubble = 60;
           Audio.wrong();
           this.wrongAtt++;
+          this.streak = 0;   // 答錯：連擊中斷歸零
 
           if (this.difficulty === 'easy') {
             // Easy mode: no penalty — no life lost, no time added. The enemy
@@ -2241,25 +2333,24 @@ function hitMenu(x, y) {
 }
 
 function hitEndScreen(x, y) {
-  const bw=250, bh=58, bx=W/2-bw/2, by=H*0.65;
+  const bw=250, bh=58, bx=W/2-bw/2, by=H*0.79;
   if (x>bx && x<bx+bw && y>by && y<by+bh) { game=new Game(); resizeCanvas(); }
 }
 
 function hitVictoryScreen(x, y) {
-  const bw = clamp(W * 0.34, 180, 270), bh = 54, gap = 16;
-  const by = H * 0.76;
-  const bx1 = W/2 - bw - gap/2;
-  const bx2 = W/2 + gap/2;
-  // 再玩一次：在相同難度重新開始
-  if (x > bx1 && x < bx1+bw && y > by && y < by+bh) {
+  const r = victoryBtnRects();
+  const inside = (b) => x > b.x && x < b.x+b.w && y > b.y && y < b.y+b.h;
+  // 繼續：無限續玩，分數/愛心都保留，之後打完不再跳結算
+  if (inside(r.cont)) { game.continueEndless(); return; }
+  // 再玩一次：相同難度從第 1 關重來
+  if (inside(r.retry)) {
     const d = game.difficulty;
     game = new Game(); resizeCanvas();
     game.start(d);
+    return;
   }
   // 主選單：回主選單
-  if (x > bx2 && x < bx2+bw && y > by && y < by+bh) {
-    game = new Game(); resizeCanvas();
-  }
+  if (inside(r.menu)) { game = new Game(); resizeCanvas(); }
 }
 
 function hitPauseScreen(x, y) {
