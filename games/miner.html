@@ -55,45 +55,90 @@
 
         .hud {
             display: flex;
-            align-items: stretch;
+            flex-direction: column;
             gap: 10px;
         }
 
-        .stat-cluster {
+        /* 題目卡：獨立一列、置中醒目（標題徽章 + 指示 + 大題目） */
+        .task-card {
             display: flex;
-            gap: 10px;
-            flex: 0 0 auto;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 12px 18px;
         }
 
-        .stat {
-            min-width: 86px;
-            display: grid;
-            align-content: center;
-            text-align: center;
-        }
-
-        .task-panel {
-            flex: 1 1 auto;
+        .task-meta {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .task-badge {
+            font-size: 15px;
+            font-weight: 900;
+            color: var(--ink);
+            background: linear-gradient(180deg, #ffe27a, #f7a928);
+            padding: 3px 13px;
+            border-radius: 999px;
+            white-space: nowrap;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+        }
+
+        .task-instruction {
+            font-size: 15px;
+            font-weight: 800;
+            color: rgba(255, 243, 207, 0.9);
+        }
+
+        .task-main {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .task-question {
+            font-size: clamp(26px, 3.4vw, 40px);
+            font-weight: 900;
+            color: var(--gold);
+            line-height: 1.1;
+            text-align: center;
+            word-break: break-word;
+            text-shadow: 0 2px 0 rgba(91, 45, 6, 0.7), 0 0 18px rgba(255, 201, 79, 0.3);
+        }
+
+        /* 狀態列：關卡 / 時間 / 分數 / 連擊 */
+        .stat-row {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .stat {
+            flex: 1 1 0;
+            max-width: 220px;
+            display: grid;
+            align-content: center;
+            justify-items: center;
+            gap: 2px;
             text-align: center;
         }
 
-        .task-title {
-            font-size: clamp(17px, 1.7vw, 23px);
-            font-weight: 900;
-            color: var(--gold);
-            white-space: nowrap;
-            text-shadow: 0 2px 0 rgba(91, 45, 6, 0.85), 0 0 16px rgba(255, 201, 79, 0.32);
+        .stat-label {
+            color: rgba(255, 243, 207, 0.66);
+            font-size: 12px;
+            font-weight: 700;
         }
 
-        .task-text {
-            font-size: clamp(20px, 2.3vw, 30px) !important;
-            font-weight: 900;
-            color: var(--gold);
-            text-shadow: 0 2px 0 rgba(91, 45, 6, 0.6);
+        .stat-value {
+            color: white;
+            font-size: 21px;
+            font-weight: 800;
+            line-height: 1.05;
         }
 
         .task-speak {
@@ -208,6 +253,91 @@
             font-size: 14px;
         }
 
+        /* ===== 開始 / 結束畫面：HTML 覆蓋層（蓋在 canvas 上，整體縮放不跑版） ===== */
+        .startscreen {
+            position: absolute;
+            inset: 0;
+            z-index: 25;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            text-align: center;
+            border-radius: 8px;
+            background: radial-gradient(circle at 50% 38%, rgba(46, 30, 18, 0.82), rgba(7, 5, 4, 0.94));
+        }
+
+        .startscreen.hidden {
+            display: none;
+        }
+
+        .startscreen-card {
+            width: min(560px, 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .startscreen-card h2 {
+            margin: 0;
+            font-size: clamp(28px, 4.4vw, 46px);
+            color: var(--gold);
+            text-shadow: 0 3px 0 rgba(91, 45, 6, 0.7), 0 0 20px rgba(255, 201, 79, 0.35);
+        }
+
+        .startscreen-card p {
+            margin: 0;
+            font-size: clamp(15px, 1.9vw, 20px);
+            line-height: 1.5;
+            color: rgba(255, 243, 207, 0.86);
+        }
+
+        .ss-stats {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+            width: 100%;
+            margin: 2px 0;
+        }
+
+        .ss-stats[hidden] {
+            display: none;
+        }
+
+        .ss-stat {
+            display: grid;
+            gap: 2px;
+            padding: 9px 6px;
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 243, 207, 0.18);
+        }
+
+        .ss-stat span {
+            font-size: 12.5px;
+            color: rgba(255, 243, 207, 0.72);
+        }
+
+        .ss-stat b {
+            font-size: 23px;
+            color: var(--gold);
+        }
+
+        #miner-start-btn {
+            min-height: 0;
+            margin-top: 4px;
+            padding: 16px 46px;
+            font-size: 24px;
+            border-radius: 999px;
+            animation: startPulse 1.4s ease-in-out infinite;
+        }
+
+        @keyframes startPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
         /* 左下／右下方向圓鈕：木質金礦風格（桌機＋手機皆顯示） */
         .corner-btn {
             position: fixed;
@@ -291,27 +421,18 @@
                 font-size: 16px;
             }
 
-            .hud {
-                flex-direction: column;
-                gap: 7px;
+            .task-card {
+                padding: 10px 12px;
+                gap: 5px;
             }
 
-            .task-panel {
-                order: -1;
-                width: 100%;
-                gap: 8px;
+            .task-badge,
+            .task-instruction {
+                font-size: 13px;
             }
 
-            .task-title {
-                font-size: 18px;
-            }
-
-            .stat-cluster {
-                width: 100%;
-            }
-
-            .stat-cluster .stat {
-                flex: 1;
+            .task-question {
+                font-size: 30px;
             }
 
             .task-speak {
@@ -320,22 +441,22 @@
                 font-size: 22px;
             }
 
-            .panel {
-                min-height: 52px;
-                padding: 8px 10px;
+            .stat-row {
+                gap: 6px;
             }
 
-            .panel-label {
-                margin-bottom: 3px;
-                font-size: 12px;
+            .stat {
+                max-width: none;
+                min-height: 50px;
+                padding: 6px 4px;
             }
 
-            .panel-value {
-                font-size: 19px;
+            .stat-label {
+                font-size: 11px;
             }
 
-            #target-word {
-                font-size: 25px;
+            .stat-value {
+                font-size: 18px;
             }
 
             .game-wrap {
@@ -351,22 +472,32 @@
                 display: none;
             }
 
+            #miner-start-btn {
+                padding: 15px 40px;
+                font-size: 22px;
+            }
+
             .corner-btn {
-                width: 120px;
-                height: 120px;
+                width: 116px;
+                height: 116px;
                 font-size: 50px;
                 bottom: calc(14px + env(safe-area-inset-bottom));
                 opacity: 0.97;
             }
 
+            /* 橫拿：題目卡與狀態列並排，兩者都完整顯示不被裁 */
             @media (orientation: landscape) {
                 .hud {
                     flex-direction: row;
                     align-items: stretch;
                 }
 
-                .task-panel {
-                    order: 0;
+                .task-card {
+                    flex: 1 1 auto;
+                }
+
+                .stat-row {
+                    flex: 0 0 auto;
                 }
 
                 .corner-btn {
@@ -418,37 +549,52 @@
 <body>
     <main class="shell">
         <section class="hud" aria-label="遊戲狀態">
-            <div class="stat-cluster">
-                <div class="panel stat">
-                    <span class="panel-label">關卡</span>
-                    <span class="panel-value" id="level">1 / 3</span>
+            <div class="panel task-card">
+                <div class="task-meta">
+                    <span class="task-badge">⛏️ 挖金礦</span>
+                    <span class="task-instruction" id="task-instruction">看題目，抓正確的金塊</span>
                 </div>
-                <div class="panel stat">
-                    <span class="panel-label">時間</span>
-                    <span class="panel-value" id="time-left">60</span>
+                <div class="task-main">
+                    <span class="task-question" id="target-word">準備開始</span>
+                    <button class="task-speak" id="miner-speak-btn" type="button" aria-label="重聽發音">🔊</button>
                 </div>
             </div>
 
-            <div class="panel task-panel">
-                <span class="task-title">⛏️ 單字挖金礦</span>
-                <span class="panel-value task-text" id="target-word">點一下螢幕開始</span>
-                <button class="task-speak" id="miner-speak-btn" type="button" aria-label="重聽發音">🔊</button>
-            </div>
-
-            <div class="stat-cluster">
+            <div class="stat-row">
                 <div class="panel stat">
-                    <span class="panel-label">分數</span>
-                    <span class="panel-value score-value" id="score">0</span>
+                    <span class="stat-label">關卡</span>
+                    <span class="stat-value" id="level">1 / 3</span>
                 </div>
                 <div class="panel stat">
-                    <span class="panel-label">連擊</span>
-                    <span class="panel-value" id="streak">0</span>
+                    <span class="stat-label">時間</span>
+                    <span class="stat-value" id="time-left">60</span>
+                </div>
+                <div class="panel stat">
+                    <span class="stat-label">分數</span>
+                    <span class="stat-value score-value" id="score">0</span>
+                </div>
+                <div class="panel stat">
+                    <span class="stat-label">連擊</span>
+                    <span class="stat-value" id="streak">0</span>
                 </div>
             </div>
         </section>
 
         <section class="game-wrap">
             <canvas id="gameCanvas" width="1080" height="675"></canvas>
+            <div id="miner-startscreen" class="startscreen hidden">
+                <div class="startscreen-card">
+                    <h2 id="ss-title">⛏️ 單字挖金礦</h2>
+                    <p id="ss-sub">看單字／中文／圖片，抓正確的金塊 · 三關挑戰</p>
+                    <div class="ss-stats" id="ss-stats" hidden>
+                        <div class="ss-stat"><span>答對</span><b id="ss-correct">0</b></div>
+                        <div class="ss-stat"><span>抓錯</span><b id="ss-wrong">0</b></div>
+                        <div class="ss-stat"><span>最高連擊</span><b id="ss-streak">0</b></div>
+                        <div class="ss-stat"><span>炸彈</span><b id="ss-bomb">0</b></div>
+                    </div>
+                    <button id="miner-start-btn" type="button">▶ 開始遊戲</button>
+                </div>
+            </div>
         </section>
 
         <div class="hint">左右角方向鈕（或 ← → / A D）移動礦車，點畫面或空白鍵發射。題目用單字／中文／圖片互相出題，抓對應的金塊；分數夠高就進下一關，共三關！</div>
@@ -487,7 +633,7 @@
                 抓對 +20 分，抓錯倒扣時間，炸彈扣分、石頭會彈開。<br>
                 ⚙ 右上角設定可<b>重新開始</b>或暫停。
             </div>
-            <button class="mBtn" id="miner-guide-ok">✓ 開始遊戲（點螢幕開始）</button>
+            <button class="mBtn" id="miner-guide-ok">▶ 開始遊戲</button>
         </div>
     </div>
 
@@ -509,6 +655,16 @@
     const progressEl = document.getElementById("miner-progress");
     const progressFillEl = document.getElementById("miner-progress-fill");
     const progressLabelEl = document.getElementById("miner-progress-label");
+    const taskInstructionEl = document.getElementById("task-instruction");
+    const startScreenEl = document.getElementById("miner-startscreen");
+    const startBtn = document.getElementById("miner-start-btn");
+    const ssTitleEl = document.getElementById("ss-title");
+    const ssSubEl = document.getElementById("ss-sub");
+    const ssStatsEl = document.getElementById("ss-stats");
+    const ssCorrectEl = document.getElementById("ss-correct");
+    const ssWrongEl = document.getElementById("ss-wrong");
+    const ssStreakEl = document.getElementById("ss-streak");
+    const ssBombEl = document.getElementById("ss-bomb");
 
     const bgImage = new Image();
     bgImage.src = "../assets/miner-visual-concept.png";
@@ -846,9 +1002,36 @@
 
     function updateControls() {
         const playing = gamePhase === "PLAYING";
+        moveLeftBtn.style.display = playing ? "" : "none";
+        moveRightBtn.style.display = playing ? "" : "none";
         moveLeftBtn.disabled = !playing;
         moveRightBtn.disabled = !playing;
         speakBtn.disabled = !playing || currentQ !== "word";
+    }
+
+    /* 開始／結束畫面（HTML 覆蓋層）：非遊玩中顯示，結束時帶出成績 */
+    function updateStartScreen() {
+        if (!startScreenEl) return;
+        if (gamePhase === "PLAYING") {
+            startScreenEl.classList.add("hidden");
+            return;
+        }
+        startScreenEl.classList.remove("hidden");
+        if (gamePhase === "ENDED") {
+            ssTitleEl.textContent = gameWon ? "🏆 三關全破！" : "⏰ 時間到！";
+            ssSubEl.textContent = gameWon ? `太厲害了，總分 ${score}` : `打到第 ${level} 關 · 總分 ${score}`;
+            ssStatsEl.hidden = false;
+            ssCorrectEl.textContent = correctCount;
+            ssWrongEl.textContent = wrongCount;
+            ssStreakEl.textContent = bestStreak;
+            ssBombEl.textContent = bombCount;
+            startBtn.textContent = "🔄 再玩一次";
+        } else {
+            ssTitleEl.textContent = "⛏️ 單字挖金礦";
+            ssSubEl.textContent = "看單字／中文／圖片，抓正確的金塊 · 三關挑戰";
+            ssStatsEl.hidden = true;
+            startBtn.textContent = "▶ 開始遊戲";
+        }
     }
 
     function applyLevelCfg() {
@@ -949,6 +1132,18 @@
         origin.x = Math.max(CART_MIN_X, Math.min(CART_MAX_X, origin.x + direction * CART_SPEED * dt));
     }
 
+    /* iOS 必須由真實按鈕的 click 先「暖機」一次，speechSynthesis 才解得了鎖 */
+    let speechPrimed = false;
+    function primeSpeech() {
+        if (speechPrimed || !("speechSynthesis" in window)) return;
+        try {
+            const warm = new SpeechSynthesisUtterance(" ");
+            warm.volume = 0;
+            window.speechSynthesis.speak(warm);
+        } catch (e) {}
+        speechPrimed = true;
+    }
+
     function speakWord(word) {
         if (!("speechSynthesis" in window)) {
             setMessage("這個瀏覽器不支援語音播放", "bad", 160);
@@ -961,6 +1156,13 @@
         msg.lang = voice?.lang || "en-US";
         msg.rate = 0.82;
         msg.pitch = 1;
+
+        /* 唸字時把 BGM 讓開，避免 iOS 兩個音源搶音訊工作階段導致沒聲 */
+        if (bgmAudio) { clearInterval(bgmFade); bgmAudio.volume = 0; }
+        const restoreBgm = () => { if (bgmAudio && gamePhase === "PLAYING" && !paused) fadeBgm(0.12, 450); };
+        msg.onend = restoreBgm;
+        msg.onerror = restoreBgm;
+
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(msg);
     }
@@ -1001,7 +1203,8 @@
         });
 
         const taskText = `${REP_VERB[currentQ]}，抓${REP_ANS[currentA]}`;
-        targetWordEl.textContent = gamePhase === "PLAYING" ? questionText(targetWordObj, currentQ) : "點一下螢幕開始";
+        targetWordEl.textContent = gamePhase === "PLAYING" ? questionText(targetWordObj, currentQ) : "準備開始";
+        if (taskInstructionEl) taskInstructionEl.textContent = gamePhase === "PLAYING" ? taskText : "看題目，抓正確的金塊";
         setStatus(gamePhase === "PLAYING" ? `第 ${level} 關 · 第 ${round} 題` : "準備中");
         setMessage(gamePhase === "PLAYING" ? `${taskText}｜答對 +${CORRECT_POINTS} 分，答錯 −${WRONG_TIME_PENALTY} 秒` : "點一下螢幕開始挑戰", "info", 200);
         updateHud();
@@ -1017,6 +1220,7 @@
         streakEl.textContent = streak;
         levelEl.textContent = `${level} / ${LEVELS.length}`;
         updateControls();
+        updateStartScreen();
         renderProgress();
     }
 
@@ -1207,7 +1411,6 @@
         drawItems();
         drawHookSystem();
         drawParticles();
-        drawGameOverlay();
         renderToast();
         requestAnimationFrame(loop);
     }
@@ -1690,83 +1893,6 @@
             : (isLast ? "🏆 達標！" : (compact ? "達標！" : `達標！→ 第 ${level + 1} 關`));
     }
 
-    function drawGameOverlay() {
-        if (gamePhase === "PLAYING") return;
-
-        ctx.save();
-        ctx.fillStyle = "rgba(7, 5, 4, 0.68)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        const boxW = 620;
-        const boxH = gamePhase === "ENDED" ? 360 : 260;
-        const x = canvas.width / 2 - boxW / 2;
-        const y = canvas.height / 2 - boxH / 2;
-
-        roundRect(x, y, boxW, boxH, 8);
-        ctx.fillStyle = "rgba(30, 21, 15, 0.95)";
-        ctx.fill();
-        ctx.strokeStyle = "rgba(255, 213, 74, 0.86)";
-        ctx.lineWidth = 4;
-        ctx.stroke();
-
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-
-        if (gamePhase === "READY") {
-            ctx.fillStyle = "#ffd54a";
-            ctx.font = "900 46px Arial, sans-serif";
-            ctx.fillText("單字挖金礦 · 三關挑戰", canvas.width / 2, y + 70);
-            ctx.fillStyle = "#fff3cf";
-            ctx.font = "800 24px Arial, sans-serif";
-            ctx.fillText("看單字／中文／圖片，抓正確的金塊", canvas.width / 2, y + 124);
-            ctx.fillStyle = "rgba(255, 243, 207, 0.82)";
-            ctx.font = "700 19px Arial, sans-serif";
-            ctx.fillText("分數夠高就進下一關，全破共三關！", canvas.width / 2, y + 168);
-            ctx.fillStyle = "#42d8ff";
-            ctx.font = "900 24px Arial, sans-serif";
-            ctx.fillText("👆 點一下螢幕開始", canvas.width / 2, y + 218);
-        } else {
-            ctx.fillStyle = gameWon ? "#7bed5b" : "#ffd54a";
-            ctx.font = "900 50px Arial, sans-serif";
-            ctx.fillText(gameWon ? "🏆 三關全破！" : "時間到！", canvas.width / 2, y + 64);
-
-            ctx.fillStyle = "#fff3cf";
-            ctx.font = "900 30px Arial, sans-serif";
-            ctx.fillText(gameWon ? `總分：${score}` : `打到第 ${level} 關 · 總分 ${score}`, canvas.width / 2, y + 118);
-
-            drawResultRow("答對題數", correctCount, x + 86, y + 174);
-            drawResultRow("抓錯次數", wrongCount, x + 326, y + 174);
-            drawResultRow("最高連擊", bestStreak, x + 86, y + 234);
-            drawResultRow("炸彈次數", bombCount, x + 326, y + 234);
-
-            ctx.fillStyle = "#42d8ff";
-            ctx.font = "900 23px Arial, sans-serif";
-            ctx.fillText("👆 點一下螢幕再玩一次", canvas.width / 2, y + 318);
-        }
-
-        ctx.restore();
-    }
-
-    function drawResultRow(label, value, x, y) {
-        ctx.save();
-        roundRect(x, y, 208, 44, 7);
-        ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
-        ctx.fill();
-        ctx.strokeStyle = "rgba(255, 243, 207, 0.2)";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        ctx.fillStyle = "rgba(255, 243, 207, 0.74)";
-        ctx.font = "800 17px Arial, sans-serif";
-        ctx.fillText(label, x + 16, y + 22);
-        ctx.fillStyle = "#ffd54a";
-        ctx.font = "900 24px Arial, sans-serif";
-        ctx.textAlign = "right";
-        ctx.fillText(value, x + 188, y + 22);
-        ctx.restore();
-    }
-
     function drawPebble(x, y, r, rot, color) {
         ctx.beginPath();
         ctx.ellipse(x, y, r, r * 0.55, rot, 0, Math.PI * 2);
@@ -1798,14 +1924,17 @@
         if (gamePhase === "PLAYING" && currentQ === "word" && targetWordObj) speakWord(targetWordObj.word);
     });
 
-    /* 點畫面任一處：開始 / 再玩一次 / 發射鉤子 */
+    /* 開始 / 再玩一次一律走真實按鈕：iOS 才解得開語音與 BGM 的自動播放 */
+    function beginGame() {
+        primeSpeech();
+        startGame();
+    }
+    startBtn.addEventListener("click", beginGame);
+
+    /* 遊玩中點畫面任一處：放出鉤爪 */
     canvas.addEventListener("pointerdown", () => {
         if (paused || guideOpen) return;
-        if (gamePhase === "PLAYING") {
-            if (state === "IDLE") shoot();
-        } else {
-            startGame();
-        }
+        if (gamePhase === "PLAYING" && state === "IDLE") shoot();
     });
 
     /* ===== 設定選單（含暫停） + 玩法守則 ===== */
@@ -1836,7 +1965,7 @@
     document.getElementById("miner-resume").addEventListener("click", closeSettings);
     document.getElementById("miner-restart").addEventListener("click", () => { closeSettings(); startGame(); });
     document.getElementById("miner-guide-pause").addEventListener("click", openGuide);
-    document.getElementById("miner-guide-ok").addEventListener("click", closeGuide);
+    document.getElementById("miner-guide-ok").addEventListener("click", () => { closeGuide(); beginGame(); });
     try { if (!localStorage.getItem("minerGuideSeen")) openGuide(); } catch (e) { openGuide(); }
 
     function bindMoveButton(button, direction) {
@@ -1874,11 +2003,11 @@
         }
         if (event.code === "Space") {
             event.preventDefault();
-            if (gamePhase === "READY" || gamePhase === "ENDED") startGame();
+            if (gamePhase === "READY" || gamePhase === "ENDED") beginGame();
             else shoot();
         }
         if (event.code === "KeyR" && gamePhase === "PLAYING" && currentQ === "word" && targetWordObj) speakWord(targetWordObj.word);
-        if (event.code === "KeyN") startGame();
+        if (event.code === "KeyN") beginGame();
     });
 
     window.addEventListener("keyup", (event) => {
