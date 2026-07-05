@@ -15,6 +15,8 @@ cd ~/Desktop/studentgames && python3 -m http.server 8765
 
 （例外：使用者明確說「幫我測 / 驗證一下」才跑測試。）
 
+注意：「不跑測試」指的是開 server、playwright 截圖這類**動態驗證**；語法檢查（`node --check`）、注入鏈核對、diff 範圍檢查這些**靜態自檢**仍是交付前必做，清單見全域 skill `studentgames-dev` 的「交付前自檢」。
+
 ## Git / Push 規範
 
 改完（語法檢查過）直接 commit + push，不用每次問。
