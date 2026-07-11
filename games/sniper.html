@@ -111,7 +111,7 @@
   </div>
   <div id="stats">
     <div class="row">關卡 <b id="round">1</b></div>
-    <div class="row" id="lives-row" style="display:none">生命 <span id="lives">❤️❤️❤️</span></div>
+    <div class="row" id="lives-row" style="display:none">機會 <span id="lives">❤️❤️❤️</span></div>
     <div class="row">分數 <b id="score">0</b></div>
     <div class="row">資金 $<b id="money">0</b></div>
     <div class="row" id="ammo">🔸🔸🔸</div>
@@ -130,7 +130,7 @@
 <div class="overlay" id="start-overlay">
   <h1>狙擊暗殺 <span class="accent">單字特務</span></h1>
   <p>你<b>蹲在圍牆後</b>，對面大樓很遠。按<b>開鏡＝探頭瞄準</b>看清每層樓的單字與目標；放開就<b>縮回掩體</b>。讀懂情報，找出對應單字的那一層，趁目標<b>經過窗戶</b>時將他狙殺。</p>
-  <p>每關<b>限時間、只有 3 發子彈</b>。<b>打錯人＝任務失敗</b>，看清情報再開槍。第 4、7 關後會遇到<b>軍火商</b>，用資金升級裝備（含可貫穿石牆的穿甲彈）。</p>
+  <p>每關<b>限時間、只有 3 發子彈</b>。打錯人、彈盡或超時會<b>用掉 1 次機會（共 3 次）</b>，機會用完才任務失敗，看清情報再開槍。第 4、7 關後會遇到<b>軍火商</b>，用資金升級裝備（含可貫穿石牆的穿甲彈）。</p>
   <div class="help">
     <div class="row phone">📱 <b>手機</b>：單指<b>拖曳</b>平移視野瞄準，按 <b>🔭 開鏡</b>放大，按 <b>🔫 開火</b>射擊（雙指捏合也可開/收鏡）</div>
     <div class="row tablet">📲 <b>平板</b>：左手 <b>🔭 開鏡</b>、右手 <b>🔫 開火</b>，單指<b>拖曳</b>瞄準（雙指捏合也可開/收鏡）</div>
@@ -145,8 +145,9 @@
     <button class="btn" id="start-easy">🎯 簡單模式</button>
     <button class="btn" id="start-hard" style="background:#f87171;color:#fff">💀 困難模式</button>
   </div>
-  <p style="font-size:13px;color:#94a3b8;margin-top:10px">簡單：專心認字與抓時機　｜　困難：<b>開槍沒中就被發現</b>，3 秒內沒收鏡蹲回掩體就挨打，有 3 條命</p>
+  <p style="font-size:13px;color:#94a3b8;margin-top:10px">兩模式共用 <b>3 次機會</b>　｜　簡單：專心認字與抓時機　｜　困難：<b>開槍沒中就被發現</b>，3 秒內沒收鏡蹲回掩體就挨打</p>
   <button id="open-settings" style="margin-top:14px;background:rgba(255,255,255,0.08);color:#cbd5e1;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:8px 18px;font-size:13px;cursor:pointer">⚙️ 操控設定</button>
+  <button id="menu-return" style="margin-top:10px;background:rgba(255,255,255,0.08);color:#cbd5e1;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:8px 18px;font-size:13px;cursor:pointer">← 返回遊戲選單</button>
 </div>
 
 <!-- 設定面板 -->
@@ -333,7 +334,6 @@ let shoppedAt = {};
 let apUpgrade = false;          // 穿甲彈: 子彈可貫穿石牆
 let extraAmmo = 0;              // 加彈匣: ammoMax 加成(上限 +2)
 let extraTime = 0;             // 延長時限: timeMax 加成(上限 +12)
-let spentAny = false;          // 是否買過(穿甲彈以外的)裝備: 買過就鎖住穿甲彈
 let timeLeft = 0, timeMax = 0;
 let lastTickSec = -1;   // 最後 5 秒滴答聲: 記住上次發聲的整數秒
 let floorsData = [];    // 每層: {word, person...}
@@ -605,8 +605,9 @@ function tryFire(){
     }
     triggerSpotted();
     if(ammo <= 0){
-      showToast(`彈藥耗盡！目標是 ${answer.word}`, '#f87171');
-      combo = 0; endRound(false);
+      combo = 0; lives--; updateHUD();      // 彈盡: 扣 1 次機會
+      if(lives <= 0){ showToast(`彈藥耗盡！目標是 ${answer.word}`, '#f87171'); failGame('miss'); }
+      else { showToast(`彈藥耗盡！目標是 ${answer.word}（剩 ${lives} 次機會）`, '#f87171'); endRound(false); }
     }
   }
   updateHUD();
@@ -636,11 +637,9 @@ function updateHUD(){
   let a = '';
   for(let i=0;i<ammoMax;i++) a += i<ammo ? '🔸' : '▫️';
   document.getElementById('ammo').textContent = a;
-  const lr = document.getElementById('lives-row');
-  if(difficulty === 'hard'){
-    lr.style.display = 'flex';
-    document.getElementById('lives').textContent = '❤️'.repeat(Math.max(0,lives)) + '🖤'.repeat(Math.max(0,MAX_LIVES-lives));
-  } else lr.style.display = 'none';
+  const lr = document.getElementById('lives-row');   // 兩模式共用 3 次機會池, 都顯示
+  lr.style.display = 'flex';
+  document.getElementById('lives').textContent = '❤️'.repeat(Math.max(0,lives)) + '🖤'.repeat(Math.max(0,MAX_LIVES-lives));
   const pct = clamp(timeLeft/timeMax, 0, 1)*100;
   const fill = document.getElementById('timerfill');
   fill.style.width = pct + '%';
@@ -681,8 +680,9 @@ function loop(t){
     if(timeLeft > 0 && sec <= 5 && sec !== lastTickSec){ lastTickSec = sec; tickSnd(sec <= 2); }
     if(timeLeft <= 0){
       timeLeft = 0;
-      showToast(`⏰ 時間到！目標是 ${answer.word}`, '#f87171');
-      combo = 0; endRound(false);
+      combo = 0; lives--; updateHUD();      // 時間到: 扣 1 次機會
+      if(lives <= 0){ showToast(`⏰ 時間到！目標是 ${answer.word}`, '#f87171'); failGame('miss'); }
+      else { showToast(`⏰ 時間到！目標是 ${answer.word}（剩 ${lives} 次機會）`, '#f87171'); endRound(false); }
     }
     if(difficulty === 'hard') updateHardMode(rawdt);
     updateHUD();
@@ -700,7 +700,11 @@ function loop(t){
     cinematic += (1 - cinematic) * Math.min(1, rawdt*4);
     if(performance.now() > killUntil){
       targetTimeScale = 1; killTarget = null;
-      if(!killSuccess){ failGame('judge'); }                 // 打錯人 = 任務失敗
+      if(!killSuccess){                                      // 打錯人: 扣 1 次機會, 用完才失敗
+        lives--; updateHUD();
+        if(lives <= 0){ failGame('judge'); }
+        else { showToast(`🩸 打錯人了！剩 ${lives} 次機會`, '#f87171'); state = 'feedback'; feedbackUntil = performance.now() + 1500; }
+      }
       else { state = 'feedback'; feedbackUntil = performance.now() + 150; }
     }
   } else {
@@ -1196,7 +1200,9 @@ function drawScopeOverlay(){
     ctx.save();
     ctx.fillStyle = 'rgba(226,232,240,0.85)';
     ctx.font = '600 15px "Noto Sans TC", sans-serif'; ctx.textAlign='center';
-    ctx.fillText('🔭 開鏡＝探頭瞄準　·　收鏡＝縮回掩體躲避', VW/2, VH*0.66 - 18);
+    const ty = VH*0.66 + 30;   // 收進掩體牆面內(牆頂之下), 手機上不再遮到大樓/單字
+    if(DEVICE==='phone'){ ctx.fillText('🔭 開鏡＝探頭瞄準', VW/2, ty); ctx.fillText('收鏡＝縮回掩體躲避', VW/2, ty+22); }
+    else ctx.fillText('🔭 開鏡＝探頭瞄準　·　收鏡＝縮回掩體躲避', VW/2, ty);
     ctx.restore();
     return;
   }
@@ -1476,7 +1482,7 @@ function startGame(diff){
   difficulty = (diff === 'hard') ? 'hard' : 'easy';
   WB = buildWordBank();
   roundNo = 0; score = 0; money = 0; combo = 0; lives = MAX_LIVES;
-  apUpgrade = false; extraAmmo = 0; extraTime = 0; spentAny = false; shoppedAt = {};
+  apUpgrade = false; extraAmmo = 0; extraTime = 0; shoppedAt = {};
   document.getElementById('shop-overlay').classList.add('hide');
   document.getElementById('start-overlay').classList.add('hide');
   document.getElementById('end-overlay').classList.add('hide');
@@ -1501,12 +1507,16 @@ function endGame(){ // 完成全部關卡
 }
 function failGame(reason){
   finishOverlay('任務失敗');
-  if(reason === 'judge'){       // 打錯人
-    document.getElementById('end-summary').textContent = `判讀錯誤・狙殺了錯誤的人　總分 ${score}`;
-    document.getElementById('end-detail').textContent = `撐到第 ${Math.min(roundNo,MAX_ROUNDS)} 關。看清情報對應的單字、確認樓層再開槍——打錯人任務就失敗。`;
-  } else {                      // 困難模式被反殺
-    document.getElementById('end-summary').textContent = `你暴露行蹤被反殺　總分 ${score}`;
-    document.getElementById('end-detail').textContent = `困難模式・撐到第 ${Math.min(roundNo,MAX_ROUNDS)} 關。開槍沒中會暴露行蹤，記得立刻收鏡蹲回掩體。`;
+  const lvl = Math.min(roundNo,MAX_ROUNDS);
+  if(reason === 'judge'){       // 打錯人用光機會
+    document.getElementById('end-summary').textContent = `判讀錯誤・3 次機會用盡　總分 ${score}`;
+    document.getElementById('end-detail').textContent = `撐到第 ${lvl} 關。看清情報對應的單字、確認樓層再開槍——3 次機會用完任務就失敗。`;
+  } else if(reason === 'shot'){ // 困難模式被反殺(機會用盡)
+    document.getElementById('end-summary').textContent = `你暴露行蹤被反殺・3 次機會用盡　總分 ${score}`;
+    document.getElementById('end-detail').textContent = `困難模式・撐到第 ${lvl} 關。開槍沒中會暴露行蹤，記得立刻收鏡蹲回掩體。`;
+  } else {                      // miss: 彈盡 / 時間到 用光機會
+    document.getElementById('end-summary').textContent = `未能狙殺目標・3 次機會用盡　總分 ${score}`;
+    document.getElementById('end-detail').textContent = `撐到第 ${lvl} 關。把握每關 3 發子彈與時間，先讀懂情報再瞄準——3 次機會用完任務就失敗。`;
   }
 }
 
@@ -1527,18 +1537,15 @@ function renderShop(){
   document.getElementById('shop-money').textContent = money;
   const box = document.getElementById('shop-items'); box.innerHTML = '';
   const items = [
-    { name:'🛡️ 穿甲彈（永久）', desc:'子彈從此可貫穿石牆，石牆後的目標再也躲不掉', cost:400, isAP:true,
-      done:()=>apUpgrade, locked:()=>spentAny, lockText:'需全程未購買其他裝備',
-      buy:()=>{ apUpgrade = true; } },
+    { name:'🛡️ 穿甲彈（永久）', desc:'子彈從此可貫穿石牆，石牆後的目標再也躲不掉', cost:400,
+      done:()=>apUpgrade, buy:()=>{ apUpgrade = true; } },
     { name:'🔸 加大彈匣（+1 發/關）', desc:'每關可用子彈 +1（基礎 3，上限 5）', cost:200,
       done:()=>extraAmmo>=2, buy:()=>{ extraAmmo++; } },
     { name:'⏱️ 延長時限（+4 秒/關）', desc:'每關作答時間 +4 秒（上限 +12）', cost:150,
       done:()=>extraTime>=12, buy:()=>{ extraTime += 4; } },
   ];
-  if(difficulty === 'hard'){
-    items.push({ name:'❤️ 戰地急救（+1 命）', desc:'補回 1 條命（上限 3）', cost:250,
-      done:()=>lives>=MAX_LIVES, buy:()=>{ lives = Math.min(MAX_LIVES, lives+1); } });
-  }
+  items.push({ name:'❤️ 戰地急救（+1 次機會）', desc:'補回 1 次機會（上限 3）', cost:250,
+    done:()=>lives>=MAX_LIVES, buy:()=>{ lives = Math.min(MAX_LIVES, lives+1); } });
   items.forEach(it=>{
     const sold = it.done();
     const locked = !sold && it.locked && it.locked();
@@ -1553,7 +1560,6 @@ function renderShop(){
     b.addEventListener('click', ()=>{
       if(it.done() || (it.locked && it.locked()) || money < it.cost) return;
       money -= it.cost; it.buy();
-      if(!it.isAP) spentAny = true;   // 買了其他裝備 → 鎖住穿甲彈
       updateHUD(); renderShop();
     });
     box.appendChild(b);
@@ -1607,9 +1613,11 @@ document.getElementById('shop-continue').addEventListener('click', ()=>{
   document.getElementById('shop-overlay').classList.add('hide');
   startRound();
 });
-document.getElementById('back').addEventListener('click', ()=>{
+function goToMenu(){   // 返回遊戲主機(帶回段考單字), 遊戲中 #back 與開始畫面返回鈕共用
   location.href = '../index.html' + (LESSON_RAW ? '#lessonData='+encodeURIComponent(LESSON_RAW) : '');
-});
+}
+document.getElementById('back').addEventListener('click', goToMenu);
+document.getElementById('menu-return').addEventListener('click', goToMenu);
 
 requestAnimationFrame(t=>{ lastT=t; loop(t); });
 </script>
