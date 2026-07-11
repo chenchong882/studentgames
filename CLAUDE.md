@@ -33,6 +33,23 @@ commit 用 `git -c user.name=chenchong882 -c user.email=chenchong885@gmail.com c
 
 中央遊戲站 `studentgames.pages.dev`（push 到 `chenchong882/studentgames` 即 Cloudflare Pages 自動部署，全學生即時生效）。雄工學習站 KSVS（`ksvs-a7a.pages.dev`）已整合中央站遊戲並上線。Cloudflare Pages 會把 `.html` 308 轉址，驗證線上頁面要看無 `.html` 的乾淨路徑。
 
+## 跨平台相容標準（所有英文教學檔案適用）⚠️
+
+學生端裝置涵蓋四類：**Windows 電腦、Mac、Android 手機、iPhone/iPad**。任何功能（尤其發音）都要以「四平台都能正常運作」為交付標準，本標準適用於所有英文教學專案（studentgames、新組合、雄工⋯），不只本資料夾。
+
+**發音（speechSynthesis）**：
+- 第一次 `speak()` 必須由使用者手勢觸發（Chrome/Safari 都會擋非手勢觸發）；iOS 更嚴格，見下節兩大地雷
+- 語音清單是非同步載入：`getVoices()` 可能回空陣列，要搭配 `voiceschanged` 事件，拿不到指定語音時要能退回預設語音而不是不發聲
+- 一律明確設 `utterance.lang = 'en-US'`，不要依賴系統預設語言
+- Safari 上 `cancel()` 緊接 `speak()` 會吞音，只在 `speaking`/`pending` 時才 cancel
+
+**操作與畫面**：
+- 遊戲操作要同時支援觸控（手機）與滑鼠/鍵盤（電腦）；不能有「只靠鍵盤」或「只靠 hover」才能用的功能
+- BGM/音效在所有平台都要等使用者手勢後才啟動（autoplay 會被擋）
+- 版面要能適應手機直式/橫式與桌機各種解析度（viewport meta、responsive）
+
+**檢查方式**：交付前逐平台做靜態自檢（上述各點＋`studentgames-dev` 的交付前自檢）；實機測試依「測試規範」由使用者本機進行，Safari/iOS 通常是短板，用到較新的 Web API 前先查相容性。
+
 ## iOS 單字發音（speechSynthesis）兩大地雷 ⚠️
 
 兩個**不同的根因**都會讓 iOS（含 iPadOS，UA 會偽裝成 Mac+touch）發音靜音，別搞混、別重走排查老路：
