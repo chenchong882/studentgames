@@ -1671,6 +1671,41 @@ function computeGrade(game) {
   return { g:'D', col:'#FF6B6B', tip:'多練習會更好 📚' };
 }
 
+// 星星評分：給小朋友看的「這次玩得好不好」。用同一個「實得 ÷ 完美」比值換算。
+// 完關至少 2 顆星（鼓勵為主），比值夠高才給滿 3 顆；1 顆星只保留給極端狀況，
+// 正常完成一局不會出現，符合「一定會有兩顆或三顆星」的設定。
+function computeStars(game) {
+  const ratio = game.perfectScore > 0 ? game.score / game.perfectScore : 0;
+  if (ratio >= 0.70) return 3;   // 又快又準 → 滿星
+  return 2;                      // 完關的鼓勵底線
+}
+
+// 畫一顆五角星（filled = 金色實心，否則灰色空心外框），供勝利畫面評分用。
+function drawStarShape(c, cx, cy, r, filled) {
+  c.save();
+  c.translate(cx, cy);
+  c.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const outer = -Math.PI / 2 + i * (Math.PI * 2 / 5);
+    const inner = outer + Math.PI / 5;
+    c.lineTo(Math.cos(outer) * r, Math.sin(outer) * r);
+    c.lineTo(Math.cos(inner) * r * 0.45, Math.sin(inner) * r * 0.45);
+  }
+  c.closePath();
+  if (filled) {
+    c.fillStyle = '#FFD700';
+    c.shadowColor = '#FF8800'; c.shadowBlur = 18;
+    c.fill();
+    c.shadowBlur = 0;
+    c.lineWidth = 2; c.strokeStyle = '#FFB300'; c.stroke();
+  } else {
+    c.fillStyle = 'rgba(255,255,255,0.10)';
+    c.fill();
+    c.lineWidth = 2.5; c.strokeStyle = 'rgba(255,255,255,0.45)'; c.stroke();
+  }
+  c.restore();
+}
+
 function drawLevelClear(c, score) {
   c.fillStyle='rgba(0,0,0,0.55)'; c.fillRect(0,0,W,H);
   c.textAlign='center'; c.textBaseline='middle';
@@ -1757,17 +1792,26 @@ function drawVictoryScreen(c, game) {
   c.fillText('全關通過！', W/2, H * 0.25);
   c.shadowBlur = 0;
 
-  // 等級評分 — 大字母
-  const grade = computeGrade(game);
-  c.save();
-  c.font = `bold ${clamp(H * 0.16, 70, 120)}px "Arial Rounded MT Bold", Arial`;
-  c.fillStyle = grade.col;
-  c.shadowColor = grade.col; c.shadowBlur = 34;
-  c.fillText(grade.g, W/2, H * 0.42);
-  c.restore();
+  // 星星評分 — 小朋友一眼看懂「這次玩得好不好」。完關至少 2 顆星，又快又準才滿 3 顆。
+  const stars   = computeStars(game);
+  const starR   = clamp(H * 0.052, 24, 44);
+  const starGap = starR * 2.6;
+  const starY   = H * 0.42;
+  for (let i = 0; i < 3; i++) {
+    const filled = i < stars;
+    const mid = i === 1;   // 中間那顆稍大、微微上抬，做出經典三星評分的層次
+    const cx  = W/2 + (i - 1) * starGap;
+    const cy  = starY - (mid ? starR * 0.34 : 0);
+    // 已拿到的星星輕輕跳動一下，增加慶祝感
+    const pop = filled ? 1 + Math.max(0, Math.sin(game._victoryPhase * 0.06 - i * 0.5)) * 0.08 : 1;
+    drawStarShape(c, cx, cy, (mid ? starR * 1.16 : starR) * pop, filled);
+  }
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  const starTip = stars >= 3 ? '太棒了！滿分三顆星 🌟'
+                             : '做得好！再快、再準一點就有三顆星 💪';
   c.font = `${clamp(H * 0.030, 18, 25)}px Arial`;
   c.fillStyle = 'rgba(255,255,255,0.92)';
-  c.fillText(grade.tip, W/2, H * 0.54);
+  c.fillText(starTip, W/2, H * 0.56);
 
   // Score
   c.font = `bold ${clamp(H * 0.038, 22, 32)}px Arial`;
