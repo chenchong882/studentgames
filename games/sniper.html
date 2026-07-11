@@ -356,6 +356,7 @@ let cinematic = 0;              // 電影黑邊/特寫淡入 0..1
 
 // 困難模式: 開槍沒擊中 → 被發現 → 限時內收鏡蹲回掩體, 否則挨打
 let spotted = false;          // 沒擊中而暴露行蹤, 倒數中
+let spotWarnUntil = 0;        // 警告字階段結束時間戳(之後才開始畫面中央 3/2/1 倒數)
 let duckDeadline = 0;         // 必須在此時間戳前收鏡(蹲回掩體)
 let shooterIdx = -1;          // 反擊的目標樓層 index
 let damageFlash = 0;          // 中彈紅閃 0..1
@@ -736,7 +737,8 @@ function loop(t){
 function triggerSpotted(){
   if(difficulty !== 'hard' || spotted) return;
   spotted = true;
-  duckDeadline = performance.now() + 3000;
+  spotWarnUntil = performance.now() + 1000;   // 先亮警告字 1 秒
+  duckDeadline = spotWarnUntil + 3000;        // 3 秒躲藏倒數從警告字結束才起算
   // 選一個還活著、且不躲在石牆後的目標當反擊者(看得到你才打得到)
   const vis = floorsData.filter(f=> f.alive && isBreakable(segMatAt(f, f.px)));
   const pool = vis.length ? vis : floorsData.filter(f=>f.alive);
@@ -1287,9 +1289,21 @@ function drawSpotted(){
   g.addColorStop(0,'rgba(239,68,68,0)'); g.addColorStop(1,'rgba(239,68,68,0.6)');
   ctx.fillStyle = g; ctx.fillRect(0,0,VW,VH);
   ctx.globalAlpha = 1;
-  // 倒數提示
-  ctx.fillStyle = '#fecaca'; ctx.font = '800 22px "Noto Sans TC",sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText(`⚠️ 被發現！${remain.toFixed(1)} 秒內收鏡蹲下`, VW/2, 100);
+  // 警告字階段(toast 同步顯示) → 結束後畫面中央大字 3/2/1 倒數 + 收鏡・蹲下
+  ctx.textAlign = 'center';
+  if(performance.now() < spotWarnUntil){
+    ctx.fillStyle = '#fecaca'; ctx.font = '800 22px "Noto Sans TC",sans-serif';
+    ctx.fillText('⚠️ 沒擊中！對方警覺了', VW/2, 100);
+  } else {
+    const n = Math.max(1, Math.ceil(remain));
+    const fs = Math.round(clamp(Math.min(VW,VH)*0.16, 64, 120));
+    const ny = VH/2 - fs*0.35;   // 略高於正中心, 避開開鏡十字準心
+    ctx.fillStyle = `rgba(239,68,68,${0.7 + 0.3*blink})`;
+    ctx.font = `900 ${fs}px "Noto Sans TC",sans-serif`;
+    ctx.fillText(String(n), VW/2, ny);
+    ctx.fillStyle = '#fecaca'; ctx.font = '800 24px "Noto Sans TC",sans-serif';
+    ctx.fillText('收鏡・蹲下', VW/2, ny + 38);
+  }
   ctx.restore();
 }
 
