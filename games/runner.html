@@ -40,11 +40,11 @@
     opacity:.9;
   }
 
-  /* ===== 地面與道路（rotateX 躺平）===== */
+  /* ===== 地面與道路（rotateX 躺平）：前方 3300px + 身後 400px，路面延續到角色背後 ===== */
   #groundPlane {
-    position:absolute; width:1500px; height:3300px;
+    position:absolute; width:1500px; height:3700px;
     left:-750px; top:-3300px;
-    transform:rotateX(90deg); transform-origin:50% 100%;
+    transform:rotateX(90deg); transform-origin:50% 3300px;
     background:var(--ground);
   }
   #roadTop {
@@ -52,9 +52,11 @@
     background:var(--road);
     border-left:8px solid var(--dash); border-right:8px solid var(--dash);
   }
+  /* 虛線捲動改用 transform（合成器搬移，不重繪）：多留一個 130px 週期在頂端供位移循環 */
   .dash {
-    position:absolute; top:0; bottom:0; width:7px;
+    position:absolute; top:-130px; bottom:0; width:7px;
     background-image:repeating-linear-gradient(180deg, var(--dash) 0 50px, transparent 50px 130px);
+    will-change:transform;
   }
   .dash.d1 { left:120px; } .dash.d2 { left:246px; }
 
@@ -88,7 +90,7 @@
   #char.jump .limb, #char.slide .limb, #char.slideHold .limb, #char.crashed .limb { animation-play-state:paused; }
 
   /* ===== 障礙物 ===== */
-  .ob { opacity:0; transition:opacity .45s; }
+  .ob { opacity:0; transition:opacity .45s; will-change:transform; }
   .ob.in { opacity:1; }
   .ob.fade { transition:opacity .5s; opacity:0 !important; }
 
@@ -108,7 +110,7 @@
     text-shadow:0 3px 6px rgba(0,0,0,.7);
     animation:bobHint .5s infinite alternate;
   }
-  @keyframes bobHint { from{margin-top:0;} to{margin-top:-12px;} }
+  @keyframes bobHint { from{transform:translateY(0);} to{transform:translateY(-12px);} }
 
   /* ===== 頂部狀態列 ===== */
   #topbar {
@@ -181,7 +183,7 @@
     animation:popUp 1s ease-out forwards;
   }
   .pop.small { font-size:16px; color:#fff; top:50%; }
-  @keyframes popUp { 0%{opacity:0; margin-top:0;} 15%{opacity:1;} 100%{opacity:0; margin-top:-64px;} }
+  @keyframes popUp { 0%{opacity:0; transform:translateX(-50%) translateY(0);} 15%{opacity:1;} 100%{opacity:0; transform:translateX(-50%) translateY(-64px);} }
 
   #app.shake { animation:shakeA .45s; }
   @keyframes shakeA {
@@ -429,7 +431,7 @@ let BANK = {
 const DIRS = ['up','down','left','right'];
 const DIR_ICON = { up:'⬆️', down:'⬇️', left:'⬅️', right:'➡️' };
 const LANE_X = [-125, 0, 125];
-const SPAWN_Z = 2350, KILL_Z = -260;
+const SPAWN_Z = 2350, KILL_Z = -260, OB_KILL_Z = -420;   // 障礙物在延長的路面上多留一段、淡出後才移除
 const JUMP_MS = 680, SLIDE_MS = 720;
 const THEMES = [
   { name:'city',   deco:['🏢','🏬','🏪','🌇','🏦','🏥'] },
@@ -620,6 +622,7 @@ function addLabel(root, x, bottomY, w, h, html, cls){
 
 /* ================= 場景建立 ================= */
 const app = $('app'), world = $('world');
+const dashEls = Array.from(document.querySelectorAll('.dash'));
 
 // Minecraft 方塊人（6 個長方體：頭、身、雙手、雙腳）
 const SKIN = '#c98e63', HAIR = '#3b2a1e', SHIRT = '#00a8a8', PANTS = '#3b4da0', SHOE = '#4a4a4a';
@@ -679,6 +682,7 @@ for (let i = 0; i < DECO_COUNT; i++) {
   el.style.left = ((i % 2 === 0 ? -330 : 330) - 55) + 'px';
   el.style.top = '-100px';
   el.style.textAlign = 'center';
+  el.style.willChange = 'transform';
   world.appendChild(el);
   decos.push({ el, dist: 200 + i * DECO_SPACING * 0.5 + (i % 2) * 120 });
 }
@@ -1020,10 +1024,10 @@ function loop(now){
     const dt = rawDt * ts;
     const move = speed * dt;
 
-    // 路面捲動
+    // 路面捲動：位移取 130px 週期循環，transform 走合成器、不逐幀重繪整條路
     roadY += move;
-    const bp = '0 ' + roadY.toFixed(1) + 'px';
-    document.querySelectorAll('.dash').forEach(d => d.style.backgroundPosition = bp);
+    const dashT = 'translate3d(0,' + (roadY % 130).toFixed(1) + 'px,0)';
+    dashEls.forEach(d => d.style.transform = dashT);
 
     // 存活獎勵
     surviveTimer += dt;
@@ -1068,7 +1072,8 @@ function loop(now){
         resolveObstacle(o);
         if (state !== 'play') break;   // 撞到了，本幀停止
       }
-      if (o.dist < KILL_Z) { o.el.remove(); obstacles.splice(i, 1); }
+      if (o.resolved && !o.faded && o.dist < -40) { o.faded = true; o.el.classList.add('fade'); }
+      if (o.dist < OB_KILL_Z) { o.el.remove(); obstacles.splice(i, 1); }
     }
   }
   requestAnimationFrame(loop);
