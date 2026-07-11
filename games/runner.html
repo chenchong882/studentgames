@@ -52,11 +52,12 @@
     background:var(--road);
     border-left:8px solid var(--dash); border-right:8px solid var(--dash);
   }
-  /* 虛線捲動改用 transform（合成器搬移，不重繪）：多留一個 130px 週期在頂端供位移循環 */
+  /* 虛線捲動改用 transform（合成器搬移，不重繪）：多留一個 130px 週期在頂端供位移循環。
+     translateZ(1px) 沿路面法線微抬，避免與路面共面 z-fighting（閃爍／破圖） */
   .dash {
     position:absolute; top:-130px; bottom:0; width:7px;
     background-image:repeating-linear-gradient(180deg, var(--dash) 0 50px, transparent 50px 130px);
-    will-change:transform;
+    transform:translateZ(1px);
   }
   .dash.d1 { left:120px; } .dash.d2 { left:246px; }
 
@@ -1025,8 +1026,9 @@ function loop(now){
     const move = speed * dt;
 
     // 路面捲動：位移取 130px 週期循環，transform 走合成器、不逐幀重繪整條路
+    // z 固定抬 1px，與 CSS 的 translateZ(1px) 一致，避免與路面共面 z-fighting
     roadY += move;
-    const dashT = 'translate3d(0,' + (roadY % 130).toFixed(1) + 'px,0)';
+    const dashT = 'translate3d(0,' + (roadY % 130).toFixed(1) + 'px,1px)';
     dashEls.forEach(d => d.style.transform = dashT);
 
     // 存活獎勵
