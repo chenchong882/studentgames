@@ -1982,12 +1982,12 @@ class Game {
     const b = new Bomb(this.plane.x, this.plane.y, this.plane.vx, this.plane.vy);
     this.bombs.push(b);
     Audio.bombDrop();
-    // Out of bombs = game over
-    if (this.bombsLeft === 0 && this.wordsLeft.length > 0) {
-      setTimeout(() => {
-        if (this.phase === 'playing' && this.bombsLeft === 0 && this.wordsLeft.length > 0)
-          this._loseLife();
-      }, 3500);
+    // 炸彈用完不再莫名扣血：以前這裡會在 3.5 秒後偷偷 _loseLife()，玩家沒被撞也沒墜機
+    // 卻突然少一顆愛心。改成立刻空投補給箱（把冷卻歸零，_updateCrate 下一幀就會投），
+    // 玩家去接就能補彈；接不到會依冷卻持續再投，不會因為沒彈藥而無故失血。
+    if (this.bombsLeft === 0 && this.wordsLeft.length > 0 && !this.crate) {
+      this._crateCooldown = 0;
+      this._float(this.plane.x, this.plane.y - 40, '💣 沒彈藥了！去接補給箱', '#FF8800', 20);
     }
   }
 
@@ -2036,7 +2036,13 @@ class Game {
     if (this.phase === 'levelClear') {
       this.levelClearT--;
       this.exps.forEach(e=>e.update()); this.exps=this.exps.filter(e=>!e.done);
-      if (this.levelClearT <= 0) { this.lvIdx++; this._loadLevel(); this.phase='playing'; }
+      if (this.levelClearT <= 0) {
+        this.lvIdx++;
+        this._loadLevel();
+        // _loadLevel 打完最後一關會把 phase 切成 'victory'，這裡別再無條件蓋回 playing，
+        // 否則勝利結算畫面永遠不會出現。只有正常載入下一關（phase 仍是 levelClear）才續玩。
+        if (this.phase === 'levelClear') this.phase = 'playing';
+      }
       return;
     }
     if (this.phase !== 'playing') return;
