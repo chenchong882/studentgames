@@ -73,8 +73,12 @@
   .modeBtn{padding:9px 18px;font-size:15px;font-weight:700;border-radius:9px;cursor:pointer;
     background:#2c3242;color:#fff;border:2px solid rgba(255,216,120,.4);}
   .modeBtn.on{background:#ffd878;color:#2a2030;border-color:#ffd878;}
-  #simpleModeBtn{border-color:#7ee0a0;}
-  #simpleModeBtn.on{background:#7ee0a0;color:#103022;border-color:#7ee0a0;}
+  .modeBtn:disabled{opacity:.32;filter:grayscale(1);cursor:not-allowed;}
+  #allPicRow{margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px;
+    font-size:15px;color:rgba(255,255,255,.85);cursor:pointer;}
+  #allPicRow.hidden{display:none;}
+  #allPicRow input{width:18px;height:18px;accent-color:#ffd878;}
+  #modeHint{margin-top:8px;font-size:13px;color:rgba(255,255,255,.6);}
   #speakBtn{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:40;
     display:none;align-items:center;gap:8px;padding:12px 24px;font-size:22px;font-weight:800;
     color:#103022;background:#7ee0a0;border:3px solid #fff;border-radius:999px;cursor:pointer;
@@ -170,12 +174,14 @@
   <div class="sub">J U R A S S I C&nbsp;&nbsp;T A N K</div>
   <p>到發光的樹上射下正確的英文單字，邊打恐龍邊學單字！</p>
   <p class="guideLink" id="guideLink">📖 查看玩法說明</p>
+  <label id="allPicRow" class="hidden"><input type="checkbox" id="allPicChk"> 🖼️ 全圖檔模式（每題都是英文＋發音 → 選圖片）</label>
   <div id="modeSel">
     <span class="diffLab">遊戲模式</span>
+    <button class="modeBtn" data-mode="simple">🌱 簡單</button>
     <button class="modeBtn" data-mode="normal">🙂 一般</button>
     <button class="modeBtn" data-mode="hard">🔥 困難</button>
-    <button class="modeBtn" id="simpleModeBtn" data-mode="simple" style="display:none">🧒 簡易（聽音找圖）</button>
   </div>
+  <div id="modeHint"></div>
   <div id="diffSel">
     <span class="diffLab">砲彈下墜</span>
     <button class="diffBtn" data-diff="easy">🟢 簡單（下墜小）</button>
@@ -693,14 +699,17 @@ let spawnT=2,pteroT=3,ufoT=14,mysT=9,pendingMeteors=0,meteorT=0,volSmokeT=0;
 let difficulty=(()=>{try{return localStorage.getItem('tankDiff')||'easy'}catch(e){return 'easy'}})();
 const SHELL_GRAV={easy:12,hard:32};
 function shellGrav(){return (mode==='simple')?SHELL_GRAV.easy:(SHELL_GRAV[difficulty]||SHELL_GRAV.easy);}
-// 遊戲模式：simple=聽音找 emoji（幾乎不出怪，給小小孩）/ normal=一般出怪 / hard=現狀高壓
+// 遊戲模式：simple=圖片題為主（玩法同一般）/ normal=一般出怪 / hard=現狀高壓
 let mode=(()=>{try{return localStorage.getItem('tankMode')||'normal'}catch(e){return 'normal'}})();
-let hasEmoji=false;   // 注入題庫是否每字皆有 emoji（決定簡易模式可否開）
+let hasEmoji=false;   // 有圖題庫＝注入題庫帶 emoji 的字 ≥ 4
+let allPic=(()=>{try{return localStorage.getItem('sgAllPic')==='1'}catch(e){return false}})();
 function isSimple(){return mode==='simple';}
-// 各模式的出怪設定（hard 即原本的數值）
+// 有圖題庫→簡單／困難；無圖題庫→一般／困難
+function allowedTankModes(){return hasEmoji?['simple','hard']:['normal','hard'];}
+// 各模式的出怪設定（hard 即原本的數值；簡單與一般玩法參數完全相同，只差題型）
 const MODE_CFG={
-  simple:{dinoCap:e=>e>22?1:0, spawnBase:9.0, spawnMin:7.0, spawnDecay:0,
-          ptero:null, ufo:0, myst:false, roundT:34},
+  simple:{dinoCap:e=>Math.min(8,1+Math.floor(e/12)), spawnBase:6.4, spawnMin:2.6, spawnDecay:0.015,
+          ptero:e=>e>60?3:1, ufo:1, myst:true, roundT:22},
   normal:{dinoCap:e=>Math.min(8,1+Math.floor(e/12)), spawnBase:6.4, spawnMin:2.6, spawnDecay:0.015,
           ptero:e=>e>60?3:1, ufo:1, myst:true, roundT:22},
   hard:{dinoCap:e=>Math.min(16,2+Math.floor(e/8)), spawnBase:5.0, spawnMin:1.4, spawnDecay:0.022,
@@ -734,15 +743,16 @@ function resetGame(){
   tankG.traverse(o=>{if(o.isMesh&&o.material.emissive)o.material.emissive.setHex(0);});
 }
 function startGame(){
-  if(mode==='simple'&&!hasEmoji)mode='normal';   // 沒有 emoji 題庫時不能玩簡易，退回一般
+  const allow=allowedTankModes();
+  if(!allow.includes(mode))mode=allow[0];   // 依題庫來源 clamp 模式
   resetGame();state='play';paused=false;
   document.getElementById('overlay').classList.add('hidden');
   document.getElementById('pauseOverlay').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
   if(IS_TOUCH){document.getElementById('touchUI').classList.remove('hidden');refreshTouchRects();}
-  document.getElementById('speakBtn').style.display=isSimple()?'inline-flex':'none';
-  if(isSimple())speakWord(' ');   // 用開始手勢解鎖 iOS 發音（之後回合自動唸才有聲）
-  else startBgm();                // 簡易模式不放背景音樂，保持安靜好聽單字
+  document.getElementById('speakBtn').style.display='none';   // 有發音的回合開始時才顯示
+  speakWord(' ');                 // 用開始手勢解鎖 iOS 發音（英→中、英→圖回合自動唸才有聲）
+  if(!isSimple())startBgm();      // 簡單模式不放背景音樂，保持安靜好聽單字
 }
 function gameOver(reason){
   window.lastOver={reason,at:elapsed};
@@ -919,14 +929,19 @@ let VOCAB=[
   {en:'shield',zh:'護盾'},{en:'creature',zh:'生物'},
 ];
 let round=null,quiz=null,roundCD=8,wordQueue=[],missedList=[];
-function nextEntry(){
-  if(wordQueue.length)return wordQueue.shift();
-  return VOCAB[(Math.random()*VOCAB.length)|0];
+function nextEntry(pool){
+  pool=pool||VOCAB;
+  if(wordQueue.length){
+    const i=wordQueue.findIndex(w=>pool.some(p=>p.en===w.en));
+    if(i>=0)return wordQueue.splice(i,1)[0];
+  }
+  return pool[(Math.random()*pool.length)|0];
 }
-function otherWords(ex,n){
+function otherWords(ex,n,pool){
+  pool=pool||VOCAB;
   const out=[];
   while(out.length<n){
-    const w=VOCAB[(Math.random()*VOCAB.length)|0];
+    const w=pool[(Math.random()*pool.length)|0];
     if(w.en!==ex.en&&!out.includes(w))out.push(w);
   }
   return out;
@@ -938,7 +953,9 @@ function labelSprite(word){
   x.beginPath();x.roundRect(8,8,496,112,26);x.fill();
   x.strokeStyle='#ffd878';x.lineWidth=6;
   x.beginPath();x.roundRect(8,8,496,112,26);x.stroke();
-  x.fillStyle='#fff';x.font='bold 62px sans-serif';
+  x.fillStyle='#fff';
+  let fs=62;x.font='bold '+fs+'px sans-serif';   // 中文字牌較寬，塞不下就縮字級
+  while(fs>30&&x.measureText(String(word)).width>460){fs-=4;x.font='bold '+fs+'px sans-serif';}
   x.textAlign='center';x.textBaseline='middle';x.fillText(word,256,67);
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({
     map:new THREE.CanvasTexture(c),transparent:true,depthTest:false}));
@@ -975,6 +992,17 @@ function speakWord(t){
     synth.speak(u);
   }catch(e){}
 }
+// 本回合題型：cn2en(中→英，樹掛英文牌) / en2cn(英→中＋發音，樹掛中文牌) / en2pic(英→圖＋發音，樹掛 emoji)
+// 鐵則：圖片題一律「上面英文＋發音、樹上掛圖」，絕不出看圖選字；也絕不出圖↔中
+function pickRoundType(){
+  const textType=()=>Math.random()<0.5?'cn2en':'en2cn';
+  if(hasEmoji&&(mode==='simple'||mode==='hard')){
+    if(allPic)return 'en2pic';                       // 全圖檔開：純英→圖
+    if(isSimple())return Math.random()<1/3?textType():'en2pic';   // 簡單：圖英為主＋約 1/3 中英
+    return Math.random()<1/3?'en2pic':textType();                 // 困難：中英為主＋約 1/3 圖英
+  }
+  return textType();                                 // 一般（或無圖題庫）：中英雙向輪替
+}
 function startRound(){
   // 挑 3~4 棵距離適中、方向分散的樹掛單字牌
   const tp=tankG.position;
@@ -995,24 +1023,25 @@ function startRound(){
     if(picked.length>=4)break;
   }
   if(picked.length<3)return false;
-  const entry=nextEntry();
-  const wrongs=otherWords(entry,picked.length-1);
+  const rtype=pickRoundType();
+  const pool=rtype==='en2pic'?VOCAB.filter(w=>w.emoji):VOCAB;   // 圖片回合只從有 emoji 的字抽
+  const entry=nextEntry(pool);
+  const wrongs=otherWords(entry,picked.length-1,pool);
   const ci=(Math.random()*picked.length)|0;
-  const simple=isSimple();
-  round={entry,t:modeCfg().roundT,items:[],requeued:false};
+  round={entry,t:modeCfg().roundT,items:[],requeued:false,rtype};
   picked.forEach((c,i)=>{
     const ent=i===ci?entry:wrongs.pop();
-    // 簡易模式：樹上掛 emoji（不出文字）；一般／困難：掛英文單字牌
-    const word=simple?(ent.emoji||'❓'):ent.en;
-    const sp=simple?emojiSprite(ent.emoji):labelSprite(ent.en);
-    const aspect=simple?1:4;          // emoji 牌是正方、單字牌是 4:1 寬
+    // 樹上掛的牌：en2pic=emoji、en2cn=中文字牌、cn2en=英文字牌
+    const word=rtype==='en2pic'?(ent.emoji||'❓'):rtype==='en2cn'?ent.zh:ent.en;
+    const sp=rtype==='en2pic'?emojiSprite(ent.emoji):labelSprite(word);
+    const aspect=rtype==='en2pic'?1:4;   // emoji 牌是正方、文字牌是 4:1 寬
     sp.position.set(c.t.x,c.t.top,c.t.z);
     scene.add(sp);
     // 引導光柱：所有牌都有（不洩漏答案），讓它們在樹海中一眼可辨
     const gy=th(c.t.x,c.t.z), bh=c.t.top-gy+3;
     const beam=new THREE.Mesh(
       new THREE.CylinderGeometry(0.7,0.7,1,10,1,true),
-      new THREE.MeshBasicMaterial({color:simple?0x7ee0a0:0xffd878,transparent:true,opacity:0.16,
+      new THREE.MeshBasicMaterial({color:rtype==='en2pic'?0x7ee0a0:0xffd878,transparent:true,opacity:0.16,
         side:THREE.DoubleSide,depthWrite:false}));
     beam.scale.y=bh;beam.position.set(c.t.x,gy+bh/2,c.t.z);
     scene.add(beam);
@@ -1020,11 +1049,14 @@ function startRound(){
   });
   const wp=document.getElementById('wordPrompt');
   wp.style.display='block';
-  if(simple){
-    wp.querySelector('.q').textContent='🔊 聽單字，找出對應的圖片射下來！';
-    speakWord(entry.en);                 // 每回合自動唸一次
-  }else{
+  if(rtype==='cn2en'){
     wp.querySelector('.q').textContent='🎯 找到並射下：「'+entry.zh+'」';
+    document.getElementById('speakBtn').style.display='none';
+  }else{
+    // 英→圖／英→中：題目顯示英文＋自動發音（發音失效時看字仍可作答），可按 🔊 重聽
+    wp.querySelector('.q').textContent='🔊 '+entry.en;
+    document.getElementById('speakBtn').style.display='inline-flex';
+    speakWord(entry.en);
   }
   return true;
 }
@@ -1034,6 +1066,7 @@ function endRound(requeue){
   if(requeue&&!round.requeued)wordQueue.push(round.entry);
   round=null;roundCD=rnd(9,14);
   document.getElementById('wordPrompt').style.display='none';
+  document.getElementById('speakBtn').style.display='none';
 }
 function roundSuccess(pos){
   if(!round)return;
@@ -1448,7 +1481,7 @@ function update(dt){
     mx/=round.items.length;mz/=round.items.length;
     const dir=dirLabel({x:mx,z:mz});
     document.getElementById('wordPrompt').querySelector('.s').textContent=
-      (isSimple()?'🔦 圖片在你的':'🔦 單字牌在你的')+dir+'（看發光的樹）・剩 '+Math.max(0,Math.ceil(round.t))+' 秒';
+      (round.rtype==='en2pic'?'🔦 圖片在你的':'🔦 字牌在你的')+dir+'（看發光的樹）・剩 '+Math.max(0,Math.ceil(round.t))+' 秒';
     const pulse=0.12+0.08*Math.sin(performance.now()*0.004);
     for(const it of round.items){
       // 依距離反向補償，讓字牌在螢幕上恆定大小
@@ -1706,7 +1739,7 @@ function togglePause(){
     document.getElementById('speakBtn').style.display='none';
     try{window.speechSynthesis&&window.speechSynthesis.cancel();}catch(e){}}
   else{if(AC&&AC.state==='suspended')AC.resume();if(!isSimple())startBgm();last=performance.now();
-    if(isSimple())document.getElementById('speakBtn').style.display='inline-flex';}
+    if(round&&round.rtype!=='cn2en')document.getElementById('speakBtn').style.display='inline-flex';}
 }
 
 /* ============ 玩法守則（首次自動顯示，已閱讀記進瀏覽器；暫停可重看） ============ */
@@ -1729,17 +1762,27 @@ document.querySelectorAll('.diffBtn').forEach(b=>{   // 比照 guideLink：用 m
   b.addEventListener('touchstart',pick,{passive:true});
 });
 setDifficulty(difficulty);   // 初始高亮目前選擇
-/* ====== 遊戲模式（簡易聽音 / 一般 / 困難）：點按鈕即選定並開始（真實 click 也順便解鎖 iOS 發音） ====== */
+/* ====== 遊戲模式（簡單 / 一般 / 困難）：點按鈕即選定並開始（真實 click 也順便解鎖 iOS 發音） ====== */
 function setMode(m){
-  if(m==='simple'&&!hasEmoji)m='normal';
-  mode=(m==='simple'||m==='hard')?m:'normal';
+  const allow=allowedTankModes();
+  if(!allow.includes(m))m=allow[0];
+  mode=m;
   try{localStorage.setItem('tankMode',mode);}catch(e){}
-  document.querySelectorAll('.modeBtn').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode));
+  refreshModeUI();
 }
-function refreshSimpleBtn(){               // 只有題庫每字都有 emoji 才顯示「簡易」入口
-  const b=document.getElementById('simpleModeBtn');
-  if(b)b.style.display=hasEmoji?'inline-block':'none';
-  if(!hasEmoji&&mode==='simple')setMode('normal');
+// 三顆鈕永遠都畫出來，不可選的灰化；全圖檔開關只在有圖題庫顯示
+function refreshModeUI(){
+  const allow=allowedTankModes();
+  document.querySelectorAll('.modeBtn').forEach(b=>{
+    b.disabled=!allow.includes(b.dataset.mode);
+    b.classList.toggle('on',b.dataset.mode===mode);
+  });
+  const hint=document.getElementById('modeHint');
+  if(hint)hint.textContent=hasEmoji?'內建圖片單字：可選簡單或困難':'連結單字（無圖片）：可選一般或困難';
+  const row=document.getElementById('allPicRow');
+  if(row)row.classList.toggle('hidden',!hasEmoji);
+  const chk=document.getElementById('allPicChk');
+  if(chk)chk.checked=allPic;
 }
 document.querySelectorAll('.modeBtn').forEach(b=>{
   const sel=e=>{e.stopPropagation();setMode(b.dataset.mode);};
@@ -1747,7 +1790,17 @@ document.querySelectorAll('.modeBtn').forEach(b=>{
   b.addEventListener('touchstart',e=>{e.stopPropagation();},{passive:true});
   b.addEventListener('click',e=>{e.stopPropagation();ensureAudio();setMode(b.dataset.mode);startGame();});
 });
-setMode(mode);refreshSimpleBtn();
+/* 全圖檔開關：擋掉「點到就開始遊戲」，變更即存（所有遊戲共用 sgAllPic 鑰匙） */
+(function(){
+  const row=document.getElementById('allPicRow'),chk=document.getElementById('allPicChk');
+  if(!row)return;
+  ['mousedown','touchstart','click'].forEach(ev=>row.addEventListener(ev,e=>e.stopPropagation()));
+  chk.addEventListener('change',()=>{
+    allPic=chk.checked;
+    try{localStorage.setItem('sgAllPic',allPic?'1':'0');}catch(e){}
+  });
+})();
+setMode(mode);refreshModeUI();
 /* ====== 喇叭鈕：簡易模式重聽當前單字（真實 <button> click → iOS 才唸得出來） ====== */
 (function(){
   const sb=document.getElementById('speakBtn');
@@ -1827,7 +1880,7 @@ function applyStick(x,y){                // 依浮動原點換算方向
   stickEl.classList.toggle('boost',touchMove.boost);
 }
 function inRect(r,x,y,pad){return !!r&&x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad;}
-function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink');}
+function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink,#allPicRow');}
 addEventListener('touchstart',e=>{
   ensureAudio();
   if(state==='menu'||state==='over'){ // 選單 / 結束畫面：輕觸開始（互動元件除外）
@@ -1940,8 +1993,8 @@ function applyTankData(payload){
   const next=normalizeTankVocab(payload&&payload.words);
   VOCAB = next.length>=4 ? next : DEFAULT_TANK_VOCAB;
   wordQueue=[]; missedList=[];
-  hasEmoji = VOCAB.length>=4 && VOCAB.every(w=>w.emoji);   // 全字皆有 emoji 才開放簡易模式
-  if(typeof refreshSimpleBtn==='function')refreshSimpleBtn();
+  hasEmoji = VOCAB.filter(w=>w.emoji).length>=4;   // 帶 emoji 的字 ≥ 4 → 有圖題庫
+  if(typeof setMode==='function')setMode(mode);    // 依來源 clamp 模式並更新灰化
 }
 function readLessonDataFromHash(){
   const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash;

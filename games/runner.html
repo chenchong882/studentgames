@@ -236,6 +236,17 @@
   }
   #modePanel .tpTitle { font-size:17px; color:#ffe98a; text-shadow:0 2px 4px rgba(0,0,0,.4); }
   #modePanel .tpItem { font-size:15px; font-weight:700; padding:7px 2px; }
+  .tpItem.hidden { display:none; }
+  #allPicRow { justify-content:center; font-size:13.5px; }
+  #modeBtns { display:flex; gap:8px; justify-content:center; margin:6px 0 4px; }
+  .modeBtn {
+    font-family:inherit; font-size:15px; font-weight:800; color:#fff;
+    background:rgba(255,255,255,.16); border:2px solid rgba(255,255,255,.55);
+    border-radius:12px; padding:8px 14px; cursor:pointer; touch-action:manipulation;
+  }
+  .modeBtn.sel { background:linear-gradient(#ffb347,#ff8c1a); border-color:#ffd23f; box-shadow:0 0 10px rgba(255,210,63,.6); }
+  .modeBtn:disabled { opacity:.32; filter:grayscale(1); cursor:not-allowed; }
+  #modeHint { font-size:12.5px; opacity:.85; text-align:center; margin-top:4px; }
   .bigbtn {
     font-family:inherit; font-size:21px; font-weight:800; color:#fff;
     background:linear-gradient(#ffb347,#ff8c1a); border:none; border-radius:50px;
@@ -311,14 +322,15 @@
       　 想選 ⬆️上跳／⬇️下滑，要先回中間跑道才算數<br>
       ❤️ 三條命，撞到障礙或答錯扣一命
     </div>
-    <div id="modePanel" class="typePanel hidden">
+    <div id="modePanel" class="typePanel">
       <div class="tpTitle">🎮 選擇模式</div>
-      <label class="tpItem"><input type="radio" name="runnerMode" value="normal" checked> 一般模式：各種題型（看字、看圖）</label>
-      <label class="tpItem"><input type="radio" name="runnerMode" value="simple"> 簡單模式：每關只看圖片＋聽聲音</label>
-    </div>
-    <div id="typePanel" class="typePanel hidden">
-      <div class="tpTitle">📋 這次要出現哪些題型？</div>
-      <div id="typeList"></div>
+      <label class="tpItem hidden" id="allPicRow"><input type="checkbox" id="allPicChk"> 🖼️ 全圖檔模式（每題都是英文＋發音 → 選圖片）</label>
+      <div id="modeBtns">
+        <button type="button" class="modeBtn" data-mode="simple">🌱 簡單</button>
+        <button type="button" class="modeBtn" data-mode="normal">🙂 一般</button>
+        <button type="button" class="modeBtn" data-mode="hard">🔥 困難</button>
+      </div>
+      <div id="modeHint"></div>
     </div>
     <button class="bigbtn" id="startBtn">開始遊戲</button>
   </div>
@@ -768,6 +780,11 @@ function resetPlayer(){
 }
 
 /* ================= 題目抽取 ================= */
+// 跑速：簡單＝一般（470 起）；困難整段加壓（545 起、步進 65、上限 980）
+function runSpeed(){
+  const h = runnerMode === 'hard';
+  return Math.min((h ? 545 : 470) + (h ? 65 : 55) * Math.floor(gateNum / 5), h ? 980 : 950);
+}
 function drawQuestion(){
   const n = gateNum + 1;
   const diff = n <= 5 ? 'easy' : n <= 10 ? 'medium' : 'hard';
@@ -965,7 +982,7 @@ function resolveObstacle(o){
       flash(true);
       refreshHud();
       $('levelTag').textContent = '第 ' + (gateNum + 1) + ' 題';
-      speed = Math.min(470 + 55 * Math.floor(gateNum / 5), 950);
+      speed = runSpeed();
       applyTheme();
     } else {
       addScore(10, '+10', true);
@@ -1167,9 +1184,9 @@ function startGame(){
   obstacles = [];
   score = 0; lives = 3; combo = 0; passed = 0;
   gateNum = 0; gateCorrect = 0; wrongAnswers = [];
-  speed = 470; roadY = 0; surviveTimer = 0; slowUntil = 0;
+  speed = runSpeed(); roadY = 0; surviveTimer = 0; slowUntil = 0;
   sinceGate = 0; reflexTarget = 3; nextIn = 500;
-  if (runnerPool) rebuildRunnerBank();   // 套用本局勾選的題型
+  if (runnerPool) rebuildRunnerBank();   // 套用本局選的模式與全圖檔開關
   decks = {}; shownHints = new Set(); themeIdx = -1;
   applyTheme();
   decos.forEach((d, i) => { d.dist = 200 + i * DECO_SPACING * 0.5 + (i % 2) * 120; d.el.textContent = decoEmoji(); });
@@ -1257,16 +1274,10 @@ function normalizeRunnerWords(words){
   });
   return out;
 }
-// 可自選題型：en2cn/cn2en 文字題（永遠可用）；pic2en/say2pic 圖片題（需題庫帶 emoji，即預設主題）
-const TYPE_LABEL = {
-  en2cn:'🔤 英文題（看英文選中文）',
-  cn2en:'🀄 中文題（看中文選英文）',
-  pic2en:'🖼️ 看圖選字（看圖片選單字）',
-  say2pic:'🔊 聽音選圖（聽單字選圖片）',
-};
-function makeRunnerBank(pool, types){
+// 題型：en2cn/cn2en 文字題（永遠可用）；en2pic/say2pic 圖英題（需題庫帶 emoji）
+// 鐵則：圖片題一律「英文＋發音 → 選圖」，絕不出「看圖選字」，也絕不出「圖↔中」
+function makeRunnerBank(pool, mainTypes, sideTypes){
   if(pool.length<4) return null;
-  types = (types&&types.length) ? types : ['en2cn','cn2en'];
   function distract(exclude, field){
     const out=[], seen=new Set([exclude]);
     for(const w of _shuf(pool)){ const v=w[field]; if(v&&!seen.has(v)){ seen.add(v); out.push(v); } if(out.length===3) break; }
@@ -1280,20 +1291,33 @@ function makeRunnerBank(pool, types){
   const gen = {
     cn2en: w=>{ const d=distract(w.word,'word'); return d.length<3?null:{ q:'「'+w.chinese+'」的英文是？', opts:[w.word,...d], a:0, say:w.word }; },
     en2cn: w=>{ const d=distract(w.chinese,'chinese'); return d.length<3?null:{ q:'「'+w.word+'」的中文是？', opts:[w.chinese,...d], a:0, say:w.word }; },
-    pic2en: w=>{ if(!w.emoji) return null; const d=distract(w.word,'word'); return d.length<3?null:{ q:'<span class="big">'+w.emoji+'</span> 這是什麼？', opts:[w.word,...d], a:0, say:'' }; },
+    en2pic: w=>{ if(!w.emoji) return null; const d=distractEmoji(w); return d.length<3?null:{ q:'🔊 <b>'+w.word+'</b>　選出正確的圖片', opts:[w.emoji,...d], a:0, say:w.word, bigOpts:true }; },
     say2pic: w=>{ if(!w.emoji) return null; const d=distractEmoji(w); return d.length<3?null:{ q:'🔊 聽聽看，選出正確的圖片', opts:[w.emoji,...d], a:0, say:w.word, bigOpts:true }; },
   };
-  let all=[];
-  types.forEach(t=>{ if(gen[t]) all=all.concat(pool.map(gen[t]).filter(Boolean)); });
+  const build = types=>{ let out=[]; (types||[]).forEach(t=>{ if(gen[t]) out=out.concat(pool.map(gen[t]).filter(Boolean)); }); return out; };
+  const main=_shuf(build(mainTypes));
+  const side=_shuf(build(sideTypes));
+  // 副題型只取主題型數量的一半穿插（總量約 1/3）
+  const all=_shuf(main.concat(side.slice(0, Math.ceil(main.length/2))));
   if(!all.length) return null;
-  return { easy:_shuf(all), medium:_shuf(all.slice()), hard:_shuf(all.slice()) };
+  return { easy:_shuf(all.slice()), medium:_shuf(all.slice()), hard:_shuf(all.slice()) };
 }
-let runnerPool=null, typesAvail=['en2cn','cn2en'], enabledTypes=['en2cn','cn2en'];
-let runnerMode='normal';   // normal=各種題型；simple=只看圖片＋聽聲音（聽音選圖）
+let runnerPool=null, hasPicBank=false;   // 有圖題庫＝pool 帶 emoji 的字 ≥ 4
+let runnerMode=(function(){ try{ return localStorage.getItem('runnerMode3'); }catch(e){ return null; } })()||'normal';
+let allPic=(function(){ try{ return localStorage.getItem('sgAllPic')==='1'; }catch(e){ return false; } })();
+// 有圖題庫→簡單／困難；無圖題庫→一般／困難
+function allowedModes(){ return hasPicBank ? ['simple','hard'] : ['normal','hard']; }
+function clampMode(){ const a=allowedModes(); if(!a.includes(runnerMode)) runnerMode=a[0]; }
 function rebuildRunnerBank(){
-  // 簡單模式：只用 say2pic（每關都出現圖片並唸讀音），忽略題型勾選
-  const types = (runnerMode==='simple' && typesAvail.includes('say2pic')) ? ['say2pic'] : enabledTypes;
-  const gen = runnerPool && makeRunnerBank(runnerPool, types);
+  let main=['en2cn','cn2en'], side=null;   // 一般（或無圖困難）：中英雙向
+  if(hasPicBank && runnerMode==='simple'){
+    if(allPic){ main=['en2pic']; }
+    else { main=['en2pic','say2pic']; side=['en2cn','cn2en']; }
+  } else if(hasPicBank && runnerMode==='hard'){
+    if(allPic){ main=['en2pic']; }
+    else { main=['en2cn','cn2en']; side=['en2pic','say2pic']; }
+  }
+  const gen = runnerPool && makeRunnerBank(runnerPool, main, side);
   BANK = gen || DEFAULT_RUNNER_BANK;
   decks = {};
 }
@@ -1301,54 +1325,37 @@ function applyRunnerData(payload){
   const pool = normalizeRunnerWords(payload&&payload.words);
   if(pool.length>=4){
     runnerPool = pool;
-    const emojiOk = pool.filter(w=>w.emoji).length>=4;   // 有貼圖＝預設主題，才開放圖片題；學校單字沒 emoji 只有文字題
-    typesAvail = emojiOk ? ['en2cn','cn2en','pic2en','say2pic'] : ['en2cn','cn2en'];
-    enabledTypes = typesAvail.slice();
-    rebuildRunnerBank();
+    hasPicBank = pool.filter(w=>w.emoji).length>=4;   // 有貼圖＝內建主題；學校單字沒 emoji
   } else {
-    runnerPool = null;
-    typesAvail = ['en2cn','cn2en']; enabledTypes = typesAvail.slice();
-    BANK = DEFAULT_RUNNER_BANK; decks = {};
+    runnerPool = null; hasPicBank = false;
   }
+  clampMode();
+  rebuildRunnerBank();
   renderModePanel();
-  renderTypePanel();
 }
-// 模式選擇面板（一般／簡單）：只有自選單字庫＝有圖片題時才提供「簡單模式」；段考單字不顯示
+// 模式面板：三顆鈕永遠都畫出來，不可選的灰化；全圖檔開關只在有圖題庫顯示
 function renderModePanel(){
   const panel = $('modePanel'); if(!panel) return;
-  const show = typesAvail.includes('say2pic');
-  panel.classList.toggle('hidden', !show);
-  if(!show){ runnerMode = 'normal'; return; }   // 段考單字一律回到一般模式
-  panel.querySelectorAll('input[name=runnerMode]').forEach(r=>{
-    r.checked = (r.value === runnerMode);
-    r.onchange = onModeChange;
+  const allow = allowedModes();
+  panel.querySelectorAll('.modeBtn').forEach(b=>{
+    const m = b.dataset.mode, ok = allow.includes(m);
+    b.disabled = !ok;
+    b.classList.toggle('sel', m===runnerMode);
+    b.onclick = ok ? function(){
+      runnerMode = m;
+      try{ localStorage.setItem('runnerMode3', m); }catch(e){}
+      rebuildRunnerBank(); renderModePanel();
+    } : null;
   });
-}
-function onModeChange(){
-  runnerMode = this.value;
-  renderTypePanel();      // 簡單模式隱藏題型勾選，一般模式顯示
-  rebuildRunnerBank();
-}
-// 進場前的題型勾選面板（只在預設主題＝有圖片題且為一般模式時出現；學校單字／簡單模式不顯示）
-function renderTypePanel(){
-  const panel = $('typePanel'); if(!panel) return;
-  const show = typesAvail.length > 2 && runnerMode === 'normal';
-  panel.classList.toggle('hidden', !show);
-  if(!show) return;
-  const box = $('typeList'); box.innerHTML='';
-  typesAvail.forEach(t=>{
-    const lab = document.createElement('label'); lab.className='tpItem';
-    lab.innerHTML = '<input type="checkbox" data-type="'+t+'"'+(enabledTypes.includes(t)?' checked':'')+'> '+TYPE_LABEL[t];
-    box.appendChild(lab);
-  });
-  box.querySelectorAll('input[type=checkbox]').forEach(cb=> cb.addEventListener('change', onTypeToggle));
-}
-function onTypeToggle(){
-  const box = $('typeList');
-  const checked = [...box.querySelectorAll('input:checked')].map(c=>c.dataset.type);
-  if(!checked.length){ this.checked = true; return; }   // 至少留一種題型
-  enabledTypes = typesAvail.filter(t=>checked.includes(t));
-  rebuildRunnerBank();
+  $('modeHint').textContent = hasPicBank ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
+  $('allPicRow').classList.toggle('hidden', !hasPicBank);
+  const chk = $('allPicChk');
+  chk.checked = allPic;
+  chk.onchange = function(){
+    allPic = chk.checked;
+    try{ localStorage.setItem('sgAllPic', allPic?'1':'0'); }catch(e){}
+    rebuildRunnerBank();
+  };
 }
 function readRunnerHash(){
   const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash;
@@ -1359,7 +1366,11 @@ window.addEventListener('message',e=>{
   if(!e.data||e.data.type!=='RUNNER_DATA') return;
   applyRunnerData(e.data.payload);
 });
-(function(){ const d=readRunnerHash(); if(d) applyRunnerData(d); })();
+(function(){
+  const d=readRunnerHash();
+  if(d){ applyRunnerData(d); }
+  else { clampMode(); renderModePanel(); }   // 直接單開＝內建混合題庫，視為無圖 → 一般／困難
+})();
 
 /* 返回選單按鈕：記住目前單字，返回時帶回主機 */
 (function(){

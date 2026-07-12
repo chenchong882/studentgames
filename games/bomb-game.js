@@ -232,10 +232,24 @@ let bombWordPool = null;
 // 注入題庫（wordbank / 課程）帶來的 emoji：word(小寫) → emoji。
 // 畫字牌時優先用這張，查不到才退回內建 WORD_EMOJI 表，這樣 wordbank 改 emoji 會即時反映。
 let lessonEmoji = {};
+// 注入題庫帶來的中文：word(小寫) → 中文意思（中英題用；內建題庫沒有中文）
+let lessonChinese = {};
 function emojiForWord(word) {
   const k = String(word).toLowerCase();
   return lessonEmoji[k] || WORD_EMOJI[k];
 }
+function chineseForWord(word) {
+  return lessonChinese[String(word).toLowerCase()] || '';
+}
+// 題庫來源判斷：pool 中查得到 emoji 的字 ≥ 4 → 有圖題庫
+function hasPicBank() {
+  const words = bombWordPool || DEFAULT_LEVELS.flatMap(l => l.words);
+  return words.filter(w => emojiForWord(w)).length >= 4;
+}
+// 有圖題庫→簡單／困難；無圖題庫→一般／困難
+function allowedBombModes() { return hasPicBank() ? ['simple', 'hard'] : ['normal', 'hard']; }
+// 全圖檔開關（所有遊戲共用 sgAllPic 鑰匙）
+let allPic = (() => { try { return localStorage.getItem('sgAllPic') === '1'; } catch (e) { return false; } })();
 function buildLessonLevels() {
   LEVELS = chunkWords(shuffleWords(bombWordPool), 5).slice(0, MAX_LEVELS).map((chunk, index) => ({
     id: index + 1,
@@ -251,13 +265,17 @@ function applyBombData(payload) {
   if (words.length === 0) {
     bombWordPool = null;
     lessonEmoji = {};
+    lessonChinese = {};
     LEVELS = DEFAULT_LEVELS.slice(0, MAX_LEVELS).map(level => ({ ...level, words: [...level.words] }));
     bombLessonTitle = '示範題庫';
   } else {
     lessonEmoji = {};
+    lessonChinese = {};
     (payload?.words || []).forEach(w => {
       const word = getLessonWord(w), em = String(w?.emoji || '').trim();
+      const zh = String(w?.chinese || w?.meaning || w?.zh || '').trim();
       if (word && em) lessonEmoji[word.toLowerCase()] = em;
+      if (word && zh) lessonChinese[word.toLowerCase()] = zh;
     });
     bombLessonTitle = payload?.unitTitle || payload?.title || '目前課程';
     bombWordPool = words;
@@ -994,7 +1012,11 @@ class House {
     const isHinted = this.hintFlash > 0;
     const isWrong  = this.wrongFlash > 0;
     const lY  = by - 18; // drawn closer to the smaller roof
-    const emoji = emojiForWord(this.word);
+    // 標籤內容依本題題型：en2pic 掛 emoji、en2cn 掛中文、其餘（cn2en / match）掛英文字
+    const qt = (typeof game !== 'undefined' && game.qType) || 'en2pic';
+    const emoji = qt === 'en2pic' ? emojiForWord(this.word) : '';
+    const zh = qt === 'en2cn' ? chineseForWord(this.word) : '';
+    const label = zh || this.word;
 
     // Glow / flash (reactive only)
     if (isHinted) {
@@ -1013,8 +1035,8 @@ class House {
       // No gold highlight for the target — every label looks the same so the
       // player must read (or listen) to find the right one. Green = hint after
       // repeated misses, red = just answered wrong; both are reactive feedback.
-      c.font = `bold 13px 'Arial Rounded MT Bold', Arial`;
-      const tw  = c.measureText(this.word).width;
+      c.font = `bold 13px 'Arial Rounded MT Bold', Arial, 'Noto Sans TC', sans-serif`;
+      const tw  = c.measureText(label).width;
       const pad = 9;
       const lw  = tw + pad * 2;
       const lh  = 24;
@@ -1030,7 +1052,7 @@ class House {
       c.fillStyle  = '#111';
       c.textAlign  = 'center';
       c.textBaseline = 'middle';
-      c.fillText(this.word, this.x, lY);
+      c.fillText(label, this.x, lY);
     }
     c.shadowBlur = 0;
 
@@ -1556,21 +1578,27 @@ function drawHUD(c, game) {
 }
 
 // Word panel — sits just below HUD
+// 題目呈現依題型：en2pic / en2cn / match＝英文＋🔊 發音；cn2en＝顯示中文、不給喇叭（唸英文會洩題）
 function drawWordPanel(c, game) {
   if (!game.targetWord) return;
   c.save();
   const pw=210, ph=42, px=W/2-pw/2, py=55;
+  const isCn = game.qType === 'cn2en';
+  const display = isCn ? (chineseForWord(game.targetWord) || game.targetWord.toUpperCase())
+                       : game.targetWord.toUpperCase();
   // Pill background
   c.fillStyle='rgba(0,0,0,0.55)';
   roundRect(c,px,py,pw,ph,14); c.fill();
   c.strokeStyle='rgba(255,210,40,0.80)'; c.lineWidth=2; c.stroke();
   // Speaker
-  c.font='19px Arial'; c.textBaseline='middle'; c.textAlign='left';
-  c.fillStyle='rgba(255,255,255,0.85)'; c.fillText('🔊', px+10, py+ph/2);
+  if (!isCn) {
+    c.font='19px Arial'; c.textBaseline='middle'; c.textAlign='left';
+    c.fillStyle='rgba(255,255,255,0.85)'; c.fillText('🔊', px+10, py+ph/2);
+  }
   // Word
-  c.fillStyle='#FFD700'; c.font='bold 22px "Arial Rounded MT Bold", Arial';
-  c.textAlign='center';
-  c.fillText(game.targetWord.toUpperCase(), W/2+12, py+ph/2);
+  c.fillStyle='#FFD700'; c.font='bold 22px "Arial Rounded MT Bold", Arial, "Noto Sans TC", sans-serif';
+  c.textAlign='center'; c.textBaseline='middle';
+  c.fillText(display, W/2 + (isCn ? 0 : 12), py+ph/2);
   c.restore();
 }
 
@@ -1578,14 +1606,16 @@ function drawWordPanel(c, game) {
 //  SCREEN: MAIN MENU
 // ══════════════════════════════════════════
 function menuBtnW() { return clamp(W * 0.38, 340, 640); }
-function menuBtnH() { return clamp(H * 0.085, 58, 76); }
-// 兩顆模式鈕的中心 Y：用「按鈕高＋間距」算，數學上保證不重疊（小螢幕也不會疊）
+function menuBtnH() { return clamp(H * 0.075, 50, 66); }
+// 三顆模式鈕的中心 Y：用「按鈕高＋間距」算，數學上保證不重疊（小螢幕也不會疊）
 function menuBtnYs() {
   const bh = menuBtnH();
-  const gap = clamp(H * 0.045, 18, 30);
-  const easyY = H * 0.46;
-  return { easyY, hardY: easyY + bh + gap };
+  const gap = clamp(H * 0.032, 12, 22);
+  const simpleY = H * 0.47;
+  return { simpleY, normalY: simpleY + bh + gap, hardY: simpleY + 2 * (bh + gap) };
 }
+// 全圖檔開關（DOM checkbox）擺放位置：模式鈕上方
+function menuAllPicY() { return menuBtnYs().simpleY - menuBtnH() / 2 - clamp(H * 0.055, 30, 44); }
 
 function drawMenu(c) {
   c.fillStyle='rgba(5,10,30,0.88)'; c.fillRect(0,0,W,H);
@@ -1595,29 +1625,37 @@ function drawMenu(c) {
   c.save();
   c.font=`bold ${clamp(H * 0.082, 46, 68)}px "Arial Rounded MT Bold", Arial`;
   c.fillStyle='#FFD700'; c.shadowColor='#FF6600'; c.shadowBlur=24;
-  c.fillText('💣 炸彈英文', W/2, H*0.22);
+  c.fillText('💣 炸彈英文', W/2, H*0.19);
   c.shadowBlur=0;
   c.font=`${clamp(H * 0.032, 18, 26)}px Arial`; c.fillStyle='rgba(255,255,255,0.75)';
-  c.fillText(`Bomb English — ${bombLessonTitle}`, W/2, H*0.33);
+  c.fillText(`Bomb English — ${bombLessonTitle}`, W/2, H*0.29);
   c.restore();
 
-  // Buttons
+  // Buttons：三顆永遠都畫出來，不可選的灰化
   const ys = menuBtnYs();
+  const allow = allowedBombModes();
   [
-    { label:'⭐ 簡單模式 (Easy)', y:ys.easyY, col:'rgba(40,160,80,0.88)', id:'easy' },
-    { label:'🔥 困難模式 (Hard)', y:ys.hardY, col:'rgba(210,50,50,0.88)',  id:'hard' },
+    { label:'🌱 簡單模式 (Easy)',   y:ys.simpleY, col:'rgba(40,160,80,0.88)',  id:'simple' },
+    { label:'🙂 一般模式 (Normal)', y:ys.normalY, col:'rgba(50,110,210,0.88)', id:'normal' },
+    { label:'🔥 困難模式 (Hard)',   y:ys.hardY,   col:'rgba(210,50,50,0.88)',  id:'hard' },
   ].forEach(btn => {
+    const ok = allow.includes(btn.id);
     const bw=menuBtnW(), bh=menuBtnH(), bx=W/2-bw/2;
     c.save();
-    c.fillStyle=btn.col; roundRect(c,bx,btn.y-bh/2,bw,bh,16); c.fill();
+    if (!ok) c.globalAlpha = 0.32;
+    c.fillStyle = ok ? btn.col : 'rgba(120,120,120,0.88)';
+    roundRect(c,bx,btn.y-bh/2,bw,bh,16); c.fill();
     c.strokeStyle='rgba(255,255,255,0.4)'; c.lineWidth=2; c.stroke();
-    c.fillStyle='white'; c.font=`bold ${clamp(H * 0.034, 21, 30)}px Arial`;
+    c.fillStyle='white'; c.font=`bold ${clamp(H * 0.032, 19, 28)}px Arial`;
     c.fillText(btn.label, W/2, btn.y);
     c.restore();
   });
 
-  c.font='16px Arial'; c.fillStyle='rgba(255,255,255,0.35)';
-  c.fillText('點按模式開始遊戲', W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.05, 22, 40));
+  const hint = hasPicBank() ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
+  c.font='15px Arial'; c.fillStyle='rgba(255,255,255,0.55)';
+  c.fillText(hint, W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.035, 16, 26));
+  c.font='14px Arial'; c.fillStyle='rgba(255,255,255,0.35)';
+  c.fillText('點按模式開始遊戲', W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.075, 36, 56));
 }
 
 // ══════════════════════════════════════════
@@ -1859,7 +1897,9 @@ function victoryBtnRects() {
 class Game {
   constructor() {
     this.phase = 'menu';  // menu | playing | paused | levelClear | gameOver | victory
-    this.difficulty = 'easy';
+    this.difficulty = 'easy';   // 玩法檔：easy（簡單＝一般）| hard（砲塔＋追蹤飛彈）
+    this.mode  = 'simple';      // 三模式：simple | normal | hard（決定題型）
+    this.qType = 'en2pic';      // 本題題型：en2pic | cn2en | en2cn | match
     this.lvIdx    = 0;
     this.lives    = CFG.LIVES;
     this.score    = 0;
@@ -1896,9 +1936,13 @@ class Game {
   }
 
   // ── Start ──────────────────────────────
-  start(difficulty) {
+  start(mode) {
     if (bombWordPool) buildLessonLevels();   // 每次開新局重洗，關卡單字組合都不同
-    this.difficulty = difficulty;
+    const allow = allowedBombModes();
+    if (!allow.includes(mode)) mode = allow[0];   // 依題庫來源 clamp
+    this.mode = mode;
+    this.difficulty = mode === 'hard' ? 'hard' : 'easy';   // 簡單＝一般＝現行 easy 檔（無砲塔、答錯無懲罰）
+    try { localStorage.setItem('bombMode3', mode); } catch (e) {}
     this.lvIdx     = 0;
     this.lives     = CFG.LIVES;
     this.score     = 0;
@@ -2005,13 +2049,29 @@ class Game {
     }
   }
 
+  // 本題題型依模式與全圖檔開關（每題重抽，穿插比例約 1/3）。
+  // 鐵則：圖片題一律「英文＋發音→炸圖片房子」；絕不看圖選字、絕不圖↔中。
+  _pickQType() {
+    const em = !!emojiForWord(this.targetWord);
+    const zh = !!chineseForWord(this.targetWord);
+    const textType = () => Math.random() < 0.5 ? 'cn2en' : 'en2cn';
+    if (em && (this.mode === 'simple' || this.mode === 'hard')) {
+      if (allPic || !zh) return 'en2pic';                              // 全圖檔開（或沒中文）：純英→圖
+      if (this.mode === 'simple') return Math.random() < 1/3 ? textType() : 'en2pic';  // 簡單：圖英為主＋約 1/3 中英
+      return Math.random() < 1/3 ? 'en2pic' : textType();                              // 困難：中英為主＋約 1/3 圖英
+    }
+    if (zh) return textType();       // 一般（或無圖）：中英雙向
+    return em ? 'en2pic' : 'match';  // 沒中文也沒圖：沿用現行「聽音找相同單字」
+  }
+
   _nextTarget() {
     if (this.wordsLeft.length === 0) { this._levelClear(); return; }
     const i = Math.floor(Math.random() * this.wordsLeft.length);
     this.targetWord = this.wordsLeft[i];
+    this.qType = this._pickQType();
     this.wrongAtt = 0;
     this.qStartT = performance.now();   // 本題開始計時：答得越快速度分越高
-    Audio.speak(this.targetWord);   // 進場 / 換題：唸出目標單字
+    if (this.qType !== 'cn2en') Audio.speak(this.targetWord);   // 中→英不唸（唸英文會洩題）
   }
 
   // ── Drop Bomb ──────────────────────────
@@ -2438,8 +2498,13 @@ let game       = new Game();
 function hitMenu(x, y) {
   const bw=menuBtnW(), bh=menuBtnH(), bx=W/2-bw/2;
   const ys = menuBtnYs();
-  if (x>bx && x<bx+bw && y>ys.easyY-bh/2 && y<ys.easyY+bh/2) game.start('easy');
-  if (x>bx && x<bx+bw && y>ys.hardY-bh/2 && y<ys.hardY+bh/2) game.start('hard');
+  const allow = allowedBombModes();
+  for (const [m, yy] of [['simple', ys.simpleY], ['normal', ys.normalY], ['hard', ys.hardY]]) {
+    if (x>bx && x<bx+bw && y>yy-bh/2 && y<yy+bh/2) {
+      if (allow.includes(m)) game.start(m);
+      return;
+    }
+  }
 }
 
 function hitEndScreen(x, y) {
@@ -2452,11 +2517,11 @@ function hitVictoryScreen(x, y) {
   const inside = (b) => x > b.x && x < b.x+b.w && y > b.y && y < b.y+b.h;
   // 繼續：無限續玩，分數/愛心都保留，之後打完不再跳結算
   if (inside(r.cont)) { game.continueEndless(); return; }
-  // 再玩一次：相同難度從第 1 關重來
+  // 再玩一次：相同模式從第 1 關重來
   if (inside(r.retry)) {
-    const d = game.difficulty;
+    const m = game.mode;
     game = new Game(); resizeCanvas();
-    game.start(d);
+    game.start(m);
     return;
   }
   // 主選單：回主選單
@@ -2473,8 +2538,8 @@ function hitPauseScreen(x, y) {
 }
 
 function hitWordPanel(x, y) {
-  // 按題目面板（含 🔊 喇叭）重播目標單字發音
-  if (game.phase !== 'playing' || !game.targetWord) return;
+  // 按題目面板（含 🔊 喇叭）重播目標單字發音（中→英題不唸，唸英文會洩題）
+  if (game.phase !== 'playing' || !game.targetWord || game.qType === 'cn2en') return;
   const pw=210, ph=42, px=W/2-pw/2, py=55;
   if (x>px && x<px+pw && y>py && y<py+ph) Audio.speak(game.targetWord);
 }
@@ -2585,22 +2650,60 @@ const _speechOverlay = (() => {
     el.style.left = x + 'px'; el.style.top = y + 'px';
     el.style.width = w + 'px'; el.style.height = h + 'px';
   }
-  const easyBtn  = mkBtn('選擇簡單模式');
-  const hardBtn  = mkBtn('選擇困難模式');
-  const speakBtn = mkBtn('播放單字發音');
-  easyBtn.addEventListener('click',  () => { Audio.unlockSpeech(); if (game.phase === 'menu') game.start('easy'); });
-  hardBtn.addEventListener('click',  () => { Audio.unlockSpeech(); if (game.phase === 'menu') game.start('hard'); });
-  speakBtn.addEventListener('click', () => { Audio.unlockSpeech(); if (game.phase === 'playing' && game.targetWord) Audio.speak(game.targetWord); });
+  const simpleBtn = mkBtn('選擇簡單模式');
+  const normalBtn = mkBtn('選擇一般模式');
+  const hardBtn   = mkBtn('選擇困難模式');
+  const speakBtn  = mkBtn('播放單字發音');
+  const pickMode = m => {
+    Audio.unlockSpeech();
+    if (game.phase === 'menu' && allowedBombModes().includes(m)) game.start(m);
+  };
+  simpleBtn.addEventListener('click', () => pickMode('simple'));
+  normalBtn.addEventListener('click', () => pickMode('normal'));
+  hardBtn.addEventListener('click',   () => pickMode('hard'));
+  speakBtn.addEventListener('click', () => { Audio.unlockSpeech(); if (game.phase === 'playing' && game.targetWord && game.qType !== 'cn2en') Audio.speak(game.targetWord); });
+
+  // 全圖檔開關：真實 DOM checkbox 疊在選單上（canvas 畫不出可勾選的元件）
+  const allPicRow = document.createElement('label');
+  allPicRow.id = 'allpic-row';
+  allPicRow.style.cssText = 'position:fixed;z-index:9001;display:none;align-items:center;gap:8px;'
+    + 'justify-content:center;color:#ffe9c0;font:bold 15px Arial,"Noto Sans TC",sans-serif;cursor:pointer;'
+    + '-webkit-tap-highlight-color:transparent;';
+  const allPicChk = document.createElement('input');
+  allPicChk.type = 'checkbox';
+  allPicChk.style.cssText = 'width:18px;height:18px;accent-color:#FFD700;';
+  allPicRow.appendChild(allPicChk);
+  allPicRow.appendChild(document.createTextNode(' 🖼️ 全圖檔模式（每題都是英文＋發音 → 選圖片）'));
+  allPicChk.checked = allPic;
+  allPicChk.addEventListener('change', () => {
+    allPic = allPicChk.checked;
+    try { localStorage.setItem('sgAllPic', allPic ? '1' : '0'); } catch (e) {}
+  });
+  root.appendChild(allPicRow);
 
   return function sync() {
     if (game.phase === 'menu') {
       const bw = menuBtnW(), bh = menuBtnH(), bx = W/2 - bw/2;
-      place(easyBtn, bx, H*0.50 - bh/2, bw, bh); easyBtn.style.display = 'block';
-      place(hardBtn, bx, H*0.64 - bh/2, bw, bh); hardBtn.style.display = 'block';
+      const ys = menuBtnYs();
+      const allow = allowedBombModes();
+      place(simpleBtn, bx, ys.simpleY - bh/2, bw, bh); simpleBtn.style.display = allow.includes('simple') ? 'block' : 'none';
+      place(normalBtn, bx, ys.normalY - bh/2, bw, bh); normalBtn.style.display = allow.includes('normal') ? 'block' : 'none';
+      place(hardBtn,   bx, ys.hardY   - bh/2, bw, bh); hardBtn.style.display   = 'block';
+      if (hasPicBank()) {
+        const rw = Math.min(W * 0.9, 440);
+        allPicRow.style.left = (W/2 - rw/2) + 'px';
+        allPicRow.style.top = (menuAllPicY() - 14) + 'px';
+        allPicRow.style.width = rw + 'px';
+        allPicRow.style.display = 'flex';
+        allPicChk.checked = allPic;
+      } else {
+        allPicRow.style.display = 'none';
+      }
     } else {
-      easyBtn.style.display = 'none'; hardBtn.style.display = 'none';
+      simpleBtn.style.display = 'none'; normalBtn.style.display = 'none'; hardBtn.style.display = 'none';
+      allPicRow.style.display = 'none';
     }
-    if (game.phase === 'playing' && game.targetWord) {
+    if (game.phase === 'playing' && game.targetWord && game.qType !== 'cn2en') {
       const pw = 210, ph = 42, px = W/2 - pw/2, py = 55;
       place(speakBtn, px, py, pw, ph); speakBtn.style.display = 'block';
     } else {

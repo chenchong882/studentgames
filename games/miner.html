@@ -333,6 +333,71 @@
             animation: startPulse 1.4s ease-in-out infinite;
         }
 
+        /* 模式選擇（簡單／一般／困難）＋全圖檔開關 */
+        .ss-modes {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            align-items: center;
+        }
+
+        .ss-allpic {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14.5px;
+            font-weight: 800;
+            color: rgba(255, 243, 207, 0.9);
+            cursor: pointer;
+        }
+
+        .ss-allpic.hidden {
+            display: none;
+        }
+
+        .ss-allpic input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--gold);
+        }
+
+        .ss-mode-btns {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .ss-mode-btn {
+            flex: 1 1 0;
+            max-width: 150px;
+            min-height: 52px;
+            font-size: 18px;
+            color: #fff3cf;
+            background: linear-gradient(180deg, #5a4630, #3a2c1c);
+            box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.14), 0 4px 0 #241a10, 0 8px 14px rgba(0, 0, 0, 0.3);
+        }
+
+        .ss-mode-btn.sel {
+            color: #221406;
+            background: linear-gradient(180deg, #ffe27a, #f7a928 54%, #c76f13);
+            box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), 0 4px 0 #7a3f08, 0 10px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .ss-mode-btn:disabled {
+            opacity: 0.32;
+            filter: grayscale(1);
+            cursor: not-allowed;
+        }
+
+        .ss-mode-hint {
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255, 243, 207, 0.75);
+        }
+
         @keyframes startPulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -592,6 +657,15 @@
                         <div class="ss-stat"><span>最高連擊</span><b id="ss-streak">0</b></div>
                         <div class="ss-stat"><span>炸彈</span><b id="ss-bomb">0</b></div>
                     </div>
+                    <div class="ss-modes">
+                        <label class="ss-allpic hidden" id="ss-allpic-row"><input type="checkbox" id="ss-allpic-chk"> 🖼️ 全圖檔模式（每題都是英文＋發音 → 選圖片）</label>
+                        <div class="ss-mode-btns">
+                            <button type="button" class="ss-mode-btn" data-mode="simple">🌱 簡單</button>
+                            <button type="button" class="ss-mode-btn" data-mode="normal">🙂 一般</button>
+                            <button type="button" class="ss-mode-btn" data-mode="hard">🔥 困難</button>
+                        </div>
+                        <div class="ss-mode-hint" id="ss-mode-hint"></div>
+                    </div>
                     <button id="miner-start-btn" type="button">▶ 開始遊戲</button>
                 </div>
             </div>
@@ -734,6 +808,24 @@
     let availableVoices = [];
     let vocabulary = DEFAULT_GOLD_WORDS;
     let currentUnitTitle = "示範題庫";
+
+    /* ── 三模式（簡單／一般／困難）＋全圖檔開關 ── */
+    let minerMode = (function () { try { return localStorage.getItem("minerMode3"); } catch (e) { return null; } })() || "normal";
+    let allPic = (function () { try { return localStorage.getItem("sgAllPic") === "1"; } catch (e) { return false; } })();
+    /* 題庫來源判斷：帶 emoji 的字 ≥ 4 → 有圖題庫（內建主題）；否則視為連結單字 */
+    function hasPicBank() { return vocabulary.filter(entry => getEntryEmoji(entry)).length >= 4; }
+    /* 有圖題庫→簡單／困難；無圖題庫→一般／困難 */
+    function allowedModes() { return hasPicBank() ? ["simple", "hard"] : ["normal", "hard"]; }
+    function clampMode() {
+        const allow = allowedModes();
+        if (!allow.includes(minerMode)) minerMode = allow[0];
+    }
+    /* 困難：金塊擺速與關卡門檻加壓約 +20%；簡單＝一般＝現行三關步調 */
+    function modePressure() { return minerMode === "hard" ? 1.2 : 1; }
+    function levelGoal(idx) {
+        const goal = LEVELS[idx]?.goal;
+        return goal == null ? Infinity : Math.round(goal * modePressure());
+    }
 
     const origin = { x: canvas.width / 2, y: 84 };
     const particles = [];
@@ -902,6 +994,8 @@
             vocabulary = DEFAULT_GOLD_WORDS;
             currentUnitTitle = "示範題庫";
         }
+        clampMode();
+        renderModePanel();
         if (gamePhase !== "PLAYING") {
             round = 0;
             initLevel(false);
@@ -944,15 +1038,23 @@
         return displayWord(obj.word || obj.label);
     }
 
-    /* 依題庫可用的呈現方式，隨機抽一組「題目→答案」組合（兩者不同） */
+    /* 依模式與全圖檔開關抽「題目→答案」組合。
+       鐵則：圖片題只出 word→image（題目英文＋發音 → 抓 emoji 金塊）；
+       image↔chinese（看圖抓中文、看中文抓圖）與 image→word（看圖抓英文）一律不出 */
     function pickRoundMode() {
-        const reps = ["word"];
-        if (vocabulary.some(entry => getEntryChinese(entry))) reps.push("chinese");
-        if (vocabulary.some(entry => getEntryEmoji(entry))) reps.push("image");
-        const pairs = [];
-        reps.forEach(q => reps.forEach(a => { if (q !== a) pairs.push({ q, a }); }));
-        if (pairs.length === 0) return { q: "word", a: "word" };
-        return pairs[Math.floor(Math.random() * pairs.length)];
+        const hasChinese = vocabulary.some(entry => getEntryChinese(entry));
+        const textPairs = hasChinese ? [{ q: "word", a: "chinese" }, { q: "chinese", a: "word" }] : [];
+        const picPair = { q: "word", a: "image" };
+        let pool = textPairs;
+        if (hasPicBank() && minerMode === "simple") {
+            /* 簡單：開＝純圖英；關＝圖英為主＋約 1/3 中英 */
+            pool = allPic || !textPairs.length ? [picPair] : [picPair, picPair, textPairs[Math.floor(Math.random() * textPairs.length)]];
+        } else if (hasPicBank() && minerMode === "hard") {
+            /* 困難：開＝純圖英；關＝中英雙向＋約 1/3 圖英 */
+            pool = allPic || !textPairs.length ? [picPair] : [...textPairs, picPair];
+        }
+        if (pool.length === 0) return { q: "word", a: "word" };
+        return pool[Math.floor(Math.random() * pool.length)];
     }
 
     function buildRoundGolds(q, a) {
@@ -1036,7 +1138,7 @@
 
     function applyLevelCfg() {
         const cfg = LEVELS[level - 1] || LEVELS[0];
-        angleSpeed = cfg.swing;
+        angleSpeed = cfg.swing * modePressure();
     }
 
     function resetStats() {
@@ -1071,7 +1173,7 @@
     /* 分數達門檻：進下一關（加時、難度提升）；通過最後一關＝全破 */
     function maybeLevelUp() {
         if (gamePhase !== "PLAYING") return;
-        const goal = LEVELS[level - 1]?.goal ?? Infinity;
+        const goal = levelGoal(level - 1);
         if (score < goal) return;
         if (level >= LEVELS.length) {
             winGame();
@@ -1880,8 +1982,8 @@
         progressEl.style.display = "";
         const cfg = LEVELS[level - 1];
         if (!cfg) return;
-        const goal = cfg.goal;
-        const prev = level > 1 ? (LEVELS[level - 2]?.goal || 0) : 0;
+        const goal = levelGoal(level - 1);
+        const prev = level > 1 ? levelGoal(level - 2) : 0;
         const span = Math.max(1, goal - prev);
         const ratio = Math.max(0, Math.min(1, (score - prev) / span));
         const remain = Math.max(0, goal - score);
@@ -1924,9 +2026,39 @@
         if (gamePhase === "PLAYING" && currentQ === "word" && targetWordObj) speakWord(targetWordObj.word);
     });
 
+    /* ── 模式面板：三顆鈕永遠都畫出來，不可選的灰化；全圖檔開關只在有圖題庫顯示 ── */
+    const modeHintEl = document.getElementById("ss-mode-hint");
+    const allPicRowEl = document.getElementById("ss-allpic-row");
+    const allPicChkEl = document.getElementById("ss-allpic-chk");
+    function renderModePanel() {
+        const allow = allowedModes();
+        document.querySelectorAll(".ss-mode-btn").forEach(btn => {
+            const mode = btn.dataset.mode;
+            btn.disabled = !allow.includes(mode);
+            btn.classList.toggle("sel", mode === minerMode);
+        });
+        modeHintEl.textContent = hasPicBank() ? "內建圖片單字：可選簡單或困難" : "連結單字（無圖片）：可選一般或困難";
+        allPicRowEl.classList.toggle("hidden", !hasPicBank());
+        allPicChkEl.checked = allPic;
+    }
+    document.querySelectorAll(".ss-mode-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const mode = btn.dataset.mode;
+            if (!allowedModes().includes(mode)) return;
+            minerMode = mode;
+            try { localStorage.setItem("minerMode3", mode); } catch (e) {}
+            renderModePanel();
+        });
+    });
+    allPicChkEl.addEventListener("change", () => {
+        allPic = allPicChkEl.checked;
+        try { localStorage.setItem("sgAllPic", allPic ? "1" : "0"); } catch (e) {}
+    });
+
     /* 開始 / 再玩一次一律走真實按鈕：iOS 才解得開語音與 BGM 的自動播放 */
     function beginGame() {
         primeSpeech();
+        clampMode();
         startGame();
     }
     startBtn.addEventListener("click", beginGame);
@@ -2024,6 +2156,8 @@
     const hashLessonData = readLessonDataFromHash();
     if (hashLessonData) applyMinerData(hashLessonData);
 
+    clampMode();
+    renderModePanel();
     initLevel(false);
     updateHud();
     updateControls();

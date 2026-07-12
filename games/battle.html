@@ -23,6 +23,12 @@ button{font-family:'Outfit',sans-serif;}
 .difficulty-btn.active{background:rgba(249,199,79,.18);border-color:#f9c74f;box-shadow:0 0 0 2px rgba(249,199,79,.18);}
 .difficulty-btn .label{display:block;font-size:1rem;font-weight:900;color:#fff;margin-bottom:4px;}
 .difficulty-btn .desc{display:block;font-size:.74rem;font-weight:800;color:#cbd5e1;line-height:1.45;}
+.difficulty-btn:disabled{opacity:.32;filter:grayscale(1);cursor:not-allowed;}
+.difficulty-btn:disabled:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.14);}
+#mode-hint{font-size:.78rem;color:#9ca3af;font-weight:800;margin-top:8px;text-align:center;}
+#allpic-row{display:none;align-items:center;gap:8px;justify-content:center;font-size:.88rem;font-weight:800;color:#d1d5db;margin-bottom:10px;cursor:pointer;}
+#allpic-row.show{display:flex;}
+#allpic-row input{width:18px;height:18px;accent-color:#f9c74f;}
 .unit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .unit-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px;text-align:center;}
 .unit-card .emoji{font-size:1.45rem;}
@@ -142,7 +148,7 @@ button{font-family:'Outfit',sans-serif;}
         <div class="rule"><strong>勝利目標</strong><br>推倒敵方基地，或時間到時基地血量較高。</div>
         <div class="rule"><strong>答對獎勵</strong><br>+25 金，連對 3 題再 +15 金。</div>
         <div class="rule" id="difficulty-summary"><strong>敵方壓力</strong><br>普通：開場 30 金，答錯敵方增援。</div>
-        <div class="rule"><strong>題型</strong><br>單字題（中英互選、看圖選答）賺金幣；穿插填空／文法題賺強化值。</div>
+        <div class="rule"><strong>題型</strong><br>單字題（中英互選、看字選圖）賺金幣；一般／困難穿插填空／文法題賺強化值。</div>
       </div>
     </div>
     <div class="panel">
@@ -150,21 +156,23 @@ button{font-family:'Outfit',sans-serif;}
       <div class="unit-grid" id="unit-table"></div>
     </div>
     <div class="panel">
-      <div class="section-title">難度選擇</div>
+      <div class="section-title">模式選擇</div>
+      <label id="allpic-row"><input type="checkbox" id="allpic-chk"> 🖼️ 全圖檔模式（每題都是英文＋發音 → 選圖片）</label>
       <div class="difficulty-grid">
         <button class="difficulty-btn" id="difficulty-easy" type="button" onclick="selectDifficulty('easy')">
           <span class="label">簡單</span>
-          <span class="desc">45 金開局，敵人較慢，答錯只讓敵方出兵倒數提前。</span>
+          <span class="desc">玩法與一般相同，題目以圖片題為主（英文＋發音→選圖），不出填空題。</span>
         </button>
         <button class="difficulty-btn active" id="difficulty-normal" type="button" onclick="selectDifficulty('normal')">
-          <span class="label">普通</span>
-          <span class="desc">30 金開局，目前標準節奏，答錯增援 1 名劍士。</span>
+          <span class="label">一般</span>
+          <span class="desc">30 金開局，標準節奏，答錯增援 1 名劍士。</span>
         </button>
         <button class="difficulty-btn" id="difficulty-hard" type="button" onclick="selectDifficulty('hard')">
           <span class="label">困難</span>
           <span class="desc">20 金開局，敵人更快，連錯會追加弓箭手。</span>
         </button>
       </div>
+      <div id="mode-hint"></div>
     </div>
     <button class="primary-btn" onclick="startGame()">開始戰鬥</button>
   </section>
@@ -287,20 +295,20 @@ const BASE_CONFIG = {
 const DIFFICULTY_CONFIG = {
   easy: {
     label: '簡單',
-    startGold: 45,
-    passiveGold: 10,
+    // 玩法參數與一般完全相同（原簡單檔的金幣／出兵鬆檔廢除），只差題型規則
+    startGold: 30,
+    passiveGold: 8,
     passiveMs: 5000,
-    enemyIntervals: { early: 12000, mid: 10000, late: 8000 },
-    wrongPenalty: 'advance_spawn',
-    wrongSpawnAdvanceMs: 4000,
+    enemyIntervals: { early: 9000, mid: 7000, late: 5000 },
+    wrongPenalty: 'spawn_sword',
     bossChipMode: 'count',           // 每答對一題就扣 BOSS 血
     bossWrong: 'none',               // 答錯不影響 BOSS 血量
     useFill: false,                  // 簡單：不出填空題
     allowLevelUp: false,             // 簡單：不開放兵種升級（無填空題養強化值）
-    summary: '簡單：45 金開局，每 5 秒 +10 金；敵人 12 / 10 / 8 秒出兵，答錯只讓出兵倒數提前。只考單字題，不出填空、不能升級。'
+    summary: '簡單：玩法與一般相同（30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士）。題型以圖片題為主，不出填空、不能升級。BOSS：連續答對單字擊退。'
   },
   normal: {
-    label: '普通',
+    label: '一般',
     startGold: 30,
     passiveGold: 8,
     passiveMs: 5000,
@@ -308,9 +316,9 @@ const DIFFICULTY_CONFIG = {
     wrongPenalty: 'spawn_sword',
     bossChipMode: 'peak',            // 只在刷新「連續答對最高紀錄」時扣 BOSS 血
     bossWrong: 'none',               // 答錯中斷連續但不補血
-    useFill: true,                   // 普通：穿插填空題
+    useFill: true,                   // 一般：穿插填空題
     allowLevelUp: true,
-    summary: '普通：30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士。有填空題可升級。BOSS：需連續答對刷新紀錄才扣血。'
+    summary: '一般：30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士。有填空題可升級。BOSS：需連續答對刷新紀錄才扣血。'
   },
   hard: {
     label: '困難',
@@ -327,10 +335,12 @@ const DIFFICULTY_CONFIG = {
   }
 };
 
-let selectedDifficulty = 'normal';
+let selectedDifficulty = (function(){ try{ return localStorage.getItem('battleMode3'); }catch(e){ return null; } })() || 'normal';
+if(!DIFFICULTY_CONFIG[selectedDifficulty]) selectedDifficulty = 'normal';
+let allPic = (function(){ try{ return localStorage.getItem('sgAllPic')==='1'; }catch(e){ return false; } })();
 let CONFIG = {
   ...BASE_CONFIG,
-  ...DIFFICULTY_CONFIG.normal,
+  ...DIFFICULTY_CONFIG[selectedDifficulty],
 };
 
 function applyDifficultyConfig(){
@@ -340,17 +350,38 @@ function applyDifficultyConfig(){
   };
 }
 
+// 題庫來源判斷：pool 中帶 emoji 的字 ≥ 4 → 有圖題庫（內建主題）；否則視為連結單字
+function hasPicBank(){ return picPool.length >= 4; }
+// 有圖題庫→簡單／困難；無圖題庫→一般／困難
+function allowedModes(){ return hasPicBank() ? ['easy','hard'] : ['normal','hard']; }
+function clampMode(){
+  const a = allowedModes();
+  if(!a.includes(selectedDifficulty)) selectedDifficulty = a[0];
+  applyDifficultyConfig();
+}
+
 function selectDifficulty(level){
-  if(!DIFFICULTY_CONFIG[level]) return;
+  if(!DIFFICULTY_CONFIG[level] || !allowedModes().includes(level)) return;
   selectedDifficulty = level;
+  try{ localStorage.setItem('battleMode3', level); }catch(e){}
   applyDifficultyConfig();
   updateDifficultyUI();
 }
 
 function updateDifficultyUI(){
+  const allow = allowedModes();
   Object.keys(DIFFICULTY_CONFIG).forEach(level => {
-    document.getElementById('difficulty-' + level)?.classList.toggle('active', level === selectedDifficulty);
+    const btn = document.getElementById('difficulty-' + level);
+    if(!btn) return;
+    btn.classList.toggle('active', level === selectedDifficulty);
+    btn.disabled = !allow.includes(level);
   });
+  const hint = document.getElementById('mode-hint');
+  if(hint) hint.textContent = hasPicBank() ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
+  const row = document.getElementById('allpic-row');
+  if(row) row.classList.toggle('show', hasPicBank());
+  const chk = document.getElementById('allpic-chk');
+  if(chk) chk.checked = allPic;
   const summary = document.getElementById('difficulty-summary');
   if(summary) summary.innerHTML = `<strong>敵方壓力</strong><br>${CONFIG.summary}`;
   document.getElementById('gold-display').textContent = CONFIG.startGold;
@@ -389,6 +420,8 @@ const FALLBACK_WORDS = [
 let uid = 0;
 let state = null;
 let battleData = { unitTitle:'示範題庫', builtin:true, words:FALLBACK_WORDS, grammarQuiz:DEFAULT_GRAMMAR };
+let wordPool = FALLBACK_WORDS;
+let picPool = [];              // wordPool 中帶 emoji 的字（圖片題用）
 let vocabQuestions = [];
 let grammarQuestions = [];
 let fillQuestions = [];        // 內建單字的英文填空題（與文法題同屬「強化值題」）
@@ -523,6 +556,41 @@ function playSound(type, throttleMs=0){
   } catch(e) {}
 }
 
+/* ── 單字發音（Web Speech）──
+   iOS 兩大地雷修法：1) 第一次 speak 由真實按鈕點擊解鎖（startGame 內 unlockSpeech）；
+   2) 唸字時 suspend AudioContext 讓出 iOS 音訊工作階段，onend/onerror 時 resume，
+      世代 token 防連續換題 race＋setTimeout 安全網。BGM 走 HTMLAudio 不受影響。 */
+let _voices = [];
+function _loadVoices(){ try{ _voices = window.speechSynthesis.getVoices() || []; }catch(e){} }
+if('speechSynthesis' in window){ _loadVoices(); window.speechSynthesis.onvoiceschanged = _loadVoices; }
+function _pickEnVoice(){
+  return _voices.find(v=>/^en[-_]?US/i.test(v.lang)) || _voices.find(v=>/^en/i.test(v.lang)) || null;
+}
+let _speakGen = 0;
+function speakWord(word){
+  if(!('speechSynthesis' in window) || !word) return;
+  const gen = ++_speakGen;
+  try{
+    const synth = window.speechSynthesis;
+    if(synth.speaking || synth.pending) synth.cancel();   // Safari：只在說話中才 cancel，避免吞音
+    const u = new SpeechSynthesisUtterance(String(word));
+    const v = _pickEnVoice(); if(v) u.voice = v;
+    u.lang = (v && v.lang) || 'en-US'; u.rate = .85;
+    const resume = () => {
+      if(gen !== _speakGen) return;
+      try{ if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }catch(e){}
+    };
+    try{ if(audioCtx && audioCtx.suspend) audioCtx.suspend(); }catch(e){}
+    u.onend = resume; u.onerror = resume;
+    setTimeout(resume, 4000);   // 安全網：事件沒回來也要恢復音效
+    synth.speak(u);
+  }catch(e){}
+}
+function unlockSpeech(){
+  if(!('speechSynthesis' in window)) return;
+  try{ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); }catch(e){}
+}
+
 function shuffle(arr){
   const a = [...arr];
   for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
@@ -552,25 +620,11 @@ function buildDefaultGrammar(){
 function buildQuestionPools(payload){
   const isBuiltin = !!payload.builtin;
   const words = (payload.words || []).filter(w => w && w.word && w.chinese);
-  const wordPool = words.length >= 4 ? words : FALLBACK_WORDS;
-  const withEmoji = wordPool.filter(w => w.emoji);     // 圖片題用：自己與干擾選項都要有 emoji
+  wordPool = words.length >= 4 ? words : FALLBACK_WORDS;
+  picPool = wordPool.filter(w => w.emoji);     // 圖片題用：自己與干擾選項都要有 emoji
 
-  // ── 單字題：英文出中文 / 中文出英文 / 圖片題（看圖選英文、看圖選中文、看字選圖片）混合輪流 ──
-  vocabQuestions = [];
-  wordPool.forEach(target => {
-    const others = shuffle(wordPool.filter(w => w.word !== target.word));
-    vocabQuestions.push(makeQuestion('英文選中文', target.word, target.chinese, others.map(w => w.chinese), target.word));
-    vocabQuestions.push(makeQuestion('中文選英文', target.chinese, target.word, others.map(w => w.word), target.word));
-    if(target.emoji && withEmoji.length >= 2){
-      const others2 = shuffle(withEmoji.filter(w => w.word !== target.word));
-      const q1 = makeQuestion('看圖選英文', target.emoji, target.word, others2.map(w => w.word), target.word);
-      q1.bigPrompt = true; vocabQuestions.push(q1);
-      const q2 = makeQuestion('看圖選中文', target.emoji, target.chinese, others2.map(w => w.chinese), target.word);
-      q2.bigPrompt = true; vocabQuestions.push(q2);
-      const q3 = makeQuestion('看字選圖片', target.word, target.emoji, others2.map(w => w.emoji), target.word);
-      q3.bigOpts = true; vocabQuestions.push(q3);
-    }
-  });
+  clampMode();
+  buildVocabByMode();
 
   // ── 強化值題（打 BOSS / 升級用）：內建單字才出「英文填空題」；文法選擇題兩種來源都有，穿插使用 ──
   fillQuestions = [];
@@ -586,6 +640,32 @@ function buildQuestionPools(payload){
 
   resetQuestionQueues();
   updateStartInfo();
+}
+
+// ── 單字題依模式與全圖檔開關組建 ──
+// 鐵則：圖片題只出「看字選圖片」（上面英文＋發音、選項是圖），
+// 「看圖選英文」「看圖選中文」一律不出（圖↔中沒意義、看圖選字違反方向）。
+function buildVocabByMode(){
+  const textQ = [], picQ = [];
+  wordPool.forEach(target => {
+    const others = shuffle(wordPool.filter(w => w.word !== target.word));
+    textQ.push(makeQuestion('英文選中文', target.word, target.chinese, others.map(w => w.chinese), target.word));
+    textQ.push(makeQuestion('中文選英文', target.chinese, target.word, others.map(w => w.word), target.word));
+    if(target.emoji && picPool.length >= 4){
+      const others2 = shuffle(picPool.filter(w => w.word !== target.word));
+      const q = makeQuestion('看字選圖片', target.word, target.emoji, others2.map(w => w.emoji), target.word);
+      q.bigOpts = true; picQ.push(q);
+    }
+  });
+  if(picQ.length && selectedDifficulty === 'easy'){
+    // 簡單：全圖檔開＝純圖英；關＝圖英為主＋約 1/3 中英
+    vocabQuestions = allPic ? picQ : picQ.concat(shuffle(textQ).slice(0, Math.ceil(picQ.length / 2)));
+  } else if(picQ.length && selectedDifficulty === 'hard'){
+    // 困難：全圖檔開＝純圖英；關＝中英為主＋約 1/3 圖英
+    vocabQuestions = allPic ? picQ : textQ.concat(shuffle(picQ).slice(0, Math.ceil(textQ.length / 2)));
+  } else {
+    vocabQuestions = textQ;   // 一般（或無圖題庫）：中英雙向
+  }
 }
 
 function buildGrammarPool(payload){
@@ -815,9 +895,11 @@ function addAttackEffect(attacker, target, now){
 }
 
 function startGame(){
+  unlockSpeech();   // iOS：趁真實按鈕點擊解鎖語音
   getAudioCtx();
   startBgm();
-  applyDifficultyConfig();
+  clampMode();
+  buildVocabByMode();   // 套用本局模式與全圖檔開關的題型組合
   state = initState();
   // ── 依「內建單字 / 段考」與難度決定本局規則 ──
   // 段考（builtin=false）：無視難度，永遠單字＋文法題、可升級、BOSS 走文法。
@@ -1438,6 +1520,8 @@ function loadQuestion(){
   fb.textContent = '';
   fb.className = '';
   state.quizLocked = false;
+  // 圖片題（看字選圖片）：同時顯示英文字＋唸發音，發音失效時看字仍可作答
+  if(currentQuestion.bigOpts && currentQuestion.audio) speakWord(currentQuestion.audio);
 }
 
 function checkAnswer(chosen, btn){
@@ -1615,6 +1699,10 @@ function endGame(result, winType){
   } catch(e){}
 })();
 buildQuestionPools(battleData);
+document.getElementById('allpic-chk').addEventListener('change', function(){
+  allPic = this.checked;
+  try{ localStorage.setItem('sgAllPic', allPic ? '1' : '0'); }catch(e){}
+});
 addEventListener('visibilitychange',()=>{
   if(!bgmAudio)return;
   if(document.hidden){ try{bgmAudio.pause();}catch(e){} }
