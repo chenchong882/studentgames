@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>殭屍堡壘 3D Zombie Fort</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;
+    font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;}
+  canvas{display:block;}
+  #cross{position:fixed;left:50%;top:50%;width:26px;height:26px;transform:translate(-50%,-50%);
+    pointer-events:none;z-index:6;}
+  #ammo{position:fixed;right:22px;bottom:18px;text-align:right;color:#fff;z-index:5;
+    text-shadow:0 2px 6px rgba(0,0,0,.7);pointer-events:none;}
+  #ammo .gname{font-size:13px;color:rgba(255,255,255,.75);letter-spacing:2px;margin-bottom:2px;}
+  #ammo .num{font-size:34px;font-weight:800;}
+  #ammo .num small{font-size:18px;color:rgba(255,255,255,.65);font-weight:700;}
+  #hint{position:fixed;bottom:8px;left:0;width:100%;text-align:center;
+    color:rgba(255,255,255,.6);font-size:12px;pointer-events:none;z-index:5;text-shadow:0 1px 3px #000;}
+  #banner{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:5;
+    background:rgba(18,20,26,.6);padding:8px 22px;border-radius:9px;color:#ffe9a8;
+    font-size:15px;font-weight:700;backdrop-filter:blur(3px);pointer-events:none;}
+  #overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:rgba(8,12,20,.62);color:#fff;text-align:center;z-index:9;}
+  #overlay h1{font-size:52px;margin:0 0 8px;color:#ffe9a8;text-shadow:0 3px 16px #000;}
+  #overlay .sub{letter-spacing:6px;color:rgba(255,255,255,.7);margin-bottom:26px;}
+  #overlay p{margin:6px 0;font-size:16px;color:rgba(255,255,255,.92);}
+  #overlay .go{margin-top:32px;font-size:22px;font-weight:700;color:#ffd878;animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+  /* ===== 觸控操控（平板 / 手機） ===== */
+  #touchUI{position:fixed;inset:0;z-index:7;pointer-events:none;}
+  #moveStick{position:absolute;left:26px;bottom:26px;width:140px;height:140px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.30);background:rgba(20,26,38,.34);}
+  #moveKnob{position:absolute;left:70px;top:70px;width:58px;height:58px;border-radius:50%;
+    transform:translate(-50%,-50%);background:rgba(255,216,120,.55);
+    border:2px solid rgba(255,255,255,.55);}
+  #fireBtn{position:absolute;right:30px;bottom:110px;width:104px;height:104px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;
+    background:rgba(255,70,60,.32);border:3px solid rgba(255,95,85,.75);text-shadow:0 1px 4px #000;}
+  #fireBtn.active{background:rgba(255,70,60,.6);}
+  #jumpBtn{position:absolute;right:150px;bottom:52px;width:70px;height:70px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;
+    background:rgba(80,160,255,.28);border:3px solid rgba(120,180,255,.7);text-shadow:0 1px 4px #000;}
+  #btnPause{position:absolute;top:14px;right:14px;width:46px;height:46px;border-radius:12px;
+    font-size:20px;background:rgba(20,26,38,.6);color:#ffe9a8;
+    border:1px solid rgba(255,216,120,.4);pointer-events:auto;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+<div id="cross">
+  <svg viewBox="0 0 26 26" width="26" height="26">
+    <line x1="13" y1="2"  x2="13" y2="9"  stroke="#ff5544" stroke-width="2.4"/>
+    <line x1="13" y1="17" x2="13" y2="24" stroke="#ff5544" stroke-width="2.4"/>
+    <line x1="2"  y1="13" x2="9"  y2="13" stroke="#ff5544" stroke-width="2.4"/>
+    <line x1="17" y1="13" x2="24" y2="13" stroke="#ff5544" stroke-width="2.4"/>
+  </svg>
+</div>
+<div id="ammo">
+  <div class="gname">9MM 手槍</div>
+  <div class="num"><span id="vMag">30</span> <small>/ <span id="vReserve">120</span></small></div>
+</div>
+<div id="banner">🧟 世界預覽版：先逛逛地圖，遊戲機制陸續加入</div>
+<div id="hint">WASD 移動 ・ 滑鼠環視 ・ 空白鍵跳躍 ・ 左鍵開槍（測試） ・ R 換彈匣 ・ ESC 暫停</div>
+<div id="touchUI" class="hidden">
+  <div id="moveStick"><div id="moveKnob"></div></div>
+  <div id="fireBtn">開槍</div>
+  <div id="jumpBtn">跳</div>
+  <button id="btnPause">⏸</button>
+</div>
+<div id="overlay">
+  <h1>🧟 殭屍堡壘 3D</h1>
+  <div class="sub">Z O M B I E&nbsp;&nbsp;F O R T</div>
+  <p>第一人稱槍戰單字遊戲（世界預覽版）</p>
+  <p>先在磚牆堡壘之間走走看看，殭屍目前只是站著的模型</p>
+  <p class="go" id="goText">— 點擊滑鼠 或 輕觸螢幕 開始探索 —</p>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script>
+'use strict';
+/* ============ 工具 ============ */
+const TAU=Math.PI*2;
+const rnd=(a=1,b)=>b===undefined?Math.random()*a:a+Math.random()*(b-a);
+const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
+const isTouch=matchMedia('(pointer:coarse)').matches;
+
+/* ============ 單字資料（注入鏈：postMessage / hash / 內建 VOCAB） ============ */
+let VOCAB=[
+  {word:'zombie',chinese:'殭屍'},{word:'gun',chinese:'槍'},{word:'wall',chinese:'牆壁'},
+  {word:'door',chinese:'門'},{word:'brick',chinese:'磚頭'},{word:'run',chinese:'跑'},
+  {word:'jump',chinese:'跳'},{word:'shoot',chinese:'射擊'},{word:'floor',chinese:'地板'},
+  {word:'grass',chinese:'草地'},{word:'sky',chinese:'天空'},{word:'cloud',chinese:'雲'}
+];
+function normalizeGunVocab(list){
+  if(!Array.isArray(list))return[];
+  return list.map(o=>{
+    if(!o)return null;
+    const w=o.word||o.en, c=o.chinese||o.zh||o.meaning;
+    return (w&&c)?{word:String(w),chinese:String(c)}:null;
+  }).filter(Boolean);
+}
+function applyGunData(payload){
+  const ws=normalizeGunVocab(payload&&payload.words);
+  if(ws.length)VOCAB=ws;
+}
+window.addEventListener('message',e=>{
+  const d=e.data;
+  if(d&&d.type==='GUN_DATA'&&d.payload)applyGunData(d.payload);
+});
+try{
+  const m=location.hash.match(/lessonData=([^&]+)/);
+  if(m)applyGunData(JSON.parse(decodeURIComponent(m[1])));
+}catch(e){}
+
+/* ============ 音效（Web Audio 合成） ============ */
+let AC=null,master=null,noiseBuf=null;
+function ensureAudio(){
+  if(AC){if(AC.state==='suspended')AC.resume();return;}
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  master=AC.createGain();master.gain.value=0.4;master.connect(AC.destination);
+  noiseBuf=AC.createBuffer(1,AC.sampleRate,AC.sampleRate);
+  const d=noiseBuf.getChannelData(0);
+  for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+}
+function noiseSnd(dur,f0,f1,vol,type='lowpass'){
+  if(!AC)return;const t=AC.currentTime;
+  const n=AC.createBufferSource();n.buffer=noiseBuf;
+  const f=AC.createBiquadFilter();f.type=type;
+  f.frequency.setValueAtTime(f0,t);
+  f.frequency.exponentialRampToValueAtTime(Math.max(40,f1),t+dur);
+  const g=AC.createGain();g.gain.setValueAtTime(vol,t);
+  g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  n.connect(f);f.connect(g);g.connect(master);n.start(t);n.stop(t+dur+0.05);
+}
+function tone(freq,dur,vol,type='square',f1){
+  if(!AC)return;const t=AC.currentTime;
+  const o=AC.createOscillator();o.type=type;
+  o.frequency.setValueAtTime(freq,t);
+  if(f1)o.frequency.exponentialRampToValueAtTime(f1,t+dur);
+  const g=AC.createGain();g.gain.setValueAtTime(vol,t);
+  g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+0.05);
+}
+const sndShot=()=>{noiseSnd(0.14,3200,300,0.5,'highpass');tone(190,0.09,0.3,'square',55);};
+const sndEmpty=()=>tone(900,0.05,0.15,'square',600);
+const sndReload=()=>{tone(500,0.05,0.2,'square');setTimeout(()=>tone(720,0.06,0.2,'square'),140);};
+
+/* ============ 像素材質（canvas 產生，無外部圖檔） ============ */
+function texCanvas(size,fn){
+  const c=document.createElement('canvas');c.width=c.height=size;
+  fn(c.getContext('2d'),size);
+  const t=new THREE.CanvasTexture(c);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  t.magFilter=THREE.NearestFilter;t.colorSpace=THREE.SRGBColorSpace;
+  return t;
+}
+const TEX={};
+TEX.brick=texCanvas(128,(g,s)=>{           // 紅磚牆：一格＝2×2 公尺，8 排磚
+  g.fillStyle='#cbc4b6';g.fillRect(0,0,s,s);
+  const bh=16,bw=32;
+  for(let r=0;r<8;r++)for(let c=-1;c<5;c++){
+    const off=(r%2)?bw/2:0;
+    g.fillStyle=`rgb(${175+rnd(-18,14)|0},${70+rnd(-12,12)|0},${48+rnd(-10,10)|0})`;
+    g.fillRect(c*bw+off+2,r*bh+2,bw-4,bh-4);
+  }
+});
+TEX.sand=texCanvas(128,(g,s)=>{            // 沙磚（門框）：淺黃小磚
+  g.fillStyle='#c9b382';g.fillRect(0,0,s,s);
+  const bh=16,bw=32;
+  for(let r=0;r<8;r++)for(let c=-1;c<5;c++){
+    const off=(r%2)?bw/2:0;
+    g.fillStyle=`rgb(${216+rnd(-14,12)|0},${190+rnd(-14,10)|0},${130+rnd(-12,12)|0})`;
+    g.fillRect(c*bw+off+2,r*bh+2,bw-4,bh-4);
+  }
+});
+TEX.plank=texCanvas(128,(g,s)=>{           // 木板地：一格＝2×2 公尺，4 排木板
+  g.fillStyle='#8a6a33';g.fillRect(0,0,s,s);
+  const ph=32,pw=64;
+  for(let r=0;r<4;r++)for(let c=-1;c<3;c++){
+    const off=(r%2)?pw/2:0;
+    g.fillStyle=`rgb(${212+rnd(-16,12)|0},${172+rnd(-16,10)|0},${100+rnd(-14,12)|0})`;
+    g.fillRect(c*pw+off+2,r*ph+2,pw-4,ph-4);
+    g.fillStyle='rgba(120,86,40,.35)';
+    for(let i=0;i<3;i++)g.fillRect(c*pw+off+8+i*16,r*ph+6,2,ph-12);
+  }
+});
+TEX.grass=texCanvas(128,(g,s)=>{           // 草地：綠底加雜點
+  g.fillStyle='#5fb32e';g.fillRect(0,0,s,s);
+  for(let i=0;i<900;i++){
+    g.fillStyle=`rgb(${70+rnd(-30,40)|0},${165+rnd(-40,35)|0},${40+rnd(-20,30)|0})`;
+    g.fillRect(rnd(s)|0,rnd(s)|0,3,3);
+  }
+});
+TEX.crate=texCanvas(128,(g,s)=>{           // 木箱
+  g.fillStyle='#b8905a';g.fillRect(0,0,s,s);
+  g.strokeStyle='#7a5a2e';g.lineWidth=10;g.strokeRect(5,5,s-10,s-10);
+  g.lineWidth=6;g.beginPath();g.moveTo(8,8);g.lineTo(s-8,s-8);g.moveTo(s-8,8);g.lineTo(8,s-8);g.stroke();
+});
+TEX.zface=texCanvas(64,(g,s)=>{            // 殭屍臉
+  g.fillStyle='#4f9c3a';g.fillRect(0,0,s,s);
+  for(let i=0;i<60;i++){g.fillStyle=`rgba(60,120,40,${rnd(0.2,0.5)})`;g.fillRect(rnd(s)|0,rnd(s)|0,6,6);}
+  g.fillStyle='#111';g.fillRect(12,22,12,10);g.fillRect(40,22,12,10);   // 眼
+  g.fillStyle='#2a4d1e';g.fillRect(26,40,12,14);                        // 嘴
+});
+
+/* ============ 場景 ============ */
+const SKY=0x87ceeb;
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(SKY);
+scene.fog=new THREE.Fog(SKY,90,240);
+const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,400);
+camera.rotation.order='YXZ';
+scene.add(camera);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xdfeeff,0x88a35a,0.95));
+const sun=new THREE.DirectionalLight(0xfff2d0,0.85);
+sun.position.set(60,110,40);scene.add(sun);
+
+function matOf(tex,rx,ry){
+  const t=tex.clone();t.needsUpdate=true;t.repeat.set(rx,ry);
+  return new THREE.MeshLambertMaterial({map:t});
+}
+function block(w,h,d,tex,su=2){    // 三組材質讓磚紋依尺寸正確重複
+  const mx=matOf(tex,d/su,h/su),mz=matOf(tex,w/su,h/su),my=matOf(tex,w/su,d/su);
+  return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),[mx,mx,my,my,mz,mz]);
+}
+
+/* 地面 */
+{
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(320,320),matOf(TEX.grass,160,160));
+  g.rotation.x=-Math.PI/2;scene.add(g);
+}
+
+/* ============ 碰撞（2D AABB 清單） ============ */
+const solids=[];
+const addSolid=(x1,z1,x2,z2)=>solids.push({x1,z1,x2,z2});
+const PR=0.42;                      // 玩家半徑
+function collide(px,pz){
+  for(const s of solids)
+    if(px>s.x1-PR&&px<s.x2+PR&&pz>s.z1-PR&&pz<s.z2+PR)return s;
+  return null;
+}
+
+/* ============ 堡壘建造 ============ */
+const T=0.7, DOOR_W=2.6, DOOR_H=3, FR=0.9;   // 牆厚 / 門寬 / 門高 / 門框寬
+
+function segX(x1,x2,z0,h,tex){      // 沿 X 軸的牆段
+  if(x2-x1<0.05)return;
+  const m=block(x2-x1,h,T,tex);m.position.set((x1+x2)/2,h/2,z0);scene.add(m);
+  addSolid(x1,z0-T/2,x2,z0+T/2);
+}
+function segZ(z1,z2,x0,h,tex){      // 沿 Z 軸的牆段
+  if(z2-z1<0.05)return;
+  const m=block(T,h,z2-z1,tex);m.position.set(x0,h/2,(z1+z2)/2);scene.add(m);
+  addSolid(x0-T/2,z1,x0+T/2,z2);
+}
+function wallX(x1,x2,z0,h,doors){   // 帶門的 X 向牆，doors＝門中心的 x 座標
+  const ds=doors.slice().sort((a,b)=>a-b);let cur=x1;
+  for(const dc of ds){
+    const gl=dc-DOOR_W/2,gr=dc+DOOR_W/2;
+    segX(cur,gl-FR,z0,h,TEX.brick);
+    segX(gl-FR,gl,z0,h,TEX.sand);segX(gr,gr+FR,z0,h,TEX.sand);   // 沙磚門框
+    const lin=block(DOOR_W,h-DOOR_H,T,TEX.brick);                 // 門楣（不加碰撞）
+    lin.position.set(dc,DOOR_H+(h-DOOR_H)/2,z0);scene.add(lin);
+    cur=gr+FR;
+  }
+  segX(cur,x2,z0,h,TEX.brick);
+}
+function wallZ(z1,z2,x0,h,doors){   // 帶門的 Z 向牆，doors＝門中心的 z 座標
+  const ds=doors.slice().sort((a,b)=>a-b);let cur=z1;
+  for(const dc of ds){
+    const gl=dc-DOOR_W/2,gr=dc+DOOR_W/2;
+    segZ(cur,gl-FR,x0,h,TEX.brick);
+    segZ(gl-FR,gl,x0,h,TEX.sand);segZ(gr,gr+FR,x0,h,TEX.sand);
+    const lin=block(T,h-DOOR_H,DOOR_W,TEX.brick);
+    lin.position.set(x0,DOOR_H+(h-DOOR_H)/2,dc);scene.add(lin);
+    cur=gr+FR;
+  }
+  segZ(cur,z2,x0,h,TEX.brick);
+}
+/* 矩形堡壘：doors＝{n,s,e,w: 各面門中心的偏移陣列}，木板地板鋪滿 */
+function fort(cx,cz,w,d,h,doors={}){
+  const hw=w/2,hd=d/2;
+  const fl=block(w,0.12,d,TEX.plank);fl.position.set(cx,0.06,cz);scene.add(fl);
+  wallX(cx-hw,cx+hw,cz-hd,h,(doors.n||[]).map(o=>cx+o));
+  wallX(cx-hw,cx+hw,cz+hd,h,(doors.s||[]).map(o=>cx+o));
+  wallZ(cz-hd+T/2,cz+hd-T/2,cx-hw,h,(doors.w||[]).map(o=>cz+o));
+  wallZ(cz-hd+T/2,cz+hd-T/2,cx+hw,h,(doors.e||[]).map(o=>cz+o));
+}
+function crate(x,z,s=1.15){
+  const m=block(s,s,s,TEX.crate,s);m.position.set(x,s/2,z);scene.add(m);
+  addSolid(x-s/2,z-s/2,x+s/2,z+s/2);
+}
+
+/* --- 地圖佈局 --- */
+fort(0,0,26,18,5,{n:[-6,6],s:[0],e:[0],w:[0]});          // 中央大堡（雙北門）
+wallZ(-9+T/2,9-T/2,-4,5,[0]);                            // 中央堡內隔牆
+fort(-46,-30,16,12,4.5,{e:[0],s:[-3]});
+fort(40,-44,13,13,4,{n:[0],w:[0]});
+fort(48,28,18,14,5,{w:[0],n:[-4],s:[4]});
+fort(-42,36,10,10,3.5,{e:[0]});
+fort(-6,52,12,9,3.5,{s:[0],w:[0]});
+/* 散落掩體：矮牆與木箱 */
+segX(-24,-14,12,1.5,TEX.brick);
+segX(14,24,-16,1.5,TEX.brick);
+segZ(-2,8,24,1.5,TEX.brick);
+segZ(-30,-22,-20,1.5,TEX.brick);
+crate(-16,24);crate(-14.6,24);crate(-15.3,25.2);
+crate(20,14);crate(21.4,14.2);
+crate(-30,-8);crate(9,-28);crate(10.4,-28.2);crate(9.7,-26.9);
+/* 邊界圍欄（隱形）：限制活動範圍 */
+addSolid(-152,-152,152,-150);addSolid(-152,150,152,152);
+addSolid(-152,-152,-150,152);addSolid(150,-152,152,152);
+
+/* ============ 雲（緩慢漂移的白色方塊） ============ */
+const clouds=[];
+{
+  const cm=new THREE.MeshLambertMaterial({color:0xffffff});
+  for(let i=0;i<7;i++){
+    const c=new THREE.Mesh(new THREE.BoxGeometry(rnd(10,18),1.6,rnd(6,11)),cm);
+    c.position.set(rnd(-130,130),rnd(42,60),rnd(-130,130));
+    scene.add(c);clouds.push(c);
+  }
+}
+
+/* ============ 殭屍模型（目前只是站著搖晃的擺設） ============ */
+const zombies=[];
+function makeZombie(x,z,ry){
+  const g=new THREE.Group();
+  const skin=new THREE.MeshLambertMaterial({color:0x57a63e});
+  const shirt=new THREE.MeshLambertMaterial({color:0x2f8f86});
+  const pants=new THREE.MeshLambertMaterial({color:0x35406e});
+  const face=new THREE.MeshLambertMaterial({map:TEX.zface});
+  const head=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.72,0.72),
+    [skin,skin,skin,skin,face,skin]);              // +z 面是臉
+  head.position.y=2.16;g.add(head);
+  const body=new THREE.Mesh(new THREE.BoxGeometry(0.86,1.1,0.42),shirt);
+  body.position.y=1.25;g.add(body);
+  for(const s of[-1,1]){
+    const leg=new THREE.Mesh(new THREE.BoxGeometry(0.38,1.0,0.38),pants);
+    leg.position.set(s*0.22,0.5,0);g.add(leg);
+    const arm=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.95),skin);
+    arm.position.set(s*0.58,1.62,0.5);g.add(arm);  // 雙手前伸的殭屍站姿
+    arm.userData.isArm=true;
+  }
+  g.position.set(x,0,z);g.rotation.y=ry;
+  g.userData.phase=rnd(TAU);
+  scene.add(g);zombies.push(g);
+  addSolid(x-0.45,z-0.45,x+0.45,z+0.45);
+}
+makeZombie(8,22,Math.PI);
+makeZombie(-26,-14,0.6);
+makeZombie(31,4,-1.2);
+makeZombie(-11,-42,0.2);
+makeZombie(22,44,2.6);
+makeZombie(3,-4,2.2);          // 中央堡裡一隻
+
+/* ============ 第一人稱槍模型 ============ */
+const gunGrp=new THREE.Group();
+{
+  const bk=new THREE.MeshLambertMaterial({color:0x181a1f});
+  const add=(w,h,d,x,y,z,rx=0)=>{
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),bk);
+    m.position.set(x,y,z);m.rotation.x=rx;gunGrp.add(m);
+  };
+  add(0.17,0.17,0.85,0,0.05,-0.5);        // 槍管
+  add(0.21,0.26,0.5,0,-0.03,-0.02);       // 槍身
+  add(0.17,0.44,0.22,0,-0.32,0.1,0.3);    // 握把
+  add(0.055,0.1,0.055,0,0.17,-0.86);      // 準星
+  gunGrp.position.set(0.44,-0.38,-0.95);
+  gunGrp.rotation.y=-0.06;
+  camera.add(gunGrp);
+  const flash=new THREE.Mesh(new THREE.PlaneGeometry(0.42,0.42),
+    new THREE.MeshBasicMaterial({color:0xffe08a,transparent:true,opacity:0.95,
+      blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide}));
+  flash.position.set(0,0.05,-0.98);flash.visible=false;
+  gunGrp.add(flash);gunGrp.userData.flash=flash;
+}
+
+/* ============ 玩家狀態與操控 ============ */
+const player={x:0,z:34,yaw:0,pitch:0,vx:0,vz:0,vy:0,y:0,onGround:true};
+const EYE=1.7,WALK=6.5;
+const key={};
+let playing=false,paused=false;
+let mag=30,reserve=120,recoil=0,bobT=0;
+
+addEventListener('keydown',e=>{
+  key[e.code]=true;
+  if(e.code==='Space'){e.preventDefault();doJump();}
+  if(e.code==='KeyR')reload();
+});
+addEventListener('keyup',e=>key[e.code]=false);
+function doJump(){
+  if(playing&&!paused&&player.onGround){player.vy=7;player.onGround=false;}
+}
+function reload(){
+  if(!playing||mag>=30||reserve<=0)return;
+  const take=Math.min(30-mag,reserve);
+  mag+=take;reserve-=take;updAmmo();sndReload();
+}
+function updAmmo(){
+  document.getElementById('vMag').textContent=mag;
+  document.getElementById('vReserve').textContent=reserve;
+}
+function fire(){
+  if(!playing||paused)return;
+  if(mag<=0){sndEmpty();return;}
+  mag--;updAmmo();recoil=1;sndShot();
+  const f=gunGrp.userData.flash;
+  f.visible=true;f.rotation.z=rnd(TAU);
+  setTimeout(()=>f.visible=false,55);
+  /* 之後在這裡接命中判定 / 殭屍與單字機制 */
+}
+
+/* 滑鼠：pointer lock 環視 */
+const overlay=document.getElementById('overlay');
+function startGame(){
+  ensureAudio();
+  overlay.classList.add('hidden');
+  playing=true;paused=false;
+  if(!isTouch)renderer.domElement.requestPointerLock();
+}
+overlay.addEventListener('click',startGame);
+document.addEventListener('pointerlockchange',()=>{
+  if(!isTouch&&playing&&document.pointerLockElement!==renderer.domElement){
+    paused=true;overlay.classList.remove('hidden');
+    document.getElementById('goText').textContent='— 已暫停，點擊繼續 —';
+  }else paused=false;
+});
+addEventListener('mousemove',e=>{
+  if(document.pointerLockElement!==renderer.domElement)return;
+  player.yaw-=e.movementX*0.0024;
+  player.pitch=clamp(player.pitch-e.movementY*0.0024,-1.45,1.45);
+});
+addEventListener('mousedown',e=>{
+  if(e.button===0&&document.pointerLockElement===renderer.domElement)fire();
+});
+
+/* 觸控：左半螢幕虛擬搖桿、右半螢幕滑動環視 */
+if(isTouch)document.getElementById('touchUI').classList.remove('hidden');
+const stickEl=document.getElementById('moveStick'),knob=document.getElementById('moveKnob');
+let stickId=null,lookId=null,stickVec={x:0,y:0},lookLast={x:0,y:0};
+addEventListener('touchstart',e=>{
+  if(!playing){startGame();return;}
+  for(const t of e.changedTouches){
+    const el=document.elementFromPoint(t.clientX,t.clientY);
+    if(el&&(el.id==='fireBtn')){fire();el.classList.add('active');continue;}
+    if(el&&(el.id==='jumpBtn')){doJump();continue;}
+    if(el&&(el.id==='btnPause'))continue;
+    if(t.clientX<innerWidth*0.45&&stickId===null){
+      stickId=t.identifier;updStick(t);
+    }else if(lookId===null){
+      lookId=t.identifier;lookLast={x:t.clientX,y:t.clientY};
+    }
+  }
+},{passive:false});
+addEventListener('touchmove',e=>{
+  for(const t of e.changedTouches){
+    if(t.identifier===stickId)updStick(t);
+    else if(t.identifier===lookId){
+      player.yaw-=(t.clientX-lookLast.x)*0.0052;
+      player.pitch=clamp(player.pitch-(t.clientY-lookLast.y)*0.0052,-1.45,1.45);
+      lookLast={x:t.clientX,y:t.clientY};
+    }
+  }
+  if(playing)e.preventDefault();
+},{passive:false});
+addEventListener('touchend',e=>{
+  for(const t of e.changedTouches){
+    if(t.identifier===stickId){stickId=null;stickVec={x:0,y:0};knob.style.left='70px';knob.style.top='70px';}
+    if(t.identifier===lookId)lookId=null;
+  }
+  document.getElementById('fireBtn').classList.remove('active');
+});
+function updStick(t){
+  const r=stickEl.getBoundingClientRect();
+  let dx=t.clientX-(r.left+70),dy=t.clientY-(r.top+70);
+  const len=Math.hypot(dx,dy),max=58;
+  if(len>max){dx*=max/len;dy*=max/len;}
+  stickVec={x:dx/max,y:dy/max};
+  knob.style.left=(70+dx)+'px';knob.style.top=(70+dy)+'px';
+}
+document.getElementById('btnPause').addEventListener('click',()=>{
+  paused=true;overlay.classList.remove('hidden');
+  document.getElementById('goText').textContent='— 已暫停，輕觸繼續 —';
+});
+
+/* ============ 主迴圈 ============ */
+let lastT=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
+  if(playing&&!paused){
+    /* 移動輸入（鍵盤＋搖桿） */
+    let fw=(key.KeyW||key.ArrowUp?1:0)-(key.KeyS||key.ArrowDown?1:0),
+        st=(key.KeyD||key.ArrowRight?1:0)-(key.KeyA||key.ArrowLeft?1:0);
+    fw+=-stickVec.y;st+=stickVec.x;
+    const mLen=Math.hypot(fw,st);
+    if(mLen>1){fw/=mLen;st/=mLen;}
+    const sy=Math.sin(player.yaw),cy=Math.cos(player.yaw);
+    const tx=(-sy*fw+cy*st)*WALK, tz=(-cy*fw-sy*st)*WALK;
+    player.vx+=(tx-player.vx)*Math.min(1,dt*10);
+    player.vz+=(tz-player.vz)*Math.min(1,dt*10);
+    /* 分軸位移＋碰撞 */
+    let nx=player.x+player.vx*dt;
+    if(!collide(nx,player.z))player.x=nx;else player.vx=0;
+    let nz=player.z+player.vz*dt;
+    if(!collide(player.x,nz))player.z=nz;else player.vz=0;
+    /* 跳躍重力 */
+    if(!player.onGround){
+      player.vy-=22*dt;player.y+=player.vy*dt;
+      if(player.y<=0){player.y=0;player.vy=0;player.onGround=true;}
+    }
+    /* 相機與槍 */
+    const sp=Math.hypot(player.vx,player.vz);
+    bobT+=dt*(4+sp*1.1);
+    camera.position.set(player.x,EYE+player.y+Math.sin(bobT)*0.015*(sp/WALK),player.z);
+    camera.rotation.set(player.pitch,player.yaw,0);
+    recoil=Math.max(0,recoil-dt*8);
+    gunGrp.position.z=-0.95+recoil*0.12;
+    gunGrp.rotation.x=recoil*0.14;
+    gunGrp.position.y=-0.38+Math.sin(bobT*2)*0.012*(sp/WALK);
+    /* 殭屍搖晃 */
+    for(const z of zombies){
+      const p=z.userData.phase+now*0.0016;
+      z.rotation.y+=Math.sin(p)*0.0006;
+      z.children.forEach(ch=>{if(ch.userData.isArm)ch.rotation.x=Math.sin(p)*0.09;});
+    }
+    /* 雲漂移 */
+    for(const c of clouds){c.position.x+=dt*1.2;if(c.position.x>150)c.position.x=-150;}
+  }
+  renderer.render(scene,camera);
+}
+camera.position.set(player.x,EYE,player.z);
+camera.rotation.set(0,player.yaw,0);
+requestAnimationFrame(loop);
+
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>
