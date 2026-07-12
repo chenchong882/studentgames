@@ -148,7 +148,7 @@ button{font-family:'Outfit',sans-serif;}
         <div class="rule"><strong>勝利目標</strong><br>推倒敵方基地，或時間到時基地血量較高。</div>
         <div class="rule"><strong>答對獎勵</strong><br>+25 金，連對 3 題再 +15 金。</div>
         <div class="rule" id="difficulty-summary"><strong>敵方壓力</strong><br>普通：開場 30 金，答錯敵方增援。</div>
-        <div class="rule"><strong>題型</strong><br>單字題（中英互選、看字選圖）賺金幣；一般／困難穿插填空／文法題賺強化值。</div>
+        <div class="rule"><strong>題型</strong><br>單字題（中英互選、看字選圖）賺金幣；一般／困難穿插填空／文法題賺強化值。任何題連對達標（簡單 5 題、其他 8 題）再 +1 強化值。</div>
       </div>
     </div>
     <div class="panel">
@@ -161,7 +161,7 @@ button{font-family:'Outfit',sans-serif;}
       <div class="difficulty-grid">
         <button class="difficulty-btn" id="difficulty-easy" type="button" onclick="selectDifficulty('easy')">
           <span class="label">簡單</span>
-          <span class="desc">玩法與一般相同，題目以圖片題為主（英文＋發音→選圖），不出填空題。</span>
+          <span class="desc">敵人出兵最慢（11 秒起），答錯不生兵。圖片題為主（英文＋發音→選圖），連對 5 題 +1 強化值可升級。</span>
         </button>
         <button class="difficulty-btn active" id="difficulty-normal" type="button" onclick="selectDifficulty('normal')">
           <span class="label">一般</span>
@@ -169,7 +169,7 @@ button{font-family:'Outfit',sans-serif;}
         </button>
         <button class="difficulty-btn" id="difficulty-hard" type="button" onclick="selectDifficulty('hard')">
           <span class="label">困難</span>
-          <span class="desc">20 金開局，敵人更快，連錯會追加弓箭手。</span>
+          <span class="desc">20 金開局，敵人更快（7 秒起），連錯會追加弓箭手，BOSS 答錯回滿血。</span>
         </button>
       </div>
       <div id="mode-hint"></div>
@@ -204,7 +204,7 @@ button{font-family:'Outfit',sans-serif;}
           <span class="info"><span class="name">法師</span><span class="cost">85 金</span></span>
         </button>
         <div id="upgrade-section">
-          <div class="section-title">兵種進化（文法題賺強化值）</div>
+          <div class="section-title">兵種進化（強化值升級）</div>
           <button class="unit-btn" id="up-sword" onclick="upgradeUnit('sword')">
             <span class="icon">⚔️</span>
             <span class="info"><span class="name">劍士進化</span><span class="cost">升 Lv2・2 強化值</span></span>
@@ -261,6 +261,7 @@ button{font-family:'Outfit',sans-serif;}
       這是一場<b>答題攻防戰</b>：畫面下方出單字／填空文法題，<b>點選正確答案</b>。<br>
       ✅ 答對單字題（中英互選、看圖選答）→ 獲得金幣、派我方士兵攻向敵方基地。<br>
       📘 答對填空／文法題 → 累積強化值，可<b>升級全軍</b>（攻擊與血量倍率提升）。<br>
+      🔥 任何題型<b>連續答對達標</b>（簡單 5 題、其他 8 題）→ 再 +1 強化值，答錯歸零重數。<br>
       ⏳ 限時內把<b>敵方基地血量打到 0</b> 就獲勝；小心敵軍與 BOSS 反推你的基地！<br>
       ⏸ 戰鬥中可按 <b>ESC</b> 暫停。
     </div>
@@ -295,17 +296,20 @@ const BASE_CONFIG = {
 const DIFFICULTY_CONFIG = {
   easy: {
     label: '簡單',
-    // 玩法參數與一般完全相同（原簡單檔的金幣／出兵鬆檔廢除），只差題型規則
     startGold: 30,
     passiveGold: 8,
     passiveMs: 5000,
-    enemyIntervals: { early: 9000, mid: 7000, late: 5000 },
-    wrongPenalty: 'spawn_sword',
+    enemyIntervals: { early: 11000, mid: 9000, late: 7000 },
+    enemyTierMult: [1.0, 1.25, 1.5],
+    wrongPenalty: 'advance_spawn',   // 答錯不生兵，只把敵方出兵倒數提前
     bossChipMode: 'count',           // 每答對一題就扣 BOSS 血
     bossWrong: 'none',               // 答錯不影響 BOSS 血量
+    bossMode: 'vocab',               // BOSS 出單字題，答對擊退
     useFill: false,                  // 簡單：不出填空題
-    allowLevelUp: false,             // 簡單：不開放兵種升級（無填空題養強化值）
-    summary: '簡單：玩法與一般相同（30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士）。題型以圖片題為主，不出填空、不能升級。BOSS：連續答對單字擊退。'
+    allowLevelUp: true,              // 簡單：可升級（強化值靠連對賺）
+    powerQuiz: false,                // 簡單：不穿插填空/文法題
+    streakNeed: 5,                   // 連對 5 題 +1 強化值
+    summary: '簡單：30 金開局，每 5 秒 +8 金；敵人 11 / 9 / 7 秒出兵，答錯只讓敵方出兵倒數提前、不生兵。題型以圖片題為主，不出填空；連對 5 題 +1 強化值可升級。BOSS：答對單字擊退，答錯不回血。'
   },
   normal: {
     label: '一般',
@@ -313,25 +317,32 @@ const DIFFICULTY_CONFIG = {
     passiveGold: 8,
     passiveMs: 5000,
     enemyIntervals: { early: 9000, mid: 7000, late: 5000 },
+    enemyTierMult: [1.0, 1.35, 1.7],
     wrongPenalty: 'spawn_sword',
     bossChipMode: 'peak',            // 只在刷新「連續答對最高紀錄」時扣 BOSS 血
     bossWrong: 'none',               // 答錯中斷連續但不補血
+    bossMode: 'grammar',             // BOSS 出強化值題擊退
     useFill: true,                   // 一般：穿插填空題
     allowLevelUp: true,
-    summary: '一般：30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士。有填空題可升級。BOSS：需連續答對刷新紀錄才扣血。'
+    powerQuiz: true,                 // 穿插填空/文法題賺強化值
+    streakNeed: 8,                   // 連對 8 題額外 +1 強化值
+    summary: '一般：30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士。有填空題可升級，連對 8 題再 +1 強化值。BOSS：需連續答對刷新紀錄才扣血。'
   },
   hard: {
     label: '困難',
     startGold: 20,
     passiveGold: 5,
     passiveMs: 6000,
-    enemyIntervals: { early: 7000, mid: 5000, late: 3800 },
+    enemyIntervals: { early: 7000, mid: 5000, late: 4500 },
     wrongPenalty: 'spawn_scaling',
     bossChipMode: 'peak',            // 連續答對才扣血
     bossWrong: 'full',               // 答錯補滿血，須一路連續答對
+    bossMode: 'grammar',             // BOSS 出強化值題擊退
     useFill: true,                   // 困難：穿插填空題
     allowLevelUp: true,
-    summary: '困難：20 金開局，每 6 秒 +5 金；敵人 7 / 5 / 3.8 秒出兵，連錯會追加弓箭手。有填空題可升級。BOSS：答錯回滿血，須連續答對。'
+    powerQuiz: true,                 // 穿插填空/文法題賺強化值
+    streakNeed: 8,                   // 連對 8 題額外 +1 強化值
+    summary: '困難：20 金開局，每 6 秒 +5 金；敵人 7 / 5 / 4.5 秒出兵，連錯會追加弓箭手。有填空題可升級，連對 8 題再 +1 強化值。BOSS：答錯回滿血，須連續答對。'
   }
 };
 
@@ -713,14 +724,14 @@ function nextPowerQuestion(){
 function getNextQuestion(){
   // BOSS 期間
   if(state && state.boss){
-    // 簡單(內建)：BOSS 以「連續答對單字」擊退 → 出單字題
+    // 簡單(內建)：BOSS 以「答對單字」擊退 → 出單字題
     if(state.bossMode === 'vocab') return nextFromPool(vocabQuestions, 'vocab');
     // 其餘：全部強化值題，盡快擊退
     return nextPowerQuestion() || nextFromPool(vocabQuestions, 'vocab');
   }
-  // 平時：有升級機制時，每 3 題單字穿插 1 題強化值題；簡單模式無升級 → 平時只考單字
+  // 平時：有穿插強化值題的模式，每 3 題單字穿插 1 題；簡單模式（powerQuiz=false）平時只考單字
   const hasPower = fillAvailable() || grammarQuestions.length;
-  if(state && state.allowLevelUp && hasPower && (state.vocabSincePower || 0) >= 3){
+  if(state && state.powerQuiz && hasPower && (state.vocabSincePower || 0) >= 3){
     state.vocabSincePower = 0;
     const pq = nextPowerQuestion();
     if(pq) return pq;
@@ -828,6 +839,7 @@ function initState(){
     wrongStreak:0,
     combo:0,
     maxCombo:0,
+    correctStreak:0,         // 全題型連對（滿 streakNeed 的倍數 +1 強化值）
     deployCount:0,
     startMs:now,
     timeLeft:CONFIG.durationSec,
@@ -835,7 +847,7 @@ function initState(){
     lastEnemySpawn:now,
     quizLocked:false,
     // ── 等級系統 ──
-    power:0,                 // 強化值（文法題賺）
+    power:0,                 // 強化值（文法題／連對賺）
     levels:{ sword:1, archer:1, mage:1 },   // 各兵種獨立等級 1~3
     // ── 敵方階梯 ──
     enemyTier:0,             // 0/1/2 對應 enemyTierMult
@@ -903,15 +915,16 @@ function startGame(){
   state = initState();
   // ── 依「內建單字 / 段考」與難度決定本局規則 ──
   // 段考（builtin=false）：無視難度，永遠單字＋文法題、可升級、BOSS 走文法。
-  // 內建＋簡單：不出填空/文法、不能升級，BOSS 改「連續答對單字」擊退。
-  // 內建＋普通/困難：填空＋文法、可升級、BOSS 走文法（既有）。
+  // 內建：依難度設定——簡單不穿插填空/文法（powerQuiz=false）、BOSS 走單字；普通/困難照舊。
   const isBuiltin = !!battleData.builtin;
   if(!isBuiltin){
-    state.allowLevelUp = true;  state.bossMode = 'grammar'; state.useFill = false;
-  } else if(CONFIG.allowLevelUp === false){
-    state.allowLevelUp = false; state.bossMode = 'vocab';   state.useFill = false;
+    state.allowLevelUp = true; state.bossMode = 'grammar';     state.useFill = false;
+    state.powerQuiz = true;    state.streakNeed = 8;
   } else {
-    state.allowLevelUp = true;  state.bossMode = 'grammar'; state.useFill = (CONFIG.useFill !== false);
+    state.allowLevelUp = true;             state.bossMode = CONFIG.bossMode;
+    state.useFill = (CONFIG.useFill !== false);
+    state.powerQuiz = (CONFIG.powerQuiz !== false);
+    state.streakNeed = CONFIG.streakNeed || 8;
   }
   spawnEnemy('sword', 'opening');
   resetQuestionQueues();
@@ -1380,7 +1393,7 @@ function deployUnit(type){
 
 function upgradeUnit(type){
   if(!state || state.phase !== 'playing') return;
-  if(!state.allowLevelUp) return;                    // 簡單(內建)：不開放升級
+  if(!state.allowLevelUp) return;                    // 保險：無升級機制時擋下
   if(!UNIT_DEF[type] || state.levels[type] >= 3) return;
   const next = state.levels[type] + 1;
   const cost = CONFIG.levelCost[next];
@@ -1440,7 +1453,7 @@ function maybeSpawnBoss(elapsed){
     state.bossesSpawned += 1;
     state.grammarStreak = 0;
     const tip = state.bossMode === 'vocab'
-      ? `連續答對 ${boss.need} 題單字擊退（答錯歸零，要一路連對）`
+      ? `答對 ${boss.need} 題單字擊退`
       : CONFIG.bossWrong === 'full'
         ? `連續答對 ${boss.need} 題文法擊退（答錯回滿血）`
         : CONFIG.bossChipMode === 'peak'
@@ -1478,11 +1491,11 @@ function chipBossOnCorrect(){
   return `連對 ${boss.streak} 題（要超過紀錄 ${boss.peak} 才再扣血）`;
 }
 
-// 答錯且 BOSS 在場：中斷連續；vocab 模式與困難一律回滿血（須一路連對）
+// 答錯且 BOSS 在場：中斷連續；僅困難（bossWrong='full'）回滿血
 function bossOnWrong(){
   const boss = state.boss; if(!boss) return;
   boss.streak = 0; state.grammarStreak = 0;
-  if(state.bossMode === 'vocab' || CONFIG.bossWrong === 'full'){
+  if(CONFIG.bossWrong === 'full'){
     boss.hp = boss.maxHp; boss.peak = 0;
     state.floats.push({ x:boss.x, y:boss.y-34, text:'連續中斷，BOSS 回滿血！', color:'#ff5050', life:1000, born:Date.now() });
   }
@@ -1499,8 +1512,8 @@ function loadQuestion(){
         ? `📐 ${currentQuestion.type}｜答對 +${CONFIG.powerPerGrammar} 強化值（升級／擊退 BOSS）`
         : `📐 ${currentQuestion.type}｜答對擊退 BOSS`)
     : (vocabBossNow
-        ? `🔥 ${currentQuestion.type}｜連續答對擊退 BOSS（答錯歸零）`
-        : `📘 ${currentQuestion.type}｜答對 +${CONFIG.correctGold} 金，連對 ${CONFIG.comboNeed} 題 +${CONFIG.comboBonus}`);
+        ? `🔥 ${currentQuestion.type}｜答對單字擊退 BOSS`
+        : `📘 ${currentQuestion.type}｜答對 +${CONFIG.correctGold} 金，連對 ${CONFIG.comboNeed} 題 +${CONFIG.comboBonus}，連對 ${state.streakNeed} 題 +1 強化值`);
   qt.className = isGrammar ? 'qt-grammar' : 'qt-vocab';
   const qEl = document.getElementById('question');
   qEl.textContent = currentQuestion.prompt;
@@ -1536,6 +1549,12 @@ function checkAnswer(chosen, btn){
     btn.classList.add('correct');
     state.correctCount += 1;
     state.wrongStreak = 0;
+    // 全題型連對給點：連對滿 streakNeed 的倍數 → +1 強化值
+    state.correctStreak = (state.correctStreak || 0) + 1;
+    if(state.allowLevelUp && state.streakNeed && state.correctStreak % state.streakNeed === 0){
+      state.power += 1;
+      state.floats.push({ x:450, y:170, text:'連對 '+state.correctStreak+' 題！+1 強化值', color:'#ffd166', life:1100, born:Date.now() });
+    }
     if(isGrammar){
       const lvUp = state.allowLevelUp;
       if(lvUp){
@@ -1554,7 +1573,7 @@ function checkAnswer(chosen, btn){
         setTimeout(() => playSound('combo'), 120);
       }
       state.gold += gained;
-      // 簡單(內建)：BOSS 在場時，答對單字即扣血（須連對）
+      // 簡單(內建)：BOSS 在場時，答對單字即扣血
       if(state.boss && state.bossMode === 'vocab'){
         fb.textContent = chipBossOnCorrect();
       } else {
@@ -1570,6 +1589,7 @@ function checkAnswer(chosen, btn){
     if(btns[currentQuestion.ans]) btns[currentQuestion.ans].classList.add('correct');
     state.wrongCount += 1;
     state.combo = 0;
+    state.correctStreak = 0;
     if(state.boss) bossOnWrong();
     fb.textContent = applyWrongPenalty();
     fb.className = 'fb-wrong';
