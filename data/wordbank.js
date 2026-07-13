@@ -284,7 +284,7 @@
       { word:"canoe", emoji:"🛶", chinese:"獨木舟", sentence:"We used paddles to move the narrow {W} down the calm river." },
       { word:"speedboat", emoji:"🚤", chinese:"快艇", sentence:"The {W} went so fast across the lake that water flew up on both sides." },
       { word:"ship", emoji:"🚢", chinese:"船", sentence:"The huge {W} carried many big boxes of goods across the ocean." },
-      { word:"boat", emoji:"🛥️", chinese:"小船", sentence:"We rode in a small {W} across the lake." },
+      { word:"map", emoji:"🗺️", chinese:"地圖", sentence:"We used a {W} to find our way to the museum." },
       { word:"cruise ship", emoji:"🛳️", chinese:"遊輪", sentence:"The family spent a week on a giant {W} that had pools and restaurants on board." },
       { word:"flying saucer", emoji:"🛸", chinese:"飛碟", sentence:"In the story, a round {W} landed in the field and little green aliens stepped out." },
       { word:"sled", emoji:"🛷", chinese:"雪橇", sentence:"The children sat on the {W} and slid all the way down the snowy hill." },
