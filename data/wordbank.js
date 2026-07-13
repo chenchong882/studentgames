@@ -275,7 +275,7 @@
       { word:"train", emoji:"🚆", chinese:"火車", sentence:"The {W} stopped at the platform and we all got on." },
       { word:"high speed train", emoji:"🚄", chinese:"高鐵", sentence:"We took the {W} and got to the other city in just two hours." },
       { word:"rocket", emoji:"🚀", chinese:"火箭", sentence:"The {W} flew high into space." },
-      { word:"walking", emoji:"🚶", chinese:"走路", sentence:"She goes {W} to school with her brother every morning." },
+      { word:"ticket", emoji:"🎫", chinese:"車票", sentence:"She showed her {W} before getting on the train." },
       { word:"airplane", emoji:"✈️", chinese:"飛機", sentence:"The big {W} ran fast on the runway and then flew up into the sky." },
       { word:"helicopter", emoji:"🚁", chinese:"直升機", sentence:"The {W} stayed in the air above the city and filmed everything below." },
       { word:"small airplane", emoji:"🛩️", chinese:"小型飛機", sentence:"The pilot flew the tiny {W} over the mountains with only four people on board." },
