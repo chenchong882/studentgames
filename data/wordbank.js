@@ -165,7 +165,7 @@
     ]},
     { id:"ocean", name:"海洋世界", words:[
       { word:"fish", emoji:"🐟", chinese:"魚", sentence:"He watched the little {W} swim in circles in a glass bowl." },
-      { word:"tropical fish", emoji:"🐠", chinese:"熱帶魚", sentence:"The bright yellow and blue {W} swam in the coral reef." },
+      { word:"mermaid", emoji:"🧜‍♀️", chinese:"美人魚", sentence:"In the story, a kind {W} swam under the sea." },
       { word:"blowfish", emoji:"🐡", chinese:"河豚", sentence:"When scared, the {W} puffed up its body into a round, spiky ball." },
       { word:"shark", emoji:"🦈", chinese:"鯊魚", sentence:"The {W} swam around the boat with its big fin above the water." },
       { word:"dolphin", emoji:"🐬", chinese:"海豚", sentence:"The {W} jumped out of the water and spun in the air." },
