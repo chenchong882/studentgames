@@ -599,9 +599,11 @@ function newRound() {
 
   const count = clamp(2 + lv, 3, 5);
   // 干擾船：單字必不同；圖片回合的干擾 emoji 也必須與目標不同
-  const otherWords = wantPic
+  const otherWordCandidates = wantPic
     ? wordBank.filter(w => w.word !== target.word.word && w.emoji && w.emoji !== target.word.emoji)
     : wordBank.filter(w => w.word !== target.word.word);
+  const sentenceChoices = game.qType === "sentence" ? otherWordCandidates.filter(w => !wordsConflict(target.word, w)) : otherWordCandidates;
+  const otherWords = sentenceChoices.length ? sentenceChoices : otherWordCandidates;
   const ships = [];
 
   for (let i = 0; i < count; i++) {
@@ -2056,11 +2058,16 @@ function normalizeShipWords(words){
     const pos=String((w&&(w.part_of_speech||w.pos))||'').trim();
     const example=String((w&&(w.example||w.sentence))||'').trim();
     const emoji=String((w&&(w.emoji||w.sticker||w.icon))||'').trim();
+    const avoidWith=Array.isArray(w&&w.avoidWith)?w.avoidWith.map(x=>String(x).trim().toLowerCase()).filter(Boolean):[];
     if(!word||!meaning) return;
     const k=word.toLowerCase(); if(seen.has(k)) return; seen.add(k);
-    out.push({ word: word.toUpperCase(), meaning, pos: pos||"單字", example, emoji });
+    out.push({ word: word.toUpperCase(), meaning, pos: pos||"單字", example, emoji, avoidWith });
   });
   return out;
+}
+function wordsConflict(a,b){
+  const ak=String(a&&a.word||'').toLowerCase(), bk=String(b&&b.word||'').toLowerCase();
+  return (a&&a.avoidWith||[]).includes(bk) || (b&&b.avoidWith||[]).includes(ak);
 }
 function applyShipData(payload){
   const next=normalizeShipWords(payload&&payload.words);

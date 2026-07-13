@@ -607,6 +607,15 @@ function shuffle(arr){
   for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
   return a;
 }
+function wordsConflict(a,b){
+  const ak=String(a&&a.word||'').toLowerCase(), bk=String(b&&b.word||'').toLowerCase();
+  return (a&&a.avoidWith||[]).includes(bk) || (b&&b.avoidWith||[]).includes(ak);
+}
+function clozeChoices(target,pool,count){
+  const others=pool.filter(w=>w.word!==target.word);
+  const safe=others.filter(w=>!wordsConflict(target,w));
+  return shuffle(safe.length>=count ? safe : others).slice(0,count);
+}
 
 function uniqueTexts(items){
   return [...new Set(items.filter(Boolean).map(x => String(x).trim()).filter(Boolean))];
@@ -643,7 +652,7 @@ function buildQuestionPools(payload){
     wordPool.forEach(target => {
       if(!target.sentence || target.sentence.indexOf('{W}') < 0) return;
       const sentence = target.sentence.replace(/\{W\}/g, '________');
-      const others = shuffle(wordPool.filter(w => w.word !== target.word));
+      const others = clozeChoices(target, wordPool, 3);
       fillQuestions.push(makeQuestion('英文填空題', sentence, target.word, others.map(w => w.word), target.word));
     });
   }

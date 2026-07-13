@@ -203,7 +203,7 @@
     function builtinRaw(){
       const all = window.WORD_BANK ? window.WORD_BANK.getWords(selectedThemes) : [];
       if(!all.length) return null;
-      const words = shuffle(all).slice(0, 80).map(w => ({ word:w.word, chinese:w.chinese, emoji:w.emoji, sentence:w.sentence, example:w.sentence }));
+      const words = shuffle(all).slice(0, 80).map(w => ({ word:w.word, chinese:w.chinese, emoji:w.emoji, sentence:w.sentence, example:w.sentence, avoidWith:w.avoidWith||[] }));
       // 標題用實際勾選的主題名；沒勾或全勾＝綜合主題
       let title = '綜合主題';
       if(window.WORD_BANK && selectedThemes.length){

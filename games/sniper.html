@@ -250,8 +250,9 @@ function normalizeWords(arr){
     const pos = String((w && w.pos) || '').trim();
     const example = String((w && w.example) || '').trim(); // 段考資料通常沒有
     const emoji = String((w && (w.emoji || w.sticker || w.icon)) || '').trim();
+    const avoidWith = Array.isArray(w && w.avoidWith) ? w.avoidWith.map(x=>String(x).trim().toLowerCase()).filter(Boolean) : [];
     if(!word || !meaning) return;
-    out.push({ word: word.toUpperCase(), meaning, pos: pos || '單字', example, emoji });
+    out.push({ word: word.toUpperCase(), meaning, pos: pos || '單字', example, emoji, avoidWith });
   });
   return out;
 }
@@ -274,6 +275,15 @@ const randi = (a,b)=> Math.floor(rand(a,b+1));
 const pick = a => a[Math.floor(Math.random()*a.length)];
 const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=randi(0,i); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function wordsConflict(a,b){
+  const ak=String(a&&a.word||'').toLowerCase(), bk=String(b&&b.word||'').toLowerCase();
+  return (a&&a.avoidWith||[]).includes(bk) || (b&&b.avoidWith||[]).includes(ak);
+}
+function clozeChoices(target,pool,count){
+  const others=pool.filter(w=>w!==target);
+  const safe=others.filter(w=>!wordsConflict(target,w));
+  return shuffle(safe.length>=count ? safe : others).slice(0,count);
+}
 
 /* ---------- Canvas ---------- */
 const cv = document.getElementById('cv');
@@ -517,7 +527,7 @@ function startRound(){
   if(roundType === 'cloze'){
     const withEx = WB.bank.filter(w=>w.example);
     answer = withEx.length ? pick(withEx) : pick(WB.bank);
-    chosen = shuffle([answer, ...shuffle(WB.bank.filter(w=>w!==answer)).slice(0, FLOORS-1)]);
+    chosen = shuffle([answer, ...clozeChoices(answer, WB.bank, FLOORS-1)]);
     if(!answer.example) roundType = 'cn2en';   // 保險：完全沒例句時退回中→英
   } else {
     const pool = roundType==='en2pic' ? WB.bank.filter(w=>w.emoji) : WB.bank;
