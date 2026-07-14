@@ -437,7 +437,7 @@ function fadeBgm(to,ms,onDone){
 function startBgm(){
   const a=ensureBgmAudio(); a.volume=0;
   const p=a.play(); if(p&&p.catch)p.catch(()=>{});
-  fadeBgm(0.12,800);
+  fadeBgm(0.084,800);
 }
 function stopBgm(){
   if(!bgmAudio)return;
