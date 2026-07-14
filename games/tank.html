@@ -63,7 +63,9 @@
   .uiBtn:hover{background:#3d4659;}
   #overlay .guideLink{color:#ffd878;text-decoration:underline;cursor:pointer;
     font-size:15px;margin-top:6px;}
-  #diffSel{margin-top:16px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;}
+  #diffSel{margin-top:16px;color:rgba(255,255,255,.65);}
+  #diffSel summary{cursor:pointer;font-size:14px;}
+  #diffSel .diffOpts{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;margin-top:9px;}
   #diffSel .diffLab{font-size:14px;color:rgba(255,255,255,.65);}
   .diffBtn{padding:8px 16px;font-size:15px;font-weight:700;border-radius:9px;cursor:pointer;
     background:#2c3242;color:#fff;border:2px solid rgba(255,216,120,.4);}
@@ -183,11 +185,13 @@
     <button class="modeBtn" data-mode="hard">🔥 困難</button>
   </div>
   <div id="modeHint"></div>
-  <div id="diffSel">
-    <span class="diffLab">砲彈下墜</span>
+  <details id="diffSel">
+    <summary>進階設定：砲彈下墜</summary>
+    <div class="diffOpts">
     <button class="diffBtn" data-diff="easy">🟢 簡單（下墜小）</button>
     <button class="diffBtn" data-diff="hard">🔴 困難（下墜大）</button>
-  </div>
+    </div>
+  </details>
   <button class="go" id="startTankBtn" type="button">開始遊戲</button>
 </div>
 <div id="pauseOverlay" class="hidden">
