@@ -2,10 +2,13 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#182034">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>英文單字遊戲主機</title>
   <style>
     * { box-sizing: border-box; }
+    html { background: #182034; }
     body {
       margin: 0;
       min-height: 100vh;
@@ -16,7 +19,7 @@
         radial-gradient(circle at 86% 18%, rgba(45, 212, 191, 0.2), transparent 26rem),
         linear-gradient(145deg, #182034 0%, #111827 48%, #171717 100%);
     }
-    main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0; }
+    main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: max(24px, env(safe-area-inset-top)) 0 40px; }
     header { margin-bottom: 28px; }
     h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 52px); line-height: 1.05; }
     p { margin: 0; color: #cbd5e1; font-size: 17px; line-height: 1.6; }
