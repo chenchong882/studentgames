@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>單字獵人 Word Hunt</title>
+    <style>
+        :root { --ink:#243047; --purple:#7165d9; --pink:#f46fa1; --paper:#fffdf8; --soft:#eef0ff; --line:#d8daf2; --red:#f15a68; }
+        * { box-sizing:border-box; }
+        html, body { min-height:100%; overscroll-behavior:none; }
+        body { margin:0; min-height:100vh; color:var(--ink); font-family:Arial, "Noto Sans TC", sans-serif; background:radial-gradient(circle at 8% 5%, #ffe2b7 0, transparent 27rem), radial-gradient(circle at 92% 14%, #d9d6ff 0, transparent 28rem), #f7f7ff; user-select:none; }
+        button { min-height:48px; border:0; border-radius:14px; padding:0 22px; color:white; font:800 17px/1 Arial, "Noto Sans TC", sans-serif; cursor:pointer; background:linear-gradient(135deg, #8275e6, #6055c6); box-shadow:0 5px 0 #4c43a4, 0 10px 20px rgba(70, 57, 141, .24); transition:transform .15s ease, filter .15s ease; -webkit-tap-highlight-color:transparent; }
+        button:hover { filter:brightness(1.06); transform:translateY(-1px); }
+        button:active { transform:translateY(3px); box-shadow:0 2px 0 #4c43a4, 0 6px 14px rgba(70, 57, 141, .24); }
+        .shell { width:min(900px, 100%); margin:0 auto; padding:22px 16px 32px; }
+        .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+        h1 { margin:0; font-size:clamp(25px, 5vw, 36px); letter-spacing:.03em; }
+        .subtitle { margin:4px 0 0; color:#68708d; font-size:14px; font-weight:700; }
+        .stat { min-width:100px; padding:9px 13px; border:1px solid var(--line); border-radius:14px; text-align:center; background:rgba(255,255,255,.78); box-shadow:0 4px 14px rgba(67, 72, 115, .08); }
+        .stat-label { display:block; color:#7c849f; font-size:12px; font-weight:800; }
+        .stat-value { display:block; margin-top:2px; color:#5048aa; font-size:20px; font-weight:900; }
+        .card { padding:clamp(16px, 3vw, 26px); border:1px solid rgba(255,255,255,.9); border-radius:24px; background:rgba(255,255,255,.78); box-shadow:0 14px 38px rgba(77, 72, 127, .14); }
+        .instruction { margin:0 0 16px; color:#5b647f; font-weight:700; text-align:center; }
+        .word-list { display:flex; justify-content:center; gap:9px; flex-wrap:wrap; margin-bottom:20px; }
+        .word-card { min-width:105px; padding:9px 12px; border:2px solid #e4e5f7; border-radius:14px; color:#414b70; text-align:center; background:#fff; font-weight:900; transition:opacity .2s, transform .2s, background .2s; }
+        .word-card .icon { margin-right:5px; font-size:20px; vertical-align:-2px; }
+        .word-card.found { color:#6c7693; text-decoration:line-through; background:#f0f1f8; opacity:.72; transform:scale(.97); }
+        .grid-wrap { position:relative; width:min(100%, 620px); margin:0 auto; border:8px solid #f0effa; border-radius:18px; background:#f0effa; touch-action:none; }
+        .grid { position:relative; display:grid; grid-template-columns:repeat(9, 1fr); overflow:hidden; border-radius:11px; background:#fff; touch-action:none; }
+        .ribbons { position:absolute; z-index:1; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
+        .cell { position:relative; z-index:2; display:grid; min-width:0; aspect-ratio:1; place-items:center; color:#263052; font-size:clamp(17px, 5.6vw, 31px); font-weight:900; line-height:1; cursor:crosshair; -webkit-tap-highlight-color:transparent; }
+        .cell.wrong { color:#b93745; animation:wrong .34s ease 2; }
+        .grid.locked .cell { pointer-events:none; }
+        .feedback { min-height:24px; margin:16px 0 0; color:#64708c; font-weight:800; text-align:center; }
+        .feedback.good { color:#36855d; }
+        .feedback.bad { color:#c54a56; }
+        .overlay { position:fixed; z-index:10; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(35, 39, 75, .46); }
+        .overlay[hidden] { display:none; }
+        .dialog { width:min(420px, 100%); padding:28px 24px 24px; border:1px solid rgba(255,255,255,.9); border-radius:25px; color:var(--ink); text-align:center; background:var(--paper); box-shadow:0 22px 55px rgba(19, 24, 60, .34); }
+        .dialog h2 { margin:0 0 12px; font-size:28px; }
+        .dialog p { margin:8px 0; color:#64708c; font-weight:700; line-height:1.6; }
+        .stars { margin:13px 0; color:#ffad32; font-size:35px; letter-spacing:3px; text-shadow:0 2px 0 #d8781d; }
+        .stars .empty { color:#d9dbe8; text-shadow:none; }
+        .result-list { display:grid; gap:9px; margin:16px 0 22px; }
+        .result-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border-radius:12px; background:#f1f2fb; font-weight:900; }
+        .result-row .stars { margin:0; font-size:20px; letter-spacing:1px; }
+        .total { margin:16px 0 22px; color:#5249ae; font-size:22px; font-weight:900; }
+        @keyframes wrong { 50% { color:#ff283e; transform:scale(1.13); } }
+        @media (max-width:520px) { body { background:#f7f7ff; } .shell { padding:15px 10px 24px; } .topbar { align-items:flex-start; } .stat { min-width:82px; padding:7px 9px; } .word-card { min-width:92px; padding:8px 10px; font-size:14px; } .card { padding:15px 10px; border-radius:18px; } .grid-wrap { border-width:5px; } }
+    </style>
+</head>
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <h1>🔎 單字獵人</h1>
+                <p class="subtitle">拖曳字母，找出所有英文單字！</p>
+            </div>
+            <div class="stat"><span class="stat-label" id="levelLabel">關卡</span><span class="stat-value" id="levelValue">1 / 3</span></div>
+            <div class="stat"><span class="stat-label">本關時間</span><span class="stat-value" id="timer">0 秒</span></div>
+        </header>
+
+        <section class="card">
+            <p class="instruction">從第一個字母拖到最後一個字母；橫、直、斜線都可以！</p>
+            <div class="word-list" id="wordList" aria-label="本關單字"></div>
+            <div class="grid-wrap" id="gridWrap">
+                <svg class="ribbons" id="ribbons" aria-hidden="true"></svg>
+                <div class="grid locked" id="grid" aria-label="單字搜尋字母格"></div>
+            </div>
+            <div class="feedback" id="feedback" aria-live="polite">按下開始遊戲，開始第一關！</div>
+        </section>
+    </main>
+
+    <div class="overlay" id="overlay">
+        <section class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
+            <h2 id="dialogTitle">單字獵人</h2>
+            <p id="dialogText">共有 3 關。每關都會重新計時，找得越快，星星越多！</p>
+            <div class="stars" id="dialogStars" hidden></div>
+            <div class="result-list" id="resultList" hidden></div>
+            <div class="total" id="totalStars" hidden></div>
+            <button type="button" id="dialogButton">開始遊戲</button>
+        </section>
+    </div>
+
+    <script>
+        // 每關的單字都可直接在這裡替換；icon 是上方提示圖示。
+        const LEVELS = [
+            { words: [
+                { word: 'CAT', icon: '🐱' },
+                { word: 'SUN', icon: '☀️' },
+                { word: 'FISH', icon: '🐟' }
+            ] },
+            { words: [
+                { word: 'APPLE', icon: '🍎' },
+                { word: 'TRAIN', icon: '🚆' },
+                { word: 'SNAKE', icon: '🐍' },
+                { word: 'HOUSE', icon: '🏠' }
+            ] },
+            { words: [
+                { word: 'ELEPHANT', icon: '🐘' },
+                { word: 'RAINBOW', icon: '🌈' },
+                { word: 'COMPUTER', icon: '💻' },
+                { word: 'UMBRELLA', icon: '☂️' },
+                { word: 'BUTTERFLY', icon: '🦋' }
+            ] }
+        ];
+
+        // 每關 [三星門檻秒數, 二星門檻秒數]；超過二星門檻給一星。
+        const STAR_THRESHOLDS = [
+            [20, 40],
+            [30, 60],
+            [45, 90]
+        ];
+
+        const GRID_SIZE = 9;
+        const DIRECTIONS = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }, { x: 1, y: 1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: -1, y: -1 }];
+        const RIBBON_COLORS = ['#f6a83b', '#76b6f3', '#8bcf75', '#d98ada', '#f47e8b', '#5bc8bd'];
+        const grid = document.getElementById('grid');
+        const ribbons = document.getElementById('ribbons');
+        const wordList = document.getElementById('wordList');
+        const levelValue = document.getElementById('levelValue');
+        const timer = document.getElementById('timer');
+        const feedback = document.getElementById('feedback');
+        const overlay = document.getElementById('overlay');
+        const dialogTitle = document.getElementById('dialogTitle');
+        const dialogText = document.getElementById('dialogText');
+        const dialogStars = document.getElementById('dialogStars');
+        const resultList = document.getElementById('resultList');
+        const totalStars = document.getElementById('totalStars');
+        const dialogButton = document.getElementById('dialogButton');
+
+        let levelIndex = 0;
+        let placements = [];
+        let foundWords = new Set();
+        let results = [];
+        let seconds = 0;
+        let timerId = null;
+        let dragging = false;
+        let startCell = null;
+        let activeLine = null;
+        let activeSelection = null;
+
+        function randomLetter() {
+            return String.fromCharCode(65 + Math.floor(Math.random() * 26));
+        }
+
+        function makeBoard(words) {
+            const letters = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(''));
+            const newPlacements = [];
+            words.forEach((item) => {
+                const word = item.word.toUpperCase();
+                let placed = false;
+                for (let attempt = 0; attempt < 500 && !placed; attempt += 1) {
+                    const direction = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
+                    const row = Math.floor(Math.random() * GRID_SIZE);
+                    const col = Math.floor(Math.random() * GRID_SIZE);
+                    const endRow = row + direction.y * (word.length - 1);
+                    const endCol = col + direction.x * (word.length - 1);
+                    if (endRow < 0 || endRow >= GRID_SIZE || endCol < 0 || endCol >= GRID_SIZE) continue;
+                    const fits = [...word].every((letter, index) => {
+                        const existing = letters[row + direction.y * index][col + direction.x * index];
+                        return !existing || existing === letter;
+                    });
+                    if (!fits) continue;
+                    [...word].forEach((letter, index) => { letters[row + direction.y * index][col + direction.x * index] = letter; });
+                    newPlacements.push({ ...item, word, start: { row, col }, end: { row: endRow, col: endCol } });
+                    placed = true;
+                }
+                if (!placed) throw new Error(`無法放入單字：${word}`);
+            });
+            letters.forEach((row) => row.forEach((letter, col) => { if (!letter) row[col] = randomLetter(); }));
+            return { letters, newPlacements };
+        }
+
+        function renderWords() {
+            wordList.innerHTML = LEVELS[levelIndex].words.map((item) => `<div class="word-card" data-word="${item.word}"><span class="icon">${item.icon}</span>${item.word}</div>`).join('');
+        }
+
+        function renderBoard() {
+            const board = makeBoard(LEVELS[levelIndex].words);
+            placements = board.newPlacements;
+            grid.innerHTML = board.letters.map((row, rowIndex) => row.map((letter, colIndex) => `<div class="cell" data-row="${rowIndex}" data-col="${colIndex}">${letter}</div>`).join('')).join('');
+            ribbons.replaceChildren();
+        }
+
+        function setFeedback(message, type = '') {
+            feedback.textContent = message;
+            feedback.className = `feedback ${type}`;
+        }
+
+        function startTimer() {
+            stopTimer();
+            seconds = 0;
+            timer.textContent = '0 秒';
+            timerId = window.setInterval(() => {
+                seconds += 1;
+                timer.textContent = `${seconds} 秒`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerId !== null) window.clearInterval(timerId);
+            timerId = null;
+        }
+
+        function starsFor(time, index) {
+            const [threeStars, twoStars] = STAR_THRESHOLDS[index];
+            if (time <= threeStars) return 3;
+            if (time <= twoStars) return 2;
+            return 1;
+        }
+
+        function starText(stars) {
+            return `${'★'.repeat(stars)}<span class="empty">${'☆'.repeat(3 - stars)}</span>`;
+        }
+
+        function cellCenter(row, col) {
+            const cell = grid.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            const cellRect = cell.getBoundingClientRect();
+            const gridRect = grid.getBoundingClientRect();
+            return { x: cellRect.left - gridRect.left + cellRect.width / 2, y: cellRect.top - gridRect.top + cellRect.height / 2, width: cellRect.width, height: cellRect.height };
+        }
+
+        function addLine(color, opacity = .58) {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('stroke', color);
+            line.setAttribute('stroke-width', '0');
+            line.setAttribute('stroke-linecap', 'round');
+            line.setAttribute('stroke-opacity', opacity);
+            ribbons.append(line);
+            return line;
+        }
+
+        function drawLine(line, from, to, width) {
+            line.setAttribute('x1', from.x);
+            line.setAttribute('y1', from.y);
+            line.setAttribute('x2', to.x);
+            line.setAttribute('y2', to.y);
+            line.setAttribute('stroke-width', width);
+        }
+
+        function maxStepsFor(start, direction) {
+            const horizontal = direction.x > 0 ? GRID_SIZE - 1 - start.col : direction.x < 0 ? start.col : Infinity;
+            const vertical = direction.y > 0 ? GRID_SIZE - 1 - start.row : direction.y < 0 ? start.row : Infinity;
+            return Math.min(horizontal, vertical);
+        }
+
+        function snappedSelection(event) {
+            const start = cellCenter(startCell.row, startCell.col);
+            const rect = grid.getBoundingClientRect();
+            const dx = event.clientX - rect.left - start.x;
+            const dy = event.clientY - rect.top - start.y;
+            if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return { end: { x: start.x, y: start.y }, row: startCell.row, col: startCell.col };
+            const angle = Math.atan2(dy, dx);
+            const direction = DIRECTIONS[((Math.round(angle / (Math.PI / 4)) % 8) + 8) % 8];
+            const unitX = dx / start.width;
+            const unitY = dy / start.height;
+            const divisor = direction.x * direction.x + direction.y * direction.y;
+            const rawSteps = (unitX * direction.x + unitY * direction.y) / divisor;
+            const steps = Math.max(0, Math.min(rawSteps, maxStepsFor(startCell, direction)));
+            const roundedSteps = Math.round(steps);
+            return {
+                end: { x: start.x + direction.x * start.width * steps, y: start.y + direction.y * start.height * steps },
+                row: startCell.row + direction.y * roundedSteps,
+                col: startCell.col + direction.x * roundedSteps
+            };
+        }
+
+        function sameCell(a, b) {
+            return a.row === b.row && a.col === b.col;
+        }
+
+        function selectedPlacement(selection) {
+            const selectedStart = { row: startCell.row, col: startCell.col };
+            const selectedEnd = { row: selection.row, col: selection.col };
+            return placements.find((placement) => (sameCell(selectedStart, placement.start) && sameCell(selectedEnd, placement.end)) || (sameCell(selectedStart, placement.end) && sameCell(selectedEnd, placement.start)));
+        }
+
+        function markFound(placement) {
+            foundWords.add(placement.word);
+            document.querySelector(`.word-card[data-word="${placement.word}"]`).classList.add('found');
+            const from = cellCenter(startCell.row, startCell.col);
+            const to = cellCenter(activeSelection.row, activeSelection.col);
+            const color = RIBBON_COLORS[(foundWords.size - 1) % RIBBON_COLORS.length];
+            activeLine.setAttribute('stroke', color);
+            activeLine.setAttribute('stroke-opacity', '.55');
+            drawLine(activeLine, from, to, from.width * .76);
+            activeLine = null;
+            setFeedback(`找到了 ${placement.word}！`, 'good');
+            if (foundWords.size === placements.length) finishLevel();
+        }
+
+        function flashWrong(selection) {
+            const failedLine = activeLine;
+            failedLine.setAttribute('stroke', '#f15a68');
+            failedLine.setAttribute('stroke-opacity', '.68');
+            window.setTimeout(() => failedLine.remove(), 430);
+            const first = grid.querySelector(`[data-row="${startCell.row}"][data-col="${startCell.col}"]`);
+            const last = grid.querySelector(`[data-row="${selection.row}"][data-col="${selection.col}"]`);
+            [first, last].forEach((cell) => {
+                cell.classList.remove('wrong');
+                void cell.offsetWidth;
+                cell.classList.add('wrong');
+            });
+            setFeedback('再試一次，仔細看看字母方向！', 'bad');
+            activeLine = null;
+        }
+
+        function onPointerDown(event) {
+            const cell = event.target.closest('.cell');
+            if (!cell || timerId === null) return;
+            event.preventDefault();
+            dragging = true;
+            startCell = { row: Number(cell.dataset.row), col: Number(cell.dataset.col) };
+            activeLine = addLine(RIBBON_COLORS[foundWords.size % RIBBON_COLORS.length]);
+            activeSelection = { row: startCell.row, col: startCell.col, end: cellCenter(startCell.row, startCell.col) };
+            drawLine(activeLine, activeSelection.end, activeSelection.end, activeSelection.end.width * .76);
+            grid.setPointerCapture(event.pointerId);
+        }
+
+        function onPointerMove(event) {
+            if (!dragging) return;
+            event.preventDefault();
+            activeSelection = snappedSelection(event);
+            const from = cellCenter(startCell.row, startCell.col);
+            drawLine(activeLine, from, activeSelection.end, from.width * .76);
+        }
+
+        function onPointerEnd(event) {
+            if (!dragging) return;
+            event.preventDefault();
+            dragging = false;
+            if (grid.hasPointerCapture(event.pointerId)) grid.releasePointerCapture(event.pointerId);
+            activeSelection = snappedSelection(event);
+            const placement = selectedPlacement(activeSelection);
+            if (placement && !foundWords.has(placement.word)) markFound(placement);
+            else flashWrong(activeSelection);
+            startCell = null;
+        }
+
+        function onPointerCancel() {
+            if (!dragging) return;
+            dragging = false;
+            activeLine?.remove();
+            activeLine = null;
+            startCell = null;
+        }
+
+        function hideOverlay() {
+            overlay.hidden = true;
+        }
+
+        function beginLevel(index) {
+            levelIndex = index;
+            foundWords = new Set();
+            levelValue.textContent = `${index + 1} / ${LEVELS.length}`;
+            renderWords();
+            renderBoard();
+            grid.classList.remove('locked');
+            setFeedback(`第 ${index + 1} 關開始，找出所有單字！`);
+            hideOverlay();
+            startTimer();
+        }
+
+        function finishLevel() {
+            stopTimer();
+            grid.classList.add('locked');
+            const stars = starsFor(seconds, levelIndex);
+            results[levelIndex] = { seconds, stars };
+            dialogTitle.textContent = `第 ${levelIndex + 1} 關完成！`;
+            dialogText.textContent = `你花了 ${seconds} 秒，拿到 ${stars} 顆星！`;
+            dialogStars.innerHTML = starText(stars);
+            dialogStars.hidden = false;
+            resultList.hidden = true;
+            totalStars.hidden = true;
+            dialogButton.textContent = levelIndex === LEVELS.length - 1 ? '完成遊戲' : '下一關';
+            dialogButton.onclick = () => levelIndex === LEVELS.length - 1 ? showSummary() : beginLevel(levelIndex + 1);
+            overlay.hidden = false;
+        }
+
+        function showSummary() {
+            const total = results.reduce((sum, result) => sum + result.stars, 0);
+            dialogTitle.textContent = '全部關卡完成！';
+            dialogText.textContent = '這是你這次的單字獵人紀錄：';
+            dialogStars.hidden = true;
+            resultList.innerHTML = results.map((result, index) => `<div class="result-row"><span>第 ${index + 1} 關　${result.seconds} 秒</span><span class="stars">${starText(result.stars)}</span></div>`).join('');
+            resultList.hidden = false;
+            totalStars.textContent = `總共獲得 ${total} / 9 顆星`;
+            totalStars.hidden = false;
+            dialogButton.textContent = '重新開始整個遊戲';
+            dialogButton.onclick = () => {
+                results = [];
+                beginLevel(0);
+            };
+        }
+
+        grid.addEventListener('pointerdown', onPointerDown);
+        grid.addEventListener('pointermove', onPointerMove);
+        grid.addEventListener('pointerup', onPointerEnd);
+        grid.addEventListener('pointercancel', onPointerCancel);
+        window.addEventListener('resize', () => {
+            if (dragging && activeLine && startCell && activeSelection) {
+                const from = cellCenter(startCell.row, startCell.col);
+                const to = cellCenter(activeSelection.row, activeSelection.col);
+                drawLine(activeLine, from, to, from.width * .76);
+            }
+        });
+        dialogButton.onclick = () => beginLevel(0);
+    </script>
+</body>
+</html>
