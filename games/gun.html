@@ -608,7 +608,7 @@ function beginWave(){
     waveLeft=0;showObjective('👑 魔王護盾：連續答對 3 題後，才能攻擊本體');
     for(let i=0;i<5;i++)addWaveZombie(i);spawnZombie('boss');
   }else{
-    waveLeft=2+Math.min(4,Math.floor(wave/2));showObjective('答對 '+waveLeft+' 題，完成本波防守');
+    waveLeft=roundKind==='spell'?1:1+Math.min(3,Math.floor(wave/2));showObjective('答對 '+waveLeft+' 題，完成本波防守');
     for(let i=0;i<Math.min(9,4+wave);i++)addWaveZombie(i);
   }
 }
