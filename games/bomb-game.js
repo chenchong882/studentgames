@@ -2697,7 +2697,7 @@ const _speechOverlay = (() => {
       place(normalBtn, bx, ys.normalY - bh/2, bw, bh); normalBtn.style.display = allow.includes('normal') ? 'block' : 'none';
       place(hardBtn,   bx, ys.hardY   - bh/2, bw, bh); hardBtn.style.display   = 'block';
       startBtn.textContent = `開始遊戲（${menuMode==='simple'?'簡單':menuMode==='normal'?'一般':'困難'}）`;
-      startBtn.style.left = (W/2 - 98) + 'px'; startBtn.style.top = (ys.hardY + bh/2 + 26) + 'px'; startBtn.style.display = 'block';
+      startBtn.style.left = (W/2 - 98) + 'px'; startBtn.style.top = (ys.hardY + bh/2 + clamp(H*0.10,75,114)) + 'px'; startBtn.style.display = 'block';
       if (hasPicBank()) {
         const rw = Math.min(W * 0.9, 440);
         allPicRow.style.left = (W/2 - rw/2) + 'px';
@@ -2761,4 +2761,5 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden&&game&&gam
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
   (document.body||document.documentElement).appendChild(b);
+  (function syncBackButton(){b.style.display=(game.phase==='playing'||game.phase==='levelClear')?'none':'block';requestAnimationFrame(syncBackButton);})();
 })();

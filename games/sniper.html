@@ -1762,6 +1762,12 @@ function goToMenu(){   // 返回遊戲主機(帶回段考單字), 遊戲中 #bac
 }
 document.getElementById('back').addEventListener('click', goToMenu);
 
+function syncBackButton(){
+  document.getElementById('back').style.display = state === 'playing' ? 'none' : 'block';
+  requestAnimationFrame(syncBackButton);
+}
+syncBackButton();
+
 requestAnimationFrame(t=>{ lastT=t; loop(t); });
 </script>
 </body>

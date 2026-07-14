@@ -40,6 +40,8 @@
     background:rgba(18,20,26,.65);padding:10px 26px;border-radius:10px;z-index:6;
     text-align:center;display:none;backdrop-filter:blur(3px);}
   #wordPrompt .q{font-size:27px;font-weight:800;color:#ffe9a8;text-shadow:0 2px 8px #000;}
+  #wordPrompt button.q{font-family:inherit;background:none;border:0;padding:0;cursor:pointer;}
+  #wordPrompt button.q:active{transform:scale(.96);}
   #wordPrompt .s{font-size:12px;color:rgba(255,255,255,.65);margin-top:3px;}
   #quiz{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);
     background:rgba(14,16,24,.85);padding:18px 24px;border-radius:14px;z-index:10;
@@ -82,11 +84,6 @@
   #allPicRow button{min-height:44px;padding:8px 12px;font:inherit;font-size:13px;font-weight:700;color:#fff;background:#2c3242;border:2px solid rgba(255,216,120,.4);border-radius:9px;cursor:pointer;}
   #allPicRow button.on{color:#2a2030;background:#ffd878;border-color:#ffd878;}
   #modeHint{margin-top:8px;font-size:13px;color:rgba(255,255,255,.6);}
-  #speakBtn{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:40;
-    display:none;align-items:center;gap:8px;padding:12px 24px;font-size:22px;font-weight:800;
-    color:#103022;background:#7ee0a0;border:3px solid #fff;border-radius:999px;cursor:pointer;
-    box-shadow:0 6px 18px rgba(0,0,0,.35);font-family:inherit;}
-  #speakBtn:active{transform:translateX(-50%) scale(.94);}
   #guide{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
     background:rgba(6,9,16,.84);z-index:12;}
   #guide .card{max-width:660px;width:88%;background:rgba(20,24,32,.97);
@@ -154,11 +151,10 @@
   </svg>
 </div>
 <div id="reload"><div id="reloadFill"></div></div>
-<button id="speakBtn" type="button" aria-label="再聽一次">🔊 再聽一次</button>
 <div id="banner"></div>
 <div id="flash"></div>
 <div id="threatGlow"></div>
-<div id="wordPrompt"><div class="q"></div><div class="s">在樹上找到正確的單字，把它射下來！</div></div>
+<div id="wordPrompt"><button id="promptSpeakBtn" class="q" type="button" aria-label="播放單字發音"></button><div class="s">在樹上找到正確的單字，把它射下來！</div></div>
 <div id="quiz"><div class="qq"></div><div class="bb"></div><div class="tt"><div id="quizBar"></div></div><div class="hk">用滑鼠點選正確答案</div></div>
 <svg id="arcLayer"></svg>
 <div id="atkLog"></div>
@@ -225,7 +221,7 @@ function lerpAng(a,b,t){let d=(b-a)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU
 const _v1=new THREE.Vector3(),_v2=new THREE.Vector3(),_v3=new THREE.Vector3();
 
 /* ============ 音效（Web Audio 合成） ============ */
-let AC=null,master=null,noiseBuf=null;
+let AC=null,master=null,noiseBuf=null,speechGen=0;
 function ensureAudio(){
   if(AC){if(AC.state==='suspended')AC.resume();return;}
   AC=new (window.AudioContext||window.webkitAudioContext)();
@@ -756,7 +752,6 @@ function startGame(){
   document.getElementById('pauseOverlay').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
   if(IS_TOUCH){document.getElementById('touchUI').classList.remove('hidden');refreshTouchRects();}
-  document.getElementById('speakBtn').style.display='none';   // 有發音的回合開始時才顯示
   speakWord(' ');                 // 用開始手勢解鎖 iOS 發音（英→中、英→圖回合自動唸才有聲）
   if(!isSimple())startBgm();      // 簡單模式不放背景音樂，保持安靜好聽單字
 }
@@ -764,8 +759,7 @@ function gameOver(reason){
   window.lastOver={reason,at:elapsed};
   overReason=reason;state='over';overT=0;best=Math.max(best,score);
   paused=false;document.getElementById('pauseOverlay').classList.add('hidden');stopBgm();
-  document.getElementById('speakBtn').style.display='none';
-  try{window.speechSynthesis&&window.speechSynthesis.cancel();}catch(e){}
+  try{const s=window.speechSynthesis;if(s&&(s.speaking||s.pending))s.cancel();}catch(e){}
   document.getElementById('touchUI').classList.add('hidden');resetTouch();
   endRound(false);closeQuiz();
   const missHtml=missedList.length
@@ -989,13 +983,16 @@ function disposeLabel(sp){
 function speakWord(t){
   try{
     const synth=window.speechSynthesis; if(!synth)return;
-    synth.cancel();
+    if(synth.speaking||synth.pending)synth.cancel();
     if(AC&&AC.state==='running'){try{AC.suspend();}catch(e){}}
+    const myGen=++speechGen;
     const u=new SpeechSynthesisUtterance(String(t||''));
     u.lang='en-US';u.rate=0.8;u.pitch=1.05;
-    const back=()=>{ if(AC&&AC.state==='suspended'&&state==='play'&&!paused){try{AC.resume();}catch(e){}} };
+    let restored=false;
+    const back=()=>{if(restored||myGen!==speechGen)return;restored=true;if(AC&&AC.state==='suspended'&&state==='play'&&!paused){try{AC.resume();}catch(e){}}};
     u.onend=back;u.onerror=back;
     synth.speak(u);
+    setTimeout(back,6000);
   }catch(e){}
 }
 // 本回合題型：cn2en(中→英，樹掛英文牌) / en2cn(英→中＋發音，樹掛中文牌) / en2pic(英→圖＋發音，樹掛 emoji)
@@ -1057,11 +1054,11 @@ function startRound(){
   wp.style.display='block';
   if(rtype==='cn2en'){
     wp.querySelector('.q').textContent='🎯 找到並射下：「'+entry.zh+'」';
-    document.getElementById('speakBtn').style.display='none';
+    document.getElementById('promptSpeakBtn').disabled=true;
   }else{
-    // 英→圖／英→中：題目顯示英文＋自動發音（發音失效時看字仍可作答），可按 🔊 重聽
+    // 英→圖／英→中：題目顯示英文＋自動發音（發音失效時看字仍可作答），可按上方 🔊 重聽
     wp.querySelector('.q').textContent='🔊 '+entry.en;
-    document.getElementById('speakBtn').style.display='inline-flex';
+    document.getElementById('promptSpeakBtn').disabled=false;
     speakWord(entry.en);
   }
   return true;
@@ -1072,7 +1069,6 @@ function endRound(requeue){
   if(requeue&&!round.requeued)wordQueue.push(round.entry);
   round=null;roundCD=rnd(9,14);
   document.getElementById('wordPrompt').style.display='none';
-  document.getElementById('speakBtn').style.display='none';
 }
 function roundSuccess(pos){
   if(!round)return;
@@ -1742,10 +1738,9 @@ function togglePause(){
   paused=!paused;
   document.getElementById('pauseOverlay').classList.toggle('hidden',!paused);
   if(paused){mouse.down=false;for(const k in keys)keys[k]=false;stopBgm();setThreatGlow(null,0);
-    document.getElementById('speakBtn').style.display='none';
-    try{window.speechSynthesis&&window.speechSynthesis.cancel();}catch(e){}}
+    try{const s=window.speechSynthesis;if(s&&(s.speaking||s.pending))s.cancel();}catch(e){}}
   else{if(AC&&AC.state==='suspended')AC.resume();if(!isSimple())startBgm();last=performance.now();
-    if(round&&round.rtype!=='cn2en')document.getElementById('speakBtn').style.display='inline-flex';}
+  }
 }
 
 /* ============ 玩法守則（首次自動顯示，已閱讀記進瀏覽器；暫停可重看） ============ */
@@ -1810,9 +1805,9 @@ document.querySelectorAll('.modeBtn').forEach(b=>{
 })();
 document.getElementById('startTankBtn').addEventListener('click',()=>{ensureAudio();startGame();});
 setMode(mode);refreshModeUI();
-/* ====== 喇叭鈕：簡易模式重聽當前單字（真實 <button> click → iOS 才唸得出來） ====== */
+/* ====== 題目上的喇叭：真實 <button> click → iOS 才唸得出來 ====== */
 (function(){
-  const sb=document.getElementById('speakBtn');
+  const sb=document.getElementById('promptSpeakBtn');
   const say=e=>{e.stopPropagation();e.preventDefault();if(round&&round.entry)speakWord(round.entry.en);};
   sb.addEventListener('mousedown',e=>e.stopPropagation());
   sb.addEventListener('touchstart',e=>e.stopPropagation(),{passive:false});
@@ -2031,6 +2026,7 @@ window.addEventListener('message',e=>{
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
   (document.body||document.documentElement).appendChild(b);
+  (function syncBackButton(){b.style.display=(state==='play'&&!paused)?'none':'block';requestAnimationFrame(syncBackButton);})();
 })();
 </script>
 </body>
