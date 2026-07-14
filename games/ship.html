@@ -203,6 +203,9 @@
     margin-top: 8px;
   }
   .overlay button:active { transform: scale(.95); }
+  .overlay button.mode-picked { outline:3px solid #fff; box-shadow:0 0 0 5px rgba(255,209,88,.28),0 6px 22px rgba(255,160,40,.5); }
+  #allpic-row button { min-height:44px; padding:8px 12px; font:inherit; font-size:14px; font-weight:800; color:#fff; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); border-radius:10px; cursor:pointer; }
+  #allpic-row button.mode-picked { color:#3a1c00; background:#ffd158; }
   .hidden { display: none !important; }
   #final-score, #win-score { font-size: clamp(28px, 7vw, 48px); color: #ffe082; font-weight: 900; }
   #win-stars { font-size: clamp(30px, 9vw, 54px); letter-spacing: 6px; animation: starPop .6s ease-out; }
@@ -252,13 +255,17 @@
       🦑 海怪約每 45 秒現身：<b>連打 5 下才打得死</b>，打死換隨機大獎（三連發／加時／加分…）；<b>沒打死它會襲擊你</b><br>
       👑 第 4、8 關有<b>魔王戰</b>，擊敗最終魔王即通關
     </div>
-    <label id="allpic-row" style="display:none; align-items:center; gap:8px; justify-content:center; font-size:clamp(13px,3vw,16px); color:#ffe9c0; cursor:pointer;"><input type="checkbox" id="allpic-chk" style="width:18px;height:18px;accent-color:#ffd158;"> 🖼️ 全圖檔模式（每題都是英文＋發音 → 選圖片）</label>
+    <div style="font-size:14px;font-weight:800;color:#ffe9c0">題目內容</div>
+    <div id="allpic-row" style="display:none; align-items:center; gap:8px; justify-content:center; font-size:clamp(13px,3vw,16px); color:#ffe9c0;"><button type="button" id="allpic-mix">混合練習（推薦）</button><button type="button" id="allpic-only">只玩圖片題</button></div>
+    <div style="font-size:14px;font-weight:800;color:#ffe9c0">選擇難度</div>
     <div id="mode-row" style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center;">
       <button id="start-simple" style="background:linear-gradient(180deg,#7be38a,#33c45a); color:#06310f;">🌱 簡單模式</button>
       <button id="start-normal" style="background:linear-gradient(180deg,#7fc4ff,#2f6bd6); color:#06213a;">🙂 一般模式</button>
       <button id="start-hard" style="background:linear-gradient(180deg,#ff9d6b,#ec5a2c); color:#3a1200;">🔴 困難模式</button>
-      <button id="start-special" style="background:linear-gradient(180deg,#c39bff,#7d4fd6); color:#fff;">🟣 特殊模式</button>
     </div>
+    <div style="font-size:14px;font-weight:800;color:#d8c4ff">其他玩法：特殊挑戰</div>
+    <div id="special-row"><button id="start-special" style="background:linear-gradient(180deg,#c39bff,#7d4fd6); color:#fff;">🟣 特殊模式</button></div>
+    <button id="start-ship-btn" type="button">開始遊戲</button>
     <div class="sub" id="mode-hint" style="font-size:clamp(12px,2.8vw,15px);"></div>
     <div class="sub" style="font-size:clamp(12px,2.8vw,15px);">簡單／一般：4 發子彈・16 秒・打錯船目標會加速｜困難：3 發子彈・約 10 秒後反擊｜特殊：單字＋外觀雙重確認・18 秒</div>
   </div>
@@ -285,7 +292,7 @@
     <h1>⏸️ 暫停</h1>
     <div class="sub">深呼吸，海岸交給你了</div>
     <button id="resume-btn">▶️ 繼續遊戲</button>
-    <button id="menu-btn" style="background:rgba(255,255,255,.16); color:#fff; font-size:clamp(15px,3.6vw,20px); padding:10px 32px;">回主選單</button>
+    <button id="menu-btn" style="background:rgba(255,255,255,.16); color:#fff; font-size:clamp(15px,3.6vw,20px); padding:10px 32px;">重新選擇模式</button>
   </div>
 </div>
 
@@ -532,6 +539,7 @@ function unlockSpeech(){
 // 題庫來源：帶 emoji 的字 ≥ 4 → 有圖題庫（內建主題）；否則視為連結單字
 function hasPicBank(){ return wordBank.filter(w => w.emoji).length >= 4; }
 let allPic = (function(){ try{ return localStorage.getItem('sgAllPic') === '1'; }catch(e){ return false; } })();
+let selectedShipMode = (function(){ try{return localStorage.getItem('shipMode3')||'normal';}catch(e){return 'normal';} })();
 
 /* ════════════════ 工具 ════════════════ */
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -1550,29 +1558,29 @@ function startGame(difficulty) {
   updateHUD();
 }
 
-// 模式面板：四顆鈕永遠都畫出來，不可選的灰化；全圖檔開關只在有圖題庫顯示（對簡單與困難生效）
+// 模式面板：先選模式，再由同一顆開始鈕進場。
 function refreshModeUI() {
   const pics = hasPicBank();
-  $("start-simple").disabled = !pics;
-  $("start-normal").disabled = pics;
-  $("start-simple").style.opacity = pics ? "" : ".32";
-  $("start-simple").style.filter = pics ? "" : "grayscale(1)";
-  $("start-normal").style.opacity = pics ? ".32" : "";
-  $("start-normal").style.filter = pics ? "grayscale(1)" : "";
+  if (![pics ? 'simple' : 'normal','hard','special'].includes(selectedShipMode)) selectedShipMode = pics ? 'simple' : 'normal';
+  $("start-simple").hidden = !pics;
+  $("start-normal").hidden = pics;
+  ['simple','normal','hard','special'].forEach(m=>{ const b=$("start-"+m); b.classList.toggle('mode-picked',selectedShipMode===m); b.setAttribute('aria-pressed',selectedShipMode===m?'true':'false'); });
   $("mode-hint").textContent = pics
     ? "內建圖片單字：可選簡單或困難（特殊不限）"
     : "連結單字（無圖片）：可選一般或困難（特殊不限）";
   $("allpic-row").style.display = pics ? "flex" : "none";
-  $("allpic-chk").checked = allPic;
+  $("allpic-mix").classList.toggle('mode-picked',!allPic);
+  $("allpic-only").classList.toggle('mode-picked',allPic);
 }
-$("allpic-chk").addEventListener("change", function(){
-  allPic = this.checked;
-  try{ localStorage.setItem('sgAllPic', allPic ? '1' : '0'); }catch(e){}
-});
-$("start-simple").addEventListener("click", () => startGame("simple"));
-$("start-normal").addEventListener("click", () => startGame("normal"));
-$("start-hard").addEventListener("click", () => startGame("hard"));
-$("start-special").addEventListener("click", () => startGame("special"));
+function setAllPic(on){ allPic=on; try{localStorage.setItem('sgAllPic',on?'1':'0');}catch(e){} refreshModeUI(); }
+function selectShipMode(m){ selectedShipMode=m; try{localStorage.setItem('shipMode3',m);}catch(e){} refreshModeUI(); }
+$("allpic-mix").addEventListener("click", () => setAllPic(false));
+$("allpic-only").addEventListener("click", () => setAllPic(true));
+$("start-simple").addEventListener("click", () => selectShipMode("simple"));
+$("start-normal").addEventListener("click", () => selectShipMode("normal"));
+$("start-hard").addEventListener("click", () => selectShipMode("hard"));
+$("start-special").addEventListener("click", () => selectShipMode("special"));
+$("start-ship-btn").addEventListener("click", () => startGame(selectedShipMode));
 refreshModeUI();
 $("restart-btn").addEventListener("click", () => startGame());
 $("winagain-btn").addEventListener("click", () => startGame());
@@ -2098,8 +2106,8 @@ addEventListener('visibilitychange',()=>{
     location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
   }
   const b=document.createElement('button');
-  b.type='button'; b.id='back-to-menu'; b.textContent='← 選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:10px;left:10px;z-index:99999;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
+  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
   b.addEventListener('click',backToMenu);
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });

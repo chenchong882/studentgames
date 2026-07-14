@@ -66,9 +66,9 @@
     font-size: 15px; cursor: pointer; text-align: left; }
   .set-row:active { transform: scale(0.98); }
 
-  #back { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 6;
+  #back { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); z-index: 30;
     pointer-events: auto; background: rgba(15,23,42,0.8); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 999px; padding: 6px 14px; font-size: 12px; cursor: pointer; display: none; }
+    border-radius: 999px; min-height:44px; padding:6px 14px; font-size:12px; cursor:pointer; display:block; }
 
   /* 覆蓋層（開始 / 結算 / 題目回饋） */
   .overlay {
@@ -92,7 +92,6 @@
   .step-label { color: #fbbf24; font-size: 14px; font-weight: 700; margin: 14px 0 8px; }
   #allpic-row { display: none; align-items: center; gap: 8px; justify-content: center; margin-top: 14px; font-size: 14.5px; color: #e2e8f0; cursor: pointer; }
   #allpic-row.show { display: flex; }
-  #allpic-row input { width: 18px; height: 18px; accent-color: #fbbf24; }
   #mode-hint { font-size: 13px; color: #94a3b8; margin-top: 10px; }
   #intel-speak { pointer-events: auto; border: none; border-radius: 50%; width: 34px; height: 34px;
     font-size: 16px; background: #38bdf8; color: #0b0f1a; cursor: pointer; flex: none; display: none; }
@@ -113,7 +112,7 @@
 <body>
 <div id="stage"><canvas id="cv"></canvas></div>
 
-<button id="back">← 返回主機</button>
+<button id="back" aria-label="返回遊戲選單">← 遊戲選單</button>
 
 <div id="hud-top">
   <div id="intel">
@@ -157,17 +156,18 @@
     <button class="btn pick-btn" id="qtype-sentence">📝 句子題</button>
     <button class="btn pick-btn" id="qtype-word">🔤 單字題</button>
   </div>
-  <label id="allpic-row"><input type="checkbox" id="allpic-chk"> 🖼️ 全圖檔模式（每題都是英文＋發音 → 選圖片）</label>
-  <div class="step-label">② 選模式開始</div>
+  <div class="step-label">② 題目內容</div>
+  <div id="allpic-row"><button class="btn pick-btn" id="allpic-mix">混合練習（推薦）</button><button class="btn pick-btn" id="allpic-only">只玩圖片題</button></div>
+  <div class="step-label">③ 選擇難度</div>
   <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center">
     <button class="btn mode-btn" data-mode="simple">🌱 簡單模式</button>
     <button class="btn mode-btn" data-mode="normal">🙂 一般模式</button>
     <button class="btn mode-btn" data-mode="hard" style="background:#f87171;color:#fff">💀 困難模式</button>
   </div>
   <div id="mode-hint"></div>
+  <button class="btn" id="start-sniper-btn">開始遊戲</button>
   <p style="font-size:13px;color:#94a3b8;margin-top:10px">三模式共用 <b>3 次機會</b>　｜　簡單／一般：玩法相同、只差題型　｜　困難：<b>開槍沒中就被發現</b>，3 秒內沒收鏡蹲回掩體就挨打</p>
   <button id="open-settings" style="margin-top:14px;background:rgba(255,255,255,0.08);color:#cbd5e1;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:8px 18px;font-size:13px;cursor:pointer">⚙️ 操控設定</button>
-  <button id="menu-return" style="margin-top:10px;background:rgba(255,255,255,0.08);color:#cbd5e1;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:8px 18px;font-size:13px;cursor:pointer">← 返回遊戲選單</button>
 </div>
 
 <!-- 設定面板 -->
@@ -377,7 +377,7 @@ const MAX_ROUNDS = 10;
 
 // 難度 / 生命
 let difficulty = 'easy';        // easy | hard（玩法檔：簡單＝一般＝easy、困難＝hard）
-let mode = 'normal';            // simple | normal | hard（題型用三模式）
+let mode = (function(){ try{return localStorage.getItem('sniperMode3')||'normal';}catch(e){return 'normal';} })(); // simple | normal | hard（題型用三模式）
 let qtype = (function(){ try{ return localStorage.getItem('sniperQtype')==='sentence' ? 'sentence' : 'word'; }catch(e){ return 'word'; } })();
 let allPic = (function(){ try{ return localStorage.getItem('sgAllPic')==='1'; }catch(e){ return false; } })();
 let roundType = 'cn2en';        // 本回合題型: cloze(句子挖空) | cn2en(中→英) | en2cn(英→中) | en2pic(英→圖)
@@ -1707,10 +1707,12 @@ function refreshStartUI(){
   wBtn.classList.toggle('sel', qtype==='word');
   // 全圖檔開關：選「單字題」且有圖題庫才顯示（句子題與開關無關）
   document.getElementById('allpic-row').classList.toggle('show', qtype==='word' && st.pics);
-  document.getElementById('allpic-chk').checked = allPic;
   // 模式灰化＝題型 × 來源：句子題簡單永遠灰化；單字題依有無圖片
   const allow = qtype==='sentence' ? ['normal','hard'] : (st.pics ? ['simple','hard'] : ['normal','hard']);
-  document.querySelectorAll('.mode-btn').forEach(b=>{ b.disabled = !allow.includes(b.dataset.mode); });
+  if(!allow.includes(mode)) mode=allow[0];
+  document.querySelectorAll('.mode-btn').forEach(b=>{ const on=b.dataset.mode===mode; b.hidden=!allow.includes(b.dataset.mode); b.disabled=!allow.includes(b.dataset.mode); b.classList.toggle('sel',on); b.setAttribute('aria-pressed',on?'true':'false'); });
+  document.getElementById('allpic-mix').classList.toggle('sel',!allPic);
+  document.getElementById('allpic-only').classList.toggle('sel',allPic);
   document.getElementById('mode-hint').textContent =
     qtype==='sentence' ? '句子題：可選一般或困難（句子沒有簡單版）'
     : st.pics ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
@@ -1725,13 +1727,13 @@ document.getElementById('qtype-word').addEventListener('click', ()=>{
   try{ localStorage.setItem('sniperQtype', qtype); }catch(e){}
   refreshStartUI();
 });
-document.getElementById('allpic-chk').addEventListener('change', function(){
-  allPic = this.checked;
-  try{ localStorage.setItem('sgAllPic', allPic ? '1' : '0'); }catch(e){}
-});
+function setAllPic(on){ allPic=on; try{localStorage.setItem('sgAllPic',on?'1':'0');}catch(e){} refreshStartUI(); }
+document.getElementById('allpic-mix').addEventListener('click',()=>setAllPic(false));
+document.getElementById('allpic-only').addEventListener('click',()=>setAllPic(true));
 document.querySelectorAll('.mode-btn').forEach(b=>{
-  b.addEventListener('click', ()=>{ if(!b.disabled) startGame(b.dataset.mode); });
+  b.addEventListener('click', ()=>{ if(!b.disabled){ mode=b.dataset.mode; try{localStorage.setItem('sniperMode3',mode);}catch(e){} refreshStartUI(); } });
 });
+document.getElementById('start-sniper-btn').addEventListener('click',()=>startGame(mode));
 document.getElementById('intel-speak').addEventListener('click', ()=>{
   if(state==='playing' && answer && (intelMode==='en2cn' || intelMode==='en2pic')) speakWord(answer.word);
 });
@@ -1756,7 +1758,6 @@ function goToMenu(){   // 返回遊戲主機(帶回段考單字), 遊戲中 #bac
   location.href = '../index.html' + (LESSON_RAW ? '#lessonData='+encodeURIComponent(LESSON_RAW) : '');
 }
 document.getElementById('back').addEventListener('click', goToMenu);
-document.getElementById('menu-return').addEventListener('click', goToMenu);
 
 requestAnimationFrame(t=>{ lastT=t; loop(t); });
 </script>

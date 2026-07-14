@@ -222,7 +222,9 @@
   .typePanel.hidden { display:none; }
   .tpTitle { font-size:15px; font-weight:800; margin-bottom:8px; text-align:center; }
   .tpItem { display:flex; align-items:center; gap:9px; font-size:14.5px; padding:6px 2px; cursor:pointer; }
-  .tpItem input { width:19px; height:19px; flex:none; accent-color:#ff8c1a; }
+  .tpSeg { display:flex; gap:6px; width:100%; }
+  .tpSeg button { flex:1; min-height:44px; padding:8px; font:inherit; font-size:13px; font-weight:800; color:#fff; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.25); border-radius:10px; cursor:pointer; }
+  .tpSeg button.sel { color:#422000; background:#ffe14d; border-color:#fff2a6; }
   /* 選擇模式：特製醒目外框（金色雙邊 + 漸層底 + 脈動光暈） */
   #modePanel {
     background:linear-gradient(145deg, rgba(255,210,63,.22), rgba(255,140,26,.16));
@@ -323,8 +325,9 @@
       ❤️ 三條命，撞到障礙或答錯扣一命
     </div>
     <div id="modePanel" class="typePanel">
-      <div class="tpTitle">🎮 選擇模式</div>
-      <label class="tpItem hidden" id="allPicRow"><input type="checkbox" id="allPicChk"> 🖼️ 全圖檔模式（每題都是英文＋發音 → 選圖片）</label>
+      <div class="tpTitle">題目內容</div>
+      <div class="tpSeg hidden" id="allPicRow"><button type="button" id="allPicMix">混合練習（推薦）</button><button type="button" id="allPicOnly">只玩圖片題</button></div>
+      <div class="tpTitle">選擇難度</div>
       <div id="modeBtns">
         <button type="button" class="modeBtn" data-mode="simple">🌱 簡單</button>
         <button type="button" class="modeBtn" data-mode="normal">🙂 一般</button>
@@ -1333,14 +1336,16 @@ function applyRunnerData(payload){
   rebuildRunnerBank();
   renderModePanel();
 }
-// 模式面板：三顆鈕永遠都畫出來，不可選的灰化；全圖檔開關只在有圖題庫顯示
+// 模式面板：只顯示題庫目前真正可選的難度。
 function renderModePanel(){
   const panel = $('modePanel'); if(!panel) return;
   const allow = allowedModes();
   panel.querySelectorAll('.modeBtn').forEach(b=>{
     const m = b.dataset.mode, ok = allow.includes(m);
+    b.hidden = !ok;
     b.disabled = !ok;
     b.classList.toggle('sel', m===runnerMode);
+    b.setAttribute('aria-pressed', m===runnerMode ? 'true' : 'false');
     b.onclick = ok ? function(){
       runnerMode = m;
       try{ localStorage.setItem('runnerMode3', m); }catch(e){}
@@ -1349,14 +1354,14 @@ function renderModePanel(){
   });
   $('modeHint').textContent = hasPicBank ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
   $('allPicRow').classList.toggle('hidden', !hasPicBank);
-  const chk = $('allPicChk');
-  chk.checked = allPic;
-  chk.onchange = function(){
-    allPic = chk.checked;
-    try{ localStorage.setItem('sgAllPic', allPic?'1':'0'); }catch(e){}
-    rebuildRunnerBank();
-  };
+  $('allPicMix').classList.toggle('sel', !allPic);
+  $('allPicOnly').classList.toggle('sel', allPic);
+  $('allPicMix').setAttribute('aria-pressed', allPic ? 'false' : 'true');
+  $('allPicOnly').setAttribute('aria-pressed', allPic ? 'true' : 'false');
 }
+function setAllPic(on){ allPic=on; try{ localStorage.setItem('sgAllPic',on?'1':'0'); }catch(e){} rebuildRunnerBank(); renderModePanel(); }
+$('allPicMix').addEventListener('click',()=>setAllPic(false));
+$('allPicOnly').addEventListener('click',()=>setAllPic(true));
 function readRunnerHash(){
   const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash;
   if(!h) return null;
@@ -1381,8 +1386,8 @@ window.addEventListener('message',e=>{
     location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
   }
   const b=document.createElement('button');
-  b.type='button'; b.id='back-to-menu'; b.textContent='← 選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:10px;left:10px;z-index:99999;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
+  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
   b.addEventListener('click',backToMenu);
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });

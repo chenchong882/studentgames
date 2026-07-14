@@ -357,11 +357,8 @@
             display: none;
         }
 
-        .ss-allpic input {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--gold);
-        }
+        .ss-allpic button { min-height:44px; flex:1; padding:8px; color:#fff3cf; font:inherit; font-size:13px; font-weight:800; background:rgba(255,255,255,.1); border:1px solid rgba(255,243,207,.28); border-radius:9px; cursor:pointer; }
+        .ss-allpic button.sel { color:#221406; background:linear-gradient(180deg,#ffe27a,#f7a928); }
 
         .ss-mode-btns {
             display: flex;
@@ -658,7 +655,9 @@
                         <div class="ss-stat"><span>炸彈</span><b id="ss-bomb">0</b></div>
                     </div>
                     <div class="ss-modes">
-                        <label class="ss-allpic hidden" id="ss-allpic-row"><input type="checkbox" id="ss-allpic-chk"> 🖼️ 全圖檔模式（每題都是英文＋發音 → 選圖片）</label>
+                        <div class="ss-allpic hidden" id="ss-allpic-row"><button type="button" id="ss-allpic-mix">混合練習（推薦）</button><button type="button" id="ss-allpic-only">只玩圖片題</button></div>
+                        <div class="ss-mode-hint">題目內容：看英文、聽發音，選出正確圖片</div>
+                        <div class="ss-mode-hint">選擇難度</div>
                         <div class="ss-mode-btns">
                             <button type="button" class="ss-mode-btn" data-mode="simple">🌱 簡單</button>
                             <button type="button" class="ss-mode-btn" data-mode="normal">🙂 一般</button>
@@ -2029,17 +2028,19 @@
     /* ── 模式面板：三顆鈕永遠都畫出來，不可選的灰化；全圖檔開關只在有圖題庫顯示 ── */
     const modeHintEl = document.getElementById("ss-mode-hint");
     const allPicRowEl = document.getElementById("ss-allpic-row");
-    const allPicChkEl = document.getElementById("ss-allpic-chk");
     function renderModePanel() {
         const allow = allowedModes();
         document.querySelectorAll(".ss-mode-btn").forEach(btn => {
             const mode = btn.dataset.mode;
+            btn.hidden = !allow.includes(mode);
             btn.disabled = !allow.includes(mode);
             btn.classList.toggle("sel", mode === minerMode);
+            btn.setAttribute("aria-pressed", mode === minerMode ? "true" : "false");
         });
         modeHintEl.textContent = hasPicBank() ? "內建圖片單字：可選簡單或困難" : "連結單字（無圖片）：可選一般或困難";
         allPicRowEl.classList.toggle("hidden", !hasPicBank());
-        allPicChkEl.checked = allPic;
+        document.getElementById("ss-allpic-mix").classList.toggle("sel", !allPic);
+        document.getElementById("ss-allpic-only").classList.toggle("sel", allPic);
     }
     document.querySelectorAll(".ss-mode-btn").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -2050,10 +2051,9 @@
             renderModePanel();
         });
     });
-    allPicChkEl.addEventListener("change", () => {
-        allPic = allPicChkEl.checked;
-        try { localStorage.setItem("sgAllPic", allPic ? "1" : "0"); } catch (e) {}
-    });
+    function setAllPic(on) { allPic = on; try { localStorage.setItem("sgAllPic", allPic ? "1" : "0"); } catch (e) {} renderModePanel(); }
+    document.getElementById("ss-allpic-mix").addEventListener("click", () => setAllPic(false));
+    document.getElementById("ss-allpic-only").addEventListener("click", () => setAllPic(true));
 
     /* 開始 / 再玩一次一律走真實按鈕：iOS 才解得開語音與 BGM 的自動播放 */
     function beginGame() {
@@ -2187,8 +2187,8 @@
         location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
       }
       const b=document.createElement('button');
-      b.type='button'; b.id='back-to-menu'; b.textContent='← 選單'; b.setAttribute('aria-label','返回遊戲選單');
-      b.style.cssText='position:fixed;top:10px;left:10px;z-index:99999;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+      b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
+      b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
       b.addEventListener('click',backToMenu);
       b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
       b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });

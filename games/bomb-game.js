@@ -250,6 +250,7 @@ function hasPicBank() {
 function allowedBombModes() { return hasPicBank() ? ['simple', 'hard'] : ['normal', 'hard']; }
 // 全圖檔開關（所有遊戲共用 sgAllPic 鑰匙）
 let allPic = (() => { try { return localStorage.getItem('sgAllPic') === '1'; } catch (e) { return false; } })();
+let menuMode = (() => { try { return localStorage.getItem('bombMode3') || 'normal'; } catch (e) { return 'normal'; } })();
 function buildLessonLevels() {
   LEVELS = chunkWords(shuffleWords(bombWordPool), 5).slice(0, MAX_LEVELS).map((chunk, index) => ({
     id: index + 1,
@@ -1481,11 +1482,9 @@ function drawTrajectory(c, plane, difficulty) {
 // ══════════════════════════════════════════
 //  HUD
 // ══════════════════════════════════════════
-// 「← 選單」返回鈕的右緣（canvas 座標）；左側 HUD 一律排在它右邊，才不會被選單蓋住
+// 返回鈕已移到右上，左側 HUD 直接從安全區後開始排列。
 function backBtnRight() {
-  const el = document.getElementById('back-to-menu');
-  if (el) return el.getBoundingClientRect().right;
-  return 10 + SAFE_L + 92;  // 按鈕還沒建立時的估計值
+  return SAFE_L;
 }
 
 function drawHUD(c, game) {
@@ -2654,31 +2653,33 @@ const _speechOverlay = (() => {
   const normalBtn = mkBtn('選擇一般模式');
   const hardBtn   = mkBtn('選擇困難模式');
   const speakBtn  = mkBtn('播放單字發音');
+  const startBtn = document.createElement('button');
+  startBtn.type = 'button'; startBtn.textContent = '開始遊戲';
+  startBtn.style.cssText = 'position:fixed;z-index:9002;display:none;min-height:44px;padding:10px 28px;border:2px solid #fff;border-radius:999px;color:#3a1c00;background:linear-gradient(#ffe36b,#ffae2e);font:bold 18px Arial,"Noto Sans TC",sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;';
+  root.appendChild(startBtn);
   const pickMode = m => {
-    Audio.unlockSpeech();
-    if (game.phase === 'menu' && allowedBombModes().includes(m)) game.start(m);
+    if (!allowedBombModes().includes(m)) return;
+    menuMode = m; try { localStorage.setItem('bombMode3', m); } catch (e) {}
+    startBtn.disabled = false;
   };
   simpleBtn.addEventListener('click', () => pickMode('simple'));
   normalBtn.addEventListener('click', () => pickMode('normal'));
   hardBtn.addEventListener('click',   () => pickMode('hard'));
+  startBtn.addEventListener('click', () => { Audio.unlockSpeech(); if (game.phase === 'menu') game.start(menuMode); });
   speakBtn.addEventListener('click', () => { Audio.unlockSpeech(); if (game.phase === 'playing' && game.targetWord && game.qType !== 'cn2en') Audio.speak(game.targetWord); });
 
-  // 全圖檔開關：真實 DOM checkbox 疊在選單上（canvas 畫不出可勾選的元件）
-  const allPicRow = document.createElement('label');
+  // 題目內容：兩顆真實 DOM 按鈕，跨遊戲共用 sgAllPic。
+  const allPicRow = document.createElement('div');
   allPicRow.id = 'allpic-row';
   allPicRow.style.cssText = 'position:fixed;z-index:9001;display:none;align-items:center;gap:8px;'
-    + 'justify-content:center;color:#ffe9c0;font:bold 15px Arial,"Noto Sans TC",sans-serif;cursor:pointer;'
+    + 'justify-content:center;color:#ffe9c0;font:bold 15px Arial,"Noto Sans TC",sans-serif;'
     + '-webkit-tap-highlight-color:transparent;';
-  const allPicChk = document.createElement('input');
-  allPicChk.type = 'checkbox';
-  allPicChk.style.cssText = 'width:18px;height:18px;accent-color:#FFD700;';
-  allPicRow.appendChild(allPicChk);
-  allPicRow.appendChild(document.createTextNode(' 🖼️ 全圖檔模式（每題都是英文＋發音 → 選圖片）'));
-  allPicChk.checked = allPic;
-  allPicChk.addEventListener('change', () => {
-    allPic = allPicChk.checked;
-    try { localStorage.setItem('sgAllPic', allPic ? '1' : '0'); } catch (e) {}
-  });
+  const allPicMix = document.createElement('button'), allPicOnly = document.createElement('button');
+  allPicMix.type='button'; allPicOnly.type='button'; allPicMix.textContent='混合練習（推薦）'; allPicOnly.textContent='只玩圖片題';
+  [allPicMix,allPicOnly].forEach(b=>b.style.cssText='min-height:40px;padding:7px 10px;color:#fff;background:rgba(15,23,42,.76);border:1px solid rgba(255,255,255,.4);border-radius:9px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;');
+  function setAllPic(on){ allPic=on; try{localStorage.setItem('sgAllPic',on?'1':'0');}catch(e){} allPicMix.style.background=on?'rgba(15,23,42,.76)':'#FFD700'; allPicMix.style.color=on?'#fff':'#3a1c00'; allPicOnly.style.background=on?'#FFD700':'rgba(15,23,42,.76)'; allPicOnly.style.color=on?'#3a1c00':'#fff'; }
+  allPicMix.addEventListener('click',()=>setAllPic(false)); allPicOnly.addEventListener('click',()=>setAllPic(true)); setAllPic(allPic);
+  allPicRow.append(allPicMix,allPicOnly);
   root.appendChild(allPicRow);
 
   return function sync() {
@@ -2689,18 +2690,18 @@ const _speechOverlay = (() => {
       place(simpleBtn, bx, ys.simpleY - bh/2, bw, bh); simpleBtn.style.display = allow.includes('simple') ? 'block' : 'none';
       place(normalBtn, bx, ys.normalY - bh/2, bw, bh); normalBtn.style.display = allow.includes('normal') ? 'block' : 'none';
       place(hardBtn,   bx, ys.hardY   - bh/2, bw, bh); hardBtn.style.display   = 'block';
+      startBtn.style.left = (W/2 - 82) + 'px'; startBtn.style.top = (ys.hardY + bh/2 + 26) + 'px'; startBtn.style.display = 'block';
       if (hasPicBank()) {
         const rw = Math.min(W * 0.9, 440);
         allPicRow.style.left = (W/2 - rw/2) + 'px';
         allPicRow.style.top = (menuAllPicY() - 14) + 'px';
         allPicRow.style.width = rw + 'px';
         allPicRow.style.display = 'flex';
-        allPicChk.checked = allPic;
       } else {
         allPicRow.style.display = 'none';
       }
     } else {
-      simpleBtn.style.display = 'none'; normalBtn.style.display = 'none'; hardBtn.style.display = 'none';
+      simpleBtn.style.display = 'none'; normalBtn.style.display = 'none'; hardBtn.style.display = 'none'; startBtn.style.display = 'none';
       allPicRow.style.display = 'none';
     }
     if (game.phase === 'playing' && game.targetWord && game.qType !== 'cn2en') {
@@ -2747,8 +2748,8 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden&&game&&gam
     location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
   }
   const b=document.createElement('button');
-  b.type='button'; b.id='back-to-menu'; b.textContent='← 選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));left:calc(10px + env(safe-area-inset-left, 0px));z-index:99999;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
+  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));right:calc(10px + env(safe-area-inset-right, 0px));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
   b.addEventListener('click',backToMenu);
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });

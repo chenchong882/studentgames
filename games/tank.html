@@ -75,9 +75,10 @@
   .modeBtn.on{background:#ffd878;color:#2a2030;border-color:#ffd878;}
   .modeBtn:disabled{opacity:.32;filter:grayscale(1);cursor:not-allowed;}
   #allPicRow{margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px;
-    font-size:15px;color:rgba(255,255,255,.85);cursor:pointer;}
+    font-size:15px;color:rgba(255,255,255,.85);}
   #allPicRow.hidden{display:none;}
-  #allPicRow input{width:18px;height:18px;accent-color:#ffd878;}
+  #allPicRow button{min-height:44px;padding:8px 12px;font:inherit;font-size:13px;font-weight:700;color:#fff;background:#2c3242;border:2px solid rgba(255,216,120,.4);border-radius:9px;cursor:pointer;}
+  #allPicRow button.on{color:#2a2030;background:#ffd878;border-color:#ffd878;}
   #modeHint{margin-top:8px;font-size:13px;color:rgba(255,255,255,.6);}
   #speakBtn{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:40;
     display:none;align-items:center;gap:8px;padding:12px 24px;font-size:22px;font-weight:800;
@@ -174,9 +175,9 @@
   <div class="sub">J U R A S S I C&nbsp;&nbsp;T A N K</div>
   <p>到發光的樹上射下正確的英文單字，邊打恐龍邊學單字！</p>
   <p class="guideLink" id="guideLink">📖 查看玩法說明</p>
-  <label id="allPicRow" class="hidden"><input type="checkbox" id="allPicChk"> 🖼️ 全圖檔模式（每題都是英文＋發音 → 選圖片）</label>
+  <div id="allPicRow" class="hidden"><button type="button" id="allPicMix">混合練習（推薦）</button><button type="button" id="allPicOnly">只玩圖片題</button></div>
   <div id="modeSel">
-    <span class="diffLab">遊戲模式</span>
+    <span class="diffLab">選擇難度</span>
     <button class="modeBtn" data-mode="simple">🌱 簡單</button>
     <button class="modeBtn" data-mode="normal">🙂 一般</button>
     <button class="modeBtn" data-mode="hard">🔥 困難</button>
@@ -187,7 +188,7 @@
     <button class="diffBtn" data-diff="easy">🟢 簡單（下墜小）</button>
     <button class="diffBtn" data-diff="hard">🔴 困難（下墜大）</button>
   </div>
-  <div class="go" id="goText">— 按空白鍵、點擊滑鼠 或 輕觸螢幕 開始 —</div>
+  <button class="go" id="startTankBtn" type="button">開始遊戲</button>
 </div>
 <div id="pauseOverlay" class="hidden">
   <h1>⏸ 暫停</h1>
@@ -1770,36 +1771,38 @@ function setMode(m){
   try{localStorage.setItem('tankMode',mode);}catch(e){}
   refreshModeUI();
 }
-// 三顆鈕永遠都畫出來，不可選的灰化；全圖檔開關只在有圖題庫顯示
+// 只顯示題庫目前真正可選的難度；模式選取後由開始鈕統一進場。
 function refreshModeUI(){
   const allow=allowedTankModes();
   document.querySelectorAll('.modeBtn').forEach(b=>{
+    b.hidden=!allow.includes(b.dataset.mode);
     b.disabled=!allow.includes(b.dataset.mode);
     b.classList.toggle('on',b.dataset.mode===mode);
+    b.setAttribute('aria-pressed',b.dataset.mode===mode?'true':'false');
   });
   const hint=document.getElementById('modeHint');
   if(hint)hint.textContent=hasEmoji?'內建圖片單字：可選簡單或困難':'連結單字（無圖片）：可選一般或困難';
   const row=document.getElementById('allPicRow');
   if(row)row.classList.toggle('hidden',!hasEmoji);
-  const chk=document.getElementById('allPicChk');
-  if(chk)chk.checked=allPic;
+  document.getElementById('allPicMix').classList.toggle('on',!allPic);
+  document.getElementById('allPicOnly').classList.toggle('on',allPic);
 }
 document.querySelectorAll('.modeBtn').forEach(b=>{
   const sel=e=>{e.stopPropagation();setMode(b.dataset.mode);};
   b.addEventListener('mousedown',sel);
   b.addEventListener('touchstart',e=>{e.stopPropagation();},{passive:true});
-  b.addEventListener('click',e=>{e.stopPropagation();ensureAudio();setMode(b.dataset.mode);startGame();});
+  b.addEventListener('click',e=>{e.stopPropagation();setMode(b.dataset.mode);});
 });
 /* 全圖檔開關：擋掉「點到就開始遊戲」，變更即存（所有遊戲共用 sgAllPic 鑰匙） */
 (function(){
-  const row=document.getElementById('allPicRow'),chk=document.getElementById('allPicChk');
+  const row=document.getElementById('allPicRow');
   if(!row)return;
   ['mousedown','touchstart','click'].forEach(ev=>row.addEventListener(ev,e=>e.stopPropagation()));
-  chk.addEventListener('change',()=>{
-    allPic=chk.checked;
-    try{localStorage.setItem('sgAllPic',allPic?'1':'0');}catch(e){}
-  });
+  const setAllPic=on=>{allPic=on;try{localStorage.setItem('sgAllPic',allPic?'1':'0');}catch(e){}refreshModeUI();};
+  document.getElementById('allPicMix').addEventListener('click',()=>setAllPic(false));
+  document.getElementById('allPicOnly').addEventListener('click',()=>setAllPic(true));
 })();
+document.getElementById('startTankBtn').addEventListener('click',()=>{ensureAudio();startGame();});
 setMode(mode);refreshModeUI();
 /* ====== 喇叭鈕：簡易模式重聽當前單字（真實 <button> click → iOS 才唸得出來） ====== */
 (function(){
@@ -1821,7 +1824,7 @@ addEventListener('keydown',e=>{
   }
   if(e.code==='Space')e.preventDefault();
   if(e.code==='Space'){
-    if(state==='menu'){ensureAudio();startGame();return;}
+    if(state==='menu')return;
     if(state==='over'&&overT>0.6){startGame();return;}
   }
   if(e.code==='Escape')togglePause();
@@ -1837,7 +1840,7 @@ addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
 addEventListener('mousedown',()=>{
   ensureAudio();
   if(guideOpen)return; // 守則開啟時不開始遊戲 / 不開砲
-  if(state==='menu'){startGame();return;}
+  if(state==='menu')return;
   if(state==='over'){if(overT>0.6)startGame();return;}
   if(paused||quiz)return; // 暫停或答題中點擊不開砲
   mouse.down=true;
@@ -1880,12 +1883,12 @@ function applyStick(x,y){                // 依浮動原點換算方向
   stickEl.classList.toggle('boost',touchMove.boost);
 }
 function inRect(r,x,y,pad){return !!r&&x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad;}
-function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink,#allPicRow');}
+function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink,#allPicRow,#startTankBtn');}
 addEventListener('touchstart',e=>{
   ensureAudio();
   if(state==='menu'||state==='over'){ // 選單 / 結束畫面：輕觸開始（互動元件除外）
     if(isUIEl(e.target)||guideOpen)return;
-    if(state==='menu'){e.preventDefault();startGame();return;}
+    if(state==='menu')return;
     if(state==='over'&&overT>0.6){e.preventDefault();startGame();}
     return;
   }
@@ -2016,8 +2019,8 @@ window.addEventListener('message',e=>{
     location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
   }
   const b=document.createElement('button');
-  b.type='button'; b.id='back-to-menu'; b.textContent='← 選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:10px;left:10px;z-index:99999;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
+  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
   b.addEventListener('click',backToMenu);
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });

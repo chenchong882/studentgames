@@ -26,9 +26,10 @@ button{font-family:'Outfit',sans-serif;}
 .difficulty-btn:disabled{opacity:.32;filter:grayscale(1);cursor:not-allowed;}
 .difficulty-btn:disabled:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.14);}
 #mode-hint{font-size:.78rem;color:#9ca3af;font-weight:800;margin-top:8px;text-align:center;}
-#allpic-row{display:none;align-items:center;gap:8px;justify-content:center;font-size:.88rem;font-weight:800;color:#d1d5db;margin-bottom:10px;cursor:pointer;}
+#allpic-row{display:none;align-items:center;gap:8px;justify-content:center;font-size:.88rem;font-weight:800;color:#d1d5db;margin-bottom:10px;}
 #allpic-row.show{display:flex;}
-#allpic-row input{width:18px;height:18px;accent-color:#f9c74f;}
+#allpic-row button{min-height:44px;flex:1;max-width:190px;font:inherit;font-size:.8rem;font-weight:800;color:#fff;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.22);border-radius:10px;cursor:pointer;}
+#allpic-row button.sel{color:#24200d;background:#f9c74f;border-color:#fff1b0;}
 .unit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .unit-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px;text-align:center;}
 .unit-card .emoji{font-size:1.45rem;}
@@ -156,20 +157,21 @@ button{font-family:'Outfit',sans-serif;}
       <div class="unit-grid" id="unit-table"></div>
     </div>
     <div class="panel">
-      <div class="section-title">模式選擇</div>
-      <label id="allpic-row"><input type="checkbox" id="allpic-chk"> 🖼️ 全圖檔模式（每題都是英文＋發音 → 選圖片）</label>
+      <div class="section-title">題目內容</div>
+      <div id="allpic-row"><button type="button" id="allpic-mix">混合練習（推薦）</button><button type="button" id="allpic-only">只玩圖片題</button></div>
+      <div class="section-title">選擇難度</div>
       <div class="difficulty-grid">
         <button class="difficulty-btn" id="difficulty-easy" type="button" onclick="selectDifficulty('easy')">
           <span class="label">簡單</span>
-          <span class="desc">敵人出兵最慢（11 秒起），答錯不生兵。圖片題為主（英文＋發音→選圖），連對 5 題 +1 強化值可升級。</span>
+          <span class="desc">🌱 標準玩法，圖片題較多</span>
         </button>
         <button class="difficulty-btn active" id="difficulty-normal" type="button" onclick="selectDifficulty('normal')">
           <span class="label">一般</span>
-          <span class="desc">30 金開局，標準節奏，答錯增援 1 名劍士。</span>
+          <span class="desc">🙂 標準玩法，中英互相練習</span>
         </button>
         <button class="difficulty-btn" id="difficulty-hard" type="button" onclick="selectDifficulty('hard')">
           <span class="label">困難</span>
-          <span class="desc">20 金開局，敵人更快（7 秒起），連錯會追加弓箭手，BOSS 答錯回滿血。</span>
+          <span class="desc">🔥 節奏更快，加入額外威脅</span>
         </button>
       </div>
       <div id="mode-hint"></div>
@@ -385,14 +387,16 @@ function updateDifficultyUI(){
     const btn = document.getElementById('difficulty-' + level);
     if(!btn) return;
     btn.classList.toggle('active', level === selectedDifficulty);
+    btn.hidden = !allow.includes(level);
     btn.disabled = !allow.includes(level);
+    btn.setAttribute('aria-pressed', level === selectedDifficulty ? 'true' : 'false');
   });
   const hint = document.getElementById('mode-hint');
   if(hint) hint.textContent = hasPicBank() ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
   const row = document.getElementById('allpic-row');
   if(row) row.classList.toggle('show', hasPicBank());
-  const chk = document.getElementById('allpic-chk');
-  if(chk) chk.checked = allPic;
+  document.getElementById('allpic-mix').classList.toggle('sel', !allPic);
+  document.getElementById('allpic-only').classList.toggle('sel', allPic);
   const summary = document.getElementById('difficulty-summary');
   if(summary) summary.innerHTML = `<strong>敵方壓力</strong><br>${CONFIG.summary}`;
   document.getElementById('gold-display').textContent = CONFIG.startGold;
@@ -1728,10 +1732,9 @@ function endGame(result, winType){
   } catch(e){}
 })();
 buildQuestionPools(battleData);
-document.getElementById('allpic-chk').addEventListener('change', function(){
-  allPic = this.checked;
-  try{ localStorage.setItem('sgAllPic', allPic ? '1' : '0'); }catch(e){}
-});
+function setAllPic(on){ allPic=on; try{ localStorage.setItem('sgAllPic',on?'1':'0'); }catch(e){} updateDifficultyUI(); }
+document.getElementById('allpic-mix').addEventListener('click',()=>setAllPic(false));
+document.getElementById('allpic-only').addEventListener('click',()=>setAllPic(true));
 addEventListener('visibilitychange',()=>{
   if(!bgmAudio)return;
   if(document.hidden){ try{bgmAudio.pause();}catch(e){} }
@@ -1747,8 +1750,8 @@ addEventListener('visibilitychange',()=>{
     location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
   }
   const b=document.createElement('button');
-  b.type='button'; b.id='back-to-menu'; b.textContent='← 選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:10px;left:10px;z-index:99999;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
+  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
   b.addEventListener('click',backToMenu);
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
