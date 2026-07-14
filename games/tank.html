@@ -178,6 +178,7 @@
   <p>到發光的樹上射下正確的英文單字，邊打恐龍邊學單字！</p>
   <p class="guideLink" id="guideLink">📖 查看玩法說明</p>
   <div id="allPicRow" class="hidden"><button type="button" id="allPicMix">混合練習（推薦）</button><button type="button" id="allPicOnly">只玩圖片題</button></div>
+  <div id="mixDesc" class="hidden">混合練習：交替出現中英文字題與英文／發音選圖片；簡單圖片較多、困難文字較多。</div>
   <div id="modeSel">
     <span class="diffLab">選擇難度</span>
     <button class="modeBtn" data-mode="simple">🌱 簡單</button>
@@ -1788,6 +1789,7 @@ function refreshModeUI(){
   if(hint)hint.textContent=hasEmoji?'內建圖片單字：可選簡單或困難':'連結單字（無圖片）：可選一般或困難';
   const row=document.getElementById('allPicRow');
   if(row)row.classList.toggle('hidden',!hasEmoji);
+  document.getElementById('mixDesc').classList.toggle('hidden',!hasEmoji);
   document.getElementById('allPicMix').classList.toggle('on',!allPic);
   document.getElementById('allPicOnly').classList.toggle('on',allPic);
 }

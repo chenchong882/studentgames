@@ -327,6 +327,7 @@
     <div id="modePanel" class="typePanel">
       <div class="tpTitle">題目內容</div>
       <div class="tpSeg hidden" id="allPicRow"><button type="button" id="allPicMix">混合練習（推薦）</button><button type="button" id="allPicOnly">只玩圖片題</button></div>
+      <div class="tpItem hidden" id="mixDesc">混合練習：中英文字題＋英文／發音選圖片；簡單圖片較多、困難文字較多。</div>
       <div class="tpTitle">選擇難度</div>
       <div id="modeBtns">
         <button type="button" class="modeBtn" data-mode="simple">🌱 簡單</button>
@@ -1354,6 +1355,7 @@ function renderModePanel(){
   });
   $('modeHint').textContent = hasPicBank ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
   $('allPicRow').classList.toggle('hidden', !hasPicBank);
+  $('mixDesc').classList.toggle('hidden', !hasPicBank);
   $('allPicMix').classList.toggle('sel', !allPic);
   $('allPicOnly').classList.toggle('sel', allPic);
   $('allPicMix').setAttribute('aria-pressed', allPic ? 'false' : 'true');

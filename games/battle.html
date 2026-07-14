@@ -30,6 +30,7 @@ button{font-family:'Outfit',sans-serif;}
 #allpic-row.show{display:flex;}
 #allpic-row button{min-height:44px;flex:1;max-width:190px;font:inherit;font-size:.8rem;font-weight:800;color:#fff;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.22);border-radius:10px;cursor:pointer;}
 #allpic-row button.sel{color:#24200d;background:#f9c74f;border-color:#fff1b0;}
+.mix-desc{font-size:.76rem;color:#9ca3af;font-weight:800;line-height:1.5;text-align:center;margin:-3px 0 10px;}
 .unit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .unit-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px;text-align:center;}
 .unit-card .emoji{font-size:1.45rem;}
@@ -159,6 +160,7 @@ button{font-family:'Outfit',sans-serif;}
     <div class="panel">
       <div class="section-title">題目內容</div>
       <div id="allpic-row"><button type="button" id="allpic-mix">混合練習（推薦）</button><button type="button" id="allpic-only">只玩圖片題</button></div>
+      <div class="mix-desc" id="mix-desc">混合練習：中英文字題＋英文／發音選圖片；簡單圖片較多、困難文字較多。</div>
       <div class="section-title">選擇難度</div>
       <div class="difficulty-grid">
         <button class="difficulty-btn" id="difficulty-easy" type="button" onclick="selectDifficulty('easy')">
@@ -395,6 +397,7 @@ function updateDifficultyUI(){
   if(hint) hint.textContent = hasPicBank() ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
   const row = document.getElementById('allpic-row');
   if(row) row.classList.toggle('show', hasPicBank());
+  document.getElementById('mix-desc').hidden = !hasPicBank();
   document.getElementById('allpic-mix').classList.toggle('sel', !allPic);
   document.getElementById('allpic-only').classList.toggle('sel', allPic);
   const summary = document.getElementById('difficulty-summary');

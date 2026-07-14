@@ -1656,6 +1656,7 @@ function drawMenu(c) {
   const hint = hasPicBank() ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
   c.font='15px Arial'; c.fillStyle='rgba(255,255,255,0.55)';
   c.fillText(hint, W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.035, 16, 26));
+  if(hasPicBank()){ c.font='13px Arial'; c.fillStyle='rgba(255,233,192,0.8)'; c.fillText('混合練習：中英文字題＋英文／發音選圖片（簡單圖片較多、困難文字較多）', W/2, menuAllPicY()-28); }
   c.font='14px Arial'; c.fillStyle='rgba(255,255,255,0.35)';
   c.fillText('先選擇難度，再按下方「開始遊戲」', W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.075, 36, 56));
 }

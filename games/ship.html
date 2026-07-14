@@ -257,6 +257,7 @@
     </div>
     <div style="font-size:14px;font-weight:800;color:#ffe9c0">題目內容</div>
     <div id="allpic-row" style="display:none; align-items:center; gap:8px; justify-content:center; font-size:clamp(13px,3vw,16px); color:#ffe9c0;"><button type="button" id="allpic-mix">混合練習（推薦）</button><button type="button" id="allpic-only">只玩圖片題</button></div>
+    <div id="mix-desc" style="display:none;font-size:13px;color:#d6e4ff;max-width:520px">混合練習：交替出現中英文字題與英文／發音選圖片；簡單圖片較多、困難文字較多。</div>
     <div style="font-size:14px;font-weight:800;color:#ffe9c0">選擇難度</div>
     <div id="mode-row" style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center;">
       <button id="start-simple" style="background:linear-gradient(180deg,#7be38a,#33c45a); color:#06310f;">🌱 簡單模式</button>
@@ -1569,6 +1570,7 @@ function refreshModeUI() {
     ? "內建圖片單字：可選簡單或困難（特殊不限）"
     : "連結單字（無圖片）：可選一般或困難（特殊不限）";
   $("allpic-row").style.display = pics ? "flex" : "none";
+  $("mix-desc").style.display = pics ? "block" : "none";
   $("allpic-mix").classList.toggle('mode-picked',!allPic);
   $("allpic-only").classList.toggle('mode-picked',allPic);
 }
