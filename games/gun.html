@@ -20,6 +20,26 @@
     padding:9px 16px;border-radius:8px;color:#cfd3da;font-size:13px;z-index:5;
     backdrop-filter:blur(3px);pointer-events:none;}
   #kills .val{font-weight:800;color:#fff;font-size:18px;margin-left:8px;}
+  #status{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:5;color:#fff;
+    text-align:center;text-shadow:0 2px 6px #000;pointer-events:none;min-width:250px;}
+  #wave{font-size:21px;font-weight:900;letter-spacing:1px;color:#ffe59a;}
+  #question{margin-top:5px;font-size:17px;font-weight:800;background:rgba(12,19,28,.68);
+    padding:7px 14px;border-radius:10px;display:inline-block;max-width:min(88vw,580px);}
+  #combo{font-size:13px;margin-top:5px;color:#b9ebff;font-weight:800;}
+  #health{position:fixed;left:14px;bottom:18px;z-index:5;color:#fff;pointer-events:none;
+    text-shadow:0 2px 6px #000;font-weight:800;}
+  #health .bar{width:154px;height:10px;border-radius:6px;background:rgba(0,0,0,.48);overflow:hidden;margin-top:5px;}
+  #health .fill{height:100%;width:100%;background:linear-gradient(90deg,#ff5544,#ffd54f);transition:width .15s;}
+  #objective{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:5;color:#d7f5ff;
+    background:rgba(12,24,30,.58);padding:7px 14px;border-radius:9px;font-size:13px;font-weight:700;
+    text-align:center;pointer-events:none;max-width:75vw;}
+  #damageFlash{position:fixed;inset:0;pointer-events:none;z-index:6;opacity:0;
+    background:radial-gradient(ellipse at center,transparent 42%,rgba(220,28,25,.7) 100%);}
+  #damageFlash.show{animation:damageFlash .33s ease-out;}
+  @keyframes damageFlash{0%{opacity:.9}100%{opacity:0}}
+  #back{position:fixed;right:14px;top:14px;z-index:8;min-height:44px;display:flex;align-items:center;
+    padding:0 12px;border-radius:10px;background:rgba(20,26,38,.68);color:#ffe9a8;text-decoration:none;
+    font-size:13px;font-weight:800;border:1px solid rgba(255,216,120,.4);}
   #hitmark{position:fixed;left:50%;top:50%;width:34px;height:34px;transform:translate(-50%,-50%);
     pointer-events:none;z-index:6;opacity:0;}
   #hitmark.show{animation:hitPop .18s ease-out;}
@@ -41,8 +61,23 @@
   #overlay h1{font-size:52px;margin:0 0 8px;color:#ffe9a8;text-shadow:0 3px 16px #000;}
   #overlay .sub{letter-spacing:6px;color:rgba(255,255,255,.7);margin-bottom:26px;}
   #overlay p{margin:6px 0;font-size:16px;color:rgba(255,255,255,.92);}
-  #overlay .go{margin-top:32px;font-size:22px;font-weight:700;color:#ffd878;animation:pulse 1.6s infinite;}
+  #overlay .go{margin-top:24px;font-size:17px;font-weight:700;color:#ffd878;}
   @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
+  .actionBtn{appearance:none;border:0;border-radius:12px;background:linear-gradient(180deg,#ffd96d,#e99b34);
+    color:#222;padding:14px 26px;font-size:19px;font-weight:900;box-shadow:0 4px 0 #9c5b1c;cursor:pointer;
+    min-height:48px;font-family:inherit;}
+  .actionBtn:active{transform:translateY(3px);box-shadow:0 1px 0 #9c5b1c;}
+  .actionBtn:focus-visible,.choiceBtn:focus-visible,#fireBtn:focus-visible,#jumpBtn:focus-visible{outline:3px solid #fff;outline-offset:3px;}
+  #quiz{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:10;
+    background:rgba(5,10,16,.68);color:#fff;text-align:center;padding:20px;}
+  #quiz.show{display:flex;}
+  #quizCard{max-width:440px;background:linear-gradient(145deg,#1d2c37,#0d151d);border:1px solid rgba(255,219,117,.7);
+    border-radius:18px;padding:28px 24px;box-shadow:0 14px 50px #000;}
+  #quizTitle{font-size:22px;font-weight:900;color:#ffe39a;margin-bottom:9px;}
+  #quizPrompt{font-size:18px;margin-bottom:18px;line-height:1.55;}
+  #quizChoices{display:grid;gap:10px;}
+  .choiceBtn{font:inherit;font-size:18px;font-weight:800;min-height:48px;border-radius:10px;border:1px solid #6ca8bd;
+    color:#fff;background:#274553;cursor:pointer;}
   /* ===== 觸控操控（平板 / 手機） ===== */
   #touchUI{position:fixed;inset:0;z-index:7;pointer-events:none;}
   #moveStick{position:absolute;left:26px;bottom:26px;width:140px;height:140px;border-radius:50%;
@@ -54,6 +89,7 @@
     display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;
     background:rgba(255,70,60,.32);border:3px solid rgba(255,95,85,.75);text-shadow:0 1px 4px #000;}
   #fireBtn.active{background:rgba(255,70,60,.6);}
+  #fireBtn,#jumpBtn{pointer-events:auto;touch-action:none;font-family:inherit;}
   #jumpBtn{position:absolute;right:150px;bottom:52px;width:70px;height:70px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;
     background:rgba(80,160,255,.28);border:3px solid rgba(120,180,255,.7);text-shadow:0 1px 4px #000;}
@@ -72,6 +108,7 @@
     <line x1="17" y1="13" x2="24" y2="13" stroke="#ff5544" stroke-width="2.4"/>
   </svg>
 </div>
+<a id="back" href="../index.html" aria-label="返回遊戲選單">← 遊戲選單</a>
 <div id="hitmark">
   <svg viewBox="0 0 34 34" width="34" height="34">
     <line x1="6" y1="6" x2="13" y2="13" stroke="#fff" stroke-width="3"/>
@@ -82,6 +119,10 @@
 </div>
 <div id="reloadBar"><div id="reloadFill"></div></div>
 <div id="kills">擊殺 KILLS<span class="val" id="vKills">0</span></div>
+<div id="status"><div id="wave">🌊 第 1 波準備中</div><div id="question">準備守住堡壘</div><div id="combo">手槍 ・ COMBO ×0</div></div>
+<div id="health">生命 <span id="hpText">100 / 100</span><div class="bar"><div class="fill" id="hpFill"></div></div></div>
+<div id="objective">守住堡壘，答對單字來強化火力</div>
+<div id="damageFlash"></div>
 <div id="ammo">
   <div class="gname">9MM 手槍</div>
   <div class="num" id="ammoNum"><span id="vMag">30</span> <small>/ <span id="vReserve">120</span></small></div>
@@ -90,17 +131,19 @@
 <div id="hint">WASD 移動 ・ 滑鼠環視 ・ 空白鍵跳躍 ・ 左鍵開槍 ・ R 換彈匣（1 秒） ・ ESC 暫停</div>
 <div id="touchUI" class="hidden">
   <div id="moveStick"><div id="moveKnob"></div></div>
-  <div id="fireBtn">開槍</div>
-  <div id="jumpBtn">跳</div>
+  <button id="fireBtn" type="button">開槍</button>
+  <button id="jumpBtn" type="button">跳</button>
   <button id="btnPause">⏸</button>
 </div>
 <div id="overlay">
   <h1>🧟 殭屍堡壘 3D</h1>
   <div class="sub">Z O M B I E&nbsp;&nbsp;F O R T</div>
-  <p>第一人稱槍戰單字遊戲（世界預覽版）</p>
-  <p>先在磚牆堡壘之間走走看看，殭屍目前只是站著的模型</p>
-  <p class="go" id="goText">— 點擊滑鼠 或 輕觸螢幕 開始探索 —</p>
+  <p>答對單字，升級火力，撐過殭屍波次後逃離堡壘。</p>
+  <p>桌機：WASD 移動、滑鼠瞄準、左鍵開槍；手機：左搖桿移動、右側滑動瞄準。</p>
+  <p class="go" id="goText">開始會解鎖音效與英文發音</p>
+  <button class="actionBtn" id="startBtn" type="button">▶ 開始守城</button>
 </div>
+<div id="quiz"><div id="quizCard"><div id="quizTitle">🔐 逃生門驗證</div><div id="quizPrompt"></div><div id="quizChoices"></div></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
 <script>
 'use strict';
@@ -175,6 +218,36 @@ const sndHit=()=>tone(150,0.06,0.26,'square',90);
 const sndHead=()=>tone(1250,0.09,0.22,'sine',1650);
 const sndKill=()=>{noiseSnd(0.25,900,150,0.3);tone(90,0.2,0.3,'sawtooth',45);};
 const sndPickup=()=>{tone(660,0.07,0.24,'square');setTimeout(()=>tone(990,0.09,0.24,'square'),80);};
+const sndHurt=()=>{noiseSnd(0.15,600,90,0.32);tone(110,0.12,0.22,'sawtooth',55);};
+const sndWave=()=>{tone(330,0.14,0.18,'square');setTimeout(()=>tone(495,0.16,0.2,'square'),150);};
+const sndShield=()=>{tone(480,0.11,0.25,'sine');setTimeout(()=>tone(840,0.24,0.28,'sine'),100);};
+let bgmNodes=null,speechToken=0,activeUtterance=null,voices=[];
+function startBgm(){
+  if(!AC||bgmNodes)return;
+  const g=AC.createGain();g.gain.value=0.035;g.connect(master);
+  const a=AC.createOscillator(),b=AC.createOscillator();a.type='sine';b.type='triangle';
+  a.frequency.value=55;b.frequency.value=82.41;a.connect(g);b.connect(g);a.start();b.start();bgmNodes={a,b,g};
+}
+function stopBgm(){
+  if(!bgmNodes)return;
+  try{bgmNodes.a.stop();bgmNodes.b.stop();}catch(e){} bgmNodes=null;
+}
+function refreshVoices(){try{voices=speechSynthesis.getVoices()||[];}catch(e){voices=[];}}
+refreshVoices();
+try{speechSynthesis.addEventListener('voiceschanged',refreshVoices);}catch(e){}
+function speakWord(word){
+  if(!word||!('speechSynthesis' in window))return;
+  const token=++speechToken, ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||
+    (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  try{
+    const s=speechSynthesis;if(s.speaking||s.pending)s.cancel();
+    if(ios&&AC&&AC.state==='running')AC.suspend();
+    const u=new SpeechSynthesisUtterance(word);activeUtterance=u;u.lang='en-US';u.rate=.86;
+    const v=voices.find(x=>/^en(-|_)/i.test(x.lang));if(v)u.voice=v;
+    const restore=()=>{if(token!==speechToken)return;if(ios&&AC&&AC.state==='suspended')AC.resume();};
+    u.onend=restore;u.onerror=restore;s.speak(u);setTimeout(restore,3500);
+  }catch(e){if(ios&&AC&&AC.state==='suspended')AC.resume();}
+}
 
 /* ============ 像素材質（canvas 產生，無外部圖檔） ============ */
 function texCanvas(size,fn){
@@ -371,13 +444,28 @@ const clouds=[];
   }
 }
 
-/* ============ 殭屍（可打擊：血量／擊退／死亡／重生） ============ */
+/* ============ 殭屍（單字牌／AI／波次會在下方控制） ============ */
 const zombies=[];
-const Z_HP=3;                        // 身體 3 發、爆頭 1 發
 const Z_SPAWNS=[[0,-62],[56,-4],[-60,10],[30,56],[-36,-56],[64,44],[-64,-38],[12,66]];
-function makeZombie(x,z,ry){
+let boss=null;
+function wordSprite(text,color='#173443'){
+  const c=document.createElement('canvas');c.width=512;c.height=106;const g=c.getContext('2d');
+  g.fillStyle='rgba(255,255,255,.96)';g.fillRect(5,5,502,96);g.strokeStyle=color;g.lineWidth=8;g.strokeRect(5,5,502,96);
+  g.fillStyle=color;g.font='800 47px Arial';g.textAlign='center';g.textBaseline='middle';g.fillText(text,256,54);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
+  const m=new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false});const s=new THREE.Sprite(m);s.scale.set(2.85,.59,1);return s;
+}
+function setZombieLabel(g,text,color){
+  if(g.userData.label){g.remove(g.userData.label);g.userData.label.material.map.dispose();g.userData.label.material.dispose();}
+  const s=wordSprite(text,color);s.position.y=g.userData.kind==='boss'?4.5:2.95;s.userData.noHit=true;g.add(s);g.userData.label=s;
+}
+function makeZombie(x,z,kind='normal',wordData){
   const g=new THREE.Group();
+  const spec=kind==='fast'?{scale:.76,hp:2,speed:1.4,damage:7,color:0x86d748}:
+    kind==='tank'?{scale:1.28,hp:8,speed:.52,damage:13,color:0x746f50}:
+    kind==='boss'?{scale:1.48,hp:12,speed:.58,damage:15,color:0x746f50}:{scale:1,hp:3,speed:.82,damage:10,color:0x57a63e};
   const skin=new THREE.MeshLambertMaterial({color:0x57a63e});
+  skin.color.setHex(spec.color);
   const shirt=new THREE.MeshLambertMaterial({color:0x2f8f86});
   const pants=new THREE.MeshLambertMaterial({color:0x35406e});
   const face=new THREE.MeshLambertMaterial({map:TEX.zface});
@@ -393,21 +481,30 @@ function makeZombie(x,z,ry){
     arm.position.set(s*0.58,1.62,0.5);arm.userData.part='body';g.add(arm);
     arm.userData.isArm=true;
   }
-  g.position.set(x,0,z);g.rotation.y=ry;
+  g.position.set(x,0,z);g.rotation.y=rnd(TAU);g.scale.setScalar(spec.scale);
   g.traverse(o=>{o.userData.zomb=g;});
-  g.userData={phase:rnd(TAU),hp:Z_HP,alive:true,kx:0,kz:0,flash:0,deadT:0,
-    mats:[skin,shirt,pants,face]};
+  g.userData={phase:rnd(TAU),hp:spec.hp,maxHp:spec.hp,alive:true,kx:0,kz:0,flash:0,deadT:0,
+    mats:[skin,shirt,pants,face],kind,speed:spec.speed,damage:spec.damage,attackT:rnd(.2,.8),word:wordData||null,
+    bossShield:kind==='boss'?3:0};
+  if(kind==='boss'){boss=g;setZombieLabel(g,'👑 BOSS 護盾 ×3','#7d47b8');}
+  else if(wordData)setZombieLabel(g,wordData.word,wordData===targetWord?'#159b68':'#334c61');
   scene.add(g);zombies.push(g);
   return g;
 }
-function spawnZombie(){                 // 從離玩家夠遠的重生點補一隻
+function spawnZombie(kind='normal',wordData){
   const cand=Z_SPAWNS.filter(p=>Math.hypot(p[0]-player.x,p[1]-player.z)>18);
   const p=cand.length?cand[(rnd(cand.length))|0]:Z_SPAWNS[(rnd(Z_SPAWNS.length))|0];
-  makeZombie(p[0]+rnd(-3,3),p[1]+rnd(-3,3),rnd(TAU));
+  return makeZombie(p[0]+rnd(-3,3),p[1]+rnd(-3,3),kind,wordData);
 }
 function hitZombie(g,part,hitPoint){
   const u=g.userData;if(!u.alive)return;
-  const dmg=part==='head'?Z_HP:1;
+  if(g===boss&&u.bossShield>0){
+    showObjective('🛡️ 魔王護盾還在！先打倒答對單字的殭屍');sndEmpty();return;
+  }
+  if(g!==boss&&!isCorrectZombie(g)){
+    onWrong(g);sparks(hitPoint,0xff5544,7);hitmarkShow();sndHit();return;
+  }
+  const dmg=part==='head'?u.hp:1;
   u.hp-=dmg;u.flash=0.13;
   const d=Math.hypot(g.position.x-player.x,g.position.z-player.z)||1;
   const kb=part==='head'?3.6:2.2;      // 爆頭擊退更多
@@ -419,19 +516,17 @@ function hitZombie(g,part,hitPoint){
     u.alive=false;u.deadT=0;kills++;
     document.getElementById('vKills').textContent=kills;
     sndKill();sparks(g.position.clone().setY(1.4),0xffe08a,12);
-    if(Math.random()<0.35)dropAmmo(g.position.x,g.position.z);   // 掉小彈匣
-    setTimeout(spawnZombie,3000+rnd(4000));
+    if(g===boss){boss=null;onBossDefeated();}
+    else{
+      const correct=isCorrectZombie(g);
+      if(correct){dropAmmo(g.position.x,g.position.z);onCorrect(g);}
+      else onWrong(g);
+      if(Math.random()<0.28)dropAmmo(g.position.x+rnd(-.4,.4),g.position.z+rnd(-.4,.4));
+    }
   }else{
     part==='head'?sndHead():sndHit();
   }
 }
-makeZombie(8,22,Math.PI);
-makeZombie(-26,-14,0.6);
-makeZombie(31,4,-1.2);
-makeZombie(-11,-42,0.2);
-makeZombie(22,44,2.6);
-makeZombie(3,-4,2.2);          // 中央堡裡一隻
-makeZombie(46,26,1.5);
 
 /* ============ 命中特效：粒子 / 飄字 / hitmarker ============ */
 const parts=[];
@@ -458,6 +553,120 @@ const hitmarkEl=document.getElementById('hitmark');
 function hitmarkShow(){
   hitmarkEl.classList.remove('show');void hitmarkEl.offsetWidth;
   hitmarkEl.classList.add('show');
+}
+
+/* ============ 波次、單字與逃生目標 ============ */
+const waveEl=document.getElementById('wave'),questionEl=document.getElementById('question'),comboEl=document.getElementById('combo'),
+  objectiveEl=document.getElementById('objective');
+let wave=0,waveLeft=0,targetWord=null,roundKind='word',combo=0,weaponLevel=0,slowT=0,
+  gateReady=false,gateOpen=false,gameWon=false,survivalStart=0,spellWord='',spellIndex=0,exitGate=null;
+function pickWord(except){
+  const list=VOCAB.filter(x=>x!==except);return (list.length?list:VOCAB)[(rnd(list.length||1))|0];
+}
+function showObjective(text){objectiveEl.textContent=text;}
+function weaponName(){return weaponLevel===2?'散彈槍':weaponLevel===1?'衝鋒槍':'手槍';}
+function updateCombo(){
+  weaponLevel=combo>=7?2:combo>=3?1:0;
+  comboEl.textContent=weaponName()+' ・ COMBO ×'+combo+(weaponLevel?' ・ 火力升級！':'');
+  document.querySelector('#ammo .gname').textContent=weaponName();
+}
+function isCorrectZombie(g){return !!(g&&g.userData.word&&g.userData.word===targetWord);}
+function repaintLabels(){
+  for(const z of zombies)if(z.userData.alive&&z!==boss&&z.userData.word)
+    setZombieLabel(z,z.userData.word.word,z.userData.word===targetWord?'#159b68':'#334c61');
+}
+function setQuestion(say=true){
+  if(roundKind==='spell'){
+    const ch=spellWord[spellIndex]||spellWord[0];targetWord={word:ch.toUpperCase(),chinese:'拼字 '+(spellIndex+1)+'/'+spellWord.length};
+    questionEl.textContent='⌨️ 拼出 '+spellWord.toUpperCase()+'：先打字母 '+targetWord.word;
+  }else{
+    targetWord=pickWord(targetWord);
+    questionEl.textContent=roundKind==='listen'?'🔊 聽發音，找出正確英文：':('題目：'+targetWord.chinese+' → 找英文');
+    if(say)speakWord(targetWord.word);
+  }
+  repaintLabels();
+}
+function addWaveZombie(i){
+  const kind=i%7===4?'fast':(wave>3&&i%9===6?'tank':'normal');
+  let w;
+  if(i===0)w=targetWord;
+  else if(roundKind==='spell')w={word:String.fromCharCode(65+(rnd(26)|0)),chinese:'字母'};
+  else w=pickWord(targetWord);
+  spawnZombie(kind,w);
+}
+function clearWaveEnemies(){
+  for(const z of zombies)if(z.userData.alive&&z!==boss){z.userData.alive=false;z.userData.deadT=.72;}
+}
+function beginWave(){
+  if(gameWon||gateReady)return;
+  wave++;roundKind=wave%5===0?'boss':(wave%4===0?'spell':(wave%3===0?'listen':'word'));
+  waveEl.textContent='🌊 第 '+wave+' 波 '+(roundKind==='boss'?'魔王來襲！':roundKind==='listen'?'聽力波次':roundKind==='spell'?'拼字波次':'來襲！');
+  if(roundKind==='spell'){const w=pickWord();spellWord=w.word.replace(/[^a-z]/ig,'').slice(0,8)||'word';spellIndex=0;}
+  setNight(wave>=6);setQuestion(true);sndWave();
+  if(wave>1&&wave%3===0){const p=Z_SPAWNS[(rnd(Z_SPAWNS.length))|0];ammoBox(p[0]+rnd(-5,5),p[1]+rnd(-5,5),45,false);showObjective('📦 空投補給已落下：黃色光柱旁有大量彈藥');}
+  if(roundKind==='boss'){
+    waveLeft=0;showObjective('👑 魔王護盾：連續答對 3 題後，才能攻擊本體');
+    for(let i=0;i<5;i++)addWaveZombie(i);spawnZombie('boss');
+  }else{
+    waveLeft=2+Math.min(4,Math.floor(wave/2));showObjective('答對 '+waveLeft+' 題，完成本波防守');
+    for(let i=0;i<Math.min(9,4+wave);i++)addWaveZombie(i);
+  }
+}
+function setNight(on){
+  scene.background.setHex(on?0x172635:SKY);scene.fog.color.setHex(on?0x172635:SKY);
+  sun.intensity=on?.3:.85;
+}
+function onCorrect(g){
+  combo++;updateCombo();
+  if(boss&&boss.userData.bossShield>0){
+    boss.userData.bossShield--;sndShield();
+    if(boss.userData.bossShield<=0){slowT=1.1;setZombieLabel(boss,'👑 護盾破除！攻擊本體','#cf4c3e');showObjective('⚡ 護盾破除了！集中火力擊倒魔王');}
+    else{setZombieLabel(boss,'👑 BOSS 護盾 ×'+boss.userData.bossShield,'#7d47b8');setQuestion(true);}
+    return;
+  }
+  if(roundKind==='spell'){spellIndex++;if(spellIndex<spellWord.length){setQuestion(false);addWaveZombie(0);return;}}
+  waveLeft--;
+  if(waveLeft>0){showObjective('答對 '+waveLeft+' 題，完成本波防守');setQuestion(true);addWaveZombie(0);}
+  else completeWave();
+}
+function onWrong(g){
+  combo=0;updateCombo();if(!g.userData.enrage)g.userData.speed*=1.65;g.userData.enrage=6;
+  if(g.userData.word)setZombieLabel(g,g.userData.word.word+'！','#c53b35');
+  showObjective('❌ 打錯了！那隻殭屍狂暴衝來，連擊歸零');
+}
+function completeWave(){
+  clearWaveEnemies();
+  if(wave>=7){gateReady=true;activateGate();return;}
+  waveEl.textContent='✅ 第 '+wave+' 波守住了！';showObjective('10 秒喘息：撿彈藥、準備下一波');
+  setTimeout(beginWave,6500);
+}
+function onBossDefeated(){
+  combo+=2;updateCombo();waveEl.textContent='🏆 魔王擊倒！';showObjective('魔王倒下，補給已掉落');dropAmmo(player.x+1,player.z+1);setTimeout(completeWave,2400);
+}
+function activateGate(){
+  waveEl.textContent='🚪 逃生門已出現';questionEl.textContent='前往金色光柱，答對最後一道題逃離堡壘';showObjective('前往中央堡北側的金色逃生門');
+  if(exitGate)return;
+  exitGate=new THREE.Group();
+  const door=new THREE.Mesh(new THREE.BoxGeometry(2.4,3.4,.18),new THREE.MeshBasicMaterial({color:0xffd34d,transparent:true,opacity:.72}));
+  door.position.y=1.7;exitGate.add(door);
+  const beam=new THREE.Mesh(new THREE.BoxGeometry(.8,24,.8),new THREE.MeshBasicMaterial({color:0xffdc4d,transparent:true,opacity:.17,blending:THREE.AdditiveBlending,depthWrite:false}));
+  beam.position.y=12;exitGate.add(beam);exitGate.position.set(0,0,-11.2);scene.add(exitGate);
+}
+function openGateQuiz(){
+  if(gateOpen||!gateReady)return;paused=true;
+  const answer=pickWord(),choices=[answer];while(choices.length<3){const w=pickWord(answer);if(!choices.includes(w))choices.push(w);}
+  choices.sort(()=>rnd(-1,1));document.getElementById('quizPrompt').textContent='「'+answer.chinese+'」的英文是？';
+  const box=document.getElementById('quizChoices');box.innerHTML='';
+  for(const w of choices){const b=document.createElement('button');b.type='button';b.className='choiceBtn';b.textContent=w.word;b.onclick=()=>{
+    if(w===answer){gateOpen=true;document.getElementById('quiz').classList.remove('show');paused=false;winGame();}
+    else{b.textContent='再想想！';b.style.background='#9b3735';}
+  };box.appendChild(b);}document.getElementById('quiz').classList.add('show');
+}
+function winGame(){
+  gameWon=true;playing=false;stopBgm();waveEl.textContent='🎉 成功逃生！';
+  const sec=Math.max(1,Math.round((performance.now()-survivalStart)/1000));
+  overlay.innerHTML='<h1>🏆 成功逃生！</h1><div class="sub">F O R T &nbsp; C L E A R</div><p>擊殺 '+kills+' 隻 ・ 最終連擊 ×'+combo+' ・ 存活 '+sec+' 秒</p><p class="go">英文答對，火力就更強！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再守一輪</button>';
+  overlay.classList.remove('hidden');
 }
 
 /* ============ 彈藥補給（走近自動撿） ============ */
@@ -509,7 +718,7 @@ const player={x:0,z:34,yaw:0,pitch:0,vx:0,vz:0,vy:0,y:0,onGround:true};
 const EYE=1.7,WALK=6.5,JUMP=7.8;     // 跳躍力剛好上 1.15m 木箱、上不了 1.5m 矮牆
 const key={};
 let playing=false,paused=false;
-let mag=30,reserve=120,recoil=0,bobT=0,kills=0;
+let mag=30,reserve=120,recoil=0,bobT=0,kills=0,hp=100,fireCd=0,fireHeld=false;
 let reloading=false,reloadT=0,reloadS1=false,reloadS2=false;
 const reloadBarEl=document.getElementById('reloadBar'),
       reloadFillEl=document.getElementById('reloadFill'),
@@ -534,26 +743,36 @@ function updAmmo(){
   document.getElementById('vReserve').textContent=reserve;
   ammoNumEl.classList.toggle('low',reserve<30);
 }
+function hurt(amount,from){
+  if(!playing||gameWon)return;
+  hp=Math.max(0,hp-amount);document.getElementById('hpText').textContent=hp+' / 100';
+  document.getElementById('hpFill').style.width=hp+'%';sndHurt();
+  const f=document.getElementById('damageFlash');f.classList.remove('show');void f.offsetWidth;f.classList.add('show');
+  if(hp<=0){
+    playing=false;paused=true;stopBgm();
+    overlay.innerHTML='<h1>💀 堡壘失守</h1><div class="sub">T R Y &nbsp; A G A I N</div><p>擊殺 '+kills+' 隻 ・ 撐到第 '+wave+' 波</p><p class="go">打錯單字會讓殭屍狂暴，先找正確目標！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再試一次</button>';
+    overlay.classList.remove('hidden');
+  }
+}
 const ray=new THREE.Raycaster();
 ray.near=1.6;ray.far=250;             // near 避開第一人稱槍模型
 const RAY_C=new THREE.Vector2(0,0);
 function fire(){
-  if(!playing||paused||reloading)return;
+  if(!playing||paused||reloading||fireCd>0)return;
   if(mag<=0){sndEmpty();reload();return;}
+  fireCd=weaponLevel===1?.11:weaponLevel===2?.46:.28;
   mag--;updAmmo();recoil=1;sndShot();
   const f=gunGrp.userData.flash;
   f.visible=true;f.rotation.z=rnd(TAU);
   setTimeout(()=>f.visible=false,55);
-  ray.setFromCamera(RAY_C,camera);
-  for(const h of ray.intersectObjects(scene.children,true)){
-    const o=h.object;
-    if(o.userData.noHit)continue;
-    const z=o.userData.zomb;
-    if(z){
-      if(!z.userData.alive)continue;              // 子彈穿過屍體
-      hitZombie(z,o.userData.part||'body',h.point);
-    }else sparks(h.point,0xc9b382,5);             // 打牆冒碎屑
-    break;
+  const shots=weaponLevel===2?3:1;
+  for(let n=0;n<shots;n++){
+    const aim=shots===1?RAY_C:new THREE.Vector2(rnd(-.055,.055),rnd(-.04,.04));ray.setFromCamera(aim,camera);
+    for(const h of ray.intersectObjects(scene.children,true)){
+      const o=h.object;if(o.userData.noHit)continue;const z=o.userData.zomb;
+      if(z){if(!z.userData.alive)continue;hitZombie(z,o.userData.part||'body',h.point);}
+      else sparks(h.point,0xc9b382,5);break;
+    }
   }
   if(mag===0)reload();                            // 打空自動換彈
 }
@@ -562,15 +781,17 @@ function fire(){
 const overlay=document.getElementById('overlay');
 function startGame(){
   ensureAudio();
+  try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}
   overlay.classList.add('hidden');
-  playing=true;paused=false;
+  if(!playing){playing=true;survivalStart=performance.now();startBgm();beginWave();}
+  paused=false;
   if(!isTouch)renderer.domElement.requestPointerLock();
 }
-overlay.addEventListener('click',startGame);
+document.getElementById('startBtn').addEventListener('click',startGame);
 document.addEventListener('pointerlockchange',()=>{
   if(!isTouch&&playing&&document.pointerLockElement!==renderer.domElement){
     paused=true;overlay.classList.remove('hidden');
-    document.getElementById('goText').textContent='— 已暫停，點擊繼續 —';
+    document.getElementById('goText').textContent='已暫停，按按鈕繼續守城';
   }else paused=false;
 });
 addEventListener('mousemove',e=>{
@@ -587,10 +808,10 @@ if(isTouch)document.getElementById('touchUI').classList.remove('hidden');
 const stickEl=document.getElementById('moveStick'),knob=document.getElementById('moveKnob');
 let stickId=null,lookId=null,stickVec={x:0,y:0},lookLast={x:0,y:0};
 addEventListener('touchstart',e=>{
-  if(!playing){startGame();return;}
+  if(!playing)return;
   for(const t of e.changedTouches){
     const el=document.elementFromPoint(t.clientX,t.clientY);
-    if(el&&(el.id==='fireBtn')){fire();el.classList.add('active');continue;}
+    if(el&&(el.id==='fireBtn')){fire();fireHeld=true;el.classList.add('active');continue;}
     if(el&&(el.id==='jumpBtn')){doJump();continue;}
     if(el&&(el.id==='btnPause'))continue;
     if(t.clientX<innerWidth*0.45&&stickId===null){
@@ -617,6 +838,7 @@ addEventListener('touchend',e=>{
     if(t.identifier===lookId)lookId=null;
   }
   document.getElementById('fireBtn').classList.remove('active');
+  fireHeld=false;
 });
 function updStick(t){
   const r=stickEl.getBoundingClientRect();
@@ -628,7 +850,7 @@ function updStick(t){
 }
 document.getElementById('btnPause').addEventListener('click',()=>{
   paused=true;overlay.classList.remove('hidden');
-  document.getElementById('goText').textContent='— 已暫停，輕觸繼續 —';
+  document.getElementById('goText').textContent='已暫停，按按鈕繼續守城';
 });
 
 /* ============ 主迴圈 ============ */
@@ -637,6 +859,7 @@ function loop(now){
   requestAnimationFrame(loop);
   const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
   if(playing&&!paused){
+    fireCd=Math.max(0,fireCd-dt);if(fireHeld)fire();slowT=Math.max(0,slowT-dt);
     /* 移動輸入（鍵盤＋搖桿） */
     let fw=(key.KeyW||key.ArrowUp?1:0)-(key.KeyS||key.ArrowDown?1:0),
         st=(key.KeyD||key.ArrowRight?1:0)-(key.KeyA||key.ArrowLeft?1:0);
@@ -697,12 +920,23 @@ function loop(now){
       gunGrp.rotation.x=recoil*0.14;
       gunGrp.position.y=-0.38+Math.sin(bobT*2)*0.012*(sp/WALK);
     }
-    /* 殭屍：搖晃／中彈閃紅／擊退／倒下淡出 */
+    /* 殭屍：遊走追擊／抓擊／中彈閃紅／擊退／倒下淡出 */
     for(let i=zombies.length-1;i>=0;i--){
       const z=zombies[i],u=z.userData;
       if(u.alive){
         const p=u.phase+now*0.0016;
-        z.rotation.y+=Math.sin(p)*0.0006;
+        const dx=player.x-z.position.x,dz=player.z-z.position.z,d=Math.hypot(dx,dz)||.001;
+        const pace=u.speed*(u.enrage?1.3:1)*(slowT>.01?.35:1);
+        if(d>1.08){
+          const zx=z.position.x+dx/d*pace*dt,zz=z.position.z+dz/d*pace*dt;
+          if(!collide(zx,z.position.z,0))z.position.x=zx;
+          if(!collide(z.position.x,zz,0))z.position.z=zz;
+          z.rotation.y=Math.atan2(dx,dz);
+        }else{
+          u.attackT-=dt*(slowT>.01?.35:1);
+          if(u.attackT<=0){u.attackT=.82+(u.kind==='tank'?.25:0);hurt(u.damage,{x:z.position.x,z:z.position.z});}
+        }
+        if(u.enrage){u.enrage-=dt;if(u.enrage<=0){u.enrage=0;u.speed/=1.65;if(u.word)setZombieLabel(z,u.word.word,'#334c61');}}
         z.children.forEach(ch=>{if(ch.userData.isArm)ch.rotation.x=Math.sin(p)*0.09;});
         if(u.kx||u.kz){                // 擊退（撞牆就停）
           const zx=z.position.x+u.kx*dt,zz=z.position.z+u.kz*dt;
@@ -741,6 +975,10 @@ function loop(now){
         if(b.big){b.taken=true;b.t=0;b.m.visible=b.pil.visible=false;}
         else{scene.remove(b.m);scene.remove(b.pil);pickups.splice(i,1);}
       }
+    }
+    if(gateReady&&exitGate){
+      exitGate.rotation.y+=dt*.7;exitGate.children[0].material.opacity=.58+Math.sin(now*.006)*.18;
+      if(Math.hypot(exitGate.position.x-player.x,exitGate.position.z-player.z)<2.2)openGateQuiz();
     }
     /* 命中火花粒子 */
     for(let i=parts.length-1;i>=0;i--){
