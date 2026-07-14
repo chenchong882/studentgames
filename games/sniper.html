@@ -66,7 +66,7 @@
     font-size: 15px; cursor: pointer; text-align: left; }
   .set-row:active { transform: scale(0.98); }
 
-  #back { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); z-index: 30;
+  #back { position: fixed; top: calc(10px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left)); z-index: 30;
     pointer-events: auto; background: rgba(15,23,42,0.8); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.18);
     border-radius: 999px; min-height:44px; padding:6px 14px; font-size:12px; cursor:pointer; display:block; }
 
@@ -89,6 +89,7 @@
   .btn:disabled { opacity: 0.32; filter: grayscale(1); cursor: not-allowed; }
   .pick-btn { margin-top: 0; padding: 11px 26px; font-size: 16px; background: rgba(255,255,255,0.1); color: #cbd5e1; box-shadow: none; border: 1px solid rgba(255,255,255,0.25); }
   .pick-btn.sel { background: #fbbf24; color: #1f2937; font-weight: bold; box-shadow: 0 6px 18px rgba(250,204,21,0.3); }
+  .mode-btn.sel { outline: 3px solid #fbbf24; outline-offset: 3px; box-shadow: 0 0 0 6px rgba(250,204,21,0.22), 0 8px 24px rgba(250,204,21,0.35); }
   .step-label { color: #fbbf24; font-size: 14px; font-weight: 700; margin: 14px 0 8px; }
   #allpic-row { display: none; align-items: center; gap: 8px; justify-content: center; margin-top: 14px; font-size: 14.5px; color: #e2e8f0; cursor: pointer; }
   #allpic-row.show { display: flex; }

@@ -1633,6 +1633,7 @@ function drawMenu(c) {
   // Buttons：三顆永遠都畫出來，不可選的灰化
   const ys = menuBtnYs();
   const allow = allowedBombModes();
+  if (!allow.includes(menuMode)) menuMode = allow[0];
   [
     { label:'🌱 簡單模式 (Easy)',   y:ys.simpleY, col:'rgba(40,160,80,0.88)',  id:'simple' },
     { label:'🙂 一般模式 (Normal)', y:ys.normalY, col:'rgba(50,110,210,0.88)', id:'normal' },
@@ -1644,9 +1645,11 @@ function drawMenu(c) {
     if (!ok) c.globalAlpha = 0.32;
     c.fillStyle = ok ? btn.col : 'rgba(120,120,120,0.88)';
     roundRect(c,bx,btn.y-bh/2,bw,bh,16); c.fill();
-    c.strokeStyle='rgba(255,255,255,0.4)'; c.lineWidth=2; c.stroke();
+    const selected = btn.id === menuMode;
+    c.strokeStyle=selected ? '#FFD700' : 'rgba(255,255,255,0.4)'; c.lineWidth=selected ? 5 : 2; c.stroke();
+    if(selected){ c.shadowColor='#FFD700'; c.shadowBlur=18; c.stroke(); c.shadowBlur=0; }
     c.fillStyle='white'; c.font=`bold ${clamp(H * 0.032, 19, 28)}px Arial`;
-    c.fillText(btn.label, W/2, btn.y);
+    c.fillText(selected ? `✓ ${btn.label}　已選擇` : btn.label, W/2, btn.y);
     c.restore();
   });
 
@@ -1654,7 +1657,7 @@ function drawMenu(c) {
   c.font='15px Arial'; c.fillStyle='rgba(255,255,255,0.55)';
   c.fillText(hint, W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.035, 16, 26));
   c.font='14px Arial'; c.fillStyle='rgba(255,255,255,0.35)';
-  c.fillText('點按模式開始遊戲', W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.075, 36, 56));
+  c.fillText('先選擇難度，再按下方「開始遊戲」', W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.075, 36, 56));
 }
 
 // ══════════════════════════════════════════
@@ -2660,6 +2663,7 @@ const _speechOverlay = (() => {
   const pickMode = m => {
     if (!allowedBombModes().includes(m)) return;
     menuMode = m; try { localStorage.setItem('bombMode3', m); } catch (e) {}
+    startBtn.textContent = `開始遊戲（${m==='simple'?'簡單':m==='normal'?'一般':'困難'}）`;
     startBtn.disabled = false;
   };
   simpleBtn.addEventListener('click', () => pickMode('simple'));
@@ -2687,10 +2691,12 @@ const _speechOverlay = (() => {
       const bw = menuBtnW(), bh = menuBtnH(), bx = W/2 - bw/2;
       const ys = menuBtnYs();
       const allow = allowedBombModes();
+      if (!allow.includes(menuMode)) menuMode = allow[0];
       place(simpleBtn, bx, ys.simpleY - bh/2, bw, bh); simpleBtn.style.display = allow.includes('simple') ? 'block' : 'none';
       place(normalBtn, bx, ys.normalY - bh/2, bw, bh); normalBtn.style.display = allow.includes('normal') ? 'block' : 'none';
       place(hardBtn,   bx, ys.hardY   - bh/2, bw, bh); hardBtn.style.display   = 'block';
-      startBtn.style.left = (W/2 - 82) + 'px'; startBtn.style.top = (ys.hardY + bh/2 + 26) + 'px'; startBtn.style.display = 'block';
+      startBtn.textContent = `開始遊戲（${menuMode==='simple'?'簡單':menuMode==='normal'?'一般':'困難'}）`;
+      startBtn.style.left = (W/2 - 98) + 'px'; startBtn.style.top = (ys.hardY + bh/2 + 26) + 'px'; startBtn.style.display = 'block';
       if (hasPicBank()) {
         const rw = Math.min(W * 0.9, 440);
         allPicRow.style.left = (W/2 - rw/2) + 'px';
@@ -2749,7 +2755,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden&&game&&gam
   }
   const b=document.createElement('button');
   b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));right:calc(10px + env(safe-area-inset-right, 0px));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));left:calc(10px + env(safe-area-inset-left, 0px));right:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
   b.addEventListener('click',backToMenu);
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
