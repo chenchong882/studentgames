@@ -314,7 +314,7 @@ function initScene(){
     trunkM.setMatrixAt(i,dummy.matrix);
     dummy.position.y=y+7*s;dummy.updateMatrix();
     canM.setMatrixAt(i,dummy.matrix);
-    treeSpots.push({x,z,top:y+7*s+2.6*s});
+    treeSpots.push({x,z,base:y,top:y+7*s+2.6*s});
   }
   scene.add(trunkM,canM);
 
@@ -726,8 +726,8 @@ let aimYaw=0, aimPitch=0;
 let touchMove={x:0,y:0,mag:0,boost:false,active:false};
 
 function resetGame(){
-  endRound(false);closeQuiz();
-  wordQueue=[];missedList=[];roundCD=8;
+  endRound();closeQuiz();
+  wordQueue=[];missedList=[];lastRoundEntry=null;roundCD=8;
   for(const a of[dinos,pteros,ufos,mysts])for(const e of a)removeObj(e.g);
   for(const s of shells)removeObj(s.m);
   for(const b of bolts)removeObj(b.m);
@@ -761,7 +761,7 @@ function gameOver(reason){
   paused=false;document.getElementById('pauseOverlay').classList.add('hidden');stopBgm();
   try{const s=window.speechSynthesis;if(s&&(s.speaking||s.pending))s.cancel();}catch(e){}
   document.getElementById('touchUI').classList.add('hidden');resetTouch();
-  endRound(false);closeQuiz();
+  endRound();closeQuiz();
   const missHtml=missedList.length
     ?`<p style="margin-top:18px;color:#ffb454;font-weight:700">📒 本局要複習的單字</p>
       <p style="font-size:16px;line-height:2;max-width:620px;color:rgba(255,255,255,.92)">
@@ -928,7 +928,7 @@ let VOCAB=[
   {en:'roar',zh:'吼叫'},{en:'hunt',zh:'狩獵'},{en:'crash',zh:'墜毀'},
   {en:'shield',zh:'護盾'},{en:'creature',zh:'生物'},
 ];
-let round=null,quiz=null,roundCD=8,wordQueue=[],missedList=[];
+let round=null,quiz=null,roundCD=8,wordQueue=[],missedList=[],lastRoundEntry=null;
 function nextEntry(pool){
   pool=pool||VOCAB;
   if(wordQueue.length){
@@ -936,6 +936,11 @@ function nextEntry(pool){
     if(i>=0)return wordQueue.splice(i,1)[0];
   }
   return pool[(Math.random()*pool.length)|0];
+}
+function nextRoundEntry(pool){
+  pool=pool||VOCAB;
+  const choices=lastRoundEntry?pool.filter(w=>w.en!==lastRoundEntry.en):pool;
+  return (choices.length?choices:pool)[(Math.random()*(choices.length?choices:pool).length)|0];
 }
 function otherWords(ex,n,pool){
   pool=pool||VOCAB;
@@ -1028,10 +1033,10 @@ function startRound(){
   if(picked.length<3)return false;
   const rtype=pickRoundType();
   const pool=rtype==='en2pic'?VOCAB.filter(w=>w.emoji):VOCAB;   // 圖片回合只從有 emoji 的字抽
-  const entry=nextEntry(pool);
+  const entry=nextRoundEntry(pool);
   const wrongs=otherWords(entry,picked.length-1,pool);
   const ci=(Math.random()*picked.length)|0;
-  round={entry,t:modeCfg().roundT,items:[],requeued:false,rtype};
+  round={entry,t:modeCfg().roundT,items:[],rtype};
   picked.forEach((c,i)=>{
     const ent=i===ci?entry:wrongs.pop();
     // 樹上掛的牌：en2pic=emoji、en2cn=中文字牌、cn2en=英文字牌
@@ -1048,7 +1053,7 @@ function startRound(){
         side:THREE.DoubleSide,depthWrite:false}));
     beam.scale.y=bh;beam.position.set(c.t.x,gy+bh/2,c.t.z);
     scene.add(beam);
-    round.items.push({sp,beam,pos:sp.position,word,correct:i===ci,aspect});
+    round.items.push({sp,beam,pos:sp.position,tree:c.t,word,correct:i===ci,aspect});
   });
   const wp=document.getElementById('wordPrompt');
   wp.style.display='block';
@@ -1063,10 +1068,10 @@ function startRound(){
   }
   return true;
 }
-function endRound(requeue){
+function endRound(){
   if(!round)return;
   for(const it of round.items){disposeLabel(it.sp);if(it.beam)removeObj(it.beam);}
-  if(requeue&&!round.requeued)wordQueue.push(round.entry);
+  lastRoundEntry=round.entry;
   round=null;roundCD=rnd(9,14);
   document.getElementById('wordPrompt').style.display='none';
 }
@@ -1076,23 +1081,21 @@ function roundSuccess(pos){
   tank.hp=Math.min(tank.maxHp,tank.hp+15);
   showBanner('✔ '+round.entry.en+'＝'+round.entry.zh);
   sPow();
-  endRound(false);
+  endRound();
 }
 function roundFail(){ // 時間到沒找到
   if(!round)return;
   showBanner('⌛ 時間到！答案是 '+round.entry.en+'（'+round.entry.zh+'）');
   tone('square',220,140,0.35,0.4);
   if(!missedList.includes(round.entry))missedList.push(round.entry);
-  endRound(true);
+  endRound();
 }
 function hitWrongSign(it,idx){ // 射中錯的字
   showBanner('✘ '+it.word+' 不對！恐龍狂暴了！');
   tone('square',220,140,0.35,0.4);
   if(!missedList.includes(round.entry))missedList.push(round.entry);
-  if(!round.requeued){wordQueue.push(round.entry);round.requeued=true;}
   for(const d of dinos)if(d.deadT<0)d.enrage=4;
-  disposeLabel(it.sp);if(it.beam)removeObj(it.beam);
-  round.items.splice(idx,1);
+  endRound();
 }
 function openQuiz(){
   if(quiz)return;
@@ -1410,9 +1413,11 @@ function updShell(s,dt){
   s.m.position.addScaledVector(s.vel,dt);
   const p=s.m.position;
   spawnP(p.x,p.y,p.z,0,0,0,0.12,0xffaa55,0);
-  if(round)for(let i=0;i<round.items.length;i++){ // 樹上的單字牌
+  if(round)for(let i=0;i<round.items.length;i++){ // 樹上的單字牌／其所掛的樹
     const it=round.items[i];
-    if(p.distanceTo(it.pos)<3.2){
+    const dx=p.x-it.tree.x,dz=p.z-it.tree.z;
+    const hitTree=dx*dx+dz*dz<2.6*2.6&&p.y>=it.tree.base&&p.y<=it.tree.top+0.6;
+    if(p.distanceTo(it.pos)<3.2||hitTree){
       if(it.correct){
         for(let k=0;k<20;k++){const a=rnd(TAU),v=rnd(5,16);
           spawnP(p.x,p.y,p.z,Math.cos(a)*v,rnd(-3,12),Math.sin(a)*v,rnd(0.4,0.8),0xffe070,-8);}
@@ -1492,7 +1497,7 @@ function update(dt){
       it.sp.scale.set(bh*(it.aspect||4),bh,1);
       if(it.beam)it.beam.material.opacity=pulse;
     }
-    if(!tank.alive)endRound(false);
+    if(!tank.alive)endRound();
     else if(round.t<=0)roundFail();
   }else if(state==='play'&&tank.alive&&!quiz){
     roundCD-=dt;
@@ -1704,7 +1709,7 @@ function setThreatGlow(worldPos,intensity){
 }
 
 /* ============ 背景音樂（鋼甲獵獸.mp3，循環播放） ============ */
-const BGM_VOL=0.385;           // 背景音樂音量（目前音量的 70%）
+const BGM_VOL=0.7;             // 背景音樂音量（70%）
 let bgmAudio=null, bgmFade=null;
 function ensureBgmAudio(){
   if(bgmAudio)return bgmAudio;
@@ -1996,7 +2001,7 @@ function normalizeTankVocab(words){
 function applyTankData(payload){
   const next=normalizeTankVocab(payload&&payload.words);
   VOCAB = next.length>=4 ? next : DEFAULT_TANK_VOCAB;
-  wordQueue=[]; missedList=[];
+  wordQueue=[]; missedList=[]; lastRoundEntry=null;
   hasEmoji = VOCAB.filter(w=>w.emoji).length>=4;   // 帶 emoji 的字 ≥ 4 → 有圖題庫
   if(typeof setMode==='function')setMode(mode);    // 依來源 clamp 模式並更新灰化
 }

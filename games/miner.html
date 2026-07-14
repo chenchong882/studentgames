@@ -759,7 +759,7 @@
     function startBgm(){
       const a=ensureBgmAudio(); a.volume=0;
       const p=a.play(); if(p&&p.catch)p.catch(()=>{});
-      fadeBgm(0.084,800);
+      fadeBgm(0.7,800);
     }
     function stopBgm(){
       if(!bgmAudio)return;
@@ -1260,7 +1260,7 @@
 
         /* 唸字時把 BGM 讓開，避免 iOS 兩個音源搶音訊工作階段導致沒聲 */
         if (bgmAudio) { clearInterval(bgmFade); bgmAudio.volume = 0; }
-        const restoreBgm = () => { if (bgmAudio && gamePhase === "PLAYING" && !paused) fadeBgm(0.084, 450); };
+        const restoreBgm = () => { if (bgmAudio && gamePhase === "PLAYING" && !paused) fadeBgm(0.7, 450); };
         msg.onend = restoreBgm;
         msg.onerror = restoreBgm;
 

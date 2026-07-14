@@ -579,7 +579,7 @@ function fadeBgm(to,ms,onDone){
 function startBgm(){
   const a=ensureBgmAudio(); a.volume=0;
   const p=a.play(); if(p&&p.catch)p.catch(()=>{});
-  fadeBgm(0.084,800);
+  fadeBgm(0.7,800);
 }
 function stopBgm(){
   if(!bgmAudio)return;
@@ -587,7 +587,7 @@ function stopBgm(){
 }
 function duckBgm(on){   // 暫停時降低音量，繼續時拉回
   if(!bgmAudio)return;
-  fadeBgm(on?0.014:0.084,300);
+  fadeBgm(on?0.117:0.7,300);
 }
 
 /* ================= 3D 方塊產生器 ================= */

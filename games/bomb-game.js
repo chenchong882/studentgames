@@ -425,7 +425,7 @@ const Audio = (() => {
 
   // ── Background music: user-provided MP3, kept quiet under the speech ──
   const BGM_SRC = '../assets/music/悠然小步.mp3';
-  const BGM_VOLUME = 0.07;
+  const BGM_VOLUME = 0.7;
   let bgmAudio = null;
   let bgmWanted = false;
 
