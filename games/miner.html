@@ -383,7 +383,7 @@
             right: 18px;
         }
 
-        /* 左上喇叭、右上齒輪圖示鈕 */
+        /* 左上暫停鈕 */
         .icon-btn {
             position: fixed;
             top: 10px;
@@ -409,7 +409,7 @@
         }
 
         #miner-settings-btn {
-            right: 10px;
+            left: calc(10px + env(safe-area-inset-left));
         }
 
         @media (max-width: 860px) {
@@ -579,7 +579,7 @@
 
     <button class="corner-btn" id="move-left-btn" type="button" aria-label="礦車往左">◀</button>
     <button class="corner-btn" id="move-right-btn" type="button" aria-label="礦車往右">▶</button>
-    <button class="icon-btn" id="miner-settings-btn" type="button" aria-label="設定選單">⚙</button>
+    <button class="icon-btn" id="miner-settings-btn" type="button" aria-label="暫停">⏸</button>
     <div id="miner-bottom" aria-hidden="true">
         <div id="miner-toast"></div>
         <div id="miner-progress">
@@ -591,10 +591,9 @@
 
     <div id="miner-pause" class="mOverlay hidden">
         <div class="mCard">
-            <h2>⚙ 設定</h2>
+            <h2>⏸ 暫停</h2>
             <button class="mBtn" id="miner-resume">繼續遊戲</button>
-            <button class="mBtn sec" id="miner-restart">🔄 重新開始</button>
-            <button class="mBtn sec" id="miner-guide-pause">📖 如何遊玩</button>
+            <button class="mBtn sec" id="miner-menu">🏠 回主選單</button>
         </div>
     </div>
     <div id="miner-guide" class="mOverlay hidden">
@@ -608,7 +607,7 @@
                 <br>
                 🏆 <b>分數夠高就進下一關，共三關</b>，每進一關加 12 秒、難度提升。<br>
                 抓對 +20 分，抓錯倒扣時間，炸彈扣分、石頭會彈開。<br>
-                ⚙ 右上角設定可<b>重新開始</b>或暫停。
+                ⏸ 左上角按鈕可<b>暫停遊戲</b>。
             </div>
             <button class="mBtn" id="miner-guide-ok">▶ 開始遊戲</button>
         </div>
@@ -2118,7 +2117,7 @@
         if (gamePhase === "PLAYING" && state === "IDLE") shoot();
     });
 
-    /* ===== 設定選單（含暫停） + 玩法守則 ===== */
+    /* ===== 暫停選單 + 玩法守則 ===== */
     let paused = false, guideOpen = false;
     const pauseEl = document.getElementById("miner-pause");
     function openSettings() {
@@ -2137,6 +2136,19 @@
         if (paused) closeSettings();
         else openSettings();
     }
+    function returnToMainMenu() {
+        if (pendingNextRoundTimer) clearTimeout(pendingNextRoundTimer);
+        paused = false;
+        pauseEl.classList.add("hidden");
+        stopBgm();
+        gamePhase = "READY";
+        state = "IDLE";
+        caughtItem = null;
+        input.left = false;
+        input.right = false;
+        updateHud();
+        updateControls();
+    }
     function openGuide() { guideOpen = true; document.getElementById("miner-guide").classList.remove("hidden"); }
     function closeGuide() {
         guideOpen = false; document.getElementById("miner-guide").classList.add("hidden");
@@ -2144,8 +2156,7 @@
     }
     settingsBtn.addEventListener("click", togglePause);
     document.getElementById("miner-resume").addEventListener("click", closeSettings);
-    document.getElementById("miner-restart").addEventListener("click", () => { closeSettings(); startGame(); });
-    document.getElementById("miner-guide-pause").addEventListener("click", openGuide);
+    document.getElementById("miner-menu").addEventListener("click", returnToMainMenu);
     document.getElementById("miner-guide-ok").addEventListener("click", () => { closeGuide(); beginGame(); });
     try { if (!localStorage.getItem("minerGuideSeen")) openGuide(); } catch (e) { openGuide(); }
 
@@ -2233,11 +2244,12 @@
       let LESSON_RAW=rawFromHash();
       window.addEventListener('message',e=>{ if(e.data&&e.data.type==='MINER_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
       function backToMenu(){
+        if(!window.confirm('確定要返回遊戲選單嗎？\n目前的遊戲進度將會放棄。'))return;
         location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
       }
       const b=document.createElement('button');
       b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
-      b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));right:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+      b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
       b.addEventListener('click',backToMenu);
       b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
       b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });

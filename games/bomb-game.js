@@ -1482,7 +1482,7 @@ function drawTrajectory(c, plane, difficulty) {
 // ══════════════════════════════════════════
 //  HUD
 // ══════════════════════════════════════════
-// 返回鈕已移到右上，左側 HUD 直接從安全區後開始排列。
+// 左上角放暫停鈕，右上角預留給 DOM 遊戲選單鈕。
 function backBtnRight() {
   return SAFE_L;
 }
@@ -1493,14 +1493,14 @@ function drawHUD(c, game) {
   // ── Top bar background ──
   c.fillStyle='rgba(0,0,0,0.40)'; c.fillRect(0,0,W,50+SAFE_T);
 
-  // ── LEFT: Pause button（排在「← 選單」鈕右邊，避免重疊）──
+  // ── LEFT: Pause button ──
   const pbtnX=backBtnRight()+14, pbtnY=9, pbtnW=34, pbtnH=34;
   c.fillStyle='rgba(255,255,255,0.15)';
   roundRect(c,pbtnX,pbtnY,pbtnW,pbtnH,8); c.fill();
   c.fillStyle='white'; c.font='bold 16px Arial'; c.textBaseline='middle'; c.textAlign='center';
   c.fillText('❚❚', pbtnX+pbtnW/2, pbtnY+pbtnH/2+1);
 
-  // ── LEFT: Score / Lives（放在暫停鈕右邊一點，不被選單蓋住）──
+  // ── LEFT: Score / Lives ──
   const infoX = pbtnX + pbtnW + 16;
   c.font='bold 18px Arial'; c.textAlign='left'; c.fillStyle='#FFD700'; c.textBaseline='middle';
   c.fillText(`⭐ ${game.score}`, infoX, 27);
@@ -1558,11 +1558,11 @@ function drawHUD(c, game) {
   const m=Math.floor(game.timer/60), s=game.timer%60;
   c.textAlign='right'; c.font='bold 15px Arial'; c.textBaseline='middle';
   c.fillStyle = game.timer>90 ? '#FF6B6B' : 'rgba(255,255,255,0.85)';
-  c.fillText(`⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`, W-14-SAFE_R, 15);
+  c.fillText(`⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`, W-126-SAFE_R, 15);
 
   // ── RIGHT: Bomb count (plane icon + number, like reference) ──
   // Small plane icon drawn on canvas
-  const bx = W - 70 - SAFE_R, by2 = 32;
+  const bx = W - 182 - SAFE_R, by2 = 32;
   c.save();
   c.translate(bx, by2); c.scale(0.55, 0.55);
   c.fillStyle='rgba(255,255,255,0.85)';
@@ -2548,7 +2548,7 @@ function hitWordPanel(x, y) {
 }
 
 function hitPauseBtn(x, y) {
-  // Pause button: 跟著「← 選單」鈕右邊位移，多給一點觸控容錯
+  // Pause button: 左上角，多給一點觸控容錯
   const px = backBtnRight() + 14;
   if (x>px-6 && x<px+40 && y>5 && y<47) game.togglePause();
 }
@@ -2752,14 +2752,15 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden&&game&&gam
   let LESSON_RAW=rawFromHash();
   window.addEventListener('message',e=>{ if(e.data&&e.data.type==='BOMB_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
   function backToMenu(){
+    if(!window.confirm('確定要返回遊戲選單嗎？\n目前的遊戲進度將會放棄。'))return;
     location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
   }
   const b=document.createElement('button');
   b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));left:calc(10px + env(safe-area-inset-left, 0px));right:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));right:calc(10px + env(safe-area-inset-right, 0px));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
   b.addEventListener('click',backToMenu);
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
   (document.body||document.documentElement).appendChild(b);
-  (function syncBackButton(){b.style.display=(game.phase==='playing'||game.phase==='levelClear')?'none':'block';requestAnimationFrame(syncBackButton);})();
+  b.style.display='block';
 })();

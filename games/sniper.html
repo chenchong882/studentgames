@@ -17,7 +17,7 @@
 
   /* 頂部情報列 */
   #hud-top {
-    position: fixed; top: 0; left: 0; right: 0; padding: 10px 14px 10px calc(124px + env(safe-area-inset-left));
+    position: fixed; top: 0; left: 0; right: 0; padding: 10px calc(124px + env(safe-area-inset-right)) 10px calc(64px + env(safe-area-inset-left));
     display: flex; gap: 12px; align-items: flex-start; pointer-events: none;
     background: linear-gradient(180deg, rgba(3,7,18,0.85), rgba(3,7,18,0));
     z-index: 5;
@@ -66,9 +66,12 @@
     font-size: 15px; cursor: pointer; text-align: left; }
   .set-row:active { transform: scale(0.98); }
 
-  #back { position: fixed; top: calc(10px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left)); z-index: 30;
+  #back { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); left: auto; z-index: 30;
     pointer-events: auto; background: rgba(15,23,42,0.8); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.18);
     border-radius: 999px; min-height:44px; padding:6px 14px; font-size:12px; cursor:pointer; display:block; }
+  #pause-btn { position:fixed; top:calc(10px + env(safe-area-inset-top)); left:calc(10px + env(safe-area-inset-left)); z-index:30;
+    width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,.25); background:rgba(15,23,42,.8);
+    color:#fff; font-size:18px; cursor:pointer; display:none; }
 
   /* 覆蓋層（開始 / 結算 / 題目回饋） */
   .overlay {
@@ -114,6 +117,7 @@
 <div id="stage"><canvas id="cv"></canvas></div>
 
 <button id="back" aria-label="返回遊戲選單">← 遊戲選單</button>
+<button id="pause-btn" type="button" aria-label="暫停">⏸</button>
 
 <div id="hud-top">
   <div id="intel">
@@ -197,6 +201,12 @@
   <div class="big" id="end-summary"></div>
   <p id="end-detail"></p>
   <button class="btn" id="restart-btn">再來一次</button>
+</div>
+
+<div class="overlay hide" id="pause-overlay">
+  <h1>⏸ 暫停</h1>
+  <button class="btn" id="resume-btn">繼續遊戲</button>
+  <button class="btn pick-btn" id="pause-menu-btn">🏠 回主選單</button>
 </div>
 
 <script src="../data/wordbank.js"></script>
@@ -357,7 +367,8 @@ function worldToScreen(wx, wy){
 }
 
 /* ---------- 遊戲狀態 ---------- */
-let state = 'menu'; // menu | playing | killcam | feedback | shop | over
+let state = 'menu'; // menu | playing | killcam | feedback | paused | shop | over
+let pausedFrom = 'playing', pauseStarted = 0;
 let WB = null;      // word bank
 let roundNo = 0, score = 0, money = 0, combo = 0;
 let ammo = 0, ammoMax = 3;
@@ -1520,6 +1531,9 @@ cv.addEventListener('touchend', e=>{
 
 // 鍵盤(電腦) — 對齊 ship: 空白=開火, Z=切換開鏡
 window.addEventListener('keydown', e=>{
+  if(e.code === 'Escape' && (state==='playing'||state==='feedback'||state==='killcam'||state==='paused')){
+    e.preventDefault(); state==='paused' ? resumeGame() : pauseGame(); return;
+  }
   if(!inputActive()) return;
   if(e.code === 'Space'){ e.preventDefault(); tryFire(); }
   if(e.code === 'KeyZ'){ e.preventDefault(); setScope(!scoped); }
@@ -1580,7 +1594,9 @@ function startGame(m){
   document.getElementById('start-overlay').classList.add('hide');
   document.getElementById('end-overlay').classList.add('hide');
   document.getElementById('settings-overlay').classList.add('hide');
+  document.getElementById('pause-overlay').classList.add('hide');
   document.getElementById('back').style.display = 'block';
+  document.getElementById('pause-btn').style.display = 'block';
   audio();
   startRound();
 }
@@ -1590,6 +1606,7 @@ function finishOverlay(title){
   document.querySelector('#end-overlay h1').textContent = title;
   document.getElementById('end-overlay').classList.remove('hide');
   document.getElementById('fire-btn').disabled = true;
+  document.getElementById('pause-btn').style.display = 'none';
 }
 function endGame(){ // 完成全部關卡
   finishOverlay('任務完成');
@@ -1624,6 +1641,7 @@ function advance(){
 function openShop(){
   state = 'shop';
   document.getElementById('fire-btn').disabled = true;
+  document.getElementById('pause-btn').style.display = 'none';
   renderShop();
   document.getElementById('shop-overlay').classList.remove('hide');
 }
@@ -1744,9 +1762,7 @@ const themeChipsBox = document.getElementById('theme-chips');
 if(themeChipsBox) themeChipsBox.addEventListener('click', ()=> setTimeout(refreshStartUI, 0));  // 換主題後重新檢查來源
 refreshStartUI();
 addEventListener('visibilitychange',()=>{
-  if(!bgmAudio)return;
-  if(document.hidden){ try{bgmAudio.pause();}catch(e){} }
-  else if(state==='playing'||state==='feedback'||state==='killcam'){ const p=bgmAudio.play(); if(p&&p.catch)p.catch(()=>{}); }
+  if(document.hidden&&['playing','feedback','killcam'].includes(state))pauseGame();
 });
 document.getElementById('restart-btn').addEventListener('click', ()=>{
   document.getElementById('end-overlay').classList.add('hide');
@@ -1755,9 +1771,49 @@ document.getElementById('restart-btn').addEventListener('click', ()=>{
 });
 document.getElementById('shop-continue').addEventListener('click', ()=>{
   document.getElementById('shop-overlay').classList.add('hide');
+  document.getElementById('pause-btn').style.display = 'block';
   startRound();
 });
+function pauseGame(){
+  if(!['playing','feedback','killcam'].includes(state)) return;
+  pausedFrom = state;
+  pauseStarted = performance.now();
+  state = 'paused';
+  stopBgm();
+  document.getElementById('pause-btn').style.display = 'none';
+  document.getElementById('pause-overlay').classList.remove('hide');
+}
+function resumeGame(){
+  if(state !== 'paused') return;
+  const now = performance.now(), gap = now - pauseStarted;
+  if(feedbackUntil) feedbackUntil += gap;
+  if(killUntil) killUntil += gap;
+  if(spotWarnUntil) spotWarnUntil += gap;
+  if(duckDeadline) duckDeadline += gap;
+  state = pausedFrom;
+  lastT = now;
+  document.getElementById('pause-overlay').classList.add('hide');
+  document.getElementById('pause-btn').style.display = 'block';
+  startBgm();
+}
+function returnToMainMenu(){
+  stopBgm();
+  state = 'menu';
+  scoped = false; scopeBlend = 0; targetZoom = ZOOM_OUT;
+  document.getElementById('pause-overlay').classList.add('hide');
+  document.getElementById('shop-overlay').classList.add('hide');
+  document.getElementById('end-overlay').classList.add('hide');
+  document.getElementById('settings-overlay').classList.add('hide');
+  document.getElementById('start-overlay').classList.remove('hide');
+  document.getElementById('pause-btn').style.display = 'none';
+  document.getElementById('fire-btn').disabled = true;
+  refreshStartUI();
+}
+document.getElementById('pause-btn').addEventListener('click', pauseGame);
+document.getElementById('resume-btn').addEventListener('click', resumeGame);
+document.getElementById('pause-menu-btn').addEventListener('click', returnToMainMenu);
 function goToMenu(){   // 返回遊戲主機(帶回段考單字), 遊戲中 #back 與開始畫面返回鈕共用
+  if(!window.confirm('確定要返回遊戲選單嗎？\n目前的遊戲進度將會放棄。'))return;
   location.href = '../index.html' + (LESSON_RAW ? '#lessonData='+encodeURIComponent(LESSON_RAW) : '');
 }
 document.getElementById('back').addEventListener('click', goToMenu);

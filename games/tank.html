@@ -164,12 +164,12 @@
   #dashZone.cooldown{filter:grayscale(1);background:rgba(70,72,76,.82)}
   #fireHint{position:absolute;right:16px;bottom:14px;width:150px;text-align:center;
     font-size:11px;color:rgba(255,255,255,.5);}
-  #btnPause{position:absolute;top:14px;right:14px;width:48px;height:48px;border-radius:12px;
+  #btnPause{position:fixed;top:calc(14px + env(safe-area-inset-top));left:calc(14px + env(safe-area-inset-left));width:48px;height:48px;border-radius:12px;z-index:9;
     font-size:22px;background:rgba(20,26,38,.6);color:#ffe9a8;
     border:1px solid rgba(255,216,120,.4);pointer-events:auto;}
   @media(pointer:fine){#skillDock{right:18px;bottom:18px}}
   @media(max-width:700px){
-    #tankProgress{top:8px;left:8px;right:72px;width:auto;transform:none}#tankProgress .ph{font-size:10px}
+    #tankProgress{top:8px;left:72px;right:72px;width:auto;transform:none}#tankProgress .ph{font-size:10px}
     #hud{top:64px;left:8px;min-width:142px;padding:8px 10px;font-size:11px}
     #threatHud{top:64px;right:8px;min-width:142px;max-width:44vw;padding:8px 10px;font-size:11px}
     #fx{font-size:10px}#wordPrompt{top:142px;max-width:72vw;padding:7px 13px}#wordPrompt .q{font-size:20px}
@@ -224,8 +224,8 @@
   </div>
   <div id="fireBtn">開砲</div>
   <div id="fireHint">按住開砲＋微調砲管・滑空白螢幕大幅轉砲</div>
-  <button id="btnPause">⏸</button>
 </div>
+<button id="btnPause" class="hidden" aria-label="暫停">⏸</button>
 <div id="skillDock" class="hidden">
   <div id="dashSkill" class="skillBtn locked" aria-label="短距離衝刺尚未解鎖"><span class="si">💨</span><span class="sn">短距離衝刺</span><span class="cd">1,000 分</span></div>
   <button id="lightBtn" type="button" class="skillBtn locked" aria-label="光速攻擊尚未解鎖"><span class="si">⚡</span><span class="sn">光速攻擊 Q</span><span class="cd">6,000 分</span></button>
@@ -266,7 +266,7 @@
       <div class="mystInfo"><b>🔥 超速連發砲</b>持續 8 秒，快速連續開砲，幾乎沒有後座力。</div>
       <div class="mystInfo"><b>🐣 恐龍縮小術</b>持續 15 秒，縮小場上恐龍並降低生命值。</div>
     </div>
-    <div class="pauseBtns"><button id="guidePauseBtn" class="uiBtn">📖 如何遊玩</button><button id="resumeBtn" class="uiBtn">▶ 繼續遊戲</button></div>
+    <div class="pauseBtns"><button id="resumeBtn" class="uiBtn">▶ 繼續遊戲</button><button id="pauseMenuBtn" class="uiBtn">🏠 回主選單</button></div>
   </div>
 </div>
 <div id="guide" class="hidden">
@@ -835,6 +835,7 @@ function startGame(){
   document.getElementById('threatHud').classList.remove('hidden');
   document.getElementById('tankProgress').classList.remove('hidden');
   document.getElementById('skillDock').classList.remove('hidden');
+  document.getElementById('btnPause').classList.remove('hidden');
   if(IS_TOUCH){document.getElementById('touchUI').classList.remove('hidden');refreshTouchRects();}
   speakWord(' ');                 // 用開始手勢解鎖 iOS 發音（英→中、英→圖回合自動唸才有聲）
   startBgm();                     // 所有模式都由開始按鈕的真實 click 啟動背景音樂
@@ -845,6 +846,7 @@ function gameOver(reason){
   paused=false;document.getElementById('pauseOverlay').classList.add('hidden');stopBgm();
   try{const s=window.speechSynthesis;if(s&&(s.speaking||s.pending))s.cancel();}catch(e){}
   document.getElementById('touchUI').classList.add('hidden');resetTouch();
+  document.getElementById('btnPause').classList.add('hidden');
   endRound();closeQuiz();
   const missHtml=missedList.length
     ?`<p style="margin-top:18px;color:#ffb454;font-weight:700">📒 本局要複習的單字</p>
@@ -1942,6 +1944,17 @@ function togglePause(){
   else{if(AC&&AC.state==='suspended')AC.resume();startBgm();last=performance.now();
   }
 }
+function returnToMainMenu(){
+  paused=false;state='menu';stopBgm();endRound();closeQuiz();resetTouch();
+  document.getElementById('pauseOverlay').classList.add('hidden');
+  document.getElementById('hud').classList.add('hidden');
+  document.getElementById('threatHud').classList.add('hidden');
+  document.getElementById('tankProgress').classList.add('hidden');
+  document.getElementById('skillDock').classList.add('hidden');
+  document.getElementById('touchUI').classList.add('hidden');
+  document.getElementById('btnPause').classList.add('hidden');
+  document.getElementById('overlay').classList.remove('hidden');
+}
 
 /* ============ 玩法守則（首次自動顯示，已閱讀記進瀏覽器；暫停可重看） ============ */
 let guideOpen=false;
@@ -1950,9 +1963,9 @@ function openGuide(){guideOpen=true;guideEl.classList.remove('hidden');}
 function closeGuide(){guideOpen=false;guideEl.classList.add('hidden');
   try{localStorage.setItem('tankGuideSeen','1');}catch(e){}}
 document.getElementById('guideBtn').addEventListener('click',e=>{e.stopPropagation();closeGuide();});
-document.getElementById('guidePauseBtn').addEventListener('click',e=>{e.stopPropagation();openGuide();});
 document.getElementById('pauseCard').addEventListener('click',e=>e.stopPropagation());
 document.getElementById('resumeBtn').addEventListener('click',e=>{e.stopPropagation();togglePause();});
+document.getElementById('pauseMenuBtn').addEventListener('click',e=>{e.stopPropagation();returnToMainMenu();});
 document.getElementById('guideLink').addEventListener('mousedown',e=>{e.stopPropagation();openGuide();});
 function setDifficulty(d){
   difficulty=(d==='hard')?'hard':'easy';
@@ -2152,7 +2165,6 @@ function endTouch(e){
 addEventListener('touchend',endTouch);
 addEventListener('touchcancel',endTouch);
 document.getElementById('btnPause').addEventListener('click',e=>{e.stopPropagation();togglePause();});
-document.getElementById('pauseOverlay').addEventListener('click',()=>{if(paused&&!guideOpen)togglePause();});
 addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('resize',()=>{
   renderer.setSize(innerWidth,innerHeight);
@@ -2227,16 +2239,17 @@ window.addEventListener('message',e=>{
   let LESSON_RAW=rawFromHash();
   window.addEventListener('message',e=>{ if(e.data&&e.data.type==='TANK_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
   function backToMenu(){
+    if(!window.confirm('確定要返回遊戲選單嗎？\n目前的遊戲進度將會放棄。'))return;
     location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
   }
   const b=document.createElement('button');
   b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));right:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
   b.addEventListener('click',backToMenu);
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
   (document.body||document.documentElement).appendChild(b);
-  (function syncBackButton(){b.style.display=(state==='play'&&!paused)?'none':'block';requestAnimationFrame(syncBackButton);})();
+  b.style.display='block';
 })();
 </script>
 </body>

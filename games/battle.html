@@ -41,6 +41,9 @@ button{font-family:'Outfit',sans-serif;}
 .secondary-btn{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.16);border-bottom:4px solid rgba(255,255,255,.12);color:#fff;border-radius:14px;padding:12px 18px;font-size:1rem;font-weight:900;cursor:pointer;}
 .secondary-btn:active{border-bottom-width:1.5px;transform:translateY(3px);}
 #game-screen{display:none;}
+#battle-pause-btn{position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));z-index:110;
+  width:44px;height:44px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35);background:rgba(15,23,42,.78);
+  color:#fff;font-size:19px;cursor:pointer;display:none;}
 #topbar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;}
 .stat{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:6px 8px;font-size:.84rem;text-align:center;white-space:nowrap;}
 .stat span{font-weight:900;color:#f9c74f;}
@@ -140,6 +143,7 @@ button{font-family:'Outfit',sans-serif;}
 </style>
 </head>
 <body>
+<button id="battle-pause-btn" type="button" aria-label="暫停">⏸</button>
 <div class="wrap">
   <h1>⚔️ 英文攻防戰</h1>
   <div class="unit-title" id="unit-title">等待教材資料...</div>
@@ -253,8 +257,8 @@ button{font-family:'Outfit',sans-serif;}
   <div class="card">
     <h2>⏸ 暫停</h2>
     <div class="acts">
-      <button class="primary-btn" id="battle-resume">繼續戰鬥</button>
-      <button class="secondary-btn" id="battle-guide-pause">📖 如何遊玩</button>
+      <button class="primary-btn" id="battle-resume">繼續遊戲</button>
+      <button class="secondary-btn" id="battle-menu">🏠 回主選單</button>
     </div>
   </div>
 </div>
@@ -952,6 +956,7 @@ function startGame(){
   });
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('game-screen').style.display = 'block';
+  document.getElementById('battle-pause-btn').style.display = 'block';
   Confetti.stop();
   document.getElementById('overlay').classList.remove('show','win','rout');
   loadQuestion();
@@ -1289,10 +1294,16 @@ function getTimedResult(){
 }
 
 function showStartScreen(){
+  paused = false;
+  if(state) state.phase = 'menu';
+  stopBgm();
   Confetti.stop();
   document.getElementById('start-screen').style.display = 'flex';
   document.getElementById('game-screen').style.display = 'none';
   document.getElementById('overlay').classList.remove('show','win','rout');
+  document.getElementById('battle-pause').classList.remove('show');
+  document.getElementById('battle-guide').classList.remove('show');
+  document.getElementById('battle-pause-btn').style.display = 'none';
   updateDifficultyUI();
 }
 
@@ -1390,9 +1401,8 @@ document.addEventListener('keydown', e => {
   if(e.key === 'Escape' && state && state.phase === 'playing'){ e.preventDefault(); togglePause(); }
 });
 document.getElementById('battle-resume').addEventListener('click', resumeGame);
-document.getElementById('battle-guide-pause').addEventListener('click', () => {
-  document.getElementById('battle-guide').classList.add('show');
-});
+document.getElementById('battle-menu').addEventListener('click', showStartScreen);
+document.getElementById('battle-pause-btn').addEventListener('click', togglePause);
 document.getElementById('battle-guide-ok').addEventListener('click', () => {
   document.getElementById('battle-guide').classList.remove('show');
 });
@@ -1720,6 +1730,7 @@ function winStars(){
 function endGame(result, winType){
   stopBgm();
   state.phase = 'ended';
+  document.getElementById('battle-pause-btn').style.display = 'none';
   const overlay = document.getElementById('overlay');
   const isWin = result === 'win';
   const isRout = isWin && winType === 'rout';     // 打爆敵方基地：超級慶祝
@@ -1802,11 +1813,12 @@ addEventListener('visibilitychange',()=>{
   let LESSON_RAW=rawFromHash();
   window.addEventListener('message',e=>{ if(e.data&&e.data.type==='BATTLE_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
   function backToMenu(){
+    if(!window.confirm('確定要返回遊戲選單嗎？\n目前的遊戲進度將會放棄。'))return;
     location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
   }
   const b=document.createElement('button');
   b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));right:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
   b.addEventListener('click',backToMenu);
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });

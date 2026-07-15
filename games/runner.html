@@ -358,7 +358,7 @@
     <h1>⏸ 暫停</h1>
     <div class="sub">按 ESC 或「繼續」回到遊戲</div>
     <button class="bigbtn" id="resumeBtn">繼續遊戲</button>
-    <button class="smbtn" id="guidePauseBtn">📖 如何遊玩</button>
+    <button class="smbtn" id="pauseMenuBtn">🏠 回主選單</button>
   </div>
 
   <div class="screen hidden" id="guideScreen">
@@ -1247,6 +1247,20 @@ function togglePause(){
   if (paused) { try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){} }
   duckBgm(paused);
 }
+function returnToMainMenu(){
+  obstacles.forEach(o => { stopGateSpeech(o); o.el.remove(); });
+  obstacles = [];
+  paused = false;
+  guideOpen = false;
+  state = 'idle';
+  stopBgm();
+  hideHud();
+  resetPlayer();
+  $('pauseScreen').classList.add('hidden');
+  $('guideScreen').classList.add('hidden');
+  $('overScreen').classList.add('hidden');
+  $('startScreen').classList.remove('hidden');
+}
 function openGuide(){ guideOpen = true; $('guideScreen').classList.remove('hidden'); }
 function closeGuide(){ guideOpen = false; $('guideScreen').classList.add('hidden');
   try { localStorage.setItem('runnerGuideSeen', '1'); } catch(e){} }
@@ -1254,7 +1268,7 @@ $('pauseBtn').addEventListener('click', togglePause);
 ['mousedown','touchstart'].forEach(ev =>           // 別讓點按鈕被當成滑動
   $('pauseBtn').addEventListener(ev, e => e.stopPropagation()));
 $('resumeBtn').addEventListener('click', togglePause);
-$('guidePauseBtn').addEventListener('click', openGuide);
+$('pauseMenuBtn').addEventListener('click', returnToMainMenu);
 $('guideBtn').addEventListener('click', closeGuide);
 try { if (!localStorage.getItem('runnerGuideSeen')) openGuide(); } catch(e){ openGuide(); }
 
@@ -1389,11 +1403,12 @@ window.addEventListener('message',e=>{
   let LESSON_RAW=rawFromHash();
   window.addEventListener('message',e=>{ if(e.data&&e.data.type==='RUNNER_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
   function backToMenu(){
+    if(!window.confirm('確定要返回遊戲選單嗎？\n目前的遊戲進度將會放棄。'))return;
     location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
   }
   const b=document.createElement('button');
   b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));right:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
   b.addEventListener('click',backToMenu);
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });

@@ -122,7 +122,7 @@
   #pause-btn {
     position: absolute;
     top: calc(8px + env(safe-area-inset-top));
-    right: 10px;
+    left: calc(10px + env(safe-area-inset-left));
     z-index: 12;
     width: 44px; height: 44px;
     font-size: 20px;
@@ -292,7 +292,7 @@
     <h1>⏸️ 暫停</h1>
     <div class="sub">深呼吸，海岸交給你了</div>
     <button id="resume-btn">▶️ 繼續遊戲</button>
-    <button id="menu-btn" style="background:rgba(255,255,255,.16); color:#fff; font-size:clamp(15px,3.6vw,20px); padding:10px 32px;">重新選擇模式</button>
+    <button id="menu-btn" style="background:rgba(255,255,255,.16); color:#fff; font-size:clamp(15px,3.6vw,20px); padding:10px 32px;">🏠 回主選單</button>
   </div>
 </div>
 
@@ -2120,11 +2120,12 @@ addEventListener('visibilitychange',()=>{
   let LESSON_RAW=rawFromHash();
   window.addEventListener('message',e=>{ if(e.data&&e.data.type==='SHIP_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
   function backToMenu(){
+    if(!window.confirm('確定要返回遊戲選單嗎？\n目前的遊戲進度將會放棄。'))return;
     location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
   }
   const b=document.createElement('button');
   b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));right:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
+  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
   b.addEventListener('click',backToMenu);
   b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
   b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
