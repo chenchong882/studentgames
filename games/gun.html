@@ -54,6 +54,10 @@
     color:#fff3ad;background:rgba(48,26,68,.76);font-size:12px;font-weight:900;line-height:1.45;
     text-shadow:0 1px 4px #000;pointer-events:none;backdrop-filter:blur(3px);}
   #powerup:empty{display:none;}
+  #supplyAlert{position:fixed;right:14px;top:72px;z-index:5;max-width:235px;padding:9px 12px;border-radius:10px;
+    color:#fff3c2;background:rgba(69,36,22,.84);border:1px solid rgba(255,205,100,.65);font-size:13px;
+    font-weight:900;line-height:1.5;text-align:center;text-shadow:0 1px 4px #000;pointer-events:none;backdrop-filter:blur(3px);}
+  #supplyAlert:empty{display:none;}
   #objective{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:5;color:#d7f5ff;
     background:rgba(12,24,30,.58);padding:7px 14px;border-radius:9px;font-size:13px;font-weight:700;
     text-align:center;pointer-events:none;max-width:75vw;}
@@ -177,6 +181,7 @@
 </div>
 <div id="health">❤️ 玩家血量 <span id="hpText">100 / 100</span><div class="bar"><div class="fill" id="hpFill"></div></div></div>
 <div id="powerup"></div>
+<div id="supplyAlert"></div>
 <div id="objective">找到正確小屋，守住 10 秒完成佔領</div>
 <div id="damageFlash"></div>
 <div id="ammo">
@@ -296,6 +301,7 @@ const sndHurt=()=>{noiseSnd(0.15,600,90,0.32);tone(110,0.12,0.22,'sawtooth',55);
 const sndWave=()=>{tone(330,0.14,0.18,'square');setTimeout(()=>tone(495,0.16,0.2,'square'),150);};
 const sndShield=()=>{tone(480,0.11,0.25,'sine');setTimeout(()=>tone(840,0.24,0.28,'sine'),100);};
 const sndGrenade=()=>{noiseSnd(.42,1500,70,.55);tone(75,.35,.34,'sawtooth',38);};
+const sndCrateBreak=()=>{noiseSnd(.2,1250,120,.48,'bandpass');tone(145,.14,.28,'triangle',62);setTimeout(()=>noiseSnd(.12,780,90,.3,'lowpass'),75);};
 let bgmNodes=null,speechToken=0,activeUtterance=null,voices=[];
 function startBgm(){
   if(!AC||bgmNodes)return;
@@ -1060,7 +1066,7 @@ function spawnCaptureReward(h){
   ammoBox(x-1,z,8,false);grenadeBox(x+1,z);return '稀有補給：彈藥箱＋手榴彈';
 }
 const ROADSIDE_SPOTS=[[-31,-5],[-20,5],[18,-5],[34,5],[5,-35],[-5,-48],[5,23],[-5,39],[-38,23],[42,-9],[-58,5],[55,5]];
-let fixedAmmoSpawned=false,roadsideSupplyT=0,surpriseSupplyT=0;
+let fixedAmmoSpawned=false,roadsideSupplyT=0,surpriseSupplyT=0,supplyAlertHoldT=0;
 function spawnRoadsidePickup(){
   const open=ROADSIDE_SPOTS.filter(p=>Math.hypot(p[0]-player.x,p[1]-player.z)>9&&!pickups.some(b=>!b.taken&&Math.hypot(b.x-p[0],b.z-p[1])<3));
   if(!open.length)return false;
@@ -1068,18 +1074,20 @@ function spawnRoadsidePickup(){
   item.roadside=true;item.life=30;return true;
 }
 function surpriseBox(x,z){
-  const m=new THREE.Group(),base=new THREE.Mesh(new THREE.BoxGeometry(.9,.72,.9),new THREE.MeshLambertMaterial({color:0x713d91})),
-    lid=new THREE.Mesh(new THREE.BoxGeometry(1.02,.22,1.02),new THREE.MeshLambertMaterial({color:0xffca55}));
-  lid.position.y=.47;m.add(base);m.add(lid);const q=wordSprite('?', '#6d318c');q.scale.set(1.25,.46,1);q.position.y=1.25;m.add(q);
-  m.position.set(x,.62,z);m.traverse(o=>o.userData.noHit=true);scene.add(m);
+  const m=new THREE.Group(),base=new THREE.Mesh(new THREE.BoxGeometry(1.05,.82,1.05),new THREE.MeshLambertMaterial({color:0x875536})),
+    lid=new THREE.Mesh(new THREE.BoxGeometry(1.16,.24,1.16),new THREE.MeshLambertMaterial({color:0x5b3724})),
+    band=new THREE.Mesh(new THREE.BoxGeometry(1.1,.18,1.1),new THREE.MeshLambertMaterial({color:0x8b48ad}));
+  lid.position.y=.52;band.position.y=.08;m.add(base);m.add(band);m.add(lid);const q=wordSprite('?', '#6d318c');q.scale.set(1.25,.46,1);q.position.y=1.32;q.userData.noHit=true;m.add(q);
+  m.position.set(x,.62,z);scene.add(m);
   const pil=new THREE.Mesh(new THREE.BoxGeometry(.62,13,.62),new THREE.MeshBasicMaterial({color:0xc76cff,transparent:true,opacity:.22,blending:THREE.AdditiveBlending,depthWrite:false}));
   pil.position.set(x,6.5,z);pil.userData.noHit=true;scene.add(pil);
-  const item={m,pil,x,z,type:'surprise',amount:1,big:false,taken:false,t:0,life:40};pickups.push(item);return item;
+  const hits=Math.floor(rnd(5,11)),item={m,pil,x,z,type:'surprise',amount:1,big:false,taken:false,t:0,life:75,hitsLeft:hits,maxHits:hits};
+  base.userData.surprise=lid.userData.surprise=band.userData.surprise=item;pickups.push(item);return item;
 }
 function spawnSurpriseBox(){
   if(pickups.some(b=>b.type==='surprise'&&!b.taken))return false;
   const open=ROADSIDE_SPOTS.filter(p=>Math.hypot(p[0]-player.x,p[1]-player.z)>12&&!pickups.some(b=>!b.taken&&Math.hypot(b.x-p[0],b.z-p[1])<3));
-  if(!open.length)return false;const p=open[(rnd(open.length))|0];surpriseBox(p[0],p[1]);showObjective('🎁 路邊出現驚喜箱！紫色光柱會指引位置');return true;
+  if(!open.length)return false;const p=open[(rnd(open.length))|0];surpriseBox(p[0],p[1]);supplyAlertHoldT=0;return true;
 }
 function applySurpriseReward(pos){
   const reward=(rnd(5))|0;let text='';
@@ -1088,13 +1096,33 @@ function applySurpriseReward(pos){
   else if(reward===2){iceAmmoT=22;fireAmmoT=0;text='❄️ 冰凍子彈 22 秒';}
   else if(reward===3){weaponBoostT=18;gunGrp.userData.bodyMat.color.setHex(0xd99330);gunGrp.scale.z=1.42;updateWeaponUI();text='⚡ 實驗武器 18 秒';}
   else{hp=Math.min(100,hp+30);armorT=12;document.getElementById('hpText').textContent=hp+' / 100';document.getElementById('hpFill').style.width=hp+'%';text='🛡️ 急救護甲：+30 HP、減傷 12 秒';}
-  updatePowerupUI();showObjective('🎁 驚喜箱：'+text);popAt(pos.clone().setY(1.7),text,'#ffe27a');
+  updatePowerupUI();popAt(pos.clone().setY(1.7),text,'#ffe27a');return text;
+}
+function breakSurpriseBox(item,hitPoint){
+  if(!item||item.taken)return;item.taken=true;const pos=new THREE.Vector3(item.x,.8,item.z),idx=pickups.indexOf(item);
+  scene.remove(item.m);scene.remove(item.pil);if(idx>=0)pickups.splice(idx,1);sndCrateBreak();sparks(pos,0xc58a52,30);sparks(pos,0x8b48ad,12);
+  const reward=applySurpriseReward(pos),zombieRoll=Math.random()<.1;
+  if(zombieRoll){const zx=item.x+rnd(-.8,.8),zz=item.z+rnd(-.8,.8);if(blockedForZombie(zx,zz,.46))spawnZombie('normal');else makeZombie(zx,zz,'normal');}
+  supplyAlertHoldT=4;supplyAlertEl.textContent=zombieRoll?('⚠️ 箱子裡跳出殭屍！獲得 '+reward):('🎁 驚喜箱開啟：'+reward);
+}
+function hitSurpriseBox(item,hitPoint){
+  if(!item||item.taken)return;item.hitsLeft--;sparks(hitPoint,0xc58a52,8);
+  if(item.hitsLeft<=0)breakSurpriseBox(item,hitPoint);else popAt(hitPoint,'木箱剩 '+item.hitsLeft+' 發','#ffe0a3');
+}
+function updateSupplyAlert(dt){
+  const item=pickups.find(b=>b.type==='surprise'&&!b.taken);
+  if(item){
+    const dx=item.x-player.x,dz=item.z-player.z,d=Math.hypot(dx,dz)||1,fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw),rx=Math.cos(player.yaw),rz=-Math.sin(player.yaw),
+      angle=Math.atan2(dx*rx+dz*rz,dx*fx+dz*fz),dirs=['前方','右前方','右方','右後方','後方','左後方','左方','左前方'],dir=dirs[(Math.round(angle/(Math.PI/4))+8)%8];
+    supplyAlertEl.textContent='🎁 驚喜箱已經出現！在你的'+dir+'，約 '+Math.round(d/5)*5+' 公尺';return;
+  }
+  if(supplyAlertHoldT>0){supplyAlertHoldT=Math.max(0,supplyAlertHoldT-dt);return;}supplyAlertEl.textContent='';
 }
 function setupFixedAmmo(){
   if(fixedAmmoSpawned)return;fixedAmmoSpawned=true;
   const spots=[[-8,0],[40,-44],[-42,36]],p=spots[(rnd(spots.length))|0];
   if(Math.random()<.3)ammoBox(p[0],p[1],6,true);
-  spawnRoadsidePickup();roadsideSupplyT=rnd(45,66);surpriseSupplyT=rnd(42,58);
+  spawnRoadsidePickup();roadsideSupplyT=rnd(45,66);surpriseSupplyT=rnd(90,120);
 }
 function updateRoadsideSupply(dt){
   roadsideSupplyT-=dt;if(roadsideSupplyT>0)return;
@@ -1104,7 +1132,7 @@ function updateRoadsideSupply(dt){
 }
 function updateSurpriseSupply(dt){
   surpriseSupplyT-=dt;if(surpriseSupplyT>0)return;
-  if(spawnSurpriseBox())surpriseSupplyT=rnd(60,85);else surpriseSupplyT=rnd(12,20);
+  if(spawnSurpriseBox())surpriseSupplyT=rnd(130,180);else surpriseSupplyT=rnd(18,28);
 }
 
 /* ============ 第一人稱槍模型 ============ */
@@ -1140,7 +1168,7 @@ let fireAmmoT=0,iceAmmoT=0,weaponBoostT=0,armorT=0;
 let reloading=false,reloadT=0,reloadS1=false,reloadS2=false;
 const reloadBarEl=document.getElementById('reloadBar'),
       reloadFillEl=document.getElementById('reloadFill'),
-      ammoNumEl=document.getElementById('ammoNum'),powerupEl=document.getElementById('powerup');
+      ammoNumEl=document.getElementById('ammoNum'),powerupEl=document.getElementById('powerup'),supplyAlertEl=document.getElementById('supplyAlert');
 
 addEventListener('keydown',e=>{
   key[e.code]=true;
@@ -1211,7 +1239,7 @@ function fire(){
   setTimeout(()=>f.visible=false,55);
   ray.setFromCamera(RAY_C,camera);
   for(const h of ray.intersectObjects(scene.children,true)){
-    const o=h.object;if(o.userData.noHit)continue;const z=o.userData.zomb;
+    const o=h.object;if(o.userData.surprise){hitSurpriseBox(o.userData.surprise,h.point);break;}if(o.userData.noHit)continue;const z=o.userData.zomb;
     if(z){if(!z.userData.alive)continue;hitZombie(z,o.userData.part||'body',h.point);}
     else sparks(h.point,0xc9b382,5);break;
   }
@@ -1342,7 +1370,7 @@ function loop(now){
   requestAnimationFrame(loop);
   const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
   if(playing&&!paused){
-    fireCd=Math.max(0,fireCd-dt);grenadeCd=Math.max(0,grenadeCd-dt);if(fireHeld)fire();slowT=Math.max(0,slowT-dt);updateCapture(dt);updateRoadsideSupply(dt);updateSurpriseSupply(dt);updatePowerups(dt);
+    fireCd=Math.max(0,fireCd-dt);grenadeCd=Math.max(0,grenadeCd-dt);if(fireHeld)fire();slowT=Math.max(0,slowT-dt);updateCapture(dt);updateRoadsideSupply(dt);updateSurpriseSupply(dt);updateSupplyAlert(dt);updatePowerups(dt);
     if(roundTransition&&(transitionT-=dt)<=0)beginWave();
     /* 移動輸入（鍵盤＋搖桿） */
     let fw=(key.KeyW||key.ArrowUp?1:0)-(key.KeyS||key.ArrowDown?1:0),
@@ -1458,9 +1486,8 @@ function loop(now){
       b.m.rotation.y+=dt*1.6;
       b.m.position.y=0.55+Math.sin(now*0.003+b.x)*0.09;
       if(!b.big){b.life-=dt;if(b.life<=0){scene.remove(b.m);scene.remove(b.pil);pickups.splice(i,1);continue;}}
-      if(Math.hypot(b.x-player.x,b.z-player.z)<1.5&&player.y<1.2){
-        if(b.type==='surprise')applySurpriseReward(b.m.position.clone());
-        else if(b.type==='grenade'){grenades+=b.amount;updGrenades();popAt(b.m.position.clone().setY(1.4),'+1 手榴彈','#b8ef71');}
+      if(b.type!=='surprise'&&Math.hypot(b.x-player.x,b.z-player.z)<1.5&&player.y<1.2){
+        if(b.type==='grenade'){grenades+=b.amount;updGrenades();popAt(b.m.position.clone().setY(1.4),'+1 手榴彈','#b8ef71');}
         else{reserve+=b.amount;updAmmo();popAt(b.m.position.clone().setY(1.4),'+'+b.amount+' 彈藥','#ffd34d');}
         sndPickup();
         if(b.big){b.taken=true;b.t=0;b.m.visible=b.pil.visible=false;}
