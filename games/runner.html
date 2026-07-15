@@ -91,9 +91,9 @@
   #char.jump .limb, #char.slide .limb, #char.slideHold .limb, #char.crashed .limb { animation-play-state:paused; }
 
   /* ===== 障礙物 ===== */
-  .ob { opacity:0; transition:opacity .45s; will-change:transform; }
-  .ob.in { opacity:1; }
-  .ob.fade { transition:opacity .5s; opacity:0 !important; }
+  /* 障礙物在遠方霧氣內生成、鏡頭後方移除，不做父層 opacity 動畫。
+     CSS 3D 父層淡入淡出會反覆建立大型暫存合成層，行動裝置容易瞬間掉幀。 */
+  .ob { will-change:transform; }
 
   .gateLabel {
     position:absolute; display:flex; align-items:center; justify-content:center;
@@ -473,6 +473,7 @@ function shade(hex, f){
 
 /* ================= 音效 ================= */
 let ac = null;
+const noiseBuffers = new Map();
 function tone(freq, dur, delay, type){
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
@@ -510,9 +511,14 @@ function noiseBurst(dur, vol, freq){
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     const n = Math.floor(ac.sampleRate * dur);
-    const buf = ac.createBuffer(1, n, ac.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);   // 漸弱
+    const key = ac.sampleRate + ':' + n;
+    let buf = noiseBuffers.get(key);
+    if (!buf) {
+      buf = ac.createBuffer(1, n, ac.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);   // 漸弱
+      noiseBuffers.set(key, buf);
+    }
     const src = ac.createBufferSource(); src.buffer = buf;
     const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = freq || 1600; bp.Q.value = 0.8;
     const g = ac.createGain(); g.gain.value = vol || 0.18;
@@ -689,7 +695,9 @@ addPart(char, 16, 0, 32, 32, 32, SKIN, {
 });                                                    // 頭（背對鏡頭，near 面是後腦勺）
 
 // 路旁裝飾（emoji 看板，循環利用）
-const DECO_COUNT = 10, DECO_SPACING = 480;
+// 觸控裝置與低核心數裝置少放幾個大型彩色 emoji，降低 CSS 3D 合成負擔。
+const LOW_DETAIL = matchMedia('(pointer:coarse)').matches || (!!navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+const DECO_COUNT = LOW_DETAIL ? 6 : 10, DECO_SPACING = 480;
 const decos = [];
 for (let i = 0; i < DECO_COUNT; i++) {
   const el = document.createElement('div');
@@ -809,7 +817,6 @@ function obRoot(type){
   el.className = 'part ob';
   el.style.left = '0'; el.style.top = '0';
   world.appendChild(el);
-  requestAnimationFrame(() => el.classList.add('in'));
   return { el, type, dist: SPAWN_Z, resolved: false };
 }
 function addObHint(root, text, bottomY){
@@ -1024,8 +1031,6 @@ function crash(o){
     showToast(o.type === 'wall' ? '💥 撞牆了！要上滑跳過' :
               o.type === 'beam' ? '💥 撞到橫樑！要下滑鑽過' : '💥 撞到路障！要閃進空跑道', 1400);
   }
-  o.el.classList.add('fade');
-
   setTimeout(() => {
     if (lives <= 0) { gameOver(); return; }
     char.classList.remove('crashed');
@@ -1059,8 +1064,8 @@ function loop(now){
     // 路旁裝飾
     decos.forEach(d => {
       d.dist -= move;
-      if (d.dist < KILL_Z) { d.dist += DECO_COUNT * DECO_SPACING * 0.5; d.el.textContent = decoEmoji(); }
-      d.el.style.transform = 'translate3d(0,0,' + (-d.dist).toFixed(1) + 'px)';
+      if (d.dist < KILL_Z) d.dist += DECO_COUNT * DECO_SPACING * 0.5;
+      d.el.style.transform = 'translate3d(0,0,' + Math.round(-d.dist) + 'px)';
     });
 
     // 生成
@@ -1071,7 +1076,7 @@ function loop(now){
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const o = obstacles[i];
       o.dist -= move;
-      o.el.style.transform = 'translate3d(0,0,' + (-o.dist).toFixed(1) + 'px)';
+      o.el.style.transform = 'translate3d(0,0,' + Math.round(-o.dist) + 'px)';
 
       if (o.type === 'gate' && !o.resolved) {
         // 接近到剩約 3 秒時：開始反覆唸出單字
@@ -1095,7 +1100,6 @@ function loop(now){
         resolveObstacle(o);
         if (state !== 'play') break;   // 撞到了，本幀停止
       }
-      if (o.resolved && !o.faded && o.dist < -40) { o.faded = true; o.el.classList.add('fade'); }
       if (o.dist < OB_KILL_Z) { o.el.remove(); obstacles.splice(i, 1); }
     }
   }
