@@ -411,13 +411,13 @@ const UNIT_DEF = {
   mage:   { label:'法師',   emoji:'🔮', cost:85, hp:42, atk:34, spd:0.82, range:135, color:'#c77dff', role:'高傷害、脆皮' },
 };
 
-// BOSS 外觀種類（純造型：emoji + 名字 + 血條/光環配色），每局洗牌輪流出，數值仍由出場序決定
+// BOSS 外觀種類（canvas 怪物造型 + 名字 + 血條/光環配色），每局洗牌輪流出，數值仍由出場序決定
 const BOSS_TYPES = [
-  { emoji:'👹', name:'赤鬼',   color:'#ff5050', aura:'rgba(255,80,80,.22)'  },
-  { emoji:'👺', name:'天狗',   color:'#fb7185', aura:'rgba(251,113,133,.22)'},
-  { emoji:'🐲', name:'魔龍',   color:'#34d399', aura:'rgba(52,211,153,.22)' },
-  { emoji:'💀', name:'骷髏王', color:'#e2e8f0', aura:'rgba(226,232,240,.26)'},
-  { emoji:'👿', name:'惡魔',   color:'#c084fc', aura:'rgba(192,132,252,.22)'},
+  { emoji:'👹', name:'赤鬼',   kind:'oni',      color:'#ff5050', aura:'rgba(255,80,80,.22)'  },
+  { emoji:'👺', name:'天狗',   kind:'tengu',    color:'#fb7185', aura:'rgba(251,113,133,.22)'},
+  { emoji:'🐲', name:'魔龍',   kind:'dragon',   color:'#34d399', aura:'rgba(52,211,153,.22)' },
+  { emoji:'💀', name:'骷髏王', kind:'skeleton', color:'#e2e8f0', aura:'rgba(226,232,240,.26)'},
+  { emoji:'👿', name:'惡魔',   kind:'demon',    color:'#c084fc', aura:'rgba(192,132,252,.22)'},
 ];
 
 const DEFAULT_GRAMMAR = [
@@ -1043,21 +1043,72 @@ function drawWeapon(u, dir, cx, groundY, attackPower){
   ctx.fill();
 }
 
+function drawBoss(u, now){
+  const dir = -1;
+  const attackAge = now - u.attackFlash;
+  const attackPower = attackAge >= 0 && attackAge < 280 ? 1 - attackAge / 280 : 0;
+  const bob = u.state === 'walk' ? Math.sin(now / 130 + u.phase) * 2 : 0;
+  const cx = u.x + dir * attackPower * 7;
+  const gy = u.y + bob;
+  const kind = u.bossKind || 'oni';
+  ctx.fillStyle = 'rgba(0,0,0,.42)';
+  ctx.beginPath(); ctx.ellipse(u.x, gy+20, 38, 10, 0, 0, Math.PI*2); ctx.fill();
+  if(u.bossAura){
+    const g = ctx.createRadialGradient(u.x, gy-30, 8, u.x, gy-30, 58);
+    g.addColorStop(0, u.bossAura); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(u.x, gy-30, 58, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.save();
+  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if(kind === 'dragon'){
+    ctx.fillStyle = '#167f5b'; ctx.strokeStyle = '#073b2f'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(cx-18,gy-50); ctx.lineTo(cx-52,gy-70); ctx.lineTo(cx-40,gy-18); ctx.lineTo(cx-18,gy-12); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx+18,gy-50); ctx.lineTo(cx+52,gy-70); ctx.lineTo(cx+40,gy-18); ctx.lineTo(cx+18,gy-12); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.strokeStyle = '#111827'; ctx.lineWidth = 4;
+  ctx.fillStyle = u.bossColor;
+  ctx.beginPath(); ctx.roundRect(cx-25,gy-45,50,54,15); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = '#111827'; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.moveTo(cx-14,gy+4); ctx.lineTo(cx-18,gy+21); ctx.moveTo(cx+14,gy+4); ctx.lineTo(cx+18,gy+21); ctx.stroke();
+  ctx.strokeStyle = '#111827'; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(cx-23,gy-33); ctx.lineTo(cx-35,gy-10); ctx.moveTo(cx+23,gy-33); ctx.lineTo(cx+35,gy-10); ctx.stroke();
+  if(kind === 'skeleton'){
+    ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.roundRect(cx-23,gy-79,46,38,15); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.ellipse(cx-10,gy-61,7,8,0,0,Math.PI*2); ctx.ellipse(cx+10,gy-61,7,8,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.moveTo(cx,gy-59); ctx.lineTo(cx-4,gy-51); ctx.lineTo(cx+4,gy-51); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx-14,gy-47); ctx.lineTo(cx+14,gy-47); ctx.stroke();
+    for(let x=-8;x<=8;x+=8){ ctx.beginPath(); ctx.moveTo(cx+x,gy-47); ctx.lineTo(cx+x,gy-42); ctx.stroke(); }
+  } else {
+    const faceColor = kind === 'dragon' ? '#34d399' : kind === 'demon' ? '#a855f7' : kind === 'tengu' ? '#ef4444' : '#dc2626';
+    ctx.fillStyle = faceColor; ctx.strokeStyle = '#111827'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(cx,gy-61,25,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = kind === 'dragon' ? '#fef08a' : '#fde68a';
+    ctx.beginPath(); ctx.moveTo(cx-21,gy-75); ctx.lineTo(cx-14,gy-99); ctx.lineTo(cx-3,gy-79); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx+21,gy-75); ctx.lineTo(cx+14,gy-99); ctx.lineTo(cx+3,gy-79); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx-10,gy-63,6,0,Math.PI*2); ctx.arc(cx+10,gy-63,6,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#111827'; ctx.beginPath(); ctx.arc(cx-10,gy-63,2.5,0,Math.PI*2); ctx.arc(cx+10,gy-63,2.5,0,Math.PI*2); ctx.fill();
+    if(kind === 'tengu'){
+      ctx.fillStyle = '#f97316'; ctx.strokeStyle = '#7c2d12'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx,gy-59); ctx.lineTo(cx-28,gy-50); ctx.lineTo(cx,gy-47); ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#111827'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx-11,gy-48); ctx.lineTo(cx+11,gy-48); ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(cx-10,gy-48); ctx.lineTo(cx-4,gy-39); ctx.lineTo(cx,gy-48); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(cx+10,gy-48); ctx.lineTo(cx+4,gy-39); ctx.lineTo(cx,gy-48); ctx.closePath(); ctx.fill();
+    }
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.34)'; ctx.beginPath(); ctx.roundRect(cx-15,gy-38,30,12,5); ctx.fill();
+  if(u.state === 'fight'){
+    ctx.strokeStyle = u.bossColor; ctx.lineWidth = 2; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.arc(cx,gy-34,46,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
 function drawUnit(u, now){
   const dir = u.side === 'player' ? 1 : -1;
   if(u.isBoss){
-    const gy = u.y;
-    ctx.fillStyle = 'rgba(0,0,0,.35)';
-    ctx.beginPath(); ctx.ellipse(u.x, gy+18, 30, 9, 0, 0, Math.PI*2); ctx.fill();
-    if(u.bossAura){                              // 各 BOSS 專屬光環
-      const g = ctx.createRadialGradient(u.x, gy-16, 4, u.x, gy-16, 36);
-      g.addColorStop(0, u.bossAura);
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(u.x, gy-16, 36, 0, Math.PI*2); ctx.fill();
-    }
-    ctx.font = '44px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(u.emoji || '👹', u.x, gy - 18);   // 血量改在頂部大血條顯示
+    drawBoss(u, now);                              // 不依賴系統 emoji，所有平台都能看見清楚的怪物
     return;
   }
   const teamColor = u.side === 'player' ? '#38bdf8' : '#fb7185';
@@ -1452,6 +1503,7 @@ function maybeSpawnBoss(elapsed){
     boss.isBoss = true;
     boss.emoji = bt.emoji;
     boss.bossName = bt.name;
+    boss.bossKind = bt.kind;
     boss.bossColor = bt.color;
     boss.bossAura = bt.aura;
     boss.hp = boss.maxHp = CONFIG.bossHP[i] || 900;
