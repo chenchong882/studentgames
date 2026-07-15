@@ -152,6 +152,7 @@
   @media(orientation:portrait){#gunRotateWarning{display:flex;}}
   .hidden{display:none !important;}
 </style>
+<link rel="stylesheet" href="game-menu-ui.css">
 </head>
 <body>
 <div id="gunRotateWarning" role="status"><div><div class="rotateIcon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div></div>
@@ -214,12 +215,14 @@
   <div id="modeHint"></div>
   <p class="go" id="goText">開始會解鎖音效與英文發音</p>
   <button class="actionBtn" id="startBtn" type="button">▶ 開始守城</button>
-  <button class="actionBtn secondary" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
+  <button class="actionBtn secondary game-menu-return" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
 </div>
 <div id="pauseOverlay" class="hidden">
   <h1>⏸ 暫停</h1>
-  <button class="actionBtn" id="resumeBtn" type="button">繼續遊戲</button>
-  <button class="actionBtn secondary" id="pauseMenuBtn" type="button">← 返回遊戲選單</button>
+  <div class="game-pause-actions">
+    <button class="actionBtn" id="resumeBtn" type="button">繼續遊戲</button>
+    <button class="actionBtn secondary" id="pauseMenuBtn" type="button">← 返回遊戲選單</button>
+  </div>
 </div>
 <div id="quiz"><div id="quizCard"><div id="quizTitle">🔐 逃生門驗證</div><div id="quizPrompt"></div><div id="quizChoices"></div></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>

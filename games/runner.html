@@ -276,6 +276,7 @@
   #wrongList .ans { color:#7CFC9A; font-weight:800; }
   #bestLine { font-size:13px; opacity:.85; margin-bottom:14px; }
 </style>
+<link rel="stylesheet" href="game-menu-ui.css">
 </head>
 <body>
 <div id="app" data-theme="city">
@@ -337,7 +338,7 @@
       <div id="modeHint"></div>
     </div>
     <button class="bigbtn" id="startBtn">開始遊戲</button>
-    <button class="smbtn" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
+    <button class="smbtn game-menu-return" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
   </div>
 
   <div class="screen hidden" id="overScreen">
@@ -358,8 +359,10 @@
   <div class="screen hidden" id="pauseScreen">
     <h1>⏸ 暫停</h1>
     <div class="sub">按 ESC 或「繼續」回到遊戲</div>
-    <button class="bigbtn" id="resumeBtn">繼續遊戲</button>
-    <button class="smbtn" id="pauseMenuBtn">← 返回遊戲選單</button>
+    <div class="game-pause-actions">
+      <button class="bigbtn" id="resumeBtn">繼續遊戲</button>
+      <button class="smbtn" id="pauseMenuBtn">← 返回遊戲選單</button>
+    </div>
   </div>
 
   <div class="screen hidden" id="guideScreen">

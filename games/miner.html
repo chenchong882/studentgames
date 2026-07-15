@@ -527,6 +527,7 @@
     @keyframes minerRotate{from{transform:rotate(-15deg)}to{transform:rotate(15deg)}}
     @media (orientation:portrait){#miner-rotate-warning{display:flex;}}
     </style>
+    <link rel="stylesheet" href="game-menu-ui.css">
 </head>
 <body>
     <div id="miner-rotate-warning" role="status">
@@ -579,7 +580,7 @@
                         <div class="ss-mode-hint" id="ss-mode-hint"></div>
                     </div>
                     <button id="miner-start-btn" type="button">▶ 開始遊戲</button>
-                    <button class="mBtn sec" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
+                    <button class="mBtn sec game-menu-return" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
                 </div>
             </div>
         </section>
@@ -602,8 +603,10 @@
     <div id="miner-pause" class="mOverlay hidden">
         <div class="mCard">
             <h2>⏸ 暫停</h2>
-            <button class="mBtn" id="miner-resume">繼續遊戲</button>
-            <button class="mBtn sec" id="miner-menu">← 返回遊戲選單</button>
+            <div class="game-pause-actions">
+                <button class="mBtn" id="miner-resume">繼續遊戲</button>
+                <button class="mBtn sec" id="miner-menu">← 返回遊戲選單</button>
+            </div>
         </div>
     </div>
     <div id="miner-guide" class="mOverlay hidden">

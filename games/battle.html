@@ -141,6 +141,7 @@ button{font-family:'Outfit',sans-serif;}
   .opt-btn{font-size:.86rem;}
 }
 </style>
+<link rel="stylesheet" href="game-menu-ui.css">
 </head>
 <body>
 <button id="battle-pause-btn" type="button" aria-label="暫停">⏸</button>
@@ -183,7 +184,7 @@ button{font-family:'Outfit',sans-serif;}
       <div id="mode-hint"></div>
     </div>
     <button class="primary-btn" onclick="startGame()">開始戰鬥</button>
-    <button class="secondary-btn" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
+    <button class="secondary-btn game-menu-return" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
   </section>
 
   <section id="game-screen">
@@ -257,7 +258,7 @@ button{font-family:'Outfit',sans-serif;}
 <div id="battle-pause" class="battle-ov">
   <div class="card">
     <h2>⏸ 暫停</h2>
-    <div class="acts">
+    <div class="acts game-pause-actions">
       <button class="primary-btn" id="battle-resume">繼續遊戲</button>
       <button class="secondary-btn" id="battle-menu">← 返回遊戲選單</button>
     </div>

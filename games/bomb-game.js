@@ -1695,7 +1695,7 @@ function drawPauseScreen(c, game) {
 // 暫停畫面兩顆鈕：用「按鈕高＋間距」算中心 Y，保證不重疊（小螢幕也是）
 const PAUSE_BTN_W = 260, PAUSE_BTN_H = 55;
 function pauseBtnYs() {
-  const gap = clamp(H * 0.045, 18, 30);
+  const gap = clamp(H * 0.055, 24, 36);
   const resumeY = H * 0.54;
   return { resumeY, menuY: resumeY + PAUSE_BTN_H + gap };
 }
@@ -2663,7 +2663,7 @@ const _speechOverlay = (() => {
   startBtn.style.cssText = 'position:fixed;z-index:9002;display:none;min-height:44px;padding:10px 28px;border:2px solid #fff;border-radius:999px;color:#3a1c00;background:linear-gradient(#ffe36b,#ffae2e);font:bold 18px Arial,"Noto Sans TC",sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;';
   root.appendChild(startBtn);
   const menuBtn = document.createElement('button');
-  menuBtn.type = 'button'; menuBtn.textContent = '← 遊戲選單';
+  menuBtn.type = 'button'; menuBtn.className = 'game-menu-return'; menuBtn.textContent = '← 返回遊戲選單';
   menuBtn.style.cssText = 'position:fixed;z-index:9002;top:calc(12px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));display:none;min-height:40px;padding:8px 14px;border:1px solid rgba(255,255,255,.8);border-radius:999px;color:#fff;background:rgba(8,35,84,.76);font:bold 14px Arial,"Noto Sans TC",sans-serif;box-shadow:0 3px 10px rgba(0,0,0,.3);cursor:pointer;';
   root.appendChild(menuBtn);
   const pickMode = m => {

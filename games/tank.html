@@ -178,6 +178,7 @@
   @media(orientation:portrait){#tankRotateWarning{display:flex;}}
   .hidden{display:none !important;}
 </style>
+<link rel="stylesheet" href="game-menu-ui.css">
 </head>
 <body>
 <div id="tankRotateWarning" role="status"><div><div class="rotateIcon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div></div>
@@ -245,7 +246,7 @@
   </div>
   <div id="modeHint"></div>
   <button class="go" id="startTankBtn" type="button">開始遊戲</button>
-  <button class="uiBtn" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
+  <button class="uiBtn game-menu-return" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
 </div>
 <div id="pauseOverlay" class="hidden">
   <div id="pauseCard">
@@ -260,7 +261,7 @@
       <div class="mystInfo"><b>🔥 超速連發砲</b>持續 15 秒，快速連續開砲，幾乎沒有後座力。</div>
       <div class="mystInfo"><b>🐣 恐龍縮小術</b>持續 30 秒，縮小場上恐龍並降低生命值。</div>
     </div>
-    <div class="pauseBtns"><button id="resumeBtn" class="uiBtn">▶ 繼續遊戲</button><button id="pauseMenuBtn" class="uiBtn">← 返回遊戲選單</button></div>
+    <div class="pauseBtns game-pause-actions"><button id="resumeBtn" class="uiBtn">▶ 繼續遊戲</button><button id="pauseMenuBtn" class="uiBtn">← 返回遊戲選單</button></div>
   </div>
 </div>
 <div id="guide" class="hidden">
