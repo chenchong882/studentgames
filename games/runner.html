@@ -358,7 +358,7 @@
     <h1>⏸ 暫停</h1>
     <div class="sub">按 ESC 或「繼續」回到遊戲</div>
     <button class="bigbtn" id="resumeBtn">繼續遊戲</button>
-    <button class="smbtn" id="pauseMenuBtn">🏠 回主選單</button>
+    <button class="smbtn" id="pauseMenuBtn">← 返回遊戲選單</button>
   </div>
 
   <div class="screen hidden" id="guideScreen">
@@ -1268,7 +1268,7 @@ $('pauseBtn').addEventListener('click', togglePause);
 ['mousedown','touchstart'].forEach(ev =>           // 別讓點按鈕被當成滑動
   $('pauseBtn').addEventListener(ev, e => e.stopPropagation()));
 $('resumeBtn').addEventListener('click', togglePause);
-$('pauseMenuBtn').addEventListener('click', returnToMainMenu);
+$('pauseMenuBtn').addEventListener('click', () => window.openGameExitConfirm());
 $('guideBtn').addEventListener('click', closeGuide);
 try { if (!localStorage.getItem('runnerGuideSeen')) openGuide(); } catch(e){ openGuide(); }
 
@@ -1397,22 +1397,25 @@ window.addEventListener('message',e=>{
   else { clampMode(); renderModePanel(); }   // 直接單開＝內建混合題庫，視為無圖 → 一般／困難
 })();
 
-/* 返回選單按鈕：記住目前單字，返回時帶回主機 */
+/* 暫停後的返回確認面板：記住目前單字，返回時帶回主機 */
 (function(){
   function rawFromHash(){ const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash; return h?(new URLSearchParams(h).get('lessonData')||''):''; }
   let LESSON_RAW=rawFromHash();
   window.addEventListener('message',e=>{ if(e.data&&e.data.type==='RUNNER_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
-  function backToMenu(){
-    if(!window.confirm('確定要返回遊戲選單嗎？\n目前的遊戲進度將會放棄。'))return;
-    location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
-  }
-  const b=document.createElement('button');
-  b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
-  b.addEventListener('click',backToMenu);
-  b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
-  b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
-  (document.body||document.documentElement).appendChild(b);
+  const layer=document.createElement('div');
+  layer.id='game-exit-confirm';layer.setAttribute('role','alertdialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-labelledby','game-exit-title');
+  layer.style.cssText='position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(7,12,25,.8);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);';
+  layer.innerHTML='<div style="width:min(410px,calc(100vw - 32px));padding:25px 22px 21px;text-align:center;color:#fff;background:linear-gradient(160deg,#234b70,#17283c);border:3px solid #ffd23f;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.65),0 0 28px rgba(255,210,63,.2);font-family:inherit"><div style="font-size:48px">🏃</div><h2 id="game-exit-title" style="margin:8px 0;color:#fff3b0;font-size:25px;text-shadow:0 2px 7px #000">要離開跑道嗎？</h2><p style="margin:0 0 20px;color:#dbeafe;line-height:1.65">目前這一局的分數與進度不會保留。</p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><button id="game-exit-cancel" type="button" style="min-height:48px;padding:11px 22px;border-radius:14px;border:2px solid #7dd3fc;background:#174a66;color:#fff;font:800 16px inherit;cursor:pointer">繼續跑</button><button id="game-exit-ok" type="button" style="min-height:48px;padding:11px 22px;border-radius:14px;border:2px solid #ffe27a;background:linear-gradient(135deg,#f97316,#dc2626);color:#fff;font:900 16px inherit;cursor:pointer;box-shadow:0 8px 20px rgba(249,115,22,.3)">確定返回</button></div></div>';
+  document.body.appendChild(layer);
+  const cancel=layer.querySelector('#game-exit-cancel');
+  function close(){layer.style.display='none';}
+  function open(){layer.style.display='flex';cancel.focus();}
+  cancel.addEventListener('click',close);
+  layer.querySelector('#game-exit-ok').addEventListener('click',()=>{location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');});
+  layer.addEventListener('click',e=>{e.stopPropagation();if(e.target===layer)close();});
+  layer.addEventListener('pointerdown',e=>e.stopPropagation());
+  addEventListener('keydown',e=>{if(layer.style.display==='flex'&&e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}},true);
+  window.openGameExitConfirm=open;
 })();
 
 // 測試用：window.__dbg() 可查看目前狀態

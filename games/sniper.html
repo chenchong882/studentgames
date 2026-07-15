@@ -66,9 +66,6 @@
     font-size: 15px; cursor: pointer; text-align: left; }
   .set-row:active { transform: scale(0.98); }
 
-  #back { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: calc(10px + env(safe-area-inset-right)); left: auto; z-index: 30;
-    pointer-events: auto; background: rgba(15,23,42,0.8); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 999px; min-height:44px; padding:6px 14px; font-size:12px; cursor:pointer; display:block; }
   #pause-btn { position:fixed; top:calc(10px + env(safe-area-inset-top)); left:calc(10px + env(safe-area-inset-left)); z-index:30;
     width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,.25); background:rgba(15,23,42,.8);
     color:#fff; font-size:18px; cursor:pointer; display:none; }
@@ -116,7 +113,6 @@
 <body>
 <div id="stage"><canvas id="cv"></canvas></div>
 
-<button id="back" aria-label="返回遊戲選單">← 遊戲選單</button>
 <button id="pause-btn" type="button" aria-label="暫停">⏸</button>
 
 <div id="hud-top">
@@ -206,7 +202,7 @@
 <div class="overlay hide" id="pause-overlay">
   <h1>⏸ 暫停</h1>
   <button class="btn" id="resume-btn">繼續遊戲</button>
-  <button class="btn pick-btn" id="pause-menu-btn">🏠 回主選單</button>
+  <button class="btn pick-btn" id="pause-menu-btn">← 返回遊戲選單</button>
 </div>
 
 <script src="../data/wordbank.js"></script>
@@ -1811,18 +1807,23 @@ function returnToMainMenu(){
 }
 document.getElementById('pause-btn').addEventListener('click', pauseGame);
 document.getElementById('resume-btn').addEventListener('click', resumeGame);
-document.getElementById('pause-menu-btn').addEventListener('click', returnToMainMenu);
-function goToMenu(){   // 返回遊戲主機(帶回段考單字), 遊戲中 #back 與開始畫面返回鈕共用
-  if(!window.confirm('確定要返回遊戲選單嗎？\n目前的遊戲進度將會放棄。'))return;
-  location.href = '../index.html' + (LESSON_RAW ? '#lessonData='+encodeURIComponent(LESSON_RAW) : '');
-}
-document.getElementById('back').addEventListener('click', goToMenu);
-
-function syncBackButton(){
-  document.getElementById('back').style.display = 'block';
-  requestAnimationFrame(syncBackButton);
-}
-syncBackButton();
+document.getElementById('pause-menu-btn').addEventListener('click', () => window.openGameExitConfirm());
+(function(){
+  const layer=document.createElement('div');
+  layer.id='game-exit-confirm';layer.setAttribute('role','alertdialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-labelledby','game-exit-title');
+  layer.style.cssText='position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(2,6,16,.88);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px);';
+  layer.innerHTML='<div style="width:min(430px,calc(100vw - 32px));padding:26px 24px 22px;text-align:center;color:#fff;background:linear-gradient(145deg,#1f2937,#080d17);border:2px solid #fbbf24;border-radius:15px;box-shadow:0 22px 75px #000,0 0 34px rgba(251,191,36,.2);font-family:inherit"><div style="font-size:49px">🎯</div><h2 id="game-exit-title" style="margin:8px 0;color:#fbbf24;font-size:26px;letter-spacing:.03em">確定中止任務？</h2><p style="margin:0 0 20px;color:#cbd5e1;line-height:1.65">目前的分數、資金與任務進度不會保留。</p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><button id="game-exit-cancel" type="button" style="min-height:49px;padding:11px 22px;border-radius:999px;border:2px solid #fbbf24;background:#2d3748;color:#fff;font:800 16px inherit;cursor:pointer">繼續任務</button><button id="game-exit-ok" type="button" style="min-height:49px;padding:11px 22px;border-radius:999px;border:2px solid #fb923c;background:linear-gradient(135deg,#dc2626,#7f1d1d);color:#fff;font:900 16px inherit;cursor:pointer;box-shadow:0 8px 22px rgba(220,38,38,.3)">確定返回</button></div></div>';
+  document.body.appendChild(layer);
+  const cancel=layer.querySelector('#game-exit-cancel');
+  function close(){layer.style.display='none';}
+  function open(){layer.style.display='flex';cancel.focus();}
+  cancel.addEventListener('click',close);
+  layer.querySelector('#game-exit-ok').addEventListener('click',()=>{location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');});
+  layer.addEventListener('click',e=>{e.stopPropagation();if(e.target===layer)close();});
+  layer.addEventListener('pointerdown',e=>e.stopPropagation());
+  addEventListener('keydown',e=>{if(layer.style.display==='flex'&&e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}},true);
+  window.openGameExitConfirm=open;
+})();
 
 requestAnimationFrame(t=>{ lastT=t; loop(t); });
 </script>

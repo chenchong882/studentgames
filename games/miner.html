@@ -593,7 +593,7 @@
         <div class="mCard">
             <h2>⏸ 暫停</h2>
             <button class="mBtn" id="miner-resume">繼續遊戲</button>
-            <button class="mBtn sec" id="miner-menu">🏠 回主選單</button>
+            <button class="mBtn sec" id="miner-menu">← 返回遊戲選單</button>
         </div>
     </div>
     <div id="miner-guide" class="mOverlay hidden">
@@ -2156,7 +2156,7 @@
     }
     settingsBtn.addEventListener("click", togglePause);
     document.getElementById("miner-resume").addEventListener("click", closeSettings);
-    document.getElementById("miner-menu").addEventListener("click", returnToMainMenu);
+    document.getElementById("miner-menu").addEventListener("click", () => window.openGameExitConfirm());
     document.getElementById("miner-guide-ok").addEventListener("click", () => { closeGuide(); beginGame(); });
     try { if (!localStorage.getItem("minerGuideSeen")) openGuide(); } catch (e) { openGuide(); }
 
@@ -2238,22 +2238,25 @@
         lastTouchEnd = now;
     }, { passive: false });
 
-    /* 返回選單按鈕：記住目前單字，返回時帶回主機 */
+    /* 暫停後的返回確認面板：記住目前單字，返回時帶回主機 */
     (function(){
       function rawFromHash(){ const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash; return h?(new URLSearchParams(h).get('lessonData')||''):''; }
       let LESSON_RAW=rawFromHash();
       window.addEventListener('message',e=>{ if(e.data&&e.data.type==='MINER_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
-      function backToMenu(){
-        if(!window.confirm('確定要返回遊戲選單嗎？\n目前的遊戲進度將會放棄。'))return;
-        location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
-      }
-      const b=document.createElement('button');
-      b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
-      b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(10px + env(safe-area-inset-right));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
-      b.addEventListener('click',backToMenu);
-      b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
-      b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
-      (document.body||document.documentElement).appendChild(b);
+      const layer=document.createElement('div');
+      layer.id='game-exit-confirm';layer.setAttribute('role','alertdialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-labelledby','game-exit-title');
+      layer.style.cssText='position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(24,12,5,.8);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);';
+      layer.innerHTML='<div style="width:min(420px,calc(100vw - 32px));padding:26px 23px 22px;text-align:center;color:#fff7dd;background:linear-gradient(155deg,#5b3518,#24150b);border:3px solid #f6c453;border-radius:18px;box-shadow:0 20px 65px #120905,0 0 30px rgba(246,196,83,.24),inset 0 2px rgba(255,255,255,.14);font-family:inherit"><div style="font-size:49px">⛏️</div><h2 id="game-exit-title" style="margin:8px 0;color:#ffd86b;font-size:26px;text-shadow:0 2px 0 #3a2110">確定離開礦坑？</h2><p style="margin:0 0 20px;color:#f6e6c8;line-height:1.65">目前挖到的金礦與本局進度不會保留。</p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><button id="game-exit-cancel" type="button" style="min-height:49px;padding:11px 22px;border-radius:13px;border:2px solid #f6c453;border-bottom:4px solid #875014;background:linear-gradient(#8f5729,#623615);color:#fff7dd;font:900 16px inherit;cursor:pointer">繼續挖礦</button><button id="game-exit-ok" type="button" style="min-height:49px;padding:11px 22px;border-radius:13px;border:2px solid #ffb27a;border-bottom:4px solid #8f2515;background:linear-gradient(#e9602d,#b5321e);color:#fff;font:900 16px inherit;cursor:pointer;box-shadow:0 8px 20px rgba(185,54,28,.32)">確定返回</button></div></div>';
+      document.body.appendChild(layer);
+      const cancel=layer.querySelector('#game-exit-cancel');
+      function close(){layer.style.display='none';}
+      function open(){layer.style.display='flex';cancel.focus();}
+      cancel.addEventListener('click',close);
+      layer.querySelector('#game-exit-ok').addEventListener('click',()=>{location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');});
+      layer.addEventListener('click',e=>{e.stopPropagation();if(e.target===layer)close();});
+      layer.addEventListener('pointerdown',e=>e.stopPropagation());
+      addEventListener('keydown',e=>{if(layer.style.display==='flex'&&e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}},true);
+      window.openGameExitConfirm=open;
     })();
 </script>
 </body>

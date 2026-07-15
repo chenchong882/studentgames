@@ -50,9 +50,6 @@
     background:radial-gradient(ellipse at center,transparent 42%,rgba(220,28,25,.7) 100%);}
   #damageFlash.show{animation:damageFlash .33s ease-out;}
   @keyframes damageFlash{0%{opacity:.9}100%{opacity:0}}
-  #back{position:fixed;right:14px;top:14px;z-index:11;min-height:44px;display:flex;align-items:center;
-    padding:0 12px;border-radius:10px;background:rgba(20,26,38,.68);color:#ffe9a8;text-decoration:none;
-    font-size:13px;font-weight:800;border:1px solid rgba(255,216,120,.4);}
   #hitmark{position:fixed;left:50%;top:50%;width:34px;height:34px;transform:translate(-50%,-50%);
     pointer-events:none;z-index:6;opacity:0;}
   #hitmark.show{animation:hitPop .18s ease-out;}
@@ -139,7 +136,6 @@
     <line x1="17" y1="13" x2="24" y2="13" stroke="#ff5544" stroke-width="2.4"/>
   </svg>
 </div>
-<a id="back" href="../index.html" aria-label="返回遊戲選單">← 遊戲選單</a>
 <div id="hitmark">
   <svg viewBox="0 0 34 34" width="34" height="34">
     <line x1="6" y1="6" x2="13" y2="13" stroke="#fff" stroke-width="3"/>
@@ -188,7 +184,7 @@
 <div id="pauseOverlay" class="hidden">
   <h1>⏸ 暫停</h1>
   <button class="actionBtn" id="resumeBtn" type="button">繼續遊戲</button>
-  <button class="actionBtn secondary" id="pauseMenuBtn" type="button">🏠 回主選單</button>
+  <button class="actionBtn secondary" id="pauseMenuBtn" type="button">← 返回遊戲選單</button>
 </div>
 <div id="quiz"><div id="quizCard"><div id="quizTitle">🔐 逃生門驗證</div><div id="quizPrompt"></div><div id="quizChoices"></div></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
@@ -1083,7 +1079,7 @@ function returnToMainMenu(){
 }
 document.getElementById('btnPause').addEventListener('click',pauseGame);
 document.getElementById('resumeBtn').addEventListener('click',resumeGame);
-document.getElementById('pauseMenuBtn').addEventListener('click',returnToMainMenu);
+document.getElementById('pauseMenuBtn').addEventListener('click',()=>window.openGameExitConfirm());
 addEventListener('keydown',e=>{if(e.code==='Escape'&&isTouch&&playing){e.preventDefault();paused?resumeGame():pauseGame();}});
 addEventListener('visibilitychange',()=>{if(document.hidden&&playing&&!paused)pauseGame();});
 document.getElementById('reloadBtn').addEventListener('click',reload);
@@ -1235,11 +1231,22 @@ function loop(now){
 camera.position.set(player.x,EYE,player.z);
 camera.rotation.set(0,player.yaw,0);
 refreshModeUI();setWeaponLevel(0);updateWeaponUI();updAmmo();
-document.getElementById('back').addEventListener('click',e=>{
-  e.preventDefault();
-  if(!window.confirm('確定要返回遊戲選單嗎？\n目前的遊戲進度將會放棄。'))return;
-  location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
-});
+(function(){
+  const layer=document.createElement('div');
+  layer.id='game-exit-confirm';layer.setAttribute('role','alertdialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-labelledby','game-exit-title');
+  layer.style.cssText='position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(8,10,14,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);';
+  layer.innerHTML='<div style="width:min(430px,calc(100vw - 32px));padding:26px 24px 22px;text-align:center;color:#fff;background:linear-gradient(150deg,#312b28,#17191f);border:2px solid #ffb35c;border-radius:16px;box-shadow:0 22px 70px #000,0 0 30px rgba(255,95,55,.2);font-family:inherit"><div style="font-size:50px">🧟</div><h2 id="game-exit-title" style="margin:8px 0;color:#ffe09a;font-size:26px;text-shadow:0 3px 10px #000">確定撤離堡壘？</h2><p style="margin:0 0 20px;color:#e7e1dc;line-height:1.65">目前的擊殺數、武器與守城進度不會保留。</p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><button id="game-exit-cancel" type="button" style="min-height:49px;padding:11px 22px;border-radius:11px;border:2px solid #ffd878;background:#2c3242;color:#fff;font:800 16px inherit;cursor:pointer">繼續守城</button><button id="game-exit-ok" type="button" style="min-height:49px;padding:11px 22px;border-radius:11px;border:2px solid #ff9b6a;background:linear-gradient(135deg,#e5482f,#8f1f1c);color:#fff;font:900 16px inherit;cursor:pointer;box-shadow:0 8px 22px rgba(205,48,35,.34)">確定返回</button></div></div>';
+  document.body.appendChild(layer);
+  const cancel=layer.querySelector('#game-exit-cancel');
+  function close(){layer.style.display='none';}
+  function open(){layer.style.display='flex';cancel.focus();}
+  cancel.addEventListener('click',close);
+  layer.querySelector('#game-exit-ok').addEventListener('click',()=>{location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');});
+  layer.addEventListener('click',e=>{e.stopPropagation();if(e.target===layer)close();});
+  layer.addEventListener('pointerdown',e=>e.stopPropagation());
+  addEventListener('keydown',e=>{if(layer.style.display==='flex'&&e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}},true);
+  window.openGameExitConfirm=open;
+})();
 requestAnimationFrame(loop);
 
 addEventListener('resize',()=>{

@@ -1482,8 +1482,8 @@ function drawTrajectory(c, plane, difficulty) {
 // ══════════════════════════════════════════
 //  HUD
 // ══════════════════════════════════════════
-// 左上角放暫停鈕，右上角預留給 DOM 遊戲選單鈕。
-function backBtnRight() {
+// 左上角只放暫停鈕；返回遊戲選單只會在暫停畫面出現。
+function pauseBtnLeft() {
   return SAFE_L;
 }
 
@@ -1494,7 +1494,7 @@ function drawHUD(c, game) {
   c.fillStyle='rgba(0,0,0,0.40)'; c.fillRect(0,0,W,50+SAFE_T);
 
   // ── LEFT: Pause button ──
-  const pbtnX=backBtnRight()+14, pbtnY=9, pbtnW=34, pbtnH=34;
+  const pbtnX=pauseBtnLeft()+14, pbtnY=9, pbtnW=34, pbtnH=34;
   c.fillStyle='rgba(255,255,255,0.15)';
   roundRect(c,pbtnX,pbtnY,pbtnW,pbtnH,8); c.fill();
   c.fillStyle='white'; c.font='bold 16px Arial'; c.textBaseline='middle'; c.textAlign='center';
@@ -1680,7 +1680,7 @@ function drawPauseScreen(c, game) {
   const ys = pauseBtnYs();
   [
     { label:'▶ 繼續遊戲',   y:ys.resumeY, col:'rgba(40,150,80,0.90)'  },
-    { label:'🏠 回主選單', y:ys.menuY,   col:'rgba(60,60,160,0.88)' },
+    { label:'← 返回遊戲選單', y:ys.menuY, col:'rgba(60,60,160,0.88)' },
   ].forEach(btn => {
     const bw=PAUSE_BTN_W, bh=PAUSE_BTN_H, bx=W/2-bw/2;
     c.fillStyle=btn.col; roundRect(c,bx,btn.y-bh/2,bw,bh,15); c.fill();
@@ -2537,7 +2537,7 @@ function hitPauseScreen(x, y) {
   // Resume
   if (x>bx && x<bx+bw && y>ys.resumeY-bh/2 && y<ys.resumeY+bh/2) game.togglePause();
   // Main menu
-  if (x>bx && x<bx+bw && y>ys.menuY-bh/2 && y<ys.menuY+bh/2) { game.returnToMenu(); game=new Game(); resizeCanvas(); }
+  if (x>bx && x<bx+bw && y>ys.menuY-bh/2 && y<ys.menuY+bh/2) window.openGameExitConfirm();
 }
 
 function hitWordPanel(x, y) {
@@ -2549,7 +2549,7 @@ function hitWordPanel(x, y) {
 
 function hitPauseBtn(x, y) {
   // Pause button: 左上角，多給一點觸控容錯
-  const px = backBtnRight() + 14;
+  const px = pauseBtnLeft() + 14;
   if (x>px-6 && x<px+40 && y>5 && y<47) game.togglePause();
 }
 
@@ -2746,21 +2746,23 @@ resizeCanvas();
 loop();
 document.addEventListener('visibilitychange',()=>{ if(document.hidden&&game&&game.phase==='playing')game.togglePause(); });
 
-/* 返回選單按鈕：記住目前單字，返回時帶回主機 */
+/* 暫停後的返回確認面板：記住目前單字，返回時帶回主機 */
 (function(){
   function rawFromHash(){ const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash; return h?(new URLSearchParams(h).get('lessonData')||''):''; }
   let LESSON_RAW=rawFromHash();
   window.addEventListener('message',e=>{ if(e.data&&e.data.type==='BOMB_DATA'&&e.data.payload){ try{ LESSON_RAW=JSON.stringify(e.data.payload); }catch(_){} } });
-  function backToMenu(){
-    if(!window.confirm('確定要返回遊戲選單嗎？\n目前的遊戲進度將會放棄。'))return;
-    location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');
-  }
-  const b=document.createElement('button');
-  b.type='button'; b.id='back-to-menu'; b.textContent='← 遊戲選單'; b.setAttribute('aria-label','返回遊戲選單');
-  b.style.cssText='position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));right:calc(10px + env(safe-area-inset-right, 0px));left:auto;z-index:99999;min-height:44px;padding:7px 13px;font-size:14px;line-height:1;color:#e2e8f0;background:rgba(15,23,42,0.72);border:1px solid rgba(255,255,255,0.28);border-radius:999px;cursor:pointer;font-family:inherit;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);';
-  b.addEventListener('click',backToMenu);
-  b.addEventListener('mouseenter',()=>{ b.style.background='rgba(250,204,21,0.92)'; b.style.color='#1f2937'; });
-  b.addEventListener('mouseleave',()=>{ b.style.background='rgba(15,23,42,0.72)'; b.style.color='#e2e8f0'; });
-  (document.body||document.documentElement).appendChild(b);
-  b.style.display='block';
+  const layer=document.createElement('div');
+  layer.id='game-exit-confirm';layer.setAttribute('role','alertdialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-labelledby','game-exit-title');
+  layer.style.cssText='position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(8,25,52,.82);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);touch-action:manipulation;';
+  layer.innerHTML='<div style="width:min(430px,calc(100vw - 32px));padding:25px 23px 21px;text-align:center;color:#fff;background:linear-gradient(160deg,#2388c9,#124c89);border:4px solid #ffd34d;border-radius:26px;box-shadow:0 20px 65px rgba(0,15,40,.75),0 0 0 5px rgba(255,255,255,.16),inset 0 3px rgba(255,255,255,.22);font-family:inherit"><div style="font-size:51px;filter:drop-shadow(0 4px 3px rgba(0,0,0,.28))">💣</div><h2 id="game-exit-title" style="margin:7px 0;color:#fff5a8;font-size:27px;text-shadow:0 3px 0 #163c72">確定飛回遊戲選單？</h2><p style="margin:0 0 20px;color:#eef9ff;line-height:1.65;font-weight:700">目前的分數、愛心與關卡進度不會保留。</p><div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><button id="game-exit-cancel" type="button" style="min-height:50px;padding:11px 22px;border-radius:16px;border:3px solid #b9efff;border-bottom:6px solid #126494;background:linear-gradient(#4dc8ec,#2194c8);color:#fff;font:900 16px inherit;cursor:pointer;text-shadow:0 2px #17658a">繼續轟炸</button><button id="game-exit-ok" type="button" style="min-height:50px;padding:11px 22px;border-radius:16px;border:3px solid #ffe687;border-bottom:6px solid #a13217;background:linear-gradient(#ff8447,#e44727);color:#fff;font:900 16px inherit;cursor:pointer;text-shadow:0 2px #9d301d;box-shadow:0 8px 20px rgba(96,25,10,.28)">確定返回</button></div></div>';
+  document.body.appendChild(layer);
+  const cancel=layer.querySelector('#game-exit-cancel');
+  function close(){layer.style.display='none';}
+  function open(){layer.style.display='flex';cancel.focus();}
+  cancel.addEventListener('click',close);
+  layer.querySelector('#game-exit-ok').addEventListener('click',()=>{location.href='../index.html'+(LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'');});
+  layer.addEventListener('click',e=>{e.stopPropagation();if(e.target===layer)close();});
+  layer.addEventListener('pointerdown',e=>e.stopPropagation());
+  addEventListener('keydown',e=>{if(layer.style.display==='flex'&&e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}},true);
+  window.openGameExitConfirm=open;
 })();
