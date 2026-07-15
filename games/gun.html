@@ -16,6 +16,7 @@
   #ammo .num{font-size:34px;font-weight:800;}
   #ammo .num small{font-size:18px;color:rgba(255,255,255,.65);font-weight:700;}
   #ammo .num.low{color:#ff5a4a;animation:pulse 1s infinite;}
+  #grenades{margin-top:4px;font-size:15px;font-weight:900;color:#c8f6a0;}
   #kills{position:fixed;top:14px;left:14px;background:rgba(18,20,26,.55);
     padding:9px 16px;border-radius:8px;color:#cfd3da;font-size:13px;z-index:5;
     backdrop-filter:blur(3px);pointer-events:none;}
@@ -34,6 +35,11 @@
   #question{margin-top:5px;font-size:17px;font-weight:800;background:rgba(12,19,28,.68);
     padding:7px 14px;border-radius:10px;display:inline-block;max-width:min(88vw,580px);}
   #combo{font-size:13px;margin-top:5px;color:#b9ebff;font-weight:800;}
+  #captureHud{display:none;width:min(390px,88vw);margin:7px auto 0;background:rgba(8,28,24,.8);
+    border:1px solid rgba(105,255,193,.5);border-radius:9px;padding:6px 9px;box-sizing:border-box;}
+  #captureText{font-size:12px;font-weight:900;color:#c7ffe9;margin-bottom:4px;}
+  #captureTrack{height:9px;background:rgba(255,255,255,.15);border-radius:5px;overflow:hidden;}
+  #captureFill{height:100%;width:0;background:linear-gradient(90deg,#49d68a,#ffe66d);transition:width .12s;}
   #bossHud{display:none;width:min(390px,88vw);margin:7px auto 0;background:rgba(40,8,10,.78);
     border:1px solid rgba(255,100,80,.58);border-radius:9px;padding:6px 9px;box-sizing:border-box;}
   #bossText{font-size:12px;font-weight:900;color:#ffb0a5;margin-bottom:4px;}
@@ -83,7 +89,7 @@
     color:#222;padding:14px 26px;font-size:19px;font-weight:900;box-shadow:0 4px 0 #9c5b1c;cursor:pointer;
     min-height:48px;font-family:inherit;}
   .actionBtn:active{transform:translateY(3px);box-shadow:0 1px 0 #9c5b1c;}
-  .actionBtn:focus-visible,.choiceBtn:focus-visible,.modeBtn:focus-visible,#fireBtn:focus-visible,#reloadBtn:focus-visible,#jumpBtn:focus-visible{outline:3px solid #fff;outline-offset:3px;}
+  .actionBtn:focus-visible,.choiceBtn:focus-visible,.modeBtn:focus-visible,#fireBtn:focus-visible,#reloadBtn:focus-visible,#grenadeBtn:focus-visible,#jumpBtn:focus-visible{outline:3px solid #fff;outline-offset:3px;}
   #quiz{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:10;
     background:rgba(5,10,16,.68);color:#fff;text-align:center;padding:20px;}
   #quiz.show{display:flex;}
@@ -105,11 +111,15 @@
     display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;
     background:rgba(255,70,60,.32);border:3px solid rgba(255,95,85,.75);text-shadow:0 1px 4px #000;}
   #fireBtn.active{background:rgba(255,70,60,.6);}
-  #fireBtn,#reloadBtn,#jumpBtn{pointer-events:auto;touch-action:none;font-family:inherit;}
+  #fireBtn,#reloadBtn,#grenadeBtn,#jumpBtn{pointer-events:auto;touch-action:none;font-family:inherit;}
   #reloadBtn{position:absolute;right:48px;bottom:230px;width:68px;height:68px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;
     background:rgba(235,166,62,.34);border:3px solid rgba(255,210,115,.78);text-shadow:0 1px 4px #000;}
   #reloadBtn:active{background:rgba(235,166,62,.65);}
+  #grenadeBtn{position:absolute;right:134px;bottom:184px;width:72px;height:72px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;
+    background:rgba(78,125,50,.45);border:3px solid rgba(177,233,105,.8);text-shadow:0 1px 4px #000;}
+  #grenadeBtn:active{background:rgba(78,125,50,.78);}
   #jumpBtn{position:absolute;right:150px;bottom:52px;width:70px;height:70px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;
     background:rgba(80,160,255,.28);border:3px solid rgba(120,180,255,.7);text-shadow:0 1px 4px #000;}
@@ -123,6 +133,7 @@
   @media (max-height:420px){
     #fireBtn{right:24px;bottom:48px;width:86px;height:86px;font-size:19px;}
     #reloadBtn{right:37px;bottom:146px;width:60px;height:60px;font-size:13px;}
+    #grenadeBtn{right:115px;bottom:130px;width:60px;height:60px;font-size:13px;}
   }
   .hidden{display:none !important;}
 </style>
@@ -148,29 +159,33 @@
 <div id="kills">擊殺 KILLS<span class="val" id="vKills">0</span></div>
 <div id="status">
   <div id="weaponProgress"><div id="weaponText">武器進化 0 / 70</div><div id="weaponTrack"><div id="weaponFill"></div></div><div id="weaponStages"><span class="active">手槍 0</span><span>衝鋒槍 30</span><span>步槍 70</span></div></div>
-  <div id="wave">🌊 第 1 波準備中</div><div id="question">準備守住堡壘</div><div id="combo">手槍 ・ COMBO ×0</div>
+  <div id="wave">🌊 第 1 波準備中</div><div id="question">準備佔領正確小屋</div><div id="combo">手槍 ・ COMBO ×0</div>
+  <div id="captureHud"><div id="captureText">尋找正確小屋</div><div id="captureTrack"><div id="captureFill"></div></div></div>
   <div id="bossHud"><div id="bossText">BOSS 生命</div><div id="bossTrack"><div id="bossFill"></div></div></div>
 </div>
 <div id="health">生命 <span id="hpText">100 / 100</span><div class="bar"><div class="fill" id="hpFill"></div></div></div>
-<div id="objective">守住堡壘，答對單字來強化火力</div>
+<div id="objective">找到正確小屋，守住 10 秒完成佔領</div>
 <div id="damageFlash"></div>
 <div id="ammo">
   <div class="gname">9MM 手槍</div>
   <div class="num" id="ammoNum"><span id="vMag">5</span> <small>/ <span id="vReserve">10</span></small></div>
+  <div id="grenades">💣 手榴彈 ×<span id="vGrenades">0</span></div>
 </div>
-<div id="banner">🧟 殭屍可以打了！走近發光彈藥箱撿子彈，木箱跳得上去</div>
-<div id="hint">WASD 移動 ・ 滑鼠環視 ・ 空白鍵跳躍 ・ 左鍵開槍 ・ R 換彈匣（1 秒） ・ ESC 暫停</div>
+<div id="banner">🏘️ 找到正確單字的小屋，在裡面守住 10 秒！殭屍只是生存威脅</div>
+<div id="hint">WASD 移動 ・ 滑鼠環視 ・ 左鍵開槍 ・ G 手榴彈 ・ R 換彈匣 ・ 空白鍵跳躍 ・ ESC 暫停</div>
 <div id="touchUI" class="hidden">
   <div id="moveStick"><div id="moveKnob"></div></div>
   <button id="fireBtn" type="button">開槍</button>
   <button id="reloadBtn" type="button">裝子彈</button>
+  <button id="grenadeBtn" type="button">手榴彈</button>
   <button id="jumpBtn" type="button">跳</button>
 </div>
 <button id="btnPause" class="hidden" type="button" aria-label="暫停">⏸</button>
 <div id="overlay">
   <h1>🧟 殭屍堡壘 3D</h1>
   <div class="sub">Z O M B I E&nbsp;&nbsp;F O R T</div>
-  <p>答對單字，升級火力，撐過殭屍波次後逃離堡壘。</p>
+  <p>看題目找到正確單字的小屋，進屋防守 10 秒就能佔領。</p>
+  <p>殭屍不再是答案；開槍與手榴彈只用來保護自己。</p>
   <p>桌機：WASD 移動、滑鼠瞄準、左鍵開槍；手機：左搖桿移動、右側滑動瞄準。</p>
   <div id="modePanel">
     <button class="modeBtn" type="button" data-mode="simple">🖼️ 簡單</button>
@@ -265,6 +280,7 @@ const sndPickup=()=>{tone(660,0.07,0.24,'square');setTimeout(()=>tone(990,0.09,0
 const sndHurt=()=>{noiseSnd(0.15,600,90,0.32);tone(110,0.12,0.22,'sawtooth',55);};
 const sndWave=()=>{tone(330,0.14,0.18,'square');setTimeout(()=>tone(495,0.16,0.2,'square'),150);};
 const sndShield=()=>{tone(480,0.11,0.25,'sine');setTimeout(()=>tone(840,0.24,0.28,'sine'),100);};
+const sndGrenade=()=>{noiseSnd(.42,1500,70,.55);tone(75,.35,.34,'sawtooth',38);};
 let bgmNodes=null,speechToken=0,activeUtterance=null,voices=[];
 function startBgm(){
   if(!AC||bgmNodes)return;
@@ -484,21 +500,36 @@ function streetLamp(x,z){
   const glow=new THREE.Mesh(new THREE.BoxGeometry(.48,.38,.48),new THREE.MeshBasicMaterial({color:0xffd98a}));
   glow.position.set(x,3.45,z);glow.userData.noHit=true;scene.add(glow);
 }
+function awning(x,z,w,color){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,.18,1.15),new THREE.MeshLambertMaterial({color}));
+  m.position.set(x,2.75,z);m.rotation.x=-.14;m.userData.noHit=true;scene.add(m);
+}
+function churchCross(x,z,y){
+  const mat=new THREE.MeshLambertMaterial({color:0xd9bd72});
+  const v=new THREE.Mesh(new THREE.BoxGeometry(.28,2.7,.28),mat),h=new THREE.Mesh(new THREE.BoxGeometry(1.65,.28,.28),mat);
+  v.position.set(x,y,z);h.position.set(x,y+.35,z);v.userData.noHit=h.userData.noHit=true;scene.add(v);scene.add(h);
+}
 
 /* --- 地圖佈局 --- */
 road(0,0,14,146);road(0,0,146,14);road(-38,21,9,64);road(42,-9,9,72);
 fort(0,0,26,18,5,{n:[-6,6],s:[0],e:[0],w:[0]});          // 中央大堡（雙北門）
 wallZ(-9+T/2,9-T/2,-4,5,[0]);                            // 中央堡內隔牆
-fort(-46,-30,16,12,4.5,{e:[0],s:[-3]});
-fort(40,-44,13,13,4,{n:[0],w:[0]});
-fort(48,28,18,14,5,{w:[0],n:[-4],s:[4]});
-fort(-42,36,10,10,3.5,{e:[0]});
-fort(-6,52,12,9,3.5,{s:[0],w:[0]});
-roof(0,0,26,18,5,2.5);roof(-46,-30,16,12,4.5);roof(40,-44,13,13,4);
-roof(48,28,18,14,5,2.3);roof(-42,36,10,10,3.5);roof(-6,52,12,9,3.5);
-/* 四面磚牆把住宅區包成封閉小鎮，保留道路城門 */
-wallX(-78,78,-78,3.4,[-38,0,42]);wallX(-78,78,78,3.4,[-38,0,42]);
-wallZ(-78+T/2,78-T/2,-78,3.4,[-30,0,36]);wallZ(-78+T/2,78-T/2,78,3.4,[-44,0,28]);
+roof(0,0,26,18,5,2.5);
+const HOUSES=[
+  {cx:-48,cz:-30,w:18,d:13,h:4.5,name:'🛒 超市',doors:{e:[0],s:[-3]}},
+  {cx:42,cz:-46,w:14,d:13,h:4,name:'🏥 診所',doors:{n:[0],w:[0]}},
+  {cx:50,cz:30,w:16,d:20,h:5,name:'⛪ 教堂',doors:{w:[0],n:[0]}},
+  {cx:-45,cz:40,w:12,d:10,h:3.7,name:'📚 書店',doors:{e:[0],s:[0]}},
+  {cx:-8,cz:54,w:12,d:10,h:3.7,name:'☕ 咖啡店',doors:{s:[0],e:[0]}},
+  {cx:-48,cz:11,w:14,d:11,h:4,name:'🚒 消防局',doors:{e:[0],s:[0]}},
+  {cx:28,cz:43,w:12,d:10,h:3.7,name:'🥐 麵包店',doors:{w:[0],s:[0]}},
+  {cx:27,cz:-26,w:12,d:10,h:3.7,name:'💊 藥局',doors:{w:[0],n:[0]}}
+];
+for(const h of HOUSES){fort(h.cx,h.cz,h.w,h.d,h.h,h.doors);roof(h.cx,h.cz,h.w,h.d,h.h,h.name.includes('教堂')?2.8:1.7);}
+awning(-48,-36.05,11,0x2e8057);awning(27,-31.05,7,0x4f8fc6);churchCross(50,30,8.8);
+/* 四面高牆完整圍住小鎮，不再留下會把殭屍引到牆外的城門缺口 */
+wallX(-78,78,-78,4.2,[]);wallX(-78,78,78,4.2,[]);
+wallZ(-78+T/2,78-T/2,-78,4.2,[]);wallZ(-78+T/2,78-T/2,78,4.2,[]);
 for(const p of[[-9,-29],[9,-29],[-9,29],[9,29],[-29,-9],[-29,9],[29,-9],[29,9],[-47,4],[47,-4]])streetLamp(p[0],p[1]);
 /* 散落掩體：矮牆與木箱 */
 segX(-24,-14,12,1.5,TEX.brick);
@@ -527,7 +558,6 @@ const clouds=[];
 const zombies=[];
 const Z_SPAWNS=[[0,-62],[56,-4],[-60,10],[30,56],[-36,-56],[64,44],[-64,-38],[12,66]];
 let boss=null;
-const LABEL_COLOR='#334c61';
 const ZOMBIE_SPEED_MULT=3,ENRAGED_SPEED_MULT=5;
 const MODE_CFG={simple:{speed:1,hp:1,dogs:false},normal:{speed:1,hp:1,dogs:false},hard:{speed:1.15,hp:1.25,dogs:true}};
 function zombieHp(kind){
@@ -543,15 +573,28 @@ function wordSprite(text,color='#173443'){
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
   const m=new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false});const s=new THREE.Sprite(m);s.scale.set(2.85,.59,1);return s;
 }
+function houseSprite(place,text){
+  const c=document.createElement('canvas');c.width=640;c.height=190;const g=c.getContext('2d');
+  g.fillStyle='rgba(12,26,33,.94)';g.fillRect(6,6,628,178);g.strokeStyle='#ffe08a';g.lineWidth=8;g.strokeRect(6,6,628,178);
+  g.fillStyle='#b9ebff';g.font='800 42px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(place,320,52);
+  g.fillStyle='#fff';g.font='900 72px Arial,sans-serif';g.fillText(text||'?',320,126,585);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
+  const m=new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false});const s=new THREE.Sprite(m);s.scale.set(5.7,1.7,1);s.userData.noHit=true;return s;
+}
+function setHouseLabel(h,text){
+  if(h.label){scene.remove(h.label);h.label.material.map.dispose();h.label.material.dispose();}
+  h.label=houseSprite(h.name,text);h.label.position.set(h.cx,h.h+3.05,h.cz);scene.add(h.label);
+}
 function setZombieLabel(g,text,color){
   if(g.userData.label){g.remove(g.userData.label);g.userData.label.material.map.dispose();g.userData.label.material.dispose();}
   const s=wordSprite(text,color);s.position.y=g.userData.kind==='boss'?4.5:2.95;s.userData.noHit=true;g.add(s);g.userData.label=s;
 }
+for(const h of HOUSES)setHouseLabel(h,'?');
 function setRageVisual(g,on){
   const u=g.userData;if(!u.rageMats)return;
   u.rageMats.forEach((m,i)=>m.color.setHex(on?(i===1?0x7f1717:0xd9322d):u.rageBase[i]));
 }
-function makeZombie(x,z,kind='normal',wordData){
+function makeZombie(x,z,kind='normal'){
   const g=new THREE.Group();
   const spec=kind==='dog'?{scale:.88,speed:2.15,damage:35,color:0x4b4038,range:.82,push:.58}:
     kind==='fast'?{scale:.76,speed:1.4,damage:7,color:0x86d748,range:1.08,push:.8}:
@@ -587,50 +630,84 @@ function makeZombie(x,z,kind='normal',wordData){
   g.position.set(x,0,z);g.rotation.y=rnd(TAU);g.scale.setScalar(spec.scale);
   g.traverse(o=>{o.userData.zomb=g;});
   g.userData={phase:rnd(TAU),hp,maxHp:hp,alive:true,kx:0,kz:0,flash:0,deadT:0,
-    mats:[skin,shirt,pants,face],kind,speed:spec.speed,damage:spec.damage,attackT:rnd(.2,.8),word:wordData||null,
+    mats:[skin,shirt,pants,face],kind,speed:spec.speed,damage:spec.damage,attackT:rnd(.2,.8),
     attackRange:spec.range,pushRadius:spec.push,bossShield:kind==='boss'?(gameMode==='hard'?4:3):0,
-    secondShield:false,bossRage:false,windup:0,disqualified:false,enrage:0,
-    avoidSide:Math.random()<.5?-1:1,avoidT:0,stuckT:0,
+    secondShield:false,bossRage:false,windup:0,enrage:0,attackAnim:0,stuckT:0,los:false,losT:0,
     rageMats:kind==='dog'?null:[skin,shirt,face],rageBase:kind==='dog'?null:[skin.color.getHex(),shirt.color.getHex(),face.color.getHex()]};
   if(kind==='boss'){
     boss=g;setZombieLabel(g,'👑 BOSS 護盾 ×'+g.userData.bossShield,'#7d47b8');
     const warn=new THREE.Mesh(new THREE.RingGeometry(.7,1.8,32),new THREE.MeshBasicMaterial({color:0xff3028,transparent:true,opacity:.62,side:THREE.DoubleSide}));
     warn.rotation.x=-Math.PI/2;warn.position.y=.03;warn.visible=false;warn.userData.noHit=true;g.add(warn);g.userData.warn=warn;
-  }else if(wordData)setZombieLabel(g,labelForWord(wordData),LABEL_COLOR);
+  }
   scene.add(g);zombies.push(g);
   return g;
 }
-function spawnZombie(kind='normal',wordData){
+function spawnZombie(kind='normal'){
   const cand=Z_SPAWNS.filter(p=>Math.hypot(p[0]-player.x,p[1]-player.z)>18);
-  const p=cand.length?cand[(rnd(cand.length))|0]:Z_SPAWNS[(rnd(Z_SPAWNS.length))|0];
-  return makeZombie(p[0]+rnd(-3,3),p[1]+rnd(-3,3),kind,wordData);
+  const list=cand.length?cand:Z_SPAWNS;
+  for(let tries=0;tries<16;tries++){const p=list[(rnd(list.length))|0],x=p[0]+rnd(-3,3),z=p[1]+rnd(-3,3);if(!blockedForZombie(x,z,.58))return makeZombie(x,z,kind);}
+  return makeZombie(0,-62,kind);
+}
+/* 共享流向網格：以玩家所在格反向搜尋，讓所有殭屍知道最近的門口在哪裡。 */
+const NAV_MIN=-76.5,NAV_CELL=1,NAV_N=154,NAV_TOTAL=NAV_N*NAV_N;
+const navBlockedCache=new Int8Array(NAV_TOTAL),navDist=new Int32Array(NAV_TOTAL),navQueue=new Int32Array(NAV_TOTAL);
+navBlockedCache.fill(-1);let navPlayerIndex=-1;
+const navDirs=[[-1,0],[1,0],[0,-1],[0,1]];
+function blockedForZombie(x,z,r=.46){
+  for(const s of solids)if(x>s.x1-r&&x<s.x2+r&&z>s.z1-r&&z<s.z2+r&&s.y2>.02&&s.y1<2.2)return true;
+  return false;
+}
+function navCell(v){return clamp(Math.round((v-NAV_MIN)/NAV_CELL),0,NAV_N-1);}
+function navIndex(gx,gz){return gz*NAV_N+gx;}
+function navWorld(g){return NAV_MIN+g*NAV_CELL;}
+function navIsBlocked(gx,gz){
+  const i=navIndex(gx,gz);if(navBlockedCache[i]<0)navBlockedCache[i]=blockedForZombie(navWorld(gx),navWorld(gz),.38)?1:0;
+  return navBlockedCache[i]===1;
+}
+function rebuildNavigation(){
+  let tx=navCell(player.x),tz=navCell(player.z),ti=navIndex(tx,tz);
+  if(navIsBlocked(tx,tz)){
+    outer:for(let r=1;r<=4;r++)for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){
+      const gx=tx+dx,gz=tz+dz;if(gx<0||gz<0||gx>=NAV_N||gz>=NAV_N||navIsBlocked(gx,gz))continue;
+      tx=gx;tz=gz;ti=navIndex(gx,gz);break outer;
+    }
+  }
+  if(ti===navPlayerIndex)return;
+  navPlayerIndex=ti;navDist.fill(-1);let head=0,tail=0;navQueue[tail++]=ti;navDist[ti]=0;
+  while(head<tail){
+    const i=navQueue[head++],gx=i%NAV_N,gz=(i/NAV_N)|0,nd=navDist[i]+1;
+    for(const d of navDirs){const nx=gx+d[0],nz=gz+d[1];if(nx<0||nz<0||nx>=NAV_N||nz>=NAV_N)continue;
+      const ni=navIndex(nx,nz);if(navDist[ni]>=0||navIsBlocked(nx,nz))continue;navDist[ni]=nd;navQueue[tail++]=ni;}
+  }
+}
+function clearZombiePath(x,z,tx,tz,r){
+  const dx=tx-x,dz=tz-z,steps=Math.ceil(Math.hypot(dx,dz)/.75);
+  for(let i=1;i<steps;i++)if(blockedForZombie(x+dx*i/steps,z+dz*i/steps,r))return false;
+  return true;
 }
 function moveZombieToward(z,dx,dz,pace,dt){
-  const u=z.userData,base=Math.atan2(dx,dz),step=pace*dt;
-  u.avoidT=Math.max(0,u.avoidT-dt);
-  const side=u.avoidSide,turns=u.avoidT>0?
-    [side*Math.PI/2,side*Math.PI/3,side*Math.PI*.75,-side*Math.PI/2,0]:
-    [0,side*Math.PI/4,-side*Math.PI/4,side*Math.PI/2,-side*Math.PI/2];
-  const ox=z.position.x,oz=z.position.z;let moved=false;
-  for(const turn of turns){
-    const a=base+turn,nx=ox+Math.sin(a)*step,nz=oz+Math.cos(a)*step;
-    if(collide(nx,nz,0))continue;
-    z.position.set(nx,0,nz);z.rotation.y=a;moved=true;
-    if(turn!==0)u.avoidT=Math.max(u.avoidT,.75);
-    break;
+  const u=z.userData,r=Math.min(.58,(u.pushRadius||.95)*.48),ox=z.position.x,oz=z.position.z;
+  rebuildNavigation();u.losT-=dt;if(u.losT<=0){u.los=clearZombiePath(ox,oz,player.x,player.z,r);u.losT=rnd(.18,.32);}
+  let mx=dx,mz=dz;
+  if(!u.los){
+    const gx=navCell(ox),gz=navCell(oz),ci=navIndex(gx,gz);let best=ci,bestD=navDist[ci];
+    for(const d of navDirs){const nx=gx+d[0],nz=gz+d[1];if(nx<0||nz<0||nx>=NAV_N||nz>=NAV_N)continue;
+      const ni=navIndex(nx,nz),nd=navDist[ni];if(nd>=0&&(bestD<0||nd<bestD)){best=ni;bestD=nd;}}
+    if(best!==ci){mx=navWorld(best%NAV_N)-ox;mz=navWorld((best/NAV_N)|0)-oz;}
   }
-  if(!moved){
-    u.stuckT+=dt;
-    if(u.stuckT>.22){u.avoidSide*=-1;u.avoidT=1.25;u.stuckT=0;}
-  }else u.stuckT=0;
+  /* 近距離互相推開，避免全擠成完全重疊的一坨。 */
+  let sx=0,sz=0;
+  for(const o of zombies){if(o===z||!o.userData.alive)continue;const ax=ox-o.position.x,az=oz-o.position.z,ad=Math.hypot(ax,az);
+    if(ad>0&&ad<1.35){sx+=ax/ad*(1.35-ad);sz+=az/ad*(1.35-ad);}}
+  mx+=sx*1.8;mz+=sz*1.8;const len=Math.hypot(mx,mz)||1,step=pace*dt,nx=ox+mx/len*step,nz=oz+mz/len*step;
+  let moved=false;if(!blockedForZombie(nx,oz,r)){z.position.x=nx;moved=true;}if(!blockedForZombie(z.position.x,nz,r)){z.position.z=nz;moved=true;}
+  if(moved){z.rotation.y=Math.atan2(mx,mz);u.stuckT=0;}
+  else if((u.stuckT+=dt)>.25){u.los=false;u.losT=0;navPlayerIndex=-1;u.stuckT=0;}
 }
 function hitZombie(g,part,hitPoint){
   const u=g.userData;if(!u.alive)return;
   if(g===boss&&u.bossShield>0){
-    showObjective('🛡️ 魔王護盾還在！先打倒答對單字的殭屍');sndEmpty();return;
-  }
-  if(g!==boss&&u.kind!=='dog'&&u.word&&!isCorrectZombie(g)&&!u.disqualified){
-    u.disqualified=true;onWrong(g);sparks(hitPoint,0xff5544,7);hitmarkShow();sndHit();return;
+    showObjective('🛡️ 魔王護盾還在！先佔領正確單字的小屋');sndEmpty();return;
   }
   const dmg=weaponDamage(part);
   u.hp-=dmg;u.flash=0.13;
@@ -644,18 +721,18 @@ function hitZombie(g,part,hitPoint){
     if(!u.secondShield&&u.hp<=u.maxHp*.5){triggerBossSecondShield(g);return;}
     updateBossHud(g);
   }
-  if(u.hp<=0){
-    u.alive=false;u.deadT=0;kills++;
-    document.getElementById('vKills').textContent=kills;
-    sndKill();sparks(g.position.clone().setY(1.4),0xffe08a,12);
-    if(g===boss){boss=null;onBossDefeated();}
-    else if(u.kind!=='dog'){
-      const correct=isCorrectZombie(g);
-      if(correct){dropAmmo(g.position.x,g.position.z);onCorrect(g);}
-    }
-  }else{
-    part==='head'?sndHead():sndHit();
-  }
+  if(u.hp<=0)finishZombie(g);else part==='head'?sndHead():sndHit();
+}
+function finishZombie(g){
+  const u=g.userData;if(!u.alive)return;u.alive=false;u.deadT=0;kills++;
+  document.getElementById('vKills').textContent=kills;sndKill();sparks(g.position.clone().setY(1.4),0xffe08a,12);
+  if(g===boss){boss=null;onBossDefeated();}
+}
+function blastZombie(g,amount,x,z){
+  const u=g.userData;if(!u.alive||(g===boss&&u.bossShield>0))return;
+  u.hp-=amount;u.flash=.18;const dx=g.position.x-x,dz=g.position.z-z,d=Math.hypot(dx,dz)||1;
+  u.kx=dx/d*7;u.kz=dz/d*7;if(g===boss){if(!u.secondShield&&u.hp<=u.maxHp*.5){triggerBossSecondShield(g);return;}updateBossHud(g);}
+  if(u.hp<=0)finishZombie(g);
 }
 
 /* ============ 命中特效：粒子 / 飄字 / hitmarker ============ */
@@ -691,9 +768,12 @@ const waveEl=document.getElementById('wave'),questionEl=document.getElementById(
 const WEAPON=[{name:'手槍',cap:5,rate:.28,damage:1,head:3,color:0x181a1f,scale:1},
   {name:'衝鋒槍',cap:12,rate:.11,damage:1,head:3,color:0x263842,scale:1.16},
   {name:'步槍',cap:20,rate:.18,damage:2,head:6,color:0x4a3b24,scale:1.34}];
-let wave=0,waveLeft=0,targetWord=null,roundKind='word',combo=0,weaponLevel=0,weaponScore=0,slowT=0,
+let wave=0,targetWord=null,roundKind='word',combo=0,weaponLevel=0,weaponScore=0,slowT=0,
   recovering=false,recoverLevel=0,recoveryStreak=0,
-  gateReady=false,gateOpen=false,gameWon=false,survivalStart=0,spellWord='',spellIndex=0,exitGate=null;
+  gateReady=false,gateOpen=false,gameWon=false,survivalStart=0,exitGate=null;
+const CAPTURE_SECONDS=10,QUESTION_SECONDS=38;
+let captureHouse=null,captureT=0,questionT=QUESTION_SECONDS,captureActive=false,captureCooldown=0,roundTransition=false,transitionT=0;
+const captureHudEl=document.getElementById('captureHud'),captureTextEl=document.getElementById('captureText'),captureFillEl=document.getElementById('captureFill');
 function pickWord(except){
   const list=VOCAB.filter(x=>x!==except);return (list.length?list:VOCAB)[(rnd(list.length||1))|0];
 }
@@ -739,98 +819,114 @@ function registerWrong(){
   }
   updateWeaponUI();
 }
-function isCorrectZombie(g){return !!(g&&g.userData.word&&!g.userData.disqualified&&g.userData.word===targetWord);}
-function repaintLabels(){
-  for(const z of zombies)if(z.userData.alive&&z!==boss&&z.userData.word)
-    setZombieLabel(z,labelForWord(z.userData.word),LABEL_COLOR);
+function questionWords(){const list=gameMode==='simple'?VOCAB.filter(w=>w.emoji):VOCAB;return list.length?list:VOCAB;}
+function wordKey(w){return w?String(w.word).trim().toLowerCase():'';}
+function assignHouseAnswers(){
+  const words=questionWords(),others=words.filter(w=>wordKey(w)!==wordKey(targetWord)),correctIndex=(rnd(HOUSES.length))|0;
+  for(let i=0;i<HOUSES.length;i++){
+    const h=HOUSES[i];h.correct=!others.length||i===correctIndex;
+    h.answer=h.correct?targetWord:others[(i+(rnd(others.length||1)|0))%(others.length||1)];
+    setHouseLabel(h,labelForWord(h.answer));
+  }
+  captureHouse=null;captureT=0;questionT=QUESTION_SECONDS;captureActive=true;
+  captureHudEl.style.display='block';captureFillEl.style.width='0%';captureTextEl.textContent='找小屋 ・ 剩 '+QUESTION_SECONDS+' 秒';
 }
 function setQuestion(say=true){
-  if(roundKind==='spell'){
-    const ch=spellWord[spellIndex]||spellWord[0];targetWord={word:ch.toUpperCase(),chinese:'拼字 '+(spellIndex+1)+'/'+spellWord.length};
-    questionEl.textContent='⌨️ 拼出 '+spellWord.toUpperCase()+'：先打字母 '+targetWord.word;
-  }else{
-    targetWord=pickWord(targetWord);
-    if(gameMode==='simple')questionEl.textContent='🔊 '+targetWord.word+' → 射擊正確圖片';
-    else questionEl.textContent=roundKind==='listen'?'🔊 聽發音，找出正確英文：':('題目：'+targetWord.chinese+' → 找英文');
-    if(say)speakWord(targetWord.word);
-  }
-  repaintLabels();
-}
-function addWaveZombie(i){
-  const kind=i%7===4?'fast':(wave>3&&i%9===6?'tank':'normal');
-  let w;
-  if(i===0)w=targetWord;
-  else if(roundKind==='spell')w={word:String.fromCharCode(65+(rnd(26)|0)),chinese:'字母'};
-  else w=pickWord(targetWord);
-  spawnZombie(kind,w);
+  const words=questionWords(),pool=words.filter(w=>wordKey(w)!==wordKey(targetWord));targetWord=(pool.length?pool:words)[(rnd((pool.length?pool:words).length))|0];
+  if(gameMode==='simple')questionEl.textContent='🔊 '+targetWord.word+' → 佔領正確圖片小屋';
+  else questionEl.textContent=roundKind==='listen'?'🔊 聽發音，佔領正確英文小屋':('題目：'+targetWord.chinese+' → 佔領英文小屋');
+  if(say)speakWord(targetWord.word);assignHouseAnswers();
 }
 function spawnCrowd(count){for(let i=0;i<count;i++)spawnZombie('normal');}
 function clearWaveEnemies(){
   for(const z of zombies)if(z.userData.alive&&z!==boss){z.userData.alive=false;z.userData.deadT=.72;}
 }
 function spawnHardDogs(count){for(let i=0;i<count;i++)spawnZombie('dog');}
+function baseNormalCount(w){
+  let n=3+Math.min(4,w),answerCount=Math.min(9,4+w);
+  for(let i=0;i<answerCount;i++)if(!(i%7===4||(w>3&&i%9===6)))n++;
+  return n;
+}
+function spawnWaveThreats(){
+  const alive=zombies.filter(z=>z.userData.alive&&z.userData.kind==='normal').length,desired=baseNormalCount(Math.min(wave,6))*3;
+  spawnCrowd(Math.max(0,desired-alive));
+  const answerCount=Math.min(9,4+Math.min(wave,6));
+  for(let i=0;i<answerCount;i++){const kind=i%7===4?'fast':(wave>3&&i%9===6?'tank':'normal');if(kind!=='normal')spawnZombie(kind);}
+}
 function beginWave(){
-  if(gameWon||gateReady)return;
-  wave++;roundKind=wave===7?'boss':(gameMode==='hard'?(wave%4===0?'spell':(wave%3===0?'listen':'word')):(gameMode==='simple'?'image':'word'));
-  waveEl.textContent='🌊 第 '+wave+' 波 '+(roundKind==='boss'?'魔王來襲！':roundKind==='listen'?'聽力波次':roundKind==='spell'?'拼字波次':'來襲！');
-  if(roundKind==='spell'){const w=pickWord();spellWord=w.word.replace(/[^a-z]/ig,'').slice(0,8)||'word';spellIndex=0;}
-  setNight(wave>=5);setQuestion(true);sndWave();
-  if(wave===5){const p=Z_SPAWNS[(rnd(Z_SPAWNS.length))|0];ammoBox(p[0]+rnd(-5,5),p[1]+rnd(-5,5),8,false);showObjective('📦 稀有空投已落下：黃色光柱旁有少量彈藥');}
+  if(gameWon||gateReady)return;roundTransition=false;
+  wave++;roundKind=wave===7?'boss':(gameMode==='hard'&&wave%3===0?'listen':(gameMode==='simple'?'image':'word'));
+  waveEl.textContent='🌊 第 '+wave+' 波 '+(roundKind==='boss'?'魔王來襲！':roundKind==='listen'?'聽力佔領':'小屋佔領');
+  setNight(wave>=5);setQuestion(true);sndWave();spawnWaveThreats();
   if(roundKind==='boss'){
-    waveLeft=0;const shield=gameMode==='hard'?4:3;showObjective('👑 最終 BOSS：答對 '+shield+' 題破除護盾');
-    for(let i=0;i<5;i++)addWaveZombie(i);spawnCrowd(7);spawnZombie('boss');updateBossHud(boss);
+    const shield=gameMode==='hard'?4:3;showObjective('👑 佔領正確小屋 '+shield+' 次，破除 BOSS 護盾');
+    spawnZombie('boss');updateBossHud(boss);
     if(gameMode==='hard')spawnHardDogs(2);
   }else{
-    waveLeft=roundKind==='spell'?1:1+Math.min(3,Math.floor(wave/2));showObjective('答對 '+waveLeft+' 題，完成本波防守');
-    for(let i=0;i<Math.min(9,4+wave);i++)addWaveZombie(i);spawnCrowd(3+Math.min(4,wave));
-    if(gameMode==='hard'&&wave>=3){const dogs=wave>=5?2:1;spawnHardDogs(dogs);showObjective('答對 '+waveLeft+' 題 ・ 🐕 小心高速殭屍狗！');}
+    showObjective('進入正確小屋並守住 10 秒；不用殺光殭屍');
+    if(gameMode==='hard'&&wave>=3){spawnHardDogs(wave>=5?2:1);showObjective('守住正確小屋 10 秒 ・ 🐕 小心高速殭屍狗！');}
   }
 }
 function setNight(on){
   scene.background.setHex(on?0x172635:SKY);scene.fog.color.setHex(on?0x172635:SKY);
   sun.intensity=on?.3:.85;
 }
-function onCorrect(g){
-  if(roundKind==='spell'){
-    spellIndex++;
-    if(spellIndex<spellWord.length){setQuestion(false);addWaveZombie(0);return;}
-  }
-  registerCorrect();
+function spawnNearHouse(h,count){
+  const spots=[[h.cx-h.w/2-2,h.cz],[h.cx+h.w/2+2,h.cz],[h.cx,h.cz-h.d/2-2],[h.cx,h.cz+h.d/2+2]];
+  for(let i=0;i<count;i++){const p=spots[(rnd(spots.length))|0],x=p[0]+rnd(-1,1),z=p[1]+rnd(-1,1);if(!blockedForZombie(x,z,.46))makeZombie(x,z,'normal');else spawnZombie('normal');}
+}
+function onHouseCorrect(h){
+  registerCorrect();const reward=spawnCaptureReward(h);
   if(boss&&boss.userData.bossShield>0){
     boss.userData.bossShield--;sndShield();
     if(boss.userData.bossShield<=0){
-      slowT=1.1;clearWaveEnemies();boss.userData.bossRage=boss.userData.secondShield;
+      slowT=1.1;captureActive=false;captureHudEl.style.display='none';boss.userData.bossRage=boss.userData.secondShield;
       setZombieLabel(boss,boss.userData.bossRage?'👑 最終狂暴！':'👑 護盾破除！','#cf4c3e');showObjective('⚡ 護盾破除了！集中火力攻擊 BOSS');
     }else{
-      setZombieLabel(boss,'👑 BOSS 護盾 ×'+boss.userData.bossShield,'#7d47b8');setQuestion(true);addWaveZombie(0);
+      setZombieLabel(boss,'👑 BOSS 護盾 ×'+boss.userData.bossShield,'#7d47b8');setQuestion(true);
     }
     updateBossHud(boss);
     return;
   }
-  waveLeft--;
-  if(waveLeft>0){showObjective('答對 '+waveLeft+' 題，完成本波防守');setQuestion(true);addWaveZombie(0);}
-  else completeWave();
+  completeWave(reward);
 }
-function onWrong(g){
-  registerWrong();g.userData.enrage=gameMode==='hard'?6:5;setRageVisual(g,true);
-  showObjective('❌ 打錯了！只有那隻殭屍變紅狂暴'+(gameMode==='hard'?'，武器進度受損':'，武器進度保留'));
+function onHouseWrong(h){
+  registerWrong();hurt(gameMode==='hard'?25:18,{x:h.cx,z:h.cz});if(!playing)return;
+  spawnNearHouse(h,gameMode==='hard'?4:3);showObjective('❌ 佔領錯誤：扣血，屋外出現增援！同一題重新洗牌');
+  assignHouseAnswers();captureCooldown=1.4;if(gameMode==='simple'||roundKind==='listen')speakWord(targetWord.word);
+}
+function onQuestionTimeout(){
+  registerWrong();for(const z of zombies)if(z.userData.alive&&z!==boss){z.userData.enrage=Math.max(z.userData.enrage,gameMode==='hard'?7:6);setRageVisual(z,true);}
+  spawnCrowd(gameMode==='hard'?5:3);showObjective('⏰ 超時：全場殭屍短暫狂暴，題目與小屋重新洗牌！');setQuestion(true);captureCooldown=1.4;
+}
+function insideHouse(h){return player.y<1.4&&Math.abs(player.x-h.cx)<h.w/2-T-.2&&Math.abs(player.z-h.cz)<h.d/2-T-.2;}
+function updateCapture(dt){
+  if(!captureActive||roundTransition)return;if(captureCooldown>0){captureCooldown-=dt;captureTextEl.textContent='重新洗牌中…';return;}
+  const h=HOUSES.find(insideHouse)||null;if(!h)questionT-=dt;
+  if(h){
+    if(captureHouse!==h){captureHouse=h;captureT=0;showObjective('留在 '+h.name+' 裡防守；離開會重新計時');}
+    captureT+=dt;const left=Math.max(0,CAPTURE_SECONDS-captureT);
+    captureTextEl.textContent=h.name+' 佔領中 ・ 還要 '+left.toFixed(1)+' 秒';captureFillEl.style.width=(Math.min(1,captureT/CAPTURE_SECONDS)*100)+'%';
+    if(captureT>=CAPTURE_SECONDS){captureActive=false;captureHudEl.style.display='none';h.correct?onHouseCorrect(h):onHouseWrong(h);return;}
+  }else{
+    captureHouse=null;captureT=0;captureFillEl.style.width='0%';captureTextEl.textContent='找小屋 ・ 剩 '+Math.max(0,Math.ceil(questionT))+' 秒';
+  }
+  if(questionT<=0){captureActive=false;onQuestionTimeout();}
 }
 function triggerBossSecondShield(g){
   const u=g.userData;u.secondShield=true;u.hp=Math.ceil(u.maxHp*.5);u.bossShield=gameMode==='hard'?3:2;
-  clearWaveEnemies();setZombieLabel(g,'👑 第二護盾 ×'+u.bossShield,'#7d47b8');
+  setZombieLabel(g,'👑 第二護盾 ×'+u.bossShield,'#7d47b8');
   showObjective('🛡️ BOSS 半血反擊：再答對 '+u.bossShield+' 題！');setQuestion(true);
-  for(let i=0;i<5;i++)addWaveZombie(i);spawnCrowd(6);if(gameMode==='hard')spawnHardDogs(1);updateBossHud(g);sndShield();
+  spawnCrowd(6);if(gameMode==='hard')spawnHardDogs(1);updateBossHud(g);sndShield();
 }
 function updateBossHud(g){
   const hud=document.getElementById('bossHud');if(!g){hud.style.display='none';return;}
   const u=g.userData;hud.style.display='block';document.getElementById('bossFill').style.width=(Math.max(0,u.hp)/u.maxHp*100)+'%';
   document.getElementById('bossText').textContent='BOSS 生命 '+Math.max(0,Math.ceil(u.hp))+' / '+u.maxHp+(u.bossShield?' ・ 護盾 ×'+u.bossShield:(u.bossRage?' ・ 狂暴':' ・ 可攻擊'));
 }
-function completeWave(){
-  clearWaveEnemies();
+function completeWave(reward){
   if(wave>=7)return;
-  waveEl.textContent='✅ 第 '+wave+' 波守住了！';showObjective('短暫喘息：撿彈藥、準備下一波');
-  setTimeout(beginWave,6500);
+  roundTransition=true;transitionT=.65;captureActive=false;captureHudEl.style.display='none';waveEl.textContent='✅ 第 '+wave+' 波守住了！';showObjective('🎁 '+reward+' ・ 下一波立刻開始');
 }
 function onBossDefeated(){
   clearWaveEnemies();weaponScore+=20;setWeaponLevel(weaponScore>=70?2:(weaponScore>=30?1:0));reserve+=15;updAmmo();updateWeaponUI();updateBossHud(null);
@@ -859,7 +955,7 @@ function winGame(){
   gameWon=true;playing=false;stopBgm();waveEl.textContent='🎉 成功逃生！';
   document.getElementById('btnPause').classList.add('hidden');
   const sec=Math.max(1,Math.round((performance.now()-survivalStart)/1000));
-  overlay.innerHTML='<h1>🏆 成功逃生！</h1><div class="sub">F O R T &nbsp; C L E A R</div><p>擊殺 '+kills+' 隻 ・ 武器分數 '+weaponScore+' ・ 存活 '+sec+' 秒</p><p class="go">英文答對，火力就更強！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再守一輪</button>';
+  overlay.innerHTML='<h1>🏆 成功逃生！</h1><div class="sub">T O W N &nbsp; C L E A R</div><p>擊殺 '+kills+' 隻 ・ 武器分數 '+weaponScore+' ・ 存活 '+sec+' 秒</p><p class="go">找對小屋、守住佔領區，就能帶著補給活下去！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再守一輪</button>';
   overlay.classList.remove('hidden');
 }
 
@@ -873,9 +969,21 @@ function ammoBox(x,z,amount,big){
     new THREE.MeshBasicMaterial({color:0xffd34d,transparent:true,opacity:0.16,
       blending:THREE.AdditiveBlending,depthWrite:false}));
   pil.position.set(x,big?13:4,z);scene.add(pil);pil.userData.noHit=true;
-  pickups.push({m,pil,x,z,amount,big,taken:false,t:0,life:big?Infinity:20});
+  pickups.push({m,pil,x,z,type:'ammo',amount,big,taken:false,t:0,life:big?Infinity:20});
 }
-const dropAmmo=(x,z)=>{if(Math.random()<.08)ammoBox(x,z,3,false);};
+function grenadeBox(x,z){
+  const m=new THREE.Group(),box=new THREE.Mesh(new THREE.BoxGeometry(.62,.62,.62),new THREE.MeshLambertMaterial({color:0x5d773d}));
+  const ball=new THREE.Mesh(new THREE.SphereGeometry(.19,10,8),new THREE.MeshLambertMaterial({color:0x20291c}));
+  ball.position.y=.48;m.add(box);m.add(ball);m.position.set(x,.58,z);m.traverse(o=>o.userData.noHit=true);scene.add(m);
+  const pil=new THREE.Mesh(new THREE.BoxGeometry(.45,8,.45),new THREE.MeshBasicMaterial({color:0xa9ef69,transparent:true,opacity:.18,blending:THREE.AdditiveBlending,depthWrite:false}));
+  pil.position.set(x,4,z);pil.userData.noHit=true;scene.add(pil);pickups.push({m,pil,x,z,type:'grenade',amount:1,big:false,taken:false,t:0,life:24});
+}
+function spawnCaptureReward(h){
+  const a=rnd(TAU),x=h.cx+Math.sin(a)*2,z=h.cz+Math.cos(a)*2,r=Math.random();
+  if(r<.55){ammoBox(x,z,10,false);return '屋內出現 +10 彈藥箱';}
+  if(r<.85){grenadeBox(x,z);return '屋內出現 1 顆手榴彈';}
+  ammoBox(x-1,z,8,false);grenadeBox(x+1,z);return '稀有補給：彈藥箱＋手榴彈';
+}
 let fixedAmmoSpawned=false;
 function setupFixedAmmo(){
   if(fixedAmmoSpawned)return;fixedAmmoSpawned=true;
@@ -911,7 +1019,7 @@ const player={x:0,z:34,yaw:0,pitch:0,vx:0,vz:0,vy:0,y:0,onGround:true};
 const EYE=1.7,WALK=6.5,JUMP=7.8;     // 跳躍力剛好上 1.15m 木箱、上不了 1.5m 矮牆
 const key={};
 let playing=false,paused=false;
-let mag=5,reserve=10,recoil=0,bobT=0,kills=0,hp=100,fireCd=0,fireHeld=false;
+let mag=5,reserve=10,grenades=0,grenadeCd=0,recoil=0,bobT=0,kills=0,hp=100,fireCd=0,fireHeld=false;
 let reloading=false,reloadT=0,reloadS1=false,reloadS2=false;
 const reloadBarEl=document.getElementById('reloadBar'),
       reloadFillEl=document.getElementById('reloadFill'),
@@ -921,6 +1029,7 @@ addEventListener('keydown',e=>{
   key[e.code]=true;
   if(e.code==='Space'){e.preventDefault();doJump();}
   if(e.code==='KeyR')reload();
+  if(e.code==='KeyG')throwGrenade();
 });
 addEventListener('keyup',e=>key[e.code]=false);
 function doJump(){
@@ -936,6 +1045,21 @@ function updAmmo(){
   document.getElementById('vReserve').textContent=reserve;
   ammoNumEl.classList.toggle('low',reserve<5);
 }
+function updGrenades(){document.getElementById('vGrenades').textContent=grenades;}
+const thrownGrenades=[],explosions=[];
+function throwGrenade(){
+  if(!playing||paused||grenadeCd>0||grenades<=0){if(playing&&grenades<=0)showObjective('沒有手榴彈；佔領正確小屋有機會獲得');return;}
+  grenadeCd=.35;grenades--;updGrenades();const dir=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+  const m=new THREE.Mesh(new THREE.SphereGeometry(.18,10,8),new THREE.MeshLambertMaterial({color:0x26331e}));
+  m.position.copy(camera.position).addScaledVector(dir,.8);m.userData.noHit=true;scene.add(m);
+  thrownGrenades.push({m,vx:dir.x*11,vy:5+dir.y*4,vz:dir.z*11,t:1.25,age:0});tone(260,.08,.16,'square',160);
+}
+function explodeGrenade(g){
+  scene.remove(g.m);sndGrenade();const x=g.m.position.x,z=g.m.position.z,p=g.m.position.clone();sparks(p,0xffb43b,28);
+  const fx=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),new THREE.MeshBasicMaterial({color:0xff9b32,transparent:true,opacity:.55,blending:THREE.AdditiveBlending,depthWrite:false}));
+  fx.position.copy(p);scene.add(fx);explosions.push({m:fx,t:.36});
+  for(const zom of zombies){const d=Math.hypot(zom.position.x-x,zom.position.z-z);if(d<8)blastZombie(zom,Math.max(4,Math.ceil(15*(1-d/9))),x,z);}
+}
 function hurt(amount,from){
   if(!playing||gameWon)return;
   hp=Math.max(0,hp-amount);document.getElementById('hpText').textContent=hp+' / 100';
@@ -944,7 +1068,7 @@ function hurt(amount,from){
   if(hp<=0){
     playing=false;paused=true;stopBgm();
     document.getElementById('btnPause').classList.add('hidden');
-    overlay.innerHTML='<h1>💀 堡壘失守</h1><div class="sub">T R Y &nbsp; A G A I N</div><p>擊殺 '+kills+' 隻 ・ 撐到第 '+wave+' 波</p><p class="go">打錯單字會讓殭屍狂暴，先找正確目標！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再試一次</button>';
+    overlay.innerHTML='<h1>💀 小鎮失守</h1><div class="sub">T R Y &nbsp; A G A I N</div><p>擊殺 '+kills+' 隻 ・ 撐到第 '+wave+' 波</p><p class="go">看清屋頂字牌，進正確小屋守住 10 秒！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再試一次</button>';
     overlay.classList.remove('hidden');
   }
 }
@@ -992,7 +1116,7 @@ function startGame(){
   if(!playing){
     document.getElementById('modePanel').classList.add('hidden');document.getElementById('modeHint').classList.add('hidden');
     document.getElementById('banner').classList.add('hidden');
-    playing=true;survivalStart=performance.now();setupFixedAmmo();setWeaponLevel(0);updateWeaponUI();updAmmo();startBgm();beginWave();
+    playing=true;survivalStart=performance.now();setupFixedAmmo();setWeaponLevel(0);updateWeaponUI();updAmmo();updGrenades();startBgm();beginWave();
   }
   paused=false;
   document.getElementById('pauseOverlay').classList.add('hidden');
@@ -1023,6 +1147,7 @@ addEventListener('touchstart',e=>{
     const el=document.elementFromPoint(t.clientX,t.clientY);
     if(el&&(el.id==='fireBtn')){fire();fireHeld=true;el.classList.add('active');continue;}
     if(el&&(el.id==='reloadBtn')){reload();continue;}
+    if(el&&(el.id==='grenadeBtn')){throwGrenade();continue;}
     if(el&&(el.id==='jumpBtn')){doJump();continue;}
     if(el&&(el.id==='btnPause'))continue;
     if(t.clientX<innerWidth*0.45&&stickId===null){
@@ -1083,6 +1208,7 @@ document.getElementById('pauseMenuBtn').addEventListener('click',()=>window.open
 addEventListener('keydown',e=>{if(e.code==='Escape'&&isTouch&&playing){e.preventDefault();paused?resumeGame():pauseGame();}});
 addEventListener('visibilitychange',()=>{if(document.hidden&&playing&&!paused)pauseGame();});
 document.getElementById('reloadBtn').addEventListener('click',reload);
+document.getElementById('grenadeBtn').addEventListener('click',throwGrenade);
 
 /* ============ 主迴圈 ============ */
 let lastT=performance.now();
@@ -1090,7 +1216,8 @@ function loop(now){
   requestAnimationFrame(loop);
   const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
   if(playing&&!paused){
-    fireCd=Math.max(0,fireCd-dt);if(fireHeld)fire();slowT=Math.max(0,slowT-dt);
+    fireCd=Math.max(0,fireCd-dt);grenadeCd=Math.max(0,grenadeCd-dt);if(fireHeld)fire();slowT=Math.max(0,slowT-dt);updateCapture(dt);
+    if(roundTransition&&(transitionT-=dt)<=0)beginWave();
     /* 移動輸入（鍵盤＋搖桿） */
     let fw=(key.KeyW||key.ArrowUp?1:0)-(key.KeyS||key.ArrowDown?1:0),
         st=(key.KeyD||key.ArrowRight?1:0)-(key.KeyA||key.ArrowLeft?1:0);
@@ -1160,21 +1287,22 @@ function loop(now){
         const pace=u.speed*((u.enrage||u.bossRage)?ENRAGED_SPEED_MULT:ZOMBIE_SPEED_MULT)*(slowT>.01?.35:1);
         if(u.kind==='boss'&&u.windup>0){
           u.windup-=dt*(slowT>.01?.35:1);if(u.warn)u.warn.visible=true;
-          if(u.windup<=0){if(u.warn)u.warn.visible=false;if(d<u.attackRange+.75)hurt(u.damage,{x:z.position.x,z:z.position.z});u.attackT=1.45;}
+          if(u.windup<=0){if(u.warn)u.warn.visible=false;u.attackAnim=.55;if(d<u.attackRange+.75)hurt(u.damage,{x:z.position.x,z:z.position.z});u.attackT=1.45;}
         }else if(d>u.attackRange){
           moveZombieToward(z,dx,dz,pace,dt);
         }else{
           u.attackT-=dt*(slowT>.01?.35:1);
           if(u.attackT<=0){
             if(u.kind==='boss'){u.windup=.65;if(u.warn)u.warn.visible=true;showObjective('⚠️ BOSS 正在蓄力重擊，快離開紅圈！');}
-            else{u.attackT=u.kind==='dog'?1.15:(.82+(u.kind==='tank'?.25:0));hurt(u.damage,{x:z.position.x,z:z.position.z});}
+            else{u.attackT=u.kind==='dog'?1.15:(.82+(u.kind==='tank'?.25:0));u.attackAnim=.55;hurt(u.damage,{x:z.position.x,z:z.position.z});}
           }
         }
         if(u.enrage){u.enrage-=dt;if(u.enrage<=0){u.enrage=0;setRageVisual(z,false);}}
-        z.children.forEach((ch,ci)=>{if(ch.userData.isArm)ch.rotation.x=Math.sin(p)*0.09;if(ch.userData.isDogLeg)ch.rotation.x=Math.sin(p*2+ci)*.55;});
+        u.attackAnim=Math.max(0,u.attackAnim-dt);const grab=u.attackAnim>0?Math.sin((1-u.attackAnim/.55)*Math.PI)*1.2:0;
+        z.children.forEach((ch,ci)=>{if(ch.userData.isArm)ch.rotation.x=Math.sin(p)*0.09+grab;if(ch.userData.isDogLeg)ch.rotation.x=Math.sin(p*2+ci)*.55;});
         if(u.kx||u.kz){                // 擊退（撞牆就停）
           const zx=z.position.x+u.kx*dt,zz=z.position.z+u.kz*dt;
-          if(!collide(zx,zz,0)){z.position.x=zx;z.position.z=zz;}
+          if(!blockedForZombie(zx,zz,Math.min(.58,(u.pushRadius||.95)*.48))){z.position.x=zx;z.position.z=zz;}
           u.kx*=Math.max(0,1-dt*7);u.kz*=Math.max(0,1-dt*7);
           if(Math.hypot(u.kx,u.kz)<0.05)u.kx=u.kz=0;
         }
@@ -1204,12 +1332,21 @@ function loop(now){
       b.m.position.y=0.55+Math.sin(now*0.003+b.x)*0.09;
       if(!b.big){b.life-=dt;if(b.life<=0){scene.remove(b.m);scene.remove(b.pil);pickups.splice(i,1);continue;}}
       if(Math.hypot(b.x-player.x,b.z-player.z)<1.5&&player.y<1.2){
-        reserve+=b.amount;updAmmo();sndPickup();
-        popAt(b.m.position.clone().setY(1.4),'+'+b.amount+' 彈藥','#ffd34d');
+        if(b.type==='grenade'){grenades+=b.amount;updGrenades();popAt(b.m.position.clone().setY(1.4),'+1 手榴彈','#b8ef71');}
+        else{reserve+=b.amount;updAmmo();popAt(b.m.position.clone().setY(1.4),'+'+b.amount+' 彈藥','#ffd34d');}
+        sndPickup();
         if(b.big){b.taken=true;b.t=0;b.m.visible=b.pil.visible=false;}
         else{scene.remove(b.m);scene.remove(b.pil);pickups.splice(i,1);}
       }
     }
+    /* 手榴彈：拋物線飛行，落地或引信到時爆炸。 */
+    for(let i=thrownGrenades.length-1;i>=0;i--){
+      const g=thrownGrenades[i];g.age+=dt;g.t-=dt;g.vy-=12*dt;g.m.position.x+=g.vx*dt;g.m.position.y+=g.vy*dt;g.m.position.z+=g.vz*dt;
+      g.m.rotation.x+=dt*8;g.m.rotation.z+=dt*6;
+      if((g.age>.22&&g.m.position.y<=.18)||g.t<=0){g.m.position.y=Math.max(.18,g.m.position.y);thrownGrenades.splice(i,1);explodeGrenade(g);}
+    }
+    for(let i=explosions.length-1;i>=0;i--){const e=explosions[i];e.t-=dt;e.m.scale.addScalar(dt*17);e.m.material.opacity=Math.max(0,e.t/.36*.55);
+      if(e.t<=0){scene.remove(e.m);e.m.material.dispose();e.m.geometry.dispose();explosions.splice(i,1);}}
     if(gateReady&&exitGate){
       exitGate.rotation.y+=dt*.7;exitGate.children[0].material.opacity=.58+Math.sin(now*.006)*.18;
       if(Math.hypot(exitGate.position.x-player.x,exitGate.position.z-player.z)<2.2){if(gateOpen)winGame();else openGateQuiz();}
