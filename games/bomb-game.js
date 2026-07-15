@@ -251,7 +251,8 @@ function allowedBombModes() { return hasPicBank() ? ['simple', 'hard'] : ['norma
 let allPic = (() => { try { return localStorage.getItem('sgAllPic') === '1'; } catch (e) { return false; } })();
 let menuMode = (() => { try { return localStorage.getItem('bombMode3') || 'normal'; } catch (e) { return 'normal'; } })();
 function buildLessonLevels() {
-  LEVELS = chunkWords(shuffleWords(bombWordPool), 5).map((chunk, index) => ({
+  // 每關固定需要 5 個單字／5 間房子；最後不足 5 個的尾數不另開新關。
+  LEVELS = chunkWords(shuffleWords(bombWordPool), 5).filter(chunk => chunk.length === 5).map((chunk, index) => ({
     id: index + 1,
     themeEN: bombLessonTitle,
     themeZH: `💣 ${bombLessonTitle} ${index + 1}`,
