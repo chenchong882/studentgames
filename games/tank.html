@@ -11,12 +11,27 @@
   #hud{position:fixed;top:14px;left:14px;background:rgba(18,20,26,.55);
     padding:12px 16px;border-radius:8px;color:#cfd3da;font-size:13px;
     min-width:215px;backdrop-filter:blur(3px);z-index:5;}
+  #threatHud{position:fixed;top:14px;right:76px;background:rgba(18,20,26,.62);
+    padding:10px 14px;border-radius:8px;color:#cfd3da;font-size:13px;min-width:205px;
+    backdrop-filter:blur(3px);z-index:5;}
   .row{display:flex;justify-content:space-between;align-items:center;margin:4px 0;}
   .lab{color:#9aa0ac;letter-spacing:1px;}
   .val{font-weight:700;color:#fff;}
   #armorBar{width:100%;height:9px;background:#3a2326;border-radius:4px;margin:5px 0 8px;overflow:hidden;}
   #armorFill{height:100%;width:100%;background:linear-gradient(90deg,#8e2b20,#e74c3c);border-radius:4px;transition:width .15s;}
-  #fx{margin-top:6px;font-size:12px;color:#ffe9a8;line-height:1.7;}
+  #fx{margin-top:6px;padding-top:5px;border-top:1px solid rgba(255,255,255,.12);
+    font-size:12px;color:#ffe9a8;line-height:1.7;}
+  #tankProgress{position:fixed;top:12px;left:50%;transform:translateX(-50%);width:min(42vw,600px);
+    color:#fff;z-index:6;pointer-events:none;text-shadow:0 1px 3px #000;}
+  #tankProgress .ph{display:flex;justify-content:space-between;font-size:12px;font-weight:700;margin-bottom:4px;}
+  #progressTrack{position:relative;height:13px;border:1px solid rgba(255,216,120,.65);border-radius:8px;
+    background:rgba(18,20,26,.72);box-shadow:0 0 9px rgba(255,216,120,.18);}
+  #progressFill{height:100%;width:0;border-radius:7px;background:linear-gradient(90deg,#d58d28,#ffe8a0);
+    transition:width .25s;}
+  .stageMark{position:absolute;top:20px;transform:translateX(-50%);font-size:10px;color:#aaa;white-space:nowrap;}
+  .stageMark::before{content:'';position:absolute;left:50%;top:-20px;width:2px;height:15px;background:#777;}
+  .stageMark.on{color:#ffe08a;font-weight:800;}.stageMark.on::before{background:#ffd878;box-shadow:0 0 7px #ffd878;}
+  #stage1{left:16.667%}#stage2{left:50%}#stage3{left:100%;transform:translateX(-100%)}
   #cross{position:fixed;width:38px;height:38px;transform:translate(-50%,-50%);pointer-events:none;z-index:6;}
   #reload{position:fixed;width:46px;height:5px;background:rgba(35,40,48,.85);
     transform:translateX(-50%);pointer-events:none;border-radius:2px;overflow:hidden;z-index:6;}
@@ -36,7 +51,7 @@
   @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
   .pop{position:fixed;color:#fff;font-weight:800;font-size:17px;pointer-events:none;
     text-shadow:0 1px 5px #000;transform:translate(-50%,-50%);animation:popUp 1.1s forwards;z-index:6;}
-  #wordPrompt{position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  #wordPrompt{position:fixed;top:64px;left:50%;transform:translateX(-50%);
     background:rgba(18,20,26,.65);padding:10px 26px;border-radius:10px;z-index:6;
     text-align:center;display:none;backdrop-filter:blur(3px);}
   #wordPrompt .q{font-size:27px;font-weight:800;color:#ffe9a8;text-shadow:0 2px 8px #000;}
@@ -59,6 +74,12 @@
     background:rgba(8,12,20,.65);color:#fff;text-align:center;z-index:11;}
   #pauseOverlay h1{font-size:48px;margin:0 0 10px;color:#ffe9a8;text-shadow:0 3px 16px #000;}
   #pauseOverlay p{font-size:17px;color:rgba(255,255,255,.85);animation:pulse 1.6s infinite;}
+  #pauseCard{width:min(860px,90vw);max-height:88vh;overflow:auto;padding:20px 24px 22px;
+    background:rgba(18,22,30,.96);border:1px solid rgba(255,216,120,.38);border-radius:16px;
+    box-shadow:0 18px 60px rgba(0,0,0,.7);}
+  #pauseMyst{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;margin-top:14px;text-align:left;}
+  .mystInfo{padding:9px 11px;border-radius:9px;background:rgba(255,255,255,.055);font-size:13px;line-height:1.55;color:#ddd;}
+  .mystInfo b{display:block;color:#ffd878;font-size:14px}.pauseBtns{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;}
   #overlay,#pauseOverlay,#guide{cursor:auto;}
   .uiBtn{margin-top:18px;padding:11px 26px;font-size:16px;font-weight:700;
     background:#2c3242;color:#fff;border:2px solid #ffd878;border-radius:10px;cursor:pointer;}
@@ -123,11 +144,39 @@
     background:rgba(255,70,60,.32);border:3px solid rgba(255,95,85,.75);
     text-shadow:0 1px 4px #000;box-shadow:0 0 16px rgba(255,70,60,.4);}
   #fireBtn.active{background:rgba(255,70,60,.6);box-shadow:0 0 24px rgba(255,70,60,.85);}
+  #skillDock{position:fixed;right:30px;bottom:184px;display:flex;align-items:flex-end;gap:10px;z-index:8;pointer-events:none;}
+  .skillBtn{position:relative;width:82px;height:70px;border-radius:16px;border:3px solid #555;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;
+    color:#fff;font-family:inherit;text-shadow:0 1px 3px #000;overflow:hidden;}
+  .skillBtn .si{font-size:24px;line-height:1}.skillBtn .sn{font-size:12px;font-weight:800;margin-top:3px}
+  .skillBtn .cd{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:24px;font-weight:900;background:rgba(65,68,74,.78);color:#fff;}
+  .skillBtn.locked{background:rgba(35,38,44,.78);border-color:#555;filter:grayscale(1);color:#999;}
+  .skillBtn.locked .cd{font-size:12px;background:rgba(25,27,32,.74);}
+  .skillBtn.ready{background:linear-gradient(145deg,#8a5710,#ffd85f);border-color:#fff1a8;
+    box-shadow:0 0 19px rgba(255,203,70,.8);color:#fff;}
+  .skillBtn.ready .cd{display:none}.skillBtn.cooldown{background:#555;border-color:#aaa;filter:grayscale(1);}
+  #lightBtn{pointer-events:auto;cursor:pointer;}#lightBtn:active.ready{transform:scale(.94)}
+  #dashZone{position:absolute;left:33px;top:-43px;width:84px;height:39px;border-radius:42px 42px 10px 10px;
+    display:none;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;
+    border:2px solid #888;background:rgba(55,58,64,.72);text-shadow:0 1px 3px #000;}
+  #dashZone.show{display:flex}#dashZone.ready{border-color:#ffe69a;background:rgba(190,123,22,.72);box-shadow:0 0 12px #ffc94d;}
+  #dashZone.cooldown{filter:grayscale(1);background:rgba(70,72,76,.82)}
   #fireHint{position:absolute;right:16px;bottom:14px;width:150px;text-align:center;
     font-size:11px;color:rgba(255,255,255,.5);}
   #btnPause{position:absolute;top:14px;right:14px;width:48px;height:48px;border-radius:12px;
     font-size:22px;background:rgba(20,26,38,.6);color:#ffe9a8;
     border:1px solid rgba(255,216,120,.4);pointer-events:auto;}
+  @media(pointer:fine){#skillDock{right:18px;bottom:18px}}
+  @media(max-width:700px){
+    #tankProgress{top:8px;left:8px;right:72px;width:auto;transform:none}#tankProgress .ph{font-size:10px}
+    #hud{top:64px;left:8px;min-width:142px;padding:8px 10px;font-size:11px}
+    #threatHud{top:64px;right:8px;min-width:142px;max-width:44vw;padding:8px 10px;font-size:11px}
+    #fx{font-size:10px}#wordPrompt{top:142px;max-width:72vw;padding:7px 13px}#wordPrompt .q{font-size:20px}
+    #pauseCard{padding:14px 14px 18px}#pauseOverlay h1{font-size:34px}#pauseOverlay p{font-size:14px}
+    #pauseMyst{grid-template-columns:1fr}.mystInfo{font-size:12px;padding:7px 9px}
+    .skillBtn{width:72px;height:62px}.skillBtn .si{font-size:21px}.skillBtn .cd{font-size:20px}
+  }
   .hidden{display:none !important;}
 </style>
 </head>
@@ -137,8 +186,16 @@
   <div id="armorBar"><div id="armorFill"></div></div>
   <div class="row"><span class="lab">得分 SCORE</span><span class="val" id="vScore">0</span></div>
   <div class="row"><span class="lab">擊殺 KILLS</span><span class="val" id="vKills">0</span></div>
+</div>
+<div id="threatHud" class="hidden">
   <div class="row"><span class="lab">威脅 THREAT</span><span class="val" id="vThreat" style="color:#ffb454">—</span></div>
   <div id="fx"></div>
+</div>
+<div id="tankProgress" class="hidden">
+  <div class="ph"><span>坦克積分 TANK POINTS</span><span id="progressText">0 / 1,000</span></div>
+  <div id="progressTrack"><div id="progressFill"></div>
+    <span class="stageMark" id="stage1">💨 1,000</span><span class="stageMark" id="stage2">⚙️ 3,000</span><span class="stageMark" id="stage3">⚡ 6,000</span>
+  </div>
 </div>
 <div id="cross">
   <svg viewBox="0 0 38 38" width="38" height="38">
@@ -158,15 +215,20 @@
 <div id="quiz"><div class="qq"></div><div class="bb"></div><div class="tt"><div id="quizBar"></div></div><div class="hk">用滑鼠點選正確答案</div></div>
 <svg id="arcLayer"></svg>
 <div id="atkLog"></div>
-<div id="hint">W/S 前進後退（按住越久越快） ・ A/D 轉向 ・ Shift 直接頂速 ・ 滑鼠瞄準 ・ 空格鍵／左鍵開砲 ・ R 重新開始 ・ ESC 暫停</div>
+<div id="hint">W/S 前進後退 ・ W＋Shift 衝刺（解鎖後） ・ A/D 轉向 ・ 滑鼠瞄準 ・ 空格鍵／左鍵開砲 ・ Q 光速攻擊 ・ ESC 暫停</div>
 <div id="touchUI" class="hidden">
   <div id="moveStick">
+    <div id="dashZone">衝刺區</div>
     <span class="ar au">▲</span><span class="ar ad">▼</span><span class="ar al">◀</span><span class="ar arr">▶</span>
     <div id="moveKnob"></div>
   </div>
   <div id="fireBtn">開砲</div>
   <div id="fireHint">按住開砲＋微調砲管・滑空白螢幕大幅轉砲</div>
   <button id="btnPause">⏸</button>
+</div>
+<div id="skillDock" class="hidden">
+  <div id="dashSkill" class="skillBtn locked" aria-label="短距離衝刺尚未解鎖"><span class="si">💨</span><span class="sn">短距離衝刺</span><span class="cd">1,000 分</span></div>
+  <button id="lightBtn" type="button" class="skillBtn locked" aria-label="光速攻擊尚未解鎖"><span class="si">⚡</span><span class="sn">光速攻擊 Q</span><span class="cd">6,000 分</span></button>
 </div>
 <div id="overlay">
   <h1>🦖 侏羅紀坦克 3D</h1>
@@ -192,16 +254,28 @@
   <button class="go" id="startTankBtn" type="button">開始遊戲</button>
 </div>
 <div id="pauseOverlay" class="hidden">
-  <h1>⏸ 暫停</h1>
-  <p>按 ESC 或 點擊畫面 繼續遊戲</p>
-  <button id="guidePauseBtn" class="uiBtn">📖 如何遊玩</button>
+  <div id="pauseCard">
+    <h1>⏸ 暫停</h1>
+    <p>按 ESC 或 點擊外側畫面繼續遊戲</p>
+    <div id="pauseMyst">
+      <div class="mystInfo"><b>☄️ 隕石風暴</b>約 6 秒內降下 14 顆隕石，落地爆炸並重創附近恐龍。</div>
+      <div class="mystInfo"><b>💥 史前大爆炸</b>瞬間清除所有恐龍與空中敵人；UFO 會墜落後爆炸。</div>
+      <div class="mystInfo"><b>⏳ 時間緩慢</b>持續 6 秒，讓敵人的行動與攻擊速度大幅降低。</div>
+      <div class="mystInfo"><b>🔧 裝甲修復＋護盾</b>立即補滿裝甲，並獲得 8 秒無敵能量護盾。</div>
+      <div class="mystInfo"><b>✨ 黃金時刻</b>持續 12 秒，所有獲得的分數變成 2 倍。</div>
+      <div class="mystInfo"><b>🔥 超速連發砲</b>持續 8 秒，快速連續開砲，幾乎沒有後座力。</div>
+      <div class="mystInfo"><b>🐣 恐龍縮小術</b>持續 15 秒，縮小場上恐龍並降低生命值。</div>
+    </div>
+    <div class="pauseBtns"><button id="guidePauseBtn" class="uiBtn">📖 如何遊玩</button><button id="resumeBtn" class="uiBtn">▶ 繼續遊戲</button></div>
+  </div>
 </div>
 <div id="guide" class="hidden">
   <div class="card">
     <h2>🦖 如何遊玩</h2>
-    <div class="sec"><b>🎮 操作</b>　W/S 前進後退　・　A/D 轉向　・　<span class="hl">按住前進越久越快</span>（Shift 直接頂速）　・　滑鼠瞄準　・　空白鍵 / 左鍵 開砲　・　ESC 暫停</div>
+    <div class="sec"><b>🎮 操作</b>　W/S 前進後退　・　A/D 轉向　・　<span class="hl">按住前進越久越快</span>（解鎖後 W＋Shift 衝刺）　・　滑鼠瞄準　・　空白鍵 / 左鍵 開砲　・　Q 光速攻擊　・　ESC 暫停</div>
     <div class="sec"><b>🎯 主線任務</b>　畫面上方出題（中文），到<span class="hl">發光的樹</span>上找出對應的<span class="hl">正確英文單字牌</span>，用砲彈射下來。射對加分又回血；射錯恐龍會狂暴！</div>
     <div class="sec"><b>🛸 神祕能量</b>　射擊空中的「?」方塊並答對英文題，隨機獲得隕石風暴、全屏清場、回血護盾、雙倍分數、超速連發等強力獎勵。</div>
+    <div class="sec"><b>⭐ 階段獎勵</b>　累積 1,000 分解鎖短距離衝刺；3,000 分讓一般開砲冷卻減半；6,000 分解鎖光速攻擊。觸控時把方向桿往上拉進衝刺區即可衝刺。</div>
     <div class="sec"><b>💥 砲彈是拋物線</b>　目標越遠，準心要抬得越高，瞄準時自己微調高度。可在開始畫面選難度：<span class="hl">簡單</span>下墜小好瞄、<span class="hl">困難</span>下墜明顯更挑戰。</div>
     <div class="sec wn"><b>⚠️ 危險</b>　霸王龍與腕龍會把坦克一腳踩扁！被攻擊時螢幕邊緣會亮<span class="wn">紅色弧光</span>指出方向，右側也會即時播報敵人方位與距離。</div>
     <button id="guideBtn" class="uiBtn">✓ 我知道了</button>
@@ -217,6 +291,8 @@ const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
 const TURRET_ARC=Math.PI/4;   // 砲管固定朝車頭，只能左右各擺 ±45°（不能整個轉過去）
 const TURRET_SPEED=1.6;       // 砲塔最大轉速(弧度/秒)，限制瞄準速度不讓它瞬間甩到極限
 const AIM_RETICLE_DIST=60;    // 觸控準心放在砲管射擊線上的距離，永遠跟著砲管方向不亂跑
+const STAGE_SCORE=[1000,3000,6000],DASH_COOLDOWN=6,DASH_TIME=0.32,DASH_SPEED=62;
+const LIGHT_COOLDOWN=15,LIGHT_RANGE=160,LIGHT_RADIUS=8;
 function lerpAng(a,b,t){let d=(b-a)%TAU;if(d>Math.PI)d-=TAU;if(d<-Math.PI)d+=TAU;return a+d*Math.min(1,t);}
 const _v1=new THREE.Vector3(),_v2=new THREE.Vector3(),_v3=new THREE.Vector3();
 
@@ -258,6 +334,8 @@ const sScreech=()=>tone('sawtooth',950,420,0.35,0.18);
 const sPow=()=>{tone('sine',523,523,0.12,0.3);tone('sine',659,659,0.12,0.3,0.1);
   tone('sine',784,784,0.14,0.3,0.2);tone('sine',1046,1046,0.3,0.32,0.3);};
 const sSqueak=()=>{tone('sine',600,1500,0.15,0.3);tone('sine',800,1700,0.15,0.25,0.12);};
+const sDash=()=>{tone('sawtooth',180,620,0.22,0.2);noiseSnd(0.22,900,220,0.18,'bandpass');};
+const sLight=()=>{tone('sine',1800,260,0.42,0.38);tone('square',900,180,0.3,0.16,0.04);};
 
 /* ============ 地形高度（解析函式，地形與實體共用） ============ */
 function th(x,z){
@@ -449,8 +527,8 @@ function updSmoke(dt){
 }
 
 /* ============ 爆炸 / 灰塵 ============ */
-function explosion(x,y,z,big){
-  shake+=big?1.6:0.6;sExpl(big);
+function explosion(x,y,z,big,shakeScale=1){
+  shake+=(big?1.6:0.6)*shakeScale;sExpl(big);
   const n=big?26:14;
   for(let i=0;i<n;i++){
     const a=rnd(TAU),e=rnd(-0.4,1.2),sp=rnd(6,big?26:16);
@@ -695,7 +773,8 @@ let paused=false;
 let score=0,kills=0,best=0,elapsed=0,overT=0,overReason='';
 let shake=0;
 const keys={},mouse={x:innerWidth/2,y:innerHeight*0.4,down:false};
-const effects={slow:0,gold:0,rapid:0};
+const effects={slow:0,gold:0,rapid:0,meteor:0,shrink:0};
+let unlockedStage=0,dashCD=0,dashT=0,lightCD=0,lightBeams=[];
 let spawnT=2,pteroT=3,ufoT=14,mysT=9,pendingMeteors=0,meteorT=0,volSmokeT=0;
 // 難度：影響砲彈下墜重力。簡單＝下墜不明顯(好瞄)，困難＝下墜明顯(要抬高補償)
 let difficulty=(()=>{try{return localStorage.getItem('tankDiff')||'easy'}catch(e){return 'easy'}})();
@@ -735,7 +814,9 @@ function resetGame(){
   dinos=[];pteros=[];ufos=[];shells=[];bolts=[];mysts=[];meteors=[];
   score=0;kills=0;elapsed=0;overT=0;shake=0;
   spawnT=4.5;pteroT=12;ufoT=rnd(35,48);mysT=15;pendingMeteors=0;
-  effects.slow=0;effects.gold=0;effects.rapid=0;
+  effects.slow=0;effects.gold=0;effects.rapid=0;effects.meteor=0;effects.shrink=0;
+  unlockedStage=0;dashCD=0;dashT=0;lightCD=0;
+  for(const b of lightBeams)removeObj(b.g);lightBeams=[];
   tank={hp:100,maxHp:100,yaw:0,reload:0,reloadMax:0.45,alive:true,flat:false,
     shield:0,muzzle:0,smokeT:0,fireT:0,speed:0,boost:0};
   aimYaw=0;aimPitch=0;camYaw=0;touchMove.active=false;   // 瞄準/鏡頭歸正，砲管朝正前方
@@ -751,9 +832,12 @@ function startGame(){
   document.getElementById('overlay').classList.add('hidden');
   document.getElementById('pauseOverlay').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
+  document.getElementById('threatHud').classList.remove('hidden');
+  document.getElementById('tankProgress').classList.remove('hidden');
+  document.getElementById('skillDock').classList.remove('hidden');
   if(IS_TOUCH){document.getElementById('touchUI').classList.remove('hidden');refreshTouchRects();}
   speakWord(' ');                 // 用開始手勢解鎖 iOS 發音（英→中、英→圖回合自動唸才有聲）
-  if(!isSimple())startBgm();      // 簡單模式不放背景音樂，保持安靜好聽單字
+  startBgm();                     // 所有模式都由開始按鈕的真實 click 啟動背景音樂
 }
 function gameOver(reason){
   window.lastOver={reason,at:elapsed};
@@ -785,28 +869,28 @@ function setFlash(e,on){
 function dinoCenter(d,out){
   out.copy(d.g.position);out.y+=DT[d.type].cy*d.sc;return out;
 }
-function damageDino(d,dm,hitPos){
+function damageDino(d,dm,hitPos,shakeScale=1){
   if(d.deadT>=0)return;
   d.hp-=dm;d.flash=0.12;sHit();
   const p=hitPos||dinoCenter(d,_v1);
   for(let i=0;i<5;i++)spawnP(p.x,p.y,p.z,rnd(-6,6),rnd(1,8),rnd(-6,6),rnd(0.2,0.5),0xaa4433,-20);
-  if(d.hp<=0)killDino(d);
+  if(d.hp<=0)killDino(d,shakeScale);
 }
-function killDino(d){
+function killDino(d,shakeScale=1){
   if(d.deadT>=0)return;
   d.deadT=0;kills++;
   const c=DT[d.type],p=dinoCenter(d,_v1);
   addScore(c.score,p);
-  explosion(p.x,p.y,p.z,c.big&&!d.mini);
+  explosion(p.x,p.y,p.z,c.big&&!d.mini,shakeScale);
   dustPuff(d.g.position.x,d.g.position.y,d.g.position.z,c.big?8:4,3);
 }
-function damagePtero(p,dm){
+function damagePtero(p,dm,shakeScale=1){
   if(p.state==='dead')return;
   p.hp-=dm;p.flash=0.12;sHit();
   if(p.hp<=0){
     p.state='dead';p.vy=-2;sScreech();
     addScore(p.quetz?250:100,p.pos);
-    explosion(p.pos.x,p.pos.y,p.pos.z,false);
+    explosion(p.pos.x,p.pos.y,p.pos.z,false,shakeScale);
   }
 }
 function damageUFO(u,dm){
@@ -816,12 +900,12 @@ function damageUFO(u,dm){
   for(let i=0;i<6;i++)spawnP(p.x,p.y,p.z,rnd(-10,10),rnd(-6,10),rnd(-10,10),rnd(0.2,0.4),0x99eeff,0);
   if(u.hp<=0){u.state='fall';u.vy=-2;u.vx=rnd(-8,8);u.rs=rnd(-3,3);sScreech();}
 }
-function splashDinos(x,y,z,r,dmg){
+function splashDinos(x,y,z,r,dmg,shakeScale=1){
   for(const d of dinos){
     if(d.deadT>=0)continue;
     const c=dinoCenter(d,_v1);
     const dd=c.distanceTo(_v2.set(x,y,z))-DT[d.type].r*d.sc;
-    if(dd<r)damageDino(d,dmg*clamp(1-dd/r,0.3,1));
+    if(dd<r)damageDino(d,dmg*clamp(1-dd/r,0.3,1),null,shakeScale);
   }
 }
 function tankDamage(dm){
@@ -860,6 +944,16 @@ function addScore(v,pos){
     document.body.appendChild(d);
     setTimeout(()=>d.remove(),1100);
   }
+  checkStageUnlocks();
+}
+
+function checkStageUnlocks(){
+  let next=unlockedStage;
+  while(next<STAGE_SCORE.length&&score>=STAGE_SCORE[next])next++;
+  if(next===unlockedStage)return;
+  unlockedStage=next;sPow();
+  const msg=['💨 第一階段解鎖：短距離衝刺！','⚙️ 第二階段解鎖：開砲冷卻減半！','⚡ 第三階段解鎖：光速攻擊！'];
+  showBanner(msg[unlockedStage-1]);
 }
 
 /* ============ 神祕事件 ============ */
@@ -868,7 +962,7 @@ function showBanner(t){
   const b=document.getElementById('banner');
   b.textContent=t;b.style.opacity=1;bannerT=2.6;
 }
-function evMeteor(){pendingMeteors=14;meteorT=0;}
+function evMeteor(){pendingMeteors=14;meteorT=0;effects.meteor=6;}
 function evNuke(){
   const f=document.getElementById('flash');
   f.style.transition='none';f.style.opacity=0.95;
@@ -879,7 +973,9 @@ function evNuke(){
   for(const u of ufos)if(!u.gone&&u.state==='fly')damageUFO(u,9999);
 }
 function evShrink(){
-  for(const d of dinos)if(!d.mini&&d.deadT<0){
+  effects.shrink=15;
+  for(const d of dinos)if(d.deadT<0){
+    if(d.mini){d.miniT=15;continue;}
     d.mini=true;d.miniT=15;                       // 15 秒後變回原樣
     d.sc0=d.sc;d.sp0=d.sp;d.maxHp0=d.maxHp;        // 記住原始數值
     d.sc*=0.4;d.g.scale.setScalar(d.sc);
@@ -997,7 +1093,7 @@ function speakWord(t){
     const back=()=>{if(restored||myGen!==speechGen)return;restored=true;if(AC&&AC.state==='suspended'&&state==='play'&&!paused){try{AC.resume();}catch(e){}}};
     u.onend=back;u.onerror=back;
     synth.speak(u);
-    setTimeout(back,6000);
+    setTimeout(back,String(t||'').trim()?6000:350); // 開始時的無聲解鎖要快速還回 Web Audio，避免前幾秒音效全靜音
   }catch(e){}
 }
 // 本回合題型：cn2en(中→英，樹掛英文牌) / en2cn(英→中＋發音，樹掛中文牌) / en2pic(英→圖＋發音，樹掛 emoji)
@@ -1136,6 +1232,48 @@ function answerQuiz(o){
   closeQuiz();
 }
 
+/* ============ 階段技能：衝刺 / 光速攻擊 ============ */
+function startDash(){
+  if(state!=='play'||paused||quiz||!tank.alive||score<STAGE_SCORE[0]||dashCD>0)return false;
+  dashCD=DASH_COOLDOWN;dashT=DASH_TIME;sDash();showBanner('💨 短距離衝刺！');return true;
+}
+function lightLineHit(origin,dir,pos,r=0){
+  _v3.subVectors(pos,origin);const along=_v3.dot(dir);
+  if(along<0||along>LIGHT_RANGE)return false;
+  return _v3.lengthSq()-along*along<=(LIGHT_RADIUS+r)*(LIGHT_RADIUS+r);
+}
+function spawnLightBeam(origin,dir){
+  const g=new THREE.Group(),mats=[];
+  const add=(r,col,op)=>{
+    const mat=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:op,depthWrite:false,
+      blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+    const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,LIGHT_RANGE,10,1,true),mat);
+    m.position.copy(origin).addScaledVector(dir,LIGHT_RANGE/2);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);g.add(m);mats.push({mat,op});
+  };
+  add(1.6,0xffc83d,0.22);add(0.48,0xffffdc,0.95);
+  scene.add(g);lightBeams.push({g,mats,life:0.38,max:0.38});
+}
+function activateLight(){
+  if(state!=='play'||paused||quiz||!tank.alive||score<STAGE_SCORE[2]||lightCD>0)return false;
+  lightCD=LIGHT_COOLDOWN;sLight();
+  const origin=tipObj.getWorldPosition(new THREE.Vector3());
+  const dir=tipObj.getWorldDirection(new THREE.Vector3()).normalize();
+  spawnLightBeam(origin,dir);let hit=0;
+  for(const d of dinos)if(d.deadT<0&&lightLineHit(origin,dir,dinoCenter(d,_v1),DT[d.type].r*d.sc)){
+    killDino(d,0.18);hit++;}
+  for(const p of pteros)if(!p.gone&&p.state!=='dead'&&lightLineHit(origin,dir,p.pos,2.2*p.sc)){
+    damagePtero(p,9999,0.18);hit++;}
+  for(const u of ufos)if(!u.gone&&u.state==='fly'&&lightLineHit(origin,dir,u.g.position,3.5)){
+    damageUFO(u,9999);hit++;}
+  showBanner(hit?'⚡ 光速攻擊！擊敗 '+hit+' 個敵人':'⚡ 光速攻擊！');
+  return true;
+}
+function updateLightBeams(dt){
+  for(const b of lightBeams){b.life-=dt;const a=clamp(b.life/b.max,0,1);for(const m of b.mats)m.mat.opacity=m.op*a;}
+  lightBeams=lightBeams.filter(b=>{if(b.life<=0){removeObj(b.g);return false;}return true;});
+}
+
 /* ============ 射擊 ============ */
 const shellGeo=new THREE.SphereGeometry(0.16,6,5);
 const shellMat=new THREE.MeshBasicMaterial({color:0xffd27a});
@@ -1144,10 +1282,11 @@ function fire(){
   const dir=tipObj.getWorldDirection(_v2.clone());
   const m=new THREE.Mesh(shellGeo,shellMat.clone());
   m.position.copy(tip);scene.add(m);
-  shells.push({m,vel:dir.multiplyScalar(135),life:5,gone:false});
-  tank.reloadMax=effects.rapid>0?0.13:0.45;
-  tank.reload=tank.reloadMax;tank.muzzle=0.06;shake+=effects.rapid>0?0.06:0.35;sShoot();
-  barrelG.position.z=0.55; // 後座
+  const rapid=effects.rapid>0;
+  shells.push({m,vel:dir.multiplyScalar(135),life:5,gone:false,rapid});
+  tank.reloadMax=rapid?0.13:(score>=STAGE_SCORE[1]?0.225:0.45);
+  tank.reload=tank.reloadMax;tank.muzzle=0.06;shake+=rapid?0.003:0.35;sShoot();
+  barrelG.position.z=rapid?0.87:0.55; // 連發砲幾乎無後座，普通砲維持原手感
   for(let i=0;i<8;i++){
     const d2=tipObj.getWorldDirection(_v3.clone());
     spawnP(tip.x,tip.y,tip.z,d2.x*rnd(8,22)+rnd(-3,3),d2.y*rnd(8,22)+rnd(0,4),
@@ -1225,6 +1364,7 @@ function updTank(dt){
     if(keys['KeyD']||keys['ArrowRight'])turn=1;
     tank.yaw+=turn*0.7*dt*(sp<0?-1:1);                    // 放慢左右轉速（原 1.7→1.1→0.7）
   }
+  if(dashT>0){dashT=Math.max(0,dashT-dt);sp=DASH_SPEED;}
   tank.speed=sp;
   const fx=Math.sin(tank.yaw),fz=Math.cos(tank.yaw);
   let nx=tankG.position.x+fx*sp*dt, nz=tankG.position.z+fz*sp*dt;
@@ -1429,25 +1569,26 @@ function updShell(s,dt){
   for(const m of mysts)if(!m.gone&&p.distanceTo(m.g.position)<3.6){
     triggerMyst(m);s.gone=true;return;}
   for(const u of ufos)if(!u.gone&&p.distanceTo(u.g.position)<4){
-    damageUFO(u,34);explosion(p.x,p.y,p.z,false);s.gone=true;return;}
+    damageUFO(u,34);explosion(p.x,p.y,p.z,false,s.rapid?0.02:1);s.gone=true;return;}
   for(const pt of pteros)if(!pt.gone&&pt.state!=='dead'&&p.distanceTo(pt.pos)<2.4*pt.sc){
-    damagePtero(pt,34);s.gone=true;return;}
+    damagePtero(pt,34,s.rapid?0.02:1);s.gone=true;return;}
   for(const d of dinos){
     if(d.deadT>=0)continue;
     if(p.distanceTo(dinoCenter(d,_v1))<DT[d.type].r*d.sc+0.6){
-      explosion(p.x,p.y,p.z,false);
-      damageDino(d,34,p);
+      const hitShake=s.rapid?0.02:1;
+      explosion(p.x,p.y,p.z,false,hitShake);
+      damageDino(d,34,p,hitShake);
       for(const o of dinos)if(o!==d&&o.deadT<0){
         const oc=dinoCenter(o,_v2);
         const dd=p.distanceTo(oc)-DT[o.type].r*o.sc;
-        if(dd<6)damageDino(o,18*clamp(1-dd/6,0.3,1));
+        if(dd<6)damageDino(o,18*clamp(1-dd/6,0.3,1),null,hitShake);
       }
       s.gone=true;return;
     }
   }
   if(p.y<th(p.x,p.z)+0.1){
-    explosion(p.x,p.y,p.z,false);
-    splashDinos(p.x,p.y,p.z,6,20);
+    explosion(p.x,p.y,p.z,false,s.rapid?0.02:1);
+    splashDinos(p.x,p.y,p.z,6,20,s.rapid?0.02:1);
     dustPuff(p.x,p.y,p.z,3,2);
     s.gone=true;return;
   }
@@ -1457,6 +1598,9 @@ function update(dt){
   effects.slow=Math.max(0,effects.slow-dt);
   effects.gold=Math.max(0,effects.gold-dt);
   effects.rapid=Math.max(0,effects.rapid-dt);
+  effects.meteor=Math.max(0,effects.meteor-dt);
+  effects.shrink=Math.max(0,effects.shrink-dt);
+  dashCD=Math.max(0,dashCD-dt);lightCD=Math.max(0,lightCD-dt);updateLightBeams(dt);
   shake=Math.max(0,shake-dt*3);
   if(bannerT>0){bannerT-=dt;
     if(bannerT<=0.5)document.getElementById('banner').style.opacity=Math.max(0,bannerT*2);}
@@ -1606,6 +1750,28 @@ const elFx=document.getElementById('fx');
 const elCross=document.getElementById('cross');
 const elReload=document.getElementById('reload');
 const elReloadFill=document.getElementById('reloadFill');
+const elProgressFill=document.getElementById('progressFill'),elProgressText=document.getElementById('progressText');
+const elDashSkill=document.getElementById('dashSkill'),elLightBtn=document.getElementById('lightBtn');
+const elDashZone=document.getElementById('dashZone');
+function setSkillVisual(el,unlocked,cd,scoreNeed,name){
+  el.classList.remove('locked','ready','cooldown');const c=el.querySelector('.cd');
+  if(!unlocked){el.classList.add('locked');c.textContent=scoreNeed.toLocaleString('en-US')+' 分';el.setAttribute('aria-label',name+'尚未解鎖');}
+  else if(cd>0){el.classList.add('cooldown');c.textContent=Math.ceil(cd)+'s';el.setAttribute('aria-label',name+'冷卻中，剩 '+Math.ceil(cd)+' 秒');}
+  else{el.classList.add('ready');c.textContent='';el.setAttribute('aria-label',name+'可以使用');}
+}
+function updProgressAndSkills(){
+  elProgressFill.style.width=(clamp(score/STAGE_SCORE[2],0,1)*100)+'%';
+  const next=STAGE_SCORE.find(v=>score<v);
+  elProgressText.textContent=score.toLocaleString('en-US')+(next?' / '+next.toLocaleString('en-US'):' / MAX');
+  document.getElementById('stage1').classList.toggle('on',score>=STAGE_SCORE[0]);
+  document.getElementById('stage2').classList.toggle('on',score>=STAGE_SCORE[1]);
+  document.getElementById('stage3').classList.toggle('on',score>=STAGE_SCORE[2]);
+  setSkillVisual(elDashSkill,score>=STAGE_SCORE[0],dashCD,STAGE_SCORE[0],'短距離衝刺');
+  setSkillVisual(elLightBtn,score>=STAGE_SCORE[2],lightCD,STAGE_SCORE[2],'光速攻擊');
+  elLightBtn.disabled=score<STAGE_SCORE[2]||lightCD>0;
+  elDashZone.className=score>=STAGE_SCORE[0]?'show '+(dashCD>0?'cooldown':'ready'):'';
+  elDashZone.textContent=dashCD>0?'衝刺 '+Math.ceil(dashCD)+'s':'衝刺區';
+}
 function updHUD(){
   elArmor.style.width=(clamp(tank.hp/tank.maxHp,0,1)*100)+'%';
   elScore.textContent=score;
@@ -1630,10 +1796,13 @@ function updHUD(){
   }else{elThreat.textContent='—';elThreat.style.color='#9aa0ac';}
   let fx='';
   if(tank.shield>0)fx+='🛡 護盾 '+Math.ceil(tank.shield)+'s<br>';
+  if(effects.meteor>0)fx+='☄️ 隕石風暴 '+Math.ceil(effects.meteor)+'s<br>';
   if(effects.slow>0)fx+='⏳ 時間緩慢 '+Math.ceil(effects.slow)+'s<br>';
   if(effects.gold>0)fx+='✨ 雙倍分數 '+Math.ceil(effects.gold)+'s<br>';
   if(effects.rapid>0)fx+='🔥 連發砲 '+Math.ceil(effects.rapid)+'s<br>';
+  if(effects.shrink>0)fx+='🐣 恐龍縮小 '+Math.ceil(effects.shrink)+'s<br>';
   elFx.innerHTML=fx;
+  updProgressAndSkills();
   let crx=mouse.x,cry=mouse.y;
   if(reticleObj){                                // 準心一律畫在砲口子物件(reticleObj)的投影位置：與砲口同一物件，永遠一致、不會飛走（平板＋桌機）
     const v=reticleObj.getWorldPosition(_v1).project(camera);
@@ -1744,7 +1913,7 @@ function togglePause(){
   document.getElementById('pauseOverlay').classList.toggle('hidden',!paused);
   if(paused){mouse.down=false;for(const k in keys)keys[k]=false;stopBgm();setThreatGlow(null,0);
     try{const s=window.speechSynthesis;if(s&&(s.speaking||s.pending))s.cancel();}catch(e){}}
-  else{if(AC&&AC.state==='suspended')AC.resume();if(!isSimple())startBgm();last=performance.now();
+  else{if(AC&&AC.state==='suspended')AC.resume();startBgm();last=performance.now();
   }
 }
 
@@ -1756,6 +1925,8 @@ function closeGuide(){guideOpen=false;guideEl.classList.add('hidden');
   try{localStorage.setItem('tankGuideSeen','1');}catch(e){}}
 document.getElementById('guideBtn').addEventListener('click',e=>{e.stopPropagation();closeGuide();});
 document.getElementById('guidePauseBtn').addEventListener('click',e=>{e.stopPropagation();openGuide();});
+document.getElementById('pauseCard').addEventListener('click',e=>e.stopPropagation());
+document.getElementById('resumeBtn').addEventListener('click',e=>{e.stopPropagation();togglePause();});
 document.getElementById('guideLink').addEventListener('mousedown',e=>{e.stopPropagation();openGuide();});
 function setDifficulty(d){
   difficulty=(d==='hard')?'hard':'easy';
@@ -1818,6 +1989,8 @@ setMode(mode);refreshModeUI();
   sb.addEventListener('touchstart',e=>e.stopPropagation(),{passive:false});
   sb.addEventListener('click',say);
 })();
+['mousedown','touchstart'].forEach(ev=>elLightBtn.addEventListener(ev,e=>e.stopPropagation(),{passive:true}));
+elLightBtn.addEventListener('click',e=>{e.stopPropagation();ensureAudio();activateLight();});
 try{if(!localStorage.getItem('tankGuideSeen'))openGuide();}catch(e){openGuide();}
 
 /* ============ 輸入 ============ */
@@ -1834,6 +2007,10 @@ addEventListener('keydown',e=>{
     if(state==='over'&&overT>0.6){startGame();return;}
   }
   if(e.code==='Escape')togglePause();
+  const dashCombo=((e.code==='ShiftLeft'||e.code==='ShiftRight')&&(keys['KeyW']||keys['ArrowUp']))
+    ||((e.code==='KeyW'||e.code==='ArrowUp')&&(keys['ShiftLeft']||keys['ShiftRight']));
+  if(dashCombo)startDash();
+  if(e.code==='KeyQ'){e.preventDefault();activateLight();}
   if(state==='over'&&overT>0.6&&e.code==='KeyR')startGame();
 });
 addEventListener('keyup',e=>keys[e.code]=false);
@@ -1843,8 +2020,9 @@ addEventListener('visibilitychange',()=>{       // 切到別的 App / 分頁（�
   if(state==='play'&&!paused)togglePause(); else stopBgm();
 });
 addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
-addEventListener('mousedown',()=>{
+addEventListener('mousedown',e=>{
   ensureAudio();
+  if(isUIEl(e.target))return;
   if(guideOpen)return; // 守則開啟時不開始遊戲 / 不開砲
   if(state==='menu')return;
   if(state==='over'){if(overT>0.6)startGame();return;}
@@ -1878,7 +2056,8 @@ function resetTouch(){
   updMoveKnob(0,0);restStick();stickEl.classList.remove('boost');fireEl.classList.remove('active');
 }
 function applyStick(x,y){                // 依浮動原點換算方向
-  let dx=x-moveCx, dy=y-moveCy; const len=Math.hypot(dx,dy);
+  let dx=x-moveCx, dy=y-moveCy; const rawX=dx,rawY=dy,len=Math.hypot(dx,dy);
+  if(rawY<-74&&Math.abs(rawX)<50)startDash();          // 解鎖後把推桿往上拉出圓盤、進入衝刺區
   if(len>STICK_R){dx*=STICK_R/len;dy*=STICK_R/len;}
   updMoveKnob(dx,dy);
   const nx=dx/STICK_R, ny=dy/STICK_R, mag=Math.min(1,len/STICK_R);
@@ -1889,7 +2068,7 @@ function applyStick(x,y){                // 依浮動原點換算方向
   stickEl.classList.toggle('boost',touchMove.boost);
 }
 function inRect(r,x,y,pad){return !!r&&x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad;}
-function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink,#allPicRow,#startTankBtn');}
+function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink,#allPicRow,#startTankBtn,#skillDock');}
 addEventListener('touchstart',e=>{
   ensureAudio();
   if(state==='menu'||state==='over'){ // 選單 / 結束畫面：輕觸開始（互動元件除外）
