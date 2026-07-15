@@ -136,10 +136,17 @@
     #reloadBtn{right:37px;bottom:146px;width:60px;height:60px;font-size:13px;}
     #grenadeBtn{right:115px;bottom:130px;width:60px;height:60px;font-size:13px;}
   }
+  #gunRotateWarning{display:none;position:fixed;inset:0;z-index:10000;align-items:center;justify-content:center;
+    padding:32px;background:rgba(8,12,20,.98);color:#ffe9a8;text-align:center;font:800 21px/1.6 -apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;cursor:auto;}
+  #gunRotateWarning .rotateIcon{font-size:64px;line-height:1;margin-bottom:18px;animation:gunRotate 1.5s ease-in-out infinite alternate;}
+  #gunRotateWarning small{display:block;margin-top:5px;color:rgba(255,255,255,.68);font-size:14px;}
+  @keyframes gunRotate{from{transform:rotate(-15deg)}to{transform:rotate(15deg)}}
+  @media(orientation:portrait){#gunRotateWarning{display:flex;}}
   .hidden{display:none !important;}
 </style>
 </head>
 <body>
+<div id="gunRotateWarning" role="status"><div><div class="rotateIcon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div></div>
 <div id="cross">
   <svg viewBox="0 0 26 26" width="26" height="26">
     <line x1="13" y1="2"  x2="13" y2="9"  stroke="#ff5544" stroke-width="2.4"/>
