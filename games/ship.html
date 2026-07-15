@@ -263,9 +263,8 @@
       <button id="start-simple" style="background:linear-gradient(180deg,#7be38a,#33c45a); color:#06310f;">🌱 簡單模式</button>
       <button id="start-normal" style="background:linear-gradient(180deg,#7fc4ff,#2f6bd6); color:#06213a;">🙂 一般模式</button>
       <button id="start-hard" style="background:linear-gradient(180deg,#ff9d6b,#ec5a2c); color:#3a1200;">🔴 困難模式</button>
+      <button id="start-special" style="background:linear-gradient(180deg,#c39bff,#7d4fd6); color:#fff;">🟣 特殊模式</button>
     </div>
-    <div style="font-size:14px;font-weight:800;color:#d8c4ff">其他玩法：特殊挑戰</div>
-    <div id="special-row"><button id="start-special" style="background:linear-gradient(180deg,#c39bff,#7d4fd6); color:#fff;">🟣 特殊模式</button></div>
     <button id="start-ship-btn" type="button">開始遊戲</button>
     <div class="sub" id="mode-hint" style="font-size:clamp(12px,2.8vw,15px);"></div>
     <div class="sub" style="font-size:clamp(12px,2.8vw,15px);">簡單／一般：4 發子彈・16 秒・打錯船目標會加速｜困難：3 發子彈・約 10 秒後反擊｜特殊：單字＋外觀雙重確認・18 秒</div>
@@ -328,12 +327,6 @@ const flags = [
   { emoji: "🇬🇧", name: "英國旗" },
 ];
 
-const sizes = [
-  { id: "small",  name: "小型", scale: 1.15, score: 100 },
-  { id: "medium", name: "中型", scale: 1.65, score: 200 },
-  { id: "large",  name: "大型", scale: 2.20, score: 300 },
-];
-
 // 魔王關設定：在指定關卡觸發，HP = 需答對的單字題數
 const bossLevels = {
   4: { hp: 3, name: "幽靈艦長",   icon: "🏴‍☠️", color: shipColors[4], final: false, score: 800,  speed: 9.0 },
@@ -352,6 +345,7 @@ const MONSTER_HP = 5;        // 海怪要連續打幾下才會死（死了給隨
 const MONSTER_SPAWN = 45;    // 海怪平均多久出現一隻（秒）
 const AMMO_BY_MODE = { simple: 4, normal: 4, hard: 3 };  // 每回合彈藥（特殊模式不限彈）
 const AMMO_MAX        = 5;   // 彈藥上限（一發命中可累積）
+const BASE_HIT_SCORE  = 200; // 擊沉目標的基礎分數
 const WRONG_HIT_SPEEDUP = 1.25; // 簡單／一般：打錯船時目標船加速倍率
 function usesAmmo(){ return AMMO_BY_MODE[game.difficulty] != null; }
 function ammoPerRound(){ return AMMO_BY_MODE[game.difficulty] || 3; }
@@ -407,7 +401,7 @@ const game = {
   shotsThisRound: 0,      // 本回合已發射數（判斷一發命中）
   ships: [],
   conditions: [],         // 本回合條件 key 列表
-  target: null,           // 目標屬性 {word,color,flag,size}
+  target: null,           // 目標屬性 {word,color,flag}
   boss: null,             // 魔王回合資料（null = 一般回合）
   aimX: 0, aimY: 0,       // 瞄準點（螢幕座標）
   rockets: [],            // 飛行中的火箭（支援三連發）
@@ -561,8 +555,7 @@ function showToast(text, color) {
 function conditionKeysForLevel(lv) {
   if (lv <= 1) return ["word"];
   if (lv === 2) return ["word", "color"];
-  if (lv === 3) return ["word", "color", "flag"];
-  return ["word", "color", "flag", "size"];
+  return ["word", "color", "flag"];
 }
 
 function startRoundCommon() {
@@ -598,7 +591,6 @@ function newRound() {
     word:  pick(wordPool),
     color: pick(shipColors),
     flag:  pick(flags),
-    size:  pick(sizes),
   };
   game.target = target;
   if (wantPic) game.qType = "en2pic";
@@ -626,7 +618,6 @@ function newRound() {
         word:  pick(otherWords),
         color: pick(shipColors),
         flag:  pick(flags),
-        size:  pick(sizes),
       };
       // 提高難度：第一艘干擾船故意與目標同色同旗，逼玩家讀單字
       if (i === 1 && lv >= 2) { attrs.color = target.color; attrs.flag = target.flag; }
@@ -651,12 +642,11 @@ const pickDifferent = (arr, cur) => { let v; do { v = pick(arr); } while (v === 
 function pickDiffByDim(d, target) {
   if (d === "word")  return pickDifferent(wordBank, target.word);
   if (d === "color") return pickDifferent(shipColors, target.color);
-  if (d === "flag")  return pickDifferent(flags, target.flag);
-  return pickDifferent(sizes, target.size);
+  return pickDifferent(flags, target.flag);
 }
 
 function newRoundSpecial(lv) {
-  const visualDims = ["color", "flag", "size"];
+  const visualDims = ["color", "flag"];
   // 第 6 關起一次核對 2 個外觀特徵，前期單字＋1 個外觀
   const activeVis = shuffle(visualDims.slice()).slice(0, lv >= 6 ? 2 : 1);
   const activeDims = ["word", ...activeVis];
@@ -665,7 +655,7 @@ function newRoundSpecial(lv) {
 
   const target = {
     word:  pick(wordBank), color: pick(shipColors),
-    flag:  pick(flags),    size:  pick(sizes),
+    flag:  pick(flags),
   };
   game.target = target;
 
@@ -673,13 +663,13 @@ function newRoundSpecial(lv) {
   const ships = [makeShip({ ...target }, 0, count, true)];
 
   // 陷阱一：同單字、判定外觀不符 → 只看單字會誤擊
-  const sameWord = { word: target.word, color: pick(shipColors), flag: pick(flags), size: pick(sizes) };
+  const sameWord = { word: target.word, color: pick(shipColors), flag: pick(flags) };
   const dv = pick(activeVis);
   sameWord[dv] = pickDiffByDim(dv, target);
   ships.push(makeShip(sameWord, 1, count, false));
 
   // 陷阱二：判定外觀全符、單字不同 → 只看外觀會誤擊
-  const sameLook = { word: pickDifferent(wordBank, target.word), color: pick(shipColors), flag: pick(flags), size: pick(sizes) };
+  const sameLook = { word: pickDifferent(wordBank, target.word), color: pick(shipColors), flag: pick(flags) };
   for (const d of activeVis) sameLook[d] = target[d];
   ships.push(makeShip(sameLook, 2, count, false));
 
@@ -687,7 +677,7 @@ function newRoundSpecial(lv) {
   for (let i = 3; i < count; i++) {
     const attrs = {
       word:  pick(wordBank), color: pick(shipColors),
-      flag:  pick(flags),    size:  pick(sizes),
+      flag:  pick(flags),
     };
     if (Math.random() < 0.5) attrs.word = target.word;
     else for (const d of activeVis) if (Math.random() < 0.5) attrs[d] = target[d];
@@ -758,7 +748,6 @@ function updateQuestionUI() {
   }
   if (game.conditions.includes("color")) chips.push(`${t.color.icon} 顏色：${t.color.name}`);
   if (game.conditions.includes("flag"))  chips.push(`🚩 旗幟：${t.flag.emoji} ${t.flag.name}`);
-  if (game.conditions.includes("size"))  chips.push(`📏 大小：${t.size.name}`);
   renderSkyChips(title, chips, false);
   $("conditions").innerHTML = "";   // 重點已移到上方，底部不再重複
 }
@@ -768,7 +757,6 @@ const dimMeta = {
   word:  { icon: "📖", name: "意思", val: t => t.word.meaning, label: t => t.word.meaning },
   color: { icon: "🎨", name: "顏色", val: t => t.color.name,   label: t => t.color.icon + " " + t.color.name },
   flag:  { icon: "🚩", name: "旗幟", val: t => t.flag.name,    label: t => t.flag.emoji + " " + t.flag.name },
-  size:  { icon: "📏", name: "大小", val: t => t.size.name,    label: t => t.size.name },
 };
 
 function updateQuestionUISpecial(t) {
@@ -808,7 +796,7 @@ function shipWorldX(ship, now) {
 
 function shipScreenRect(ship) {
   const p = project(shipWorldX(ship, performance.now()), ship.z);
-  const u = p.s * ship.size.scale;
+  const u = p.s * 1.65;
   const bob = Math.sin(performance.now() / 600 + ship.bobPhase) * u * 0.25;
   const y = p.waterY + bob + ship.sinking * u * 5;
   return { x: p.sx, y, u, left: p.sx - 6.2 * u, right: p.sx + 6.2 * u, top: y - 7.5 * u, bottom: y + 1.6 * u };
@@ -888,7 +876,7 @@ function resolveImpact(x, y, fxX, fxY, fromBurst) {
     // 距離加成：越遠擊沉分數越高（近 ×1 ～ 遠 ×2.5）
     const distT = clamp((hit.z - SHORE_Z) / (SPAWN_Z - SHORE_Z), 0, 1);
     const distMult = 1 + distT * 1.5;
-    const gained = Math.round(hit.size.score * distMult * comboMult);
+    const gained = Math.round(BASE_HIT_SCORE * distMult * comboMult);
     game.score += gained;
     let comboText = "";
     if (distT > 0.6) comboText += "  🎯遠距狙擊";
@@ -1346,7 +1334,6 @@ function spawnBossWave() {
       word: words[i],
       color: isTarget ? b.color : pick(shipColors),
       flag: pick(flags),
-      size: sizes[0],
       isTarget, isEscort: true,
       lane,
       spawnX: lane * bossSpread, shoreX: lane * bossSpread,
@@ -1740,7 +1727,7 @@ function drawSea(now) {
 function drawShip(ship, now) {
   const wx = shipWorldX(ship, now);
   const p = project(wx, ship.z);
-  const u = p.s * ship.size.scale;                       // 像素 / 世界單位
+  const u = p.s * 1.65;                                  // 像素 / 世界單位
   if (u < 0.4) return;
   const bob = Math.sin(now / 600 + ship.bobPhase) * u * 0.25;
   const rock = Math.sin(now / 900 + ship.bobPhase) * 0.03;
@@ -1790,6 +1777,9 @@ function drawShip(ship, now) {
     ctx.fill();
   }
 
+  // 困難模式的敵艦都配有大砲，讓玩家一眼看出它們會反擊
+  if (game.difficulty === "hard" && ship.sinking === 0) drawDeckCannon(L, hullH, u);
+
   // ── 桅杆與旗幟 ──
   const mastTop = -hullH - 5.6 * u;
   ctx.strokeStyle = "#503a26";
@@ -1824,6 +1814,31 @@ function drawShip(ship, now) {
     ctx.fillText(label, 0, -hullH * 0.45);
   }
 
+  ctx.restore();
+}
+
+function drawDeckCannon(L, hullH, u) {
+  const x = -L * 0.31;
+  const y = -hullH - 0.3 * u;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = "#232934";
+  ctx.strokeStyle = "#0b0f16";
+  ctx.lineWidth = Math.max(1, 0.16 * u);
+  ctx.beginPath();
+  ctx.arc(0, 0, 0.75 * u, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.lineCap = "round";
+  ctx.lineWidth = Math.max(2, 0.72 * u);
+  ctx.beginPath();
+  ctx.moveTo(-0.25 * u, -0.45 * u);
+  ctx.lineTo(-2.15 * u, -1.35 * u);
+  ctx.stroke();
+  ctx.fillStyle = "#ff5d45";
+  ctx.beginPath();
+  ctx.arc(-2.25 * u, -1.4 * u, 0.32 * u, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
