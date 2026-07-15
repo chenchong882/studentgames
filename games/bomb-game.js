@@ -170,7 +170,6 @@ const WORD_EMOJI = {
 // ══════════════════════════════════════════
 //  LEVEL DATA
 // ══════════════════════════════════════════
-const MAX_LEVELS = 6;   // 一局最多 6 關，打完就結算
 const DEFAULT_LEVELS = [
   { id:1, themeEN:'Picture Match 1', themeZH:'📷 圖片配對 1', skyTop:'#1565c0', skyBot:'#42a5f5', groundTop:'#66bb6a', words:['blanket','mirror','cousin','backpack','crayons'] },
   { id:2, themeEN:'Picture Match 2', themeZH:'📷 圖片配對 2', skyTop:'#4a148c', skyBot:'#ab47bc', groundTop:'#8bc34a', words:['scissors','puzzle','mountain','spaghetti','cookie'] },
@@ -181,7 +180,7 @@ const DEFAULT_LEVELS = [
   { id:7, themeEN:'Picture Match 7', themeZH:'📷 圖片配對 7', skyTop:'#1565c0', skyBot:'#42a5f5', groundTop:'#66bb6a', words:['toothbrush','calculator','microscope','telescope','compass'] },
   { id:8, themeEN:'Picture Match 8', themeZH:'📷 圖片配對 8', skyTop:'#4a148c', skyBot:'#ab47bc', groundTop:'#8bc34a', words:['calendar','envelope','headphones','microphone','skateboard'] },
 ];
-let LEVELS = DEFAULT_LEVELS.slice(0, MAX_LEVELS).map(level => ({ ...level, words: [...level.words] }));
+let LEVELS = DEFAULT_LEVELS.map(level => ({ ...level, words: [...level.words] }));
 let bombLessonTitle = '示範題庫';
 
 const LESSON_LEVEL_COLORS = [
@@ -252,7 +251,7 @@ function allowedBombModes() { return hasPicBank() ? ['simple', 'hard'] : ['norma
 let allPic = (() => { try { return localStorage.getItem('sgAllPic') === '1'; } catch (e) { return false; } })();
 let menuMode = (() => { try { return localStorage.getItem('bombMode3') || 'normal'; } catch (e) { return 'normal'; } })();
 function buildLessonLevels() {
-  LEVELS = chunkWords(shuffleWords(bombWordPool), 5).slice(0, MAX_LEVELS).map((chunk, index) => ({
+  LEVELS = chunkWords(shuffleWords(bombWordPool), 5).map((chunk, index) => ({
     id: index + 1,
     themeEN: bombLessonTitle,
     themeZH: `💣 ${bombLessonTitle} ${index + 1}`,
@@ -267,7 +266,7 @@ function applyBombData(payload) {
     bombWordPool = null;
     lessonEmoji = {};
     lessonChinese = {};
-    LEVELS = DEFAULT_LEVELS.slice(0, MAX_LEVELS).map(level => ({ ...level, words: [...level.words] }));
+    LEVELS = DEFAULT_LEVELS.map(level => ({ ...level, words: [...level.words] }));
     bombLessonTitle = '示範題庫';
   } else {
     lessonEmoji = {};
@@ -1990,10 +1989,10 @@ class Game {
   }
 
   // ── Load Level ─────────────────────────
-  // 重洗下一輪 6 關（自選/課程題庫重新打散，預設題庫重置）
+  // 重洗下一輪全部關卡（自選/課程題庫重新打散，預設題庫重置）
   _reshuffleRound() {
     if (bombWordPool) buildLessonLevels();
-    else LEVELS = DEFAULT_LEVELS.slice(0, MAX_LEVELS).map(l => ({ ...l, words: [...l.words] }));
+    else LEVELS = DEFAULT_LEVELS.map(l => ({ ...l, words: [...l.words] }));
     this.lvIdx = 0;
   }
 
@@ -2011,7 +2010,7 @@ class Game {
   _loadLevel() {
     const lv = LEVELS[this.lvIdx];
     if (!lv) {
-      // 無限模式：打完 6 關就重洗接著玩，不再跳結算
+      // 無限模式：打完題庫全部關卡就重洗接著玩，不再跳結算
       if (this.endless) { this._reshuffleRound(); return this._loadLevel(); }
       this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); this._initVictoryConfetti(); return;
     }
