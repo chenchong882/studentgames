@@ -2662,6 +2662,10 @@ const _speechOverlay = (() => {
   startBtn.type = 'button'; startBtn.textContent = '開始遊戲';
   startBtn.style.cssText = 'position:fixed;z-index:9002;display:none;min-height:44px;padding:10px 28px;border:2px solid #fff;border-radius:999px;color:#3a1c00;background:linear-gradient(#ffe36b,#ffae2e);font:bold 18px Arial,"Noto Sans TC",sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;';
   root.appendChild(startBtn);
+  const menuBtn = document.createElement('button');
+  menuBtn.type = 'button'; menuBtn.textContent = '← 遊戲選單';
+  menuBtn.style.cssText = 'position:fixed;z-index:9002;top:calc(12px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));display:none;min-height:40px;padding:8px 14px;border:1px solid rgba(255,255,255,.8);border-radius:999px;color:#fff;background:rgba(8,35,84,.76);font:bold 14px Arial,"Noto Sans TC",sans-serif;box-shadow:0 3px 10px rgba(0,0,0,.3);cursor:pointer;';
+  root.appendChild(menuBtn);
   const pickMode = m => {
     if (!allowedBombModes().includes(m)) return;
     menuMode = m; try { localStorage.setItem('bombMode3', m); } catch (e) {}
@@ -2672,6 +2676,7 @@ const _speechOverlay = (() => {
   normalBtn.addEventListener('click', () => pickMode('normal'));
   hardBtn.addEventListener('click',   () => pickMode('hard'));
   startBtn.addEventListener('click', () => { Audio.unlockSpeech(); if (game.phase === 'menu') game.start(menuMode); });
+  menuBtn.addEventListener('click', () => { location.href = '../index.html' + location.hash; });
   speakBtn.addEventListener('click', () => { Audio.unlockSpeech(); if (game.phase === 'playing' && game.targetWord && game.qType !== 'cn2en') Audio.speak(game.targetWord); });
 
   // 題目內容：兩顆真實 DOM 按鈕，跨遊戲共用 sgAllPic。
@@ -2699,6 +2704,7 @@ const _speechOverlay = (() => {
       place(hardBtn,   bx, ys.hardY   - bh/2, bw, bh); hardBtn.style.display   = 'block';
       startBtn.textContent = `開始遊戲（${menuMode==='simple'?'簡單':menuMode==='normal'?'一般':'困難'}）`;
       startBtn.style.left = (W/2 - 98) + 'px'; startBtn.style.top = (ys.hardY + bh/2 + clamp(H*0.10,75,114)) + 'px'; startBtn.style.display = 'block';
+      menuBtn.style.display = 'block';
       if (hasPicBank()) {
         const rw = Math.min(W * 0.9, 440);
         allPicRow.style.left = (W/2 - rw/2) + 'px';
@@ -2709,7 +2715,7 @@ const _speechOverlay = (() => {
         allPicRow.style.display = 'none';
       }
     } else {
-      simpleBtn.style.display = 'none'; normalBtn.style.display = 'none'; hardBtn.style.display = 'none'; startBtn.style.display = 'none';
+      simpleBtn.style.display = 'none'; normalBtn.style.display = 'none'; hardBtn.style.display = 'none'; startBtn.style.display = 'none'; menuBtn.style.display = 'none';
       allPicRow.style.display = 'none';
     }
     if (game.phase === 'playing' && game.targetWord && game.qType !== 'cn2en') {

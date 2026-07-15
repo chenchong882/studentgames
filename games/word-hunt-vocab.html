@@ -14,6 +14,9 @@
         button:active { transform:translateY(3px); box-shadow:0 2px 0 #4c43a4, 0 6px 14px rgba(70, 57, 141, .24); }
         .shell { width:min(900px, 100%); margin:0 auto; padding:22px 16px 32px; }
         .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+        .topbar-actions { display:flex; gap:8px; }
+        .topbar-actions button { min-height:42px; padding:0 13px; border-radius:12px; font-size:15px; white-space:nowrap; }
+        .topbar-actions [hidden] { display:none; }
         h1 { margin:0; font-size:clamp(25px, 5vw, 36px); letter-spacing:.03em; }
         .subtitle { margin:4px 0 0; color:#68708d; font-size:14px; font-weight:700; }
         .stat { min-width:100px; padding:9px 13px; border:1px solid var(--line); border-radius:14px; text-align:center; background:rgba(255,255,255,.78); box-shadow:0 4px 14px rgba(67, 72, 115, .08); }
@@ -25,12 +28,14 @@
         .word-card { min-width:105px; padding:9px 12px; border:2px solid #e4e5f7; border-radius:14px; color:#414b70; text-align:center; background:#fff; font-weight:900; transition:opacity .2s, transform .2s, background .2s; }
         .word-card .icon { margin-right:5px; font-size:20px; vertical-align:-2px; }
         .word-card.found { color:#6c7693; text-decoration:line-through; background:#f0f1f8; opacity:.72; transform:scale(.97); }
+        .word-card.hint { border-color:#f6a83b; background:#fff4d9; animation:hintPulse .7s ease-in-out infinite alternate; }
         .grid-wrap { position:relative; width:min(100%, 620px); margin:0 auto; border:8px solid #f0effa; border-radius:18px; background:#f0effa; touch-action:none; }
         .grid { position:relative; display:grid; grid-template-columns:repeat(9, 1fr); overflow:hidden; border-radius:11px; background:#fff; touch-action:none; }
         .ribbons { position:absolute; z-index:1; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
         .ribbons line { transition:stroke-opacity .3s ease; }
         .cell { position:relative; z-index:2; display:grid; min-width:0; aspect-ratio:1; place-items:center; color:#263052; font-size:clamp(17px, 5.6vw, 31px); font-weight:900; line-height:1; cursor:crosshair; -webkit-tap-highlight-color:transparent; }
         .cell.wrong { color:#b93745; animation:wrong .34s ease 2; }
+        .cell.hint { color:#9b5b00; background:#fff0c8; animation:hintPulse .7s ease-in-out infinite alternate; }
         .grid.locked .cell { pointer-events:none; }
         .feedback { min-height:24px; margin:16px 0 0; color:#64708c; font-weight:800; text-align:center; }
         .feedback.good { color:#36855d; }
@@ -46,7 +51,11 @@
         .result-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border-radius:12px; background:#f1f2fb; font-weight:900; }
         .result-row .stars { margin:0; font-size:20px; letter-spacing:1px; }
         .total { margin:16px 0 22px; color:#5249ae; font-size:22px; font-weight:900; }
+        .dialog-actions { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+        .dialog-actions .secondary { color:#514a83; background:#ececf8; box-shadow:0 5px 0 #c9c9df, 0 10px 20px rgba(70, 57, 141, .14); }
+        .dialog-actions .secondary:active { box-shadow:0 2px 0 #c9c9df, 0 6px 14px rgba(70, 57, 141, .14); }
         @keyframes wrong { 50% { color:#ff283e; transform:scale(1.13); } }
+        @keyframes hintPulse { from { box-shadow:0 0 0 0 rgba(246,168,59,.7); } to { box-shadow:0 0 0 8px rgba(246,168,59,0); } }
         @media (max-width:520px) { body { background:#f7f7ff; } .shell { padding:15px 10px 24px; } .topbar { align-items:flex-start; } .stat { min-width:82px; padding:7px 9px; } .word-card { min-width:92px; padding:8px 10px; font-size:14px; } .card { padding:15px 10px; border-radius:18px; } .grid-wrap { border-width:5px; } }
     </style>
 </head>
@@ -56,6 +65,10 @@
             <div>
                 <h1>🔎 單字獵人</h1>
                 <p class="subtitle">拖曳字母，找出所有英文單字！</p>
+            </div>
+            <div class="topbar-actions">
+                <button type="button" id="hintButton" hidden>💡 提示</button>
+                <button type="button" id="pauseButton" hidden>⏸ 暫停</button>
             </div>
             <div class="stat"><span class="stat-label" id="levelLabel">關卡</span><span class="stat-value" id="levelValue">1 / 3</span></div>
             <div class="stat"><span class="stat-label">本關時間</span><span class="stat-value" id="timer">0 秒</span></div>
@@ -79,7 +92,21 @@
             <div class="stars" id="dialogStars" hidden></div>
             <div class="result-list" id="resultList" hidden></div>
             <div class="total" id="totalStars" hidden></div>
-            <button type="button" id="dialogButton">開始遊戲</button>
+            <div class="dialog-actions">
+                <button type="button" id="dialogButton">開始遊戲</button>
+                <button type="button" class="secondary" id="menuButton">← 返回遊戲選單</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="overlay" id="pauseOverlay" hidden>
+        <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+            <h2 id="pauseTitle">⏸ 已暫停</h2>
+            <p>時間已停止。準備好再繼續找單字吧！</p>
+            <div class="dialog-actions">
+                <button type="button" id="resumeButton">▶ 繼續遊戲</button>
+                <button type="button" class="secondary" id="pauseMenuButton">← 返回遊戲選單</button>
+            </div>
         </section>
     </div>
 
@@ -129,6 +156,12 @@
         const resultList = document.getElementById('resultList');
         const totalStars = document.getElementById('totalStars');
         const dialogButton = document.getElementById('dialogButton');
+        const menuButton = document.getElementById('menuButton');
+        const pauseOverlay = document.getElementById('pauseOverlay');
+        const pauseButton = document.getElementById('pauseButton');
+        const hintButton = document.getElementById('hintButton');
+        const resumeButton = document.getElementById('resumeButton');
+        const pauseMenuButton = document.getElementById('pauseMenuButton');
 
         let levelIndex = 0;
         let placements = [];
@@ -140,6 +173,8 @@
         let startCell = null;
         let activeLine = null;
         let activeSelection = null;
+        let paused = false;
+        let hintTimeoutId = null;
 
         function randomLetter() {
             return String.fromCharCode(65 + Math.floor(Math.random() * 26));
@@ -189,10 +224,12 @@
             feedback.className = `feedback ${type}`;
         }
 
-        function startTimer() {
+        function startTimer(reset = false) {
             stopTimer();
-            seconds = 0;
-            timer.textContent = '0 秒';
+            if (reset) {
+                seconds = 0;
+                timer.textContent = '0 秒';
+            }
             timerId = window.setInterval(() => {
                 seconds += 1;
                 timer.textContent = `${seconds} 秒`;
@@ -356,20 +393,66 @@
             overlay.hidden = true;
         }
 
+        function returnToMenu() {
+            location.href = '../index.html' + location.hash;
+        }
+
+        function clearHint() {
+            window.clearTimeout(hintTimeoutId);
+            grid.querySelectorAll('.cell.hint').forEach((cell) => cell.classList.remove('hint'));
+            wordList.querySelectorAll('.word-card.hint').forEach((card) => card.classList.remove('hint'));
+        }
+
+        function showHint() {
+            if (paused || timerId === null) return;
+            const placement = placements.find((item) => !foundWords.has(item.word));
+            if (!placement) return;
+            clearHint();
+            const firstCell = grid.querySelector(`[data-row="${placement.start.row}"][data-col="${placement.start.col}"]`);
+            const wordCard = wordList.querySelector(`[data-word="${placement.word}"]`);
+            firstCell?.classList.add('hint');
+            wordCard?.classList.add('hint');
+            setFeedback(`提示：先從 ${placement.word} 的第一個字母開始找！`);
+            hintTimeoutId = window.setTimeout(clearHint, 3000);
+        }
+
+        function pauseGame() {
+            if (paused || timerId === null) return;
+            paused = true;
+            onPointerCancel();
+            stopTimer();
+            grid.classList.add('locked');
+            clearHint();
+            pauseOverlay.hidden = false;
+        }
+
+        function resumeGame() {
+            if (!paused) return;
+            paused = false;
+            pauseOverlay.hidden = true;
+            grid.classList.remove('locked');
+            startTimer();
+        }
+
         function beginLevel(index) {
             levelIndex = index;
+            paused = false;
+            pauseOverlay.hidden = true;
             foundWords = new Set();
             levelValue.textContent = `${index + 1} / ${LEVELS.length}`;
             renderWords();
             renderBoard();
             grid.classList.remove('locked');
+            pauseButton.hidden = false;
+            hintButton.hidden = false;
             setFeedback(`第 ${index + 1} 關開始，找出所有單字！`);
             hideOverlay();
-            startTimer();
+            startTimer(true);
         }
 
         function finishLevel() {
             stopTimer();
+            clearHint();
             grid.classList.add('locked');
             const stars = starsFor(seconds, levelIndex);
             results[levelIndex] = { seconds, stars };
@@ -404,6 +487,17 @@
         grid.addEventListener('pointermove', onPointerMove);
         grid.addEventListener('pointerup', onPointerEnd);
         grid.addEventListener('pointercancel', onPointerCancel);
+        pauseButton.addEventListener('click', pauseGame);
+        hintButton.addEventListener('click', showHint);
+        resumeButton.addEventListener('click', resumeGame);
+        menuButton.addEventListener('click', returnToMenu);
+        pauseMenuButton.addEventListener('click', returnToMenu);
+        window.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && timerId !== null) {
+                event.preventDefault();
+                paused ? resumeGame() : pauseGame();
+            }
+        });
         window.addEventListener('resize', () => {
             ribbons.querySelectorAll('line[data-start-row]').forEach((line) => {
                 const from = cellCenter(Number(line.dataset.startRow), Number(line.dataset.startCol));
