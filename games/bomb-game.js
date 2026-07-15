@@ -1554,24 +1554,25 @@ function drawHUD(c, game) {
     c.fillText(String(i+1), sx + segW/2, barY + barH/2 + 0.5);
   }
 
-  // ── RIGHT: Timer（避開右側瀏海安全區）──
+  // ── RIGHT: Bomb count — 固定在右上框格，剩 1～2 顆時閃紅提示 ──
+  const bombW=126, bombH=38, bombX=W-SAFE_R-bombW-10, bombY=6;
+  const bombLow=game.bombsLeft>=1&&game.bombsLeft<=2;
+  const bombEmpty=game.bombsLeft===0;
+  const bombPulse=bombLow?(Math.sin(performance.now()/120)+1)/2:0;
+  c.fillStyle=bombLow?`rgba(125,8,8,${0.55+bombPulse*0.35})`:(bombEmpty?'rgba(90,8,8,.9)':'rgba(5,18,34,.88)');
+  roundRect(c,bombX,bombY,bombW,bombH,9);c.fill();
+  c.strokeStyle=bombLow?`rgba(255,60,60,${0.6+bombPulse*0.4})`:(bombEmpty?'#ff4a4a':'rgba(255,210,40,.85)');
+  c.lineWidth=bombLow?3:2;roundRect(c,bombX,bombY,bombW,bombH,9);c.stroke();
+  if(bombLow){c.shadowColor='#ff3030';c.shadowBlur=8+bombPulse*12;}
+  c.textAlign='center';c.font='bold 17px Arial';c.fillStyle='white';c.textBaseline='middle';
+  c.fillText(`💣 剩餘 ${game.bombsLeft}`,bombX+bombW/2,bombY+bombH/2+1);
+  c.shadowBlur=0;
+
+  // ── RIGHT: Timer（排在炸彈框左側，避開右側瀏海安全區）──
   const m=Math.floor(game.timer/60), s=game.timer%60;
   c.textAlign='right'; c.font='bold 15px Arial'; c.textBaseline='middle';
   c.fillStyle = game.timer>90 ? '#FF6B6B' : 'rgba(255,255,255,0.85)';
-  c.fillText(`⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`, W-126-SAFE_R, 15);
-
-  // ── RIGHT: Bomb count (plane icon + number, like reference) ──
-  // Small plane icon drawn on canvas
-  const bx = W - 182 - SAFE_R, by2 = 32;
-  c.save();
-  c.translate(bx, by2); c.scale(0.55, 0.55);
-  c.fillStyle='rgba(255,255,255,0.85)';
-  c.beginPath(); c.ellipse(0,0,22,6,0,0,Math.PI*2); c.fill();
-  c.beginPath(); c.moveTo(-4,1); c.lineTo(-11,-12); c.lineTo(9,-12); c.lineTo(12,1); c.closePath(); c.fill();
-  c.beginPath(); c.moveTo(-18,-1); c.lineTo(-24,-9); c.lineTo(-12,-1); c.closePath(); c.fill();
-  c.restore();
-  c.textAlign='left'; c.font='bold 18px Arial'; c.fillStyle='white'; c.textBaseline='middle';
-  c.fillText(game.bombsLeft, W-46-SAFE_R, by2);
+  c.fillText(`⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`,bombX-12,15);
 
   c.restore();
 }

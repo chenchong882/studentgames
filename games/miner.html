@@ -520,9 +520,18 @@
         #miner-toast{font-size:14.5px;padding:7px 14px;}
         #miner-progress{width:min(220px,calc(100vw - 300px));height:26px;}
     }
+    #miner-rotate-warning{display:none;position:fixed;inset:0;z-index:10000;align-items:center;justify-content:center;
+        padding:32px;background:rgba(16,10,5,.98);color:#fff3cf;text-align:center;font:800 21px/1.6 Arial,"Noto Sans TC",sans-serif;}
+    #miner-rotate-warning .rotate-icon{font-size:64px;line-height:1;margin-bottom:18px;animation:minerRotate 1.5s ease-in-out infinite alternate;}
+    #miner-rotate-warning small{display:block;margin-top:5px;color:rgba(255,243,207,.7);font-size:14px;}
+    @keyframes minerRotate{from{transform:rotate(-15deg)}to{transform:rotate(15deg)}}
+    @media (orientation:portrait){#miner-rotate-warning{display:flex;}}
     </style>
 </head>
 <body>
+    <div id="miner-rotate-warning" role="status">
+        <div><div class="rotate-icon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div>
+    </div>
     <main class="shell">
         <section class="hud" aria-label="遊戲狀態">
             <div class="stat-row">

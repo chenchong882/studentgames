@@ -134,6 +134,29 @@
     pointer-events: auto;
   }
   #pause-btn:active { transform: scale(.92); }
+  #ammo-label {
+    position: fixed;
+    top: calc(10px + env(safe-area-inset-top));
+    right: calc(10px + env(safe-area-inset-right));
+    z-index: 14;
+    min-width: 132px;
+    padding: 9px 13px;
+    border: 2px solid #ffd778;
+    border-radius: 11px;
+    background: rgba(7,23,45,.9);
+    color: #fff6d8;
+    font-size: clamp(15px, 3.2vw, 19px);
+    font-weight: 900;
+    text-align: center;
+    white-space: nowrap;
+    box-shadow: 0 4px 18px rgba(0,0,0,.45), inset 0 0 12px rgba(255,210,100,.12);
+  }
+  #ammo-label.ammo-low { animation: ammoAlert .58s ease-in-out infinite alternate; }
+  #ammo-label.ammo-empty { border-color:#ff4545; background:rgba(105,5,8,.94); color:#fff; }
+  @keyframes ammoAlert {
+    from { border-color:#ff7a68; background:rgba(95,8,12,.86); box-shadow:0 0 5px rgba(255,50,50,.35); }
+    to { border-color:#ff2727; background:rgba(170,8,12,.96); box-shadow:0 0 22px rgba(255,40,40,.95); }
+  }
 
   /* ── 浮動訊息 ── */
   #toast {
@@ -343,8 +366,8 @@ const MAX_LEVEL = 8;         // 最高關卡
 const MONSTER_WINDUP = 1.2;  // 海怪不打掉時，襲擊前的預警秒數
 const MONSTER_HP = 5;        // 海怪要連續打幾下才會死（死了給隨機大獎）
 const MONSTER_SPAWN = 45;    // 海怪平均多久出現一隻（秒）
-const AMMO_BY_MODE = { simple: 4, normal: 4, hard: 3 };  // 每回合彈藥（特殊模式不限彈）
-const AMMO_MAX        = 5;   // 彈藥上限（一發命中可累積）
+const AMMO_BY_MODE = { simple: 6, normal: 6, hard: 6 };  // 每回合 6 發：足夠擊敗 5 HP 海怪並保留 1 發
+const AMMO_MAX        = 6;   // 一般回合彈藥上限（魔王戰另依 HP 配給）
 const BASE_HIT_SCORE  = 200; // 擊沉目標的基礎分數
 const WRONG_HIT_SPEEDUP = 1.25; // 簡單／一般：打錯船時目標船加速倍率
 function usesAmmo(){ return AMMO_BY_MODE[game.difficulty] != null; }
@@ -559,7 +582,7 @@ function conditionKeysForLevel(lv) {
 }
 
 function startRoundCommon() {
-  // 補充本回合彈藥（簡單／一般 4 發、困難 3 發；特殊不限彈）
+  // 補充本回合彈藥（限彈模式皆為 6 發；特殊不限彈）
   game.ammo = Math.min(AMMO_MAX, ammoPerRound() + game.nextAmmoBonus);
   game.nextAmmoBonus = 0;
   game.shotsThisRound = 0;
@@ -776,9 +799,12 @@ function updateHUD() {
   const ammoEl = $("ammo-label");
   if (usesAmmo()) {
     ammoEl.style.display = "";
-    ammoEl.textContent = game.ammo > 0 ? "🚀".repeat(game.ammo) : "🚀✕";
+    ammoEl.textContent = `🚀 剩餘 ${game.ammo}`;
+    ammoEl.classList.toggle("ammo-low", game.ammo >= 1 && game.ammo <= 2);
+    ammoEl.classList.toggle("ammo-empty", game.ammo === 0);
   } else {
     ammoEl.style.display = "none";
+    ammoEl.classList.remove("ammo-low", "ammo-empty");
   }
 
   if (game.boss) $("timer-label").textContent = `💢 HP ${game.boss.hp}/${game.boss.maxHp}`;

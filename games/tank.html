@@ -157,7 +157,7 @@
   #dashZone.cooldown{filter:grayscale(1);background:rgba(70,72,76,.82)}
   #fireHint{position:absolute;right:16px;bottom:14px;width:150px;text-align:center;
     font-size:11px;color:rgba(255,255,255,.5);}
-  #btnPause{position:fixed;top:calc(14px + env(safe-area-inset-top));left:calc(14px + env(safe-area-inset-left));width:48px;height:48px;border-radius:12px;z-index:9;
+  #btnPause{position:fixed;top:calc(14px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));width:48px;height:48px;border-radius:12px;z-index:9;
     font-size:22px;background:rgba(20,26,38,.6);color:#ffe9a8;
     border:1px solid rgba(255,216,120,.4);pointer-events:auto;}
   @media(pointer:fine){#skillDock{right:18px;bottom:18px}}
@@ -170,10 +170,17 @@
     #pauseMyst{grid-template-columns:1fr}.mystInfo{font-size:12px;padding:7px 9px}
     .skillBtn{width:72px;height:62px}.skillBtn .si{font-size:21px}.skillBtn .cd{font-size:20px}
   }
+  #tankRotateWarning{display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;
+    padding:32px;background:rgba(8,12,20,.98);color:#ffe9a8;text-align:center;font:800 21px/1.6 -apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;cursor:auto;}
+  #tankRotateWarning .rotateIcon{font-size:64px;line-height:1;margin-bottom:18px;animation:tankRotate 1.5s ease-in-out infinite alternate;}
+  #tankRotateWarning small{display:block;margin-top:5px;color:rgba(255,255,255,.68);font-size:14px;}
+  @keyframes tankRotate{from{transform:rotate(-15deg)}to{transform:rotate(15deg)}}
+  @media(orientation:portrait){#tankRotateWarning{display:flex;}}
   .hidden{display:none !important;}
 </style>
 </head>
 <body>
+<div id="tankRotateWarning" role="status"><div><div class="rotateIcon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div></div>
 <div id="hud" class="hidden">
   <div class="row"><span class="lab">裝甲 ARMOR</span></div>
   <div id="armorBar"><div id="armorFill"></div></div>
