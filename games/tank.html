@@ -1063,6 +1063,30 @@ function labelSprite(word){
   sp.renderOrder=10;
   return sp;
 }
+const EMOJI_STAMPS=new Map();
+function emojiStamp(emoji){
+  const key=String(emoji||'❓');
+  if(EMOJI_STAMPS.has(key))return EMOJI_STAMPS.get(key);
+  const src=document.createElement('canvas');src.width=src.height=384;
+  const sx=src.getContext('2d');
+  sx.font='220px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  sx.textAlign='center';sx.textBaseline='middle';sx.fillText(key,192,192);
+  const px=sx.getImageData(0,0,384,384).data;
+  let minX=384,minY=384,maxX=-1,maxY=-1;
+  for(let y=0;y<384;y++)for(let x=0;x<384;x++){
+    if(px[(y*384+x)*4+3]>8){
+      if(x<minX)minX=x;if(x>maxX)maxX=x;
+      if(y<minY)minY=y;if(y>maxY)maxY=y;
+    }
+  }
+  const stamp=document.createElement('canvas');
+  if(maxX>=minX&&maxY>=minY){
+    stamp.width=maxX-minX+1;stamp.height=maxY-minY+1;
+    stamp.getContext('2d').drawImage(src,minX,minY,stamp.width,stamp.height,0,0,stamp.width,stamp.height);
+  }else{stamp.width=stamp.height=1;}
+  EMOJI_STAMPS.set(key,stamp);
+  return stamp;
+}
 function emojiSprite(emoji){
   const c=document.createElement('canvas');c.width=256;c.height=256;
   const x=c.getContext('2d');
@@ -1070,8 +1094,10 @@ function emojiSprite(emoji){
   x.beginPath();x.roundRect(12,12,232,232,34);x.fill();
   x.strokeStyle='#7ee0a0';x.lineWidth=8;
   x.beginPath();x.roundRect(12,12,232,232,34);x.stroke();
-  x.font='150px "Apple Color Emoji","Segoe UI Emoji",sans-serif';
-  x.textAlign='center';x.textBaseline='middle';x.fillText(emoji||'❓',128,140);
+  const stamp=emojiStamp(emoji);
+  const scale=156/Math.max(stamp.width,stamp.height);
+  const w=stamp.width*scale,h=stamp.height*scale;
+  x.drawImage(stamp,128-w/2,128-h/2,w,h);
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({
     map:new THREE.CanvasTexture(c),transparent:true,depthTest:false}));
   sp.renderOrder=10;

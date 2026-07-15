@@ -1757,6 +1757,45 @@
         ctx.restore();
     }
 
+    const emojiStamps = new Map();
+
+    function getEmojiStamp(emoji) {
+        const key = String(emoji || "❓");
+        if (emojiStamps.has(key)) return emojiStamps.get(key);
+
+        const source = document.createElement("canvas");
+        source.width = source.height = 384;
+        const sourceCtx = source.getContext("2d");
+        sourceCtx.font = '220px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+        sourceCtx.textAlign = "center";
+        sourceCtx.textBaseline = "middle";
+        sourceCtx.fillText(key, 192, 192);
+
+        const pixels = sourceCtx.getImageData(0, 0, 384, 384).data;
+        let minX = 384, minY = 384, maxX = -1, maxY = -1;
+        for (let y = 0; y < 384; y += 1) {
+            for (let x = 0; x < 384; x += 1) {
+                if (pixels[(y * 384 + x) * 4 + 3] > 8) {
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x);
+                    maxY = Math.max(maxY, y);
+                }
+            }
+        }
+
+        const stamp = document.createElement("canvas");
+        if (maxX >= minX && maxY >= minY) {
+            stamp.width = maxX - minX + 1;
+            stamp.height = maxY - minY + 1;
+            stamp.getContext("2d").drawImage(source, minX, minY, stamp.width, stamp.height, 0, 0, stamp.width, stamp.height);
+        } else {
+            stamp.width = stamp.height = 1;
+        }
+        emojiStamps.set(key, stamp);
+        return stamp;
+    }
+
     function drawEmojiLabel(emoji, radius) {
         ctx.save();
         ctx.shadowColor = "transparent";
@@ -1767,10 +1806,11 @@
         ctx.strokeStyle = "rgba(100, 55, 10, 0.7)";
         ctx.lineWidth = 3;
         ctx.stroke();
-        ctx.font = `${radius * 0.95}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(emoji, 0, radius * 0.04);
+        const stamp = getEmojiStamp(emoji);
+        const scale = (radius * 1.02) / Math.max(stamp.width, stamp.height);
+        const width = stamp.width * scale;
+        const height = stamp.height * scale;
+        ctx.drawImage(stamp, -width / 2, -height / 2, width, height);
         ctx.restore();
     }
 
