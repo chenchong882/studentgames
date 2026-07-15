@@ -53,64 +53,6 @@
             gap: 12px;
         }
 
-        .hud {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        /* 題目卡：獨立一列、置中醒目（標題徽章 + 指示 + 大題目） */
-        .task-card {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            padding: 12px 18px;
-        }
-
-        .task-meta {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .task-badge {
-            font-size: 15px;
-            font-weight: 900;
-            color: var(--ink);
-            background: linear-gradient(180deg, #ffe27a, #f7a928);
-            padding: 3px 13px;
-            border-radius: 999px;
-            white-space: nowrap;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
-        }
-
-        .task-instruction {
-            font-size: 15px;
-            font-weight: 800;
-            color: rgba(255, 243, 207, 0.9);
-        }
-
-        .task-main {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-
-        .task-question {
-            font-size: clamp(26px, 3.4vw, 40px);
-            font-weight: 900;
-            color: var(--gold);
-            line-height: 1.1;
-            text-align: center;
-            word-break: break-word;
-            text-shadow: 0 2px 0 rgba(91, 45, 6, 0.7), 0 0 18px rgba(255, 201, 79, 0.3);
-        }
-
         /* 狀態列：關卡 / 時間 / 分數 / 連擊 */
         .stat-row {
             display: flex;
@@ -139,23 +81,6 @@
             font-size: 21px;
             font-weight: 800;
             line-height: 1.05;
-        }
-
-        .task-speak {
-            flex: 0 0 auto;
-            min-height: 0;
-            width: 46px;
-            height: 46px;
-            padding: 0;
-            border-radius: 50%;
-            font-size: 21px;
-            color: #eefaff;
-            background: linear-gradient(180deg, #34c6f3, #1685bd 58%, #0d4f7d);
-            box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.38), 0 4px 0 #06334f, 0 8px 14px rgba(0, 0, 0, 0.28);
-        }
-
-        .task-speak:disabled {
-            opacity: 0.4;
         }
 
         .panel {
@@ -245,6 +170,29 @@
             background: #2b1a12;
             box-shadow: inset 0 0 0 2px rgba(74, 36, 14, 0.75);
             touch-action: none;
+        }
+
+        /* iOS 發音必須由真實 button 的 click 觸發；按鈕透明疊在 canvas 礦車上。 */
+        #miner-cart-speech-btn {
+            position: fixed;
+            z-index: 32;
+            display: none;
+            min-height: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 10px;
+            opacity: 0.001;
+            background: transparent;
+            box-shadow: none;
+            transform: none;
+            touch-action: manipulation;
+        }
+
+        #miner-cart-speech-btn:hover,
+        #miner-cart-speech-btn:active {
+            filter: none;
+            transform: none;
+            box-shadow: none;
         }
 
         .hint {
@@ -483,26 +431,6 @@
                 font-size: 16px;
             }
 
-            .task-card {
-                padding: 10px 12px;
-                gap: 5px;
-            }
-
-            .task-badge,
-            .task-instruction {
-                font-size: 13px;
-            }
-
-            .task-question {
-                font-size: 30px;
-            }
-
-            .task-speak {
-                width: 50px;
-                height: 50px;
-                font-size: 22px;
-            }
-
             .stat-row {
                 gap: 6px;
             }
@@ -547,21 +475,7 @@
                 opacity: 0.97;
             }
 
-            /* 橫拿：題目卡與狀態列並排，兩者都完整顯示不被裁 */
             @media (orientation: landscape) {
-                .hud {
-                    flex-direction: row;
-                    align-items: stretch;
-                }
-
-                .task-card {
-                    flex: 1 1 auto;
-                }
-
-                .stat-row {
-                    flex: 0 0 auto;
-                }
-
                 .corner-btn {
                     width: 96px;
                     height: 96px;
@@ -611,17 +525,6 @@
 <body>
     <main class="shell">
         <section class="hud" aria-label="遊戲狀態">
-            <div class="panel task-card">
-                <div class="task-meta">
-                    <span class="task-badge">⛏️ 挖金礦</span>
-                    <span class="task-instruction" id="task-instruction">看題目，抓正確的金塊</span>
-                </div>
-                <div class="task-main">
-                    <span class="task-question" id="target-word">準備開始</span>
-                    <button class="task-speak" id="miner-speak-btn" type="button" aria-label="重聽發音">🔊</button>
-                </div>
-            </div>
-
             <div class="stat-row">
                 <div class="panel stat">
                     <span class="stat-label">關卡</span>
@@ -644,6 +547,7 @@
 
         <section class="game-wrap">
             <canvas id="gameCanvas" width="1080" height="675"></canvas>
+            <button id="miner-cart-speech-btn" type="button" aria-label="點礦車重聽英文發音"></button>
             <div id="miner-startscreen" class="startscreen hidden">
                 <div class="startscreen-card">
                     <h2 id="ss-title">⛏️ 單字挖金礦</h2>
@@ -697,8 +601,8 @@
         <div class="mCard">
             <h2>⛏️ 如何遊玩</h2>
             <div class="r">
-                🎯 看畫面上方的<b>題目卡</b>（單字／中文／圖片），把鉤爪射向<b>對應的金塊</b>。<br>
-                🔊 題目是英文單字時會自動發音（任務旁 🔊 可重聽）。<br>
+                🎯 看<b>礦車上的題目</b>（單字／中文／圖片），把鉤爪射向<b>對應的金塊</b>。<br>
+                🔊 題目是英文單字時會自動發音，<b>點礦車</b>可重聽。<br>
                 ⬅️➡️ <b>左下／右下方向鈕</b>（或鍵盤 ←→、A／D）：移動礦車<br>
                 👆 <b>點畫面任一處</b>（或空白鍵）：放出鉤爪<br>
                 <br>
@@ -714,7 +618,6 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
-    const targetWordEl = document.getElementById("target-word");
     const timeLeftEl = document.getElementById("time-left");
     const scoreEl = document.getElementById("score");
     const streakEl = document.getElementById("streak");
@@ -722,13 +625,12 @@
     const statusEl = document.getElementById("status");
     const moveLeftBtn = document.getElementById("move-left-btn");
     const moveRightBtn = document.getElementById("move-right-btn");
-    const speakBtn = document.getElementById("miner-speak-btn");
+    const cartSpeechBtn = document.getElementById("miner-cart-speech-btn");
     const settingsBtn = document.getElementById("miner-settings-btn");
     const toastEl = document.getElementById("miner-toast");
     const progressEl = document.getElementById("miner-progress");
     const progressFillEl = document.getElementById("miner-progress-fill");
     const progressLabelEl = document.getElementById("miner-progress-label");
-    const taskInstructionEl = document.getElementById("task-instruction");
     const startScreenEl = document.getElementById("miner-startscreen");
     const startBtn = document.getElementById("miner-start-btn");
     const ssTitleEl = document.getElementById("ss-title");
@@ -772,14 +674,19 @@
     const CORRECT_POINTS = 20;
     const BOMB_PENALTY = 10;
     const CART_SPEED = 430;
-    const CART_MIN_X = 125;
-    const CART_MAX_X = canvas.width - 125;
+    const CART_MIN_X = 155;
+    const CART_MAX_X = canvas.width - 155;
 
     /* ── 三關卡：達門檻(累積分)進關，每關難度遞增 ── */
     const LEVELS = [
         { goal: 120, swing: 0.018, obstacles: 4, extraBomb: 0, goldBonus: 0 },
         { goal: 280, swing: 0.024, obstacles: 5, extraBomb: 1, goldBonus: 0 },
         { goal: 480, swing: 0.030, obstacles: 6, extraBomb: 2, goldBonus: 1 }
+    ];
+    const LEVEL_THEMES = [
+        { tint: "rgba(255, 174, 62, 0.06)", glow: "rgba(255, 194, 72, 0.22)", crystal: null },
+        { tint: "rgba(0, 116, 160, 0.24)", glow: "rgba(63, 222, 255, 0.26)", crystal: "#46e7ff" },
+        { tint: "rgba(92, 18, 112, 0.3)", glow: "rgba(255, 72, 184, 0.25)", crystal: "#ff5adf", magma: true }
     ];
     const LEVEL_TIME_BONUS = 12;
 
@@ -1107,7 +1014,7 @@
         moveRightBtn.style.display = playing ? "" : "none";
         moveLeftBtn.disabled = !playing;
         moveRightBtn.disabled = !playing;
-        speakBtn.disabled = !playing || currentQ !== "word";
+        syncCartSpeechButton();
     }
 
     /* 開始／結束畫面（HTML 覆蓋層）：非遊玩中顯示，結束時帶出成績 */
@@ -1197,7 +1104,7 @@
         caughtItem = null;
         setStatus("全部過關");
         setMessage("🏆 三關全破！太厲害了！", "good", 240);
-        window.speechSynthesis?.cancel();
+        if (window.speechSynthesis?.speaking || window.speechSynthesis?.pending) window.speechSynthesis.cancel();
         updateHud();
         updateControls();
     }
@@ -1213,7 +1120,7 @@
         timeLeft = 0;
         setStatus("時間到");
         setMessage("時間到！看看打到第幾關", "neutral", 220);
-        window.speechSynthesis?.cancel();
+        if (window.speechSynthesis?.speaking || window.speechSynthesis?.pending) window.speechSynthesis.cancel();
         updateHud();
         updateControls();
     }
@@ -1264,8 +1171,26 @@
         msg.onend = restoreBgm;
         msg.onerror = restoreBgm;
 
-        window.speechSynthesis.cancel();
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) window.speechSynthesis.cancel();
         window.speechSynthesis.speak(msg);
+    }
+
+    function syncCartSpeechButton() {
+        const canSpeak = gamePhase === "PLAYING" && currentQ === "word" && targetWordObj;
+        if (!canSpeak) {
+            cartSpeechBtn.style.display = "none";
+            return;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = rect.width / canvas.width;
+        const scaleY = rect.height / canvas.height;
+        cartSpeechBtn.style.display = "block";
+        cartSpeechBtn.style.left = `${rect.left + (origin.x - 142) * scaleX}px`;
+        cartSpeechBtn.style.top = `${rect.top + 6 * scaleY}px`;
+        cartSpeechBtn.style.width = `${284 * scaleX}px`;
+        cartSpeechBtn.style.height = `${104 * scaleY}px`;
+        cartSpeechBtn.setAttribute("aria-label", `重聽 ${targetWordObj.word} 的英文發音`);
     }
 
     function initLevel(autoSpeak = true) {
@@ -1304,8 +1229,6 @@
         });
 
         const taskText = `${REP_VERB[currentQ]}，抓${REP_ANS[currentA]}`;
-        targetWordEl.textContent = gamePhase === "PLAYING" ? questionText(targetWordObj, currentQ) : "準備開始";
-        if (taskInstructionEl) taskInstructionEl.textContent = gamePhase === "PLAYING" ? taskText : "看題目，抓正確的金塊";
         setStatus(gamePhase === "PLAYING" ? `第 ${level} 關 · 第 ${round} 題` : "準備中");
         setMessage(gamePhase === "PLAYING" ? `${taskText}｜答對 +${CORRECT_POINTS} 分，答錯 −${WRONG_TIME_PENALTY} 秒` : "點一下螢幕開始挑戰", "info", 200);
         updateHud();
@@ -1513,10 +1436,12 @@
         drawHookSystem();
         drawParticles();
         renderToast();
+        syncCartSpeechButton();
         requestAnimationFrame(loop);
     }
 
     function drawBackground() {
+        const theme = LEVEL_THEMES[level - 1] || LEVEL_THEMES[0];
         if (bgImage.complete && bgImage.naturalWidth > 0) {
             const q = bgImage.naturalWidth / 2;
             ctx.drawImage(bgImage, q, 0, q, q, 0, 0, canvas.width, canvas.height);
@@ -1529,8 +1454,11 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
+        ctx.fillStyle = theme.tint;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
         const shade = ctx.createRadialGradient(canvas.width / 2, 260, 100, canvas.width / 2, 300, 740);
-        shade.addColorStop(0, "rgba(255, 206, 93, 0.16)");
+        shade.addColorStop(0, theme.glow);
         shade.addColorStop(0.55, "rgba(30, 15, 8, 0.18)");
         shade.addColorStop(1, "rgba(3, 2, 1, 0.62)");
         ctx.fillStyle = shade;
@@ -1538,6 +1466,58 @@
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.32)";
         ctx.fillRect(0, canvas.height - 86, canvas.width, 86);
+
+        if (theme.crystal) {
+            drawCrystalCluster(94, 566, theme.crystal, level === 3 ? 1.2 : 1);
+            drawCrystalCluster(canvas.width - 88, 422, theme.crystal, level === 3 ? 0.92 : 0.78);
+        }
+        if (theme.magma) drawMagmaFissures();
+    }
+
+    function drawCrystalCluster(x, y, color, scale) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+        ctx.globalAlpha = 0.72;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 24;
+        [[-32, 6, 20, 72], [0, -8, 24, 92], [30, 12, 18, 64]].forEach(([cx, cy, w, h]) => {
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - h / 2);
+            ctx.lineTo(cx + w / 2, cy - h * 0.08);
+            ctx.lineTo(cx + w * 0.36, cy + h / 2);
+            ctx.lineTo(cx - w * 0.36, cy + h / 2);
+            ctx.lineTo(cx - w / 2, cy - h * 0.08);
+            ctx.closePath();
+            const crystal = ctx.createLinearGradient(cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2);
+            crystal.addColorStop(0, "rgba(255, 255, 255, 0.92)");
+            crystal.addColorStop(0.22, color);
+            crystal.addColorStop(1, "rgba(21, 18, 55, 0.92)");
+            ctx.fillStyle = crystal;
+            ctx.fill();
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.48)";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        });
+        ctx.restore();
+    }
+
+    function drawMagmaFissures() {
+        ctx.save();
+        ctx.globalAlpha = 0.78;
+        ctx.shadowColor = "#ff5a2b";
+        ctx.shadowBlur = 18;
+        ctx.strokeStyle = "#ffb12e";
+        ctx.lineWidth = 4;
+        [[120, 626, 242, 596], [426, 646, 528, 610], [742, 625, 884, 650]].forEach(([x1, y1, x2, y2]) => {
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo((x1 + x2) / 2 - 16, (y1 + y2) / 2 + 8);
+            ctx.lineTo((x1 + x2) / 2 + 12, (y1 + y2) / 2 - 7);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        });
+        ctx.restore();
     }
 
     function drawCaveFrame() {
@@ -1605,8 +1585,8 @@
         ctx.shadowBlur = 14;
         ctx.shadowOffsetY = 8;
 
-        roundRect(-78, -34, 156, 56, 8);
-        const wood = ctx.createLinearGradient(0, -34, 0, 22);
+        roundRect(-130, -38, 260, 62, 8);
+        const wood = ctx.createLinearGradient(0, -38, 0, 24);
         wood.addColorStop(0, "#b87939");
         wood.addColorStop(1, "#4e2c19");
         ctx.fillStyle = wood;
@@ -1615,23 +1595,49 @@
         ctx.lineWidth = 4;
         ctx.stroke();
 
-        roundRect(-86, -44, 172, 18, 6);
+        roundRect(-140, -50, 280, 18, 6);
         ctx.fillStyle = "#9fa5a8";
         ctx.fill();
         ctx.strokeStyle = "#33383a";
         ctx.stroke();
 
         ctx.fillStyle = "#d3d8d7";
-        for (let i = -58; i <= 58; i += 29) {
+        for (let i = -116; i <= 116; i += 29) {
             ctx.beginPath();
             ctx.arc(i, -35, 4, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        drawWheel(-52, 28, 17);
-        drawWheel(52, 28, 17);
+        drawWheel(-88, 28, 17);
+        drawWheel(88, 28, 17);
+
+        drawCartQuestion();
 
         ctx.restore();
+    }
+
+    function drawCartQuestion() {
+        const question = targetWordObj ? questionText(targetWordObj, currentQ) : "準備開始";
+        const isWordQuestion = gamePhase === "PLAYING" && currentQ === "word";
+        const display = isWordQuestion ? `🔊 ${question}` : question;
+        const isImageQuestion = gamePhase === "PLAYING" && currentQ === "image";
+        const fontFamily = isImageQuestion
+            ? '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif'
+            : 'Arial, "Noto Sans TC", sans-serif';
+        const fontSize = isImageQuestion ? 42 : fitLabelFont(display, 226, 30, 17);
+
+        roundRect(-119, -29, 238, 45, 7);
+        ctx.fillStyle = "rgba(255, 244, 202, 0.94)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(77, 39, 10, 0.9)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.shadowColor = "transparent";
+        ctx.fillStyle = "#261507";
+        ctx.font = `900 ${fontSize}px ${fontFamily}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(display, 0, -6, 226);
     }
 
     function drawWheel(x, y, r) {
@@ -2021,8 +2027,11 @@
         draw();
     }
 
-    speakBtn.addEventListener("click", () => {
-        if (gamePhase === "PLAYING" && currentQ === "word" && targetWordObj) speakWord(targetWordObj.word);
+    cartSpeechBtn.addEventListener("click", () => {
+        if (gamePhase === "PLAYING" && currentQ === "word" && targetWordObj) {
+            primeSpeech();
+            speakWord(targetWordObj.word);
+        }
     });
 
     /* ── 模式面板：三顆鈕永遠都畫出來，不可選的灰化；全圖檔開關只在有圖題庫顯示 ── */
