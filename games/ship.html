@@ -226,7 +226,6 @@
     margin-top: 8px;
   }
   .overlay button:active { transform: scale(.95); }
-  .overlay button.mode-picked { outline:3px solid #fff; box-shadow:0 0 0 5px rgba(255,209,88,.28),0 6px 22px rgba(255,160,40,.5); }
   #allpic-row button { min-height:44px; padding:8px 12px; font:inherit; font-size:14px; font-weight:800; color:#fff; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); border-radius:10px; cursor:pointer; }
   #allpic-row button.mode-picked { color:#3a1c00; background:#ffd158; }
   .hidden { display: none !important; }
@@ -272,27 +271,18 @@
     <div class="sub">Coast Defense ─ 英文單字 3D 海防遊戲</div>
     <div class="rules">
       🖱️ <b>準星跟著滑鼠</b>移動、<b>左鍵或空白鍵發射</b>（手機單指拖曳瞄準、<b>第二指點一下發射</b>）<br>
-      🚀 擊沉<b>符合天空所有條件</b>的船，<b>越遠分數越高</b>；連續命中累積<b>連擊倍率（最高 ×3）</b><br>
+      🚀 擊沉<b>符合天空題目</b>的船，<b>越遠分數越高</b>；連續命中累積<b>連擊倍率（最高 ×3）</b><br>
       📖 天空題目會輪流出兩種：<b>意思題</b>（給中文找對應單字）與 <b>句子題</b>（讀挖空句子 ＿＿＿，找填得進去的單字）<br>
       🏁 每關需擊沉 <b>2 艘</b>目標才過關；失敗不前進、會扣命<br>
-      💥 <b>困難模式</b>：船開來約 10 秒後會<b>反擊</b>，沒先打掉就扣命！<br>
       🦑 海怪約每 45 秒現身：<b>連打 5 下才打得死</b>，打死換隨機大獎（三連發／加時／加分…）；<b>沒打死它會襲擊你</b><br>
       👑 第 4、8 關有<b>魔王戰</b>，擊敗最終魔王即通關
     </div>
     <div style="font-size:14px;font-weight:800;color:#ffe9c0">題目內容</div>
     <div id="allpic-row" style="display:none; align-items:center; gap:8px; justify-content:center; font-size:clamp(13px,3vw,16px); color:#ffe9c0;"><button type="button" id="allpic-mix">混合練習（推薦）</button><button type="button" id="allpic-only">只玩圖片題</button></div>
-    <div id="mix-desc" style="display:none;font-size:13px;color:#d6e4ff;max-width:520px">混合練習：交替出現中英文字題與英文／發音選圖片；簡單圖片較多、困難文字較多。</div>
-    <div style="font-size:14px;font-weight:800;color:#ffe9c0">選擇難度</div>
-    <div id="mode-row" style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center;">
-      <button id="start-simple" style="background:linear-gradient(180deg,#7be38a,#33c45a); color:#06310f;">🌱 簡單模式</button>
-      <button id="start-normal" style="background:linear-gradient(180deg,#7fc4ff,#2f6bd6); color:#06213a;">🙂 一般模式</button>
-      <button id="start-hard" style="background:linear-gradient(180deg,#ff9d6b,#ec5a2c); color:#3a1200;">🔴 困難模式</button>
-      <button id="start-special" style="background:linear-gradient(180deg,#c39bff,#7d4fd6); color:#fff;">🟣 特殊模式</button>
-    </div>
+    <div id="mix-desc" style="display:none;font-size:13px;color:#d6e4ff;max-width:520px">混合練習：交替出現中英文字題與英文／發音選圖片。</div>
     <button id="start-ship-btn" type="button">開始遊戲</button>
     <button class="game-menu-return" type="button" onclick="location.href='../index.html'+location.hash" style="background:rgba(255,255,255,.16); color:#fff; font-size:clamp(15px,3.6vw,20px); padding:10px 32px;">← 返回遊戲選單</button>
-    <div class="sub" id="mode-hint" style="font-size:clamp(12px,2.8vw,15px);"></div>
-    <div class="sub" style="font-size:clamp(12px,2.8vw,15px);">簡單／一般／困難：每回合 6 發・海怪需命中 5 次｜困難：約 10 秒後反擊｜特殊：單字＋外觀雙重確認・18 秒</div>
+    <div class="sub" style="font-size:clamp(12px,2.8vw,15px);">每回合 6 發・海怪需命中 5 次</div>
   </div>
 
   <div id="over-screen" class="overlay hidden">
@@ -360,22 +350,16 @@ const bossLevels = {
   8: { hp: 5, name: "深海死神號", icon: "💀",   color: shipColors[4], final: true,  score: 2000, speed: 8.4 },
 };
 
-const ROUND_TIME_NORMAL = 16; // 簡單／一般模式每回合秒數（兩者玩法完全相同）
-const ROUND_TIME_HARD = 14;  // 困難模式回合時限（反擊才是主要壓力）
-const ROUND_TIME_SPECIAL = 18; // 特殊模式每回合秒數
-const ENEMY_AGGRO     = 10;  // 困難模式：船開來幾秒後鎖定你
-const ENEMY_AIM_WARN  = 1.5; // 鎖定後到開火的預警秒數
+const ROUND_TIME = 16;       // 每回合秒數
 const ROUNDS_PER_LEVEL = 2;  // 每關需擊沉幾艘目標才過關
 const MAX_LEVEL = 8;         // 最高關卡
 const MONSTER_WINDUP = 1.2;  // 海怪不打掉時，襲擊前的預警秒數
 const MONSTER_HP = 5;        // 海怪要連續打幾下才會死（死了給隨機大獎）
 const MONSTER_SPAWN = 45;    // 海怪平均多久出現一隻（秒）
-const AMMO_BY_MODE = { simple: 6, normal: 6, hard: 6 };  // 每回合 6 發：足夠擊敗 5 HP 海怪並保留 1 發
+const AMMO_PER_ROUND  = 6;   // 每回合 6 發：足夠擊敗 5 HP 海怪並保留 1 發
 const AMMO_MAX        = 6;   // 一般回合彈藥上限（魔王戰另依 HP 配給）
 const BASE_HIT_SCORE  = 200; // 擊沉目標的基礎分數
-const WRONG_HIT_SPEEDUP = 1.25; // 簡單／一般：打錯船時目標船加速倍率
-function usesAmmo(){ return AMMO_BY_MODE[game.difficulty] != null; }
-function ammoPerRound(){ return AMMO_BY_MODE[game.difficulty] || 3; }
+const WRONG_HIT_SPEEDUP = 1.25; // 打錯船時目標船加速倍率
 const SWAY_FROM_LEVEL = 3;   // 第幾關開始船隻橫向搖擺
 const SPAWN_Z      = 330;    // 船隻出生距離
 const SHORE_Z      = 42;     // 抵達岸邊距離
@@ -409,7 +393,6 @@ function project(x, z) {
 /* ════════════════ 遊戲狀態 ════════════════ */
 const game = {
   state: "menu",          // menu | playing | over | win
-  difficulty: "hard",     // simple | normal | hard | special（簡單與一般玩法相同，只差題型）
   level: 1,
   score: 0,
   lives: 3,
@@ -417,13 +400,11 @@ const game = {
   maxCombo: 0,
   clearProgress: 0,       // 本關已擊沉目標數，滿 ROUNDS_PER_LEVEL 升關
   lastRoundWon: false,    // 上一回合是否成功擊沉
-  threatPhase: "idle",    // 困難反擊：idle | aim | fired
-  threatT: 0,
   monster: null,          // 海怪（獎勵目標）
   monsterCd: 8,
-  timer: ROUND_TIME_HARD,
-  roundTime: ROUND_TIME_HARD,
-  ammo: 3,                // 本回合剩餘彈藥（限彈模式，startRoundCommon 依模式補滿）
+  timer: ROUND_TIME,
+  roundTime: ROUND_TIME,
+  ammo: AMMO_PER_ROUND,   // 本回合剩餘彈藥
   nextAmmoBonus: 0,       // 一發命中累積的下回合額外彈藥
   shotsThisRound: 0,      // 本回合已發射數（判斷一發命中）
   ships: [],
@@ -438,7 +419,6 @@ const game = {
   shakeT: 0,
   fireLock: false,
   roundEnding: false,     // 回合結算中：擋掉 update 每幀重複觸發逃走／扣命
-  activeDims: [],         // 特殊模式：本回合的判定維度
   bossesDone: {},         // 已擊敗的魔王 { "4": true, ... }
 };
 
@@ -530,7 +510,7 @@ const sfx = {
 };
 
 /* ════════════════ 單字發音（Web Speech） ════════════════
-   iOS 兩大地雷修法：1) 第一次 speak 由真實模式按鈕 click 解鎖（startGame 內 unlockSpeech）；
+   iOS 兩大地雷修法：1) 第一次 speak 由真實開始按鈕 click 解鎖（startGame 內 unlockSpeech）；
    2) 唸字時 suspend AudioContext 讓出 iOS 音訊工作階段，onend/onerror resume，
       世代 token 防連續換題 race＋setTimeout 安全網。BGM 走 HTMLAudio 不受影響。 */
 let _speakGen = 0;
@@ -557,11 +537,10 @@ function unlockSpeech(){
   try{ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); }catch(e){}
 }
 
-/* ════════════════ 三模式共用判定 ════════════════ */
+/* ════════════════ 題型設定 ════════════════ */
 // 題庫來源：帶 emoji 的字 ≥ 4 → 有圖題庫（內建主題）；否則視為連結單字
 function hasPicBank(){ return wordBank.filter(w => w.emoji).length >= 4; }
 let allPic = (function(){ try{ return localStorage.getItem('sgAllPic') === '1'; }catch(e){ return false; } })();
-let selectedShipMode = (function(){ try{return localStorage.getItem('shipMode3')||'normal';}catch(e){return 'normal';} })();
 
 /* ════════════════ 工具 ════════════════ */
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -579,21 +558,12 @@ function showToast(text, color) {
 }
 
 /* ════════════════ 回合 / 關卡產生 ════════════════ */
-function conditionKeysForLevel(lv) {
-  if (lv <= 1) return ["word"];
-  if (lv === 2) return ["word", "color"];
-  return ["word", "color", "flag"];
-}
-
 function startRoundCommon() {
-  // 補充本回合彈藥（限彈模式皆為 6 發；特殊不限彈）
-  game.ammo = Math.min(AMMO_MAX, ammoPerRound() + game.nextAmmoBonus);
+  game.ammo = Math.min(AMMO_MAX, AMMO_PER_ROUND + game.nextAmmoBonus);
   game.nextAmmoBonus = 0;
   game.shotsThisRound = 0;
   game.timer = game.roundTime;
   game.roundEnding = false;
-  game.threatPhase = "idle";
-  game.threatT = 0;
 }
 
 function newRound() {
@@ -604,15 +574,10 @@ function newRound() {
   if (bossLevels[lv] && !game.bossesDone[lv]) { startBossRound(lv); return; }
   game.boss = null;
 
-  if (game.difficulty === "special") { newRoundSpecial(lv); return; }
-
-  game.conditions = conditionKeysForLevel(lv);
+  game.conditions = ["word"];
   // ── 本回合題型（鐵則：圖片題一律「英文＋發音→打圖」，絕不看圖選字、絕不圖↔中）──
-  // 簡單＋全圖檔開／困難＋開：純英→圖；簡單＋關：英→圖為主＋約 1/3 中英；
-  // 困難＋關：一般題型＋約 1/3 英→圖；一般（或無圖）：意思題＋英→中＋句子題輪替
-  const d = game.difficulty;
-  const wantPic = hasPicBank() && (d === "simple" || d === "hard") &&
-    (allPic || (d === "simple" ? Math.random() >= 1/3 : Math.random() < 1/3));
+  // 有圖題庫時，全圖練習固定出圖片題；混合練習約 2/3 圖片題、1/3 文字題。
+  const wantPic = hasPicBank() && (allPic || Math.random() >= 1/3);
   const wordPool = wantPic ? wordBank.filter(w => w.emoji) : wordBank;
   const target = {
     word:  pick(wordPool),
@@ -621,9 +586,8 @@ function newRound() {
   };
   game.target = target;
   if (wantPic) game.qType = "en2pic";
-  else if (d === "simple") game.qType = Math.random() < 0.5 ? "cn2en" : "en2cn";   // 簡單穿插的中英回合（不出句子）
   else game.qType = (target.word.example && Math.random() < 0.5) ? "sentence"
-    : (Math.random() < 0.5 ? "cn2en" : "en2cn");   // 一般／困難：意思題＋英→中＋句子題輪替
+    : (Math.random() < 0.5 ? "cn2en" : "en2cn");
 
   const count = clamp(2 + lv, 3, 5);
   // 干擾船：單字必不同；圖片回合的干擾 emoji 也必須與目標不同
@@ -646,76 +610,10 @@ function newRound() {
         color: pick(shipColors),
         flag:  pick(flags),
       };
-      // 提高難度：第一艘干擾船故意與目標同色同旗，逼玩家讀單字
-      if (i === 1 && lv >= 2) { attrs.color = target.color; attrs.flag = target.flag; }
     }
     ships.push(makeShip(attrs, i, count, isTarget));
   }
   // 打亂航道順序（三個座標欄位一起換，否則目標船永遠卡在最左側）
-  for (let i = ships.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [ships[i].lane,   ships[j].lane]   = [ships[j].lane,   ships[i].lane];
-    [ships[i].spawnX, ships[j].spawnX] = [ships[j].spawnX, ships[i].spawnX];
-    [ships[i].shoreX, ships[j].shoreX] = [ships[j].shoreX, ships[i].shoreX];
-  }
-  game.ships = ships;
-  updateQuestionUI();
-}
-
-/* ── 特殊模式（雙線索）：每回合固定考「單字＋外觀」，場上保證有同單字與同外觀兩種陷阱船，
-      單看任一線索都會誤擊，逼玩家先認單字、再核對外觀 ── */
-const pickDifferent = (arr, cur) => { let v; do { v = pick(arr); } while (v === cur); return v; };
-
-function pickDiffByDim(d, target) {
-  if (d === "word")  return pickDifferent(wordBank, target.word);
-  if (d === "color") return pickDifferent(shipColors, target.color);
-  return pickDifferent(flags, target.flag);
-}
-
-function newRoundSpecial(lv) {
-  const visualDims = ["color", "flag"];
-  // 第 6 關起一次核對 2 個外觀特徵，前期單字＋1 個外觀
-  const activeVis = shuffle(visualDims.slice()).slice(0, lv >= 6 ? 2 : 1);
-  const activeDims = ["word", ...activeVis];
-  game.activeDims = activeDims;
-  game.conditions = activeDims;
-
-  const target = {
-    word:  pick(wordBank), color: pick(shipColors),
-    flag:  pick(flags),
-  };
-  game.target = target;
-
-  const count = clamp(2 + lv, 4, 5);   // 至少 4 艘才放得下兩種陷阱船
-  const ships = [makeShip({ ...target }, 0, count, true)];
-
-  // 陷阱一：同單字、判定外觀不符 → 只看單字會誤擊
-  const sameWord = { word: target.word, color: pick(shipColors), flag: pick(flags) };
-  const dv = pick(activeVis);
-  sameWord[dv] = pickDiffByDim(dv, target);
-  ships.push(makeShip(sameWord, 1, count, false));
-
-  // 陷阱二：判定外觀全符、單字不同 → 只看外觀會誤擊
-  const sameLook = { word: pickDifferent(wordBank, target.word), color: pick(shipColors), flag: pick(flags) };
-  for (const d of activeVis) sameLook[d] = target[d];
-  ships.push(makeShip(sameLook, 2, count, false));
-
-  // 其餘干擾：半數抄目標單字或外觀（半陷阱），但保證不會完全符合條件
-  for (let i = 3; i < count; i++) {
-    const attrs = {
-      word:  pick(wordBank), color: pick(shipColors),
-      flag:  pick(flags),
-    };
-    if (Math.random() < 0.5) attrs.word = target.word;
-    else for (const d of activeVis) if (Math.random() < 0.5) attrs[d] = target[d];
-    if (attrs.word === target.word && activeVis.every(d => attrs[d] === target[d])) {
-      const d = pick(activeDims);
-      attrs[d] = pickDiffByDim(d, target);
-    }
-    ships.push(makeShip(attrs, i, count, false));
-  }
-
-  // 打亂航道順序（三個座標欄位一起換）
   for (let i = ships.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [ships[i].lane,   ships[j].lane]   = [ships[j].lane,   ships[i].lane];
@@ -754,7 +652,6 @@ function makeShip(attrs, idx, count, isTarget) {
 
 function updateQuestionUI() {
   const t = game.target;
-  if (game.difficulty === "special") { updateQuestionUISpecial(t); return; }
   let title, chips;
   if (game.qType === "sentence" && t.word.example) {
     const cloze = t.word.example.replace("{W}", "＿＿＿");
@@ -773,24 +670,8 @@ function updateQuestionUI() {
     title = `擊沉符合條件的船（${t.word.pos}）`;
     chips = [`📖 意思：${t.word.meaning}`];
   }
-  if (game.conditions.includes("color")) chips.push(`${t.color.icon} 顏色：${t.color.name}`);
-  if (game.conditions.includes("flag"))  chips.push(`🚩 旗幟：${t.flag.emoji} ${t.flag.name}`);
   renderSkyChips(title, chips, false);
   $("conditions").innerHTML = "";   // 重點已移到上方，底部不再重複
-}
-
-// 特殊模式維度說明：句子用 val、籌碼用 label（帶 icon）
-const dimMeta = {
-  word:  { icon: "📖", name: "意思", val: t => t.word.meaning, label: t => t.word.meaning },
-  color: { icon: "🎨", name: "顏色", val: t => t.color.name,   label: t => t.color.icon + " " + t.color.name },
-  flag:  { icon: "🚩", name: "旗幟", val: t => t.flag.name,    label: t => t.flag.emoji + " " + t.flag.name },
-};
-
-function updateQuestionUISpecial(t) {
-  const dims = game.activeDims;
-  const chips = dims.map(d => `${dimMeta[d].icon} ${dimMeta[d].name}：${dimMeta[d].label(t)}`);
-  renderSkyChips(`雙重確認（${t.word.pos}）：單字＋外觀都要符合`, chips, true);
-  $("conditions").innerHTML = "";
 }
 
 function updateHUD() {
@@ -801,15 +682,10 @@ function updateHUD() {
     : `第 ${game.level} 關 ${"★".repeat(game.clearProgress)}${"☆".repeat(Math.max(0, ROUNDS_PER_LEVEL - game.clearProgress))}`;
 
   const ammoEl = $("ammo-label");
-  if (usesAmmo()) {
-    ammoEl.style.display = "";
-    ammoEl.textContent = `🚀 剩餘 ${game.ammo}`;
-    ammoEl.classList.toggle("ammo-low", game.ammo >= 1 && game.ammo <= 2);
-    ammoEl.classList.toggle("ammo-empty", game.ammo === 0);
-  } else {
-    ammoEl.style.display = "none";
-    ammoEl.classList.remove("ammo-low", "ammo-empty");
-  }
+  ammoEl.style.display = "";
+  ammoEl.textContent = `🚀 剩餘 ${game.ammo}`;
+  ammoEl.classList.toggle("ammo-low", game.ammo >= 1 && game.ammo <= 2);
+  ammoEl.classList.toggle("ammo-empty", game.ammo === 0);
 
   if (game.boss) $("timer-label").textContent = `💢 HP ${game.boss.hp}/${game.boss.maxHp}`;
   else $("timer-label").textContent = "⏱️ " + Math.max(0, Math.ceil(game.timer)) + "s";
@@ -834,11 +710,10 @@ function shipScreenRect(ship) {
 
 function fire() {
   if (game.state !== "playing" || game.fireLock || game.rockets.length) return;
-  // 限彈模式（簡單／一般／困難）：沒有彈藥不能發射
-  if (usesAmmo() && game.ammo <= 0) { sfx.bad(); return; }
+  if (game.ammo <= 0) { sfx.bad(); return; }
   game.fireLock = true;
   game.shotsThisRound++;
-  if (usesAmmo()) { game.ammo--; updateHUD(); }
+  game.ammo--; updateHUD();
   sfx.launch();
   // 三連發：一次扇形三發（命中範圍變大）；否則單發
   const spread = game.burst > 0 ? [-72, 0, 72] : [0];
@@ -853,9 +728,9 @@ function fire() {
   }
 }
 
-// 限彈模式彈藥耗盡：視同目標逃走（沿用逃走懲罰）。回傳 true 表示回合已結束。
+// 彈藥耗盡：視同目標逃走（沿用逃走懲罰）。回傳 true 表示回合已結束。
 function checkAmmoOut() {
-  if (usesAmmo() && game.ammo <= 0) {
+  if (game.ammo <= 0) {
     game.fireLock = true;
     setTimeout(() => targetEscaped("🔫 彈藥用盡，目標逃走了！"), 700);
     return true;
@@ -911,10 +786,6 @@ function resolveImpact(x, y, fxX, fxY, fromBurst) {
     let comboText = "";
     if (distT > 0.6) comboText += "  🎯遠距狙擊";
     if (comboMult > 1) comboText += `  🔥x${comboMult}`;
-    // 困難模式：一發命中，下回合 +1 發子彈
-    if (game.difficulty === "hard" && game.shotsThisRound === 1) {
-      game.nextAmmoBonus = 1; comboText += "  一發入魂+1彈";
-    }
     sfx.good();
     showToast(`命中 +${gained}${comboText}`, "#ffe082");
     game.lastRoundWon = true;
@@ -928,19 +799,9 @@ function resolveImpact(x, y, fxX, fxY, fromBurst) {
     game.score = Math.max(0, game.score - 150);
     game.combo = 0;
     sfx.bad();
-    // 簡單／一般：打錯船時目標船加速逃走（時間壓力取代反擊）
-    if (game.difficulty === "simple" || game.difficulty === "normal") {
-      const tgt = game.ships.find(s => s.isTarget && s.alive && s.sinking === 0);
-      if (tgt) tgt.speed *= WRONG_HIT_SPEEDUP;
-    }
-    // 特殊模式陷阱船：點出漏看了哪條線索
-    if (game.difficulty === "special" && hit.word === game.target.word) {
-      showToast("❌ 單字對了，但外觀不符！-150", "#ff8a80");
-    } else if (game.difficulty === "special" && game.activeDims.every(d => d === "word" || hit[d] === game.target[d])) {
-      showToast(`❌ 外觀對了，但那是 ${hit.word.word}（${hit.word.meaning}）-150`, "#ff8a80");
-    } else {
-      showToast(`❌ 誤擊 ${hit.word.word}（${hit.word.meaning}） -150`, "#ff8a80");
-    }
+    const tgt = game.ships.find(s => s.isTarget && s.alive && s.sinking === 0);
+    if (tgt) tgt.speed *= WRONG_HIT_SPEEDUP;
+    showToast(`❌ 誤擊 ${hit.word.word}（${hit.word.meaning}） -150`, "#ff8a80");
     if (!checkAmmoOut()) game.fireLock = false;
   }
   updateHUD();
@@ -1047,25 +908,6 @@ function showLevelBanner(lv) {
   sfx.good();
 }
 
-// 困難模式：船開來約 ENEMY_AGGRO 秒後鎖定你，再過 ENEMY_AIM_WARN 秒開火扣 1 命
-function enemyCounterFire() {
-  if (game.roundEnding) return;
-  game.roundEnding = true;
-  game.threatPhase = "fired";
-  game.lastRoundWon = false;
-  game.combo = 0;
-  game.lives--;
-  game.shakeT = 0.6;
-  sfx.boom();
-  const tgt = game.ships.find(s => s.isTarget && s.alive);
-  dmgIndicatorAt(tgt ? shipScreenRect(tgt).x : W / 2);   // 受擊方向小圓弧
-  showToast("💥 被敵艦擊中！-1 💔", "#ff6b6b");
-  updateHUD();
-  game.fireLock = true;
-  if (game.lives <= 0) setTimeout(gameOver, 1200);
-  else setTimeout(endRound, 1400);
-}
-
 // ── 海怪：稀有出沒的獎勵目標。不打掉它會襲擊你；累積擊沉 5 隻換一次隨機大獎 ──
 function spawnMonster() {
   game.monster = {
@@ -1136,7 +978,6 @@ function hitMonster(m, fxX, fxY) {
 // 隨機大獎（5 選 1）：三連發砲彈 / 時間延長 / 加分 / 補命 / 補彈
 function grantMonsterReward() {
   let kind = pick(["burst", "time", "score", "life", "ammo"]);
-  if (kind === "ammo" && !usesAmmo()) kind = "score";  // 無限彈模式（特殊）不需要
   if (kind === "life" && game.lives >= 3) kind = "score";
   let msg;
   switch (kind) {
@@ -1173,30 +1014,6 @@ function drawDmgArc(dt) {
   ctx.beginPath(); ctx.arc(cx, cy, R, dmgArc.ang - 0.42, dmgArc.ang + 0.42); ctx.stroke();
   ctx.restore();
 }
-// 困難反擊：在目標船上畫一個逐漸收緊的紅色狙擊圈，讓玩家知道誰要開火、何時開火
-function drawThreatTelegraph() {
-  const tgt = game.ships.find(s => s.isTarget && s.alive && s.sinking === 0);
-  if (!tgt) return;
-  const r = shipScreenRect(tgt);
-  const prog = clamp(game.threatT / ENEMY_AIM_WARN, 0, 1);
-  const cx = r.x, cy = r.y - r.u * 3.2;
-  const radius = lerp(r.u * 7, r.u * 1.8, prog);
-  ctx.save();
-  ctx.strokeStyle = `rgba(255,50,50,${0.35 + prog * 0.6})`;
-  ctx.lineWidth = 2 + prog * 2.5;
-  ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(cx - radius, cy); ctx.lineTo(cx + radius, cy);
-  ctx.moveTo(cx, cy - radius); ctx.lineTo(cx, cy + radius);
-  ctx.stroke();
-  const fs = Math.max(11, Math.min(20, r.u * 2.2));
-  ctx.font = `900 ${fs}px sans-serif`;
-  ctx.fillStyle = `rgba(255,90,90,${0.5 + prog * 0.5})`;
-  ctx.textAlign = "center"; ctx.textBaseline = "bottom";
-  ctx.fillText("🎯 敵艦開火準備", cx, cy - radius - 4);
-  ctx.restore();
-}
-
 function drawMonster(now) {
   const m = game.monster;
   if (!m) return;
@@ -1312,20 +1129,6 @@ function drawMonster(now) {
   ctx.restore();
 }
 
-function drawThreatWarning(now) {
-  const pulse = 0.4 + 0.45 * (0.5 + 0.5 * Math.sin(now / 90));
-  const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.28, W / 2, H / 2, Math.max(W, H) * 0.72);
-  g.addColorStop(0, "rgba(255,0,0,0)");
-  g.addColorStop(1, `rgba(255,30,30,${pulse * 0.6})`);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
-  const fs = Math.max(16, Math.min(28, W * 0.04));
-  ctx.font = `900 ${fs}px sans-serif`;
-  ctx.textAlign = "center"; ctx.textBaseline = "top";
-  ctx.fillStyle = `rgba(255,90,90,${0.6 + pulse * 0.4})`;
-  ctx.fillText("⚠ 敵艦鎖定！快開火", W / 2, H * 0.16);
-}
-
 /* ════════════════ 魔王關 ════════════════ */
 function startBossRound(lv) {
   const cfg = bossLevels[lv];
@@ -1339,8 +1142,8 @@ function startBossRound(lv) {
   game.qType = "cn2en";           // 魔王戰固定意思題（護衛艦掛英文字）
   game.monster = null;            // 魔王戰不出海怪
   $("conditions").innerHTML = "";
-  // 限彈模式魔王戰配給較多彈藥（HP + 3）
-  if (usesAmmo()) game.ammo = cfg.hp + 3;
+  // 魔王戰配給較多彈藥（HP + 3）
+  game.ammo = cfg.hp + 3;
   spawnBossWave();
   showToast(`👑 ${cfg.name} 出現！本體打不壞，先擊沉答對的護衛艦！`, "#ff8a80");
   updateHUD();
@@ -1409,7 +1212,7 @@ function resolveBossImpact(x, y, fxX, fxY) {
     spawnExplosion(fxX ?? x, fxY ?? y, false);
     game.shakeT = 0.2;
     showToast("🛡️ 攻擊無效！魔王本體打不壞，擊沉答對的護衛艦！", "#ffd54f");
-    if (usesAmmo()) { game.ammo++; updateHUD(); }   // 退還這發（魔王戰彈藥可超過 AMMO_MAX，不套上限）
+    game.ammo++; updateHUD();   // 退還這發（魔王戰彈藥可超過 AMMO_MAX，不套上限）
     game.fireLock = false;
     return;
   }
@@ -1462,9 +1265,9 @@ function resolveBossImpact(x, y, fxX, fxY) {
   }
 }
 
-// 魔王戰彈藥耗盡（限彈模式）：扣 1 命並補給，撐不住則 game over
+// 魔王戰彈藥耗盡：扣 1 命並補給，撐不住則 game over
 function checkBossAmmoOut() {
-  if (!usesAmmo() || game.ammo > 0) return false;
+  if (game.ammo > 0) return false;
   game.lives--;
   game.combo = 0;
   sfx.bad();
@@ -1472,7 +1275,7 @@ function checkBossAmmoOut() {
   game.fireLock = true;
   if (game.lives <= 0) { setTimeout(gameOver, 900); return true; }
   showToast("🔫 彈藥用盡 -1命，緊急補給！", "#ff8a80");
-  setTimeout(() => { game.ammo = ammoPerRound(); game.fireLock = false; updateHUD(); }, 900);
+  setTimeout(() => { game.ammo = AMMO_PER_ROUND; game.fireLock = false; updateHUD(); }, 900);
   return true;
 }
 
@@ -1546,22 +1349,17 @@ function drawBoss(now) {
   ctx.restore();
 }
 
-function startGame(difficulty) {
+function startGame() {
   unlockSpeech();   // 真實按鈕點擊：解鎖 iOS 發音
   audio();
   startBgm();
-  let diff = difficulty || game.difficulty || "hard";
-  // 依題庫來源 clamp：有圖→簡單／困難（＋特殊）、無圖→一般／困難（＋特殊）
-  if (diff === "simple" && !hasPicBank()) diff = "normal";
-  if (diff === "normal" && hasPicBank()) diff = "simple";
-  try{ localStorage.setItem('shipMode3', diff); }catch(e){}
   Object.assign(game, {
-    state: "playing", difficulty: diff, level: 1, score: 0, lives: 3, combo: 0, maxCombo: 0,
-    clearProgress: 0, lastRoundWon: false, threatPhase: "idle", threatT: 0,
+    state: "playing", level: 1, score: 0, lives: 3, combo: 0, maxCombo: 0,
+    clearProgress: 0, lastRoundWon: false,
     monster: null, monsterCd: rand(30, 45), burst: 0,
     rockets: [], particles: [], splashes: [], fireLock: false, roundEnding: false,
-    boss: null, bossesDone: {}, nextAmmoBonus: 0, activeDims: [],
-    roundTime: diff === "hard" ? ROUND_TIME_HARD : diff === "special" ? ROUND_TIME_SPECIAL : ROUND_TIME_NORMAL,
+    boss: null, bossesDone: {}, nextAmmoBonus: 0,
+    roundTime: ROUND_TIME,
     aimX: W / 2, aimY: horizonY + H * 0.18,
   });
   dmgArc = null;
@@ -1576,31 +1374,18 @@ function startGame(difficulty) {
   updateHUD();
 }
 
-// 模式面板：先選模式，再由同一顆開始鈕進場。
-function refreshModeUI() {
+function refreshQuestionUI() {
   const pics = hasPicBank();
-  if (![pics ? 'simple' : 'normal','hard','special'].includes(selectedShipMode)) selectedShipMode = pics ? 'simple' : 'normal';
-  $("start-simple").hidden = !pics;
-  $("start-normal").hidden = pics;
-  ['simple','normal','hard','special'].forEach(m=>{ const b=$("start-"+m); b.classList.toggle('mode-picked',selectedShipMode===m); b.setAttribute('aria-pressed',selectedShipMode===m?'true':'false'); });
-  $("mode-hint").textContent = pics
-    ? "內建圖片單字：可選簡單或困難（特殊不限）"
-    : "連結單字（無圖片）：可選一般或困難（特殊不限）";
   $("allpic-row").style.display = pics ? "flex" : "none";
   $("mix-desc").style.display = pics ? "block" : "none";
   $("allpic-mix").classList.toggle('mode-picked',!allPic);
   $("allpic-only").classList.toggle('mode-picked',allPic);
 }
-function setAllPic(on){ allPic=on; try{localStorage.setItem('sgAllPic',on?'1':'0');}catch(e){} refreshModeUI(); }
-function selectShipMode(m){ selectedShipMode=m; try{localStorage.setItem('shipMode3',m);}catch(e){} refreshModeUI(); }
+function setAllPic(on){ allPic=on; try{localStorage.setItem('sgAllPic',on?'1':'0');}catch(e){} refreshQuestionUI(); }
 $("allpic-mix").addEventListener("click", () => setAllPic(false));
 $("allpic-only").addEventListener("click", () => setAllPic(true));
-$("start-simple").addEventListener("click", () => selectShipMode("simple"));
-$("start-normal").addEventListener("click", () => selectShipMode("normal"));
-$("start-hard").addEventListener("click", () => selectShipMode("hard"));
-$("start-special").addEventListener("click", () => selectShipMode("special"));
-$("start-ship-btn").addEventListener("click", () => startGame(selectedShipMode));
-refreshModeUI();
+$("start-ship-btn").addEventListener("click", startGame);
+refreshQuestionUI();
 $("restart-btn").addEventListener("click", () => startGame());
 $("winagain-btn").addEventListener("click", () => startGame());
 $("fire-btn").addEventListener("click", fire);
@@ -1807,9 +1592,6 @@ function drawShip(ship, now) {
     ctx.fill();
   }
 
-  // 困難模式的敵艦都配有大砲，讓玩家一眼看出它們會反擊
-  if (game.difficulty === "hard" && ship.sinking === 0) drawDeckCannon(L, hullH, u);
-
   // ── 桅杆與旗幟 ──
   const mastTop = -hullH - 5.6 * u;
   ctx.strokeStyle = "#503a26";
@@ -1844,31 +1626,6 @@ function drawShip(ship, now) {
     ctx.fillText(label, 0, -hullH * 0.45);
   }
 
-  ctx.restore();
-}
-
-function drawDeckCannon(L, hullH, u) {
-  const x = -L * 0.31;
-  const y = -hullH - 0.3 * u;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.fillStyle = "#232934";
-  ctx.strokeStyle = "#0b0f16";
-  ctx.lineWidth = Math.max(1, 0.16 * u);
-  ctx.beginPath();
-  ctx.arc(0, 0, 0.75 * u, Math.PI, 0);
-  ctx.closePath();
-  ctx.fill(); ctx.stroke();
-  ctx.lineCap = "round";
-  ctx.lineWidth = Math.max(2, 0.72 * u);
-  ctx.beginPath();
-  ctx.moveTo(-0.25 * u, -0.45 * u);
-  ctx.lineTo(-2.15 * u, -1.35 * u);
-  ctx.stroke();
-  ctx.fillStyle = "#ff5d45";
-  ctx.beginPath();
-  ctx.arc(-2.25 * u, -1.4 * u, 0.32 * u, 0, Math.PI * 2);
-  ctx.fill();
   ctx.restore();
 }
 
@@ -2041,18 +1798,6 @@ function update(dt) {
     }
   }
 
-  // 困難模式反擊：開戰約 ENEMY_AGGRO 秒後鎖定 → 預警 → 開火扣命
-  if (game.difficulty === "hard") {
-    const elapsed = game.roundTime - game.timer;
-    if (game.threatPhase === "idle" && elapsed >= ENEMY_AGGRO) {
-      game.threatPhase = "aim"; game.threatT = 0;
-      sfx.bad(); showToast("🎯 敵艦鎖定你！", "#ff6b6b");
-    } else if (game.threatPhase === "aim") {
-      game.threatT += dt;
-      if (game.threatT >= ENEMY_AIM_WARN) { enemyCounterFire(); return; }
-    }
-  }
-
   updateMonster(dt);
   if (game.shakeT > 0) game.shakeT -= dt;
   updateHUD();
@@ -2093,10 +1838,6 @@ function render(now, dt) {
     drawLauncher();
     drawCrosshair();
   }
-  if (game.state === "playing" && game.threatPhase === "aim" && !game.roundEnding) {
-    drawThreatWarning(now);
-    drawThreatTelegraph();
-  }
   drawDmgArc(dt);
   ctx.restore();
 }
@@ -2127,7 +1868,7 @@ function wordsConflict(a,b){
 function applyShipData(payload){
   const next=normalizeShipWords(payload&&payload.words);
   wordBank = next.length>=4 ? next : DEFAULT_SHIP_WORDBANK;
-  if(typeof refreshModeUI==='function') refreshModeUI();   // 依來源更新模式灰化與全圖檔開關
+  if(typeof refreshQuestionUI==='function') refreshQuestionUI();   // 依題庫來源更新全圖檔開關
 }
 function readShipHash(){
   const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash;
