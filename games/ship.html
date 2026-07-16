@@ -269,15 +269,22 @@
 
   <div id="start-screen" class="overlay">
     <h1>🌊 海岸防線</h1>
-    <div class="sub">Coast Defense ─ 英文單字 3D 海防遊戲</div>
-    <div class="rules">
-      🖱️ <b>準星跟著滑鼠</b>移動、<b>左鍵或空白鍵發射</b>（手機單指拖曳瞄準、<b>第二指點一下發射</b>）<br>
-      🚀 擊沉<b>符合天空所有條件</b>的船，<b>越遠分數越高</b>；連續命中累積<b>連擊倍率（最高 ×3）</b><br>
-      📖 天空題目會輪流出兩種：<b>意思題</b>（給中文找對應單字）與 <b>句子題</b>（讀挖空句子 ＿＿＿，找填得進去的單字）<br>
-      🏁 每關需擊沉 <b>2 艘</b>目標才過關；失敗不前進、會扣命<br>
-      💥 <b>困難模式</b>：船開來約 10 秒後會<b>反擊</b>，沒先打掉就扣命！<br>
-      🦑 海怪約每 45 秒現身：<b>連打 5 下才打得死</b>，打死換隨機大獎（三連發／加時／加分…）；<b>沒打死它會襲擊你</b><br>
-      👑 第 4、8 關有<b>魔王戰</b>，擊敗最終魔王即通關
+    <div class="sub">Coast Defense</div>
+    <div class="game-intro-line">
+      <span>看題目，擊沉正確單字船艦！</span>
+      <details class="game-info">
+        <summary aria-label="查看詳細玩法">!</summary>
+        <div class="game-info-panel">
+          <h2>🌊 詳細玩法</h2>
+          🖱️ <b>滑鼠移動準星</b>，左鍵或空白鍵發射；手機單指拖曳瞄準、第二指點一下發射。<br>
+          🚀 擊沉<b>符合天空所有條件</b>的船，越遠分數越高；連續命中可提高連擊倍率。<br>
+          📖 題目包含中文意思、挖空句子與圖片題。<br>
+          🏁 每關擊沉 <b>2 艘</b>目標船才過關；失敗會扣命。<br>
+          💥 困難模式中，船艦約 10 秒後會反擊。<br>
+          🦑 海怪需連打 5 下，擊敗後可獲得隨機獎勵。<br>
+          👑 第 4、8 關是魔王戰，擊敗最終魔王即可通關。
+        </div>
+      </details>
     </div>
     <div style="font-size:14px;font-weight:800;color:#ffe9c0">題目內容</div>
     <div id="allpic-row" style="display:none; align-items:center; gap:8px; justify-content:center; font-size:clamp(13px,3vw,16px); color:#ffe9c0;"><button type="button" id="allpic-mix">混合練習（推薦）</button><button type="button" id="allpic-only">只玩圖片題</button></div>
@@ -291,7 +298,6 @@
     <button id="start-ship-btn" type="button">開始遊戲</button>
     <button class="game-menu-return" type="button" onclick="location.href='../index.html'+location.hash" style="background:rgba(255,255,255,.16); color:#fff; font-size:clamp(15px,3.6vw,20px); padding:10px 32px;">← 返回遊戲選單</button>
     <div class="sub" id="mode-hint" style="font-size:clamp(12px,2.8vw,15px);"></div>
-    <div class="sub" style="font-size:clamp(12px,2.8vw,15px);">簡單／一般／困難：每回合 6 發・海怪需命中 5 次｜困難：約 10 秒後反擊</div>
   </div>
 
   <div id="over-screen" class="overlay hidden">

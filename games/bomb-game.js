@@ -1629,6 +1629,8 @@ function drawMenu(c) {
   c.shadowBlur=0;
   c.font=`${clamp(H * 0.032, 18, 26)}px Arial`; c.fillStyle='rgba(255,255,255,0.75)';
   c.fillText(`Bomb English — ${bombLessonTitle}`, W/2, H*0.29);
+  c.font=`bold ${clamp(H * 0.027, 16, 22)}px Arial`; c.fillStyle='rgba(255,255,255,0.92)';
+  c.fillText('看題目，炸中正確單字房子！', W/2, H*0.36);
   c.restore();
 
   // Buttons：三顆永遠都畫出來，不可選的灰化
@@ -2658,6 +2660,7 @@ const _speechOverlay = (() => {
   const normalBtn = mkBtn('選擇一般模式');
   const hardBtn   = mkBtn('選擇困難模式');
   const speakBtn  = mkBtn('播放單字發音');
+  const infoEl = document.getElementById('bomb-game-info');
   const startBtn = document.createElement('button');
   startBtn.type = 'button'; startBtn.textContent = '開始遊戲';
   startBtn.style.cssText = 'position:fixed;z-index:9002;display:none;min-height:44px;padding:10px 28px;border:2px solid #fff;border-radius:999px;color:#3a1c00;background:linear-gradient(#ffe36b,#ffae2e);font:bold 18px Arial,"Noto Sans TC",sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;';
@@ -2705,6 +2708,9 @@ const _speechOverlay = (() => {
       startBtn.textContent = `開始遊戲（${menuMode==='simple'?'簡單':menuMode==='normal'?'一般':'困難'}）`;
       startBtn.style.left = (W/2 - 98) + 'px'; startBtn.style.top = (ys.hardY + bh/2 + clamp(H*0.10,75,114)) + 'px'; startBtn.style.display = 'block';
       menuBtn.style.display = 'block';
+      infoEl.hidden = false;
+      infoEl.style.left = Math.min(W - 54, W/2 + clamp(W * .22, 145, 220)) + 'px';
+      infoEl.style.top = (H * .36 - 19) + 'px';
       if (hasPicBank()) {
         const rw = Math.min(W * 0.9, 440);
         allPicRow.style.left = (W/2 - rw/2) + 'px';
@@ -2715,6 +2721,8 @@ const _speechOverlay = (() => {
         allPicRow.style.display = 'none';
       }
     } else {
+      infoEl.open = false;
+      infoEl.hidden = true;
       simpleBtn.style.display = 'none'; normalBtn.style.display = 'none'; hardBtn.style.display = 'none'; startBtn.style.display = 'none'; menuBtn.style.display = 'none';
       allPicRow.style.display = 'none';
     }

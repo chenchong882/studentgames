@@ -83,8 +83,7 @@
   .uiBtn{margin-top:18px;padding:11px 26px;font-size:16px;font-weight:700;
     background:#2c3242;color:#fff;border:2px solid #ffd878;border-radius:10px;cursor:pointer;}
   .uiBtn:hover{background:#3d4659;}
-  #overlay .guideLink{color:#ffd878;text-decoration:underline;cursor:pointer;
-    font-size:15px;margin-top:6px;}
+  #overlay .guideLink{margin:0;}
   #modeSel{margin-top:18px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:9px;}
   #modeSel .diffLab{font-size:14px;color:rgba(255,255,255,.65);}
   .modeBtn{padding:9px 18px;font-size:15px;font-weight:700;border-radius:9px;cursor:pointer;
@@ -233,8 +232,7 @@
 <div id="overlay">
   <h1>🦖 侏羅紀坦克 3D</h1>
   <div class="sub">J U R A S S I C&nbsp;&nbsp;T A N K</div>
-  <p>到發光的樹上射下正確的英文單字，邊打恐龍邊學單字！</p>
-  <p class="guideLink" id="guideLink">📖 查看玩法說明</p>
+  <div class="game-intro-line"><span>射下正確單字，擊退恐龍！</span><button class="game-info-button guideLink" id="guideLink" type="button" aria-label="查看詳細玩法">!</button></div>
   <div id="allPicRow" class="hidden"><button type="button" id="allPicMix">混合練習（推薦）</button><button type="button" id="allPicOnly">只玩圖片題</button></div>
   <div id="mixDesc" class="hidden">混合練習：交替出現中英文字題與英文／發音選圖片；簡單圖片較多、困難文字較多。</div>
   <div id="modeSel">
@@ -1978,7 +1976,7 @@ document.getElementById('guideBtn').addEventListener('click',e=>{e.stopPropagati
 document.getElementById('pauseCard').addEventListener('click',e=>e.stopPropagation());
 document.getElementById('resumeBtn').addEventListener('click',e=>{e.stopPropagation();togglePause();});
 document.getElementById('pauseMenuBtn').addEventListener('click',e=>{e.stopPropagation();window.openGameExitConfirm();});
-document.getElementById('guideLink').addEventListener('mousedown',e=>{e.stopPropagation();openGuide();});
+document.getElementById('guideLink').addEventListener('click',e=>{e.stopPropagation();openGuide();});
 /* ====== 遊戲模式（簡單 / 一般 / 困難）：點按鈕即選定並開始（真實 click 也順便解鎖 iOS 發音） ====== */
 function setMode(m){
   const allow=allowedTankModes();
@@ -2031,7 +2029,6 @@ setMode(mode);refreshModeUI();
 })();
 ['mousedown','touchstart'].forEach(ev=>elLightBtn.addEventListener(ev,e=>e.stopPropagation(),{passive:true}));
 elLightBtn.addEventListener('click',e=>{e.stopPropagation();ensureAudio();activateLight();});
-try{if(!localStorage.getItem('tankGuideSeen'))openGuide();}catch(e){openGuide();}
 
 /* ============ 輸入 ============ */
 // 用 e.code（實體按鍵）而非 e.key，避免中文輸入法導致 WASD 失效

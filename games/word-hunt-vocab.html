@@ -102,7 +102,7 @@
     <div class="overlay" id="overlay">
         <section class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
             <h2 id="dialogTitle">單字獵人</h2>
-            <p id="dialogText">共有 3 關。每關都會重新計時，找得越快，星星越多！</p>
+            <div class="game-intro-line" style="color:#475569"><span id="dialogText">拖出藏在字母格裡的單字！</span><details class="game-info" id="wordHuntInfo"><summary aria-label="查看詳細玩法">!</summary><div class="game-info-panel"><h2>🔎 詳細玩法</h2>從第一個字母拖到最後一個字母，橫、直、斜線都可以。<br>點上方單字可以聽英文發音。<br>共有 <b>3 關</b>，每關都會重新計時；找得越快，得到的星星越多。</div></details></div>
             <div class="stars" id="dialogStars" hidden></div>
             <div class="result-list" id="resultList" hidden></div>
             <div class="total" id="totalStars" hidden></div>
@@ -168,6 +168,7 @@
         const overlay = document.getElementById('overlay');
         const dialogTitle = document.getElementById('dialogTitle');
         const dialogText = document.getElementById('dialogText');
+        const wordHuntInfo = document.getElementById('wordHuntInfo');
         const dialogStars = document.getElementById('dialogStars');
         const resultList = document.getElementById('resultList');
         const totalStars = document.getElementById('totalStars');
@@ -555,6 +556,7 @@
             results[levelIndex] = { seconds, stars };
             dialogTitle.textContent = `第 ${levelIndex + 1} 關完成！`;
             dialogText.textContent = `你花了 ${seconds} 秒，拿到 ${stars} 顆星！`;
+            wordHuntInfo.hidden = true;
             dialogStars.innerHTML = starText(stars);
             dialogStars.hidden = false;
             resultList.hidden = true;
@@ -568,6 +570,7 @@
             const total = results.reduce((sum, result) => sum + result.stars, 0);
             dialogTitle.textContent = '全部關卡完成！';
             dialogText.textContent = '這是你這次的單字獵人紀錄：';
+            wordHuntInfo.hidden = true;
             dialogStars.hidden = true;
             resultList.innerHTML = results.map((result, index) => `<div class="result-row"><span>第 ${index + 1} 關　${result.seconds} 秒</span><span class="stars">${starText(result.stars)}</span></div>`).join('');
             resultList.hidden = false;
@@ -625,7 +628,8 @@
             pauseButton.hidden = true;
             hintButton.hidden = true;
             dialogTitle.textContent = '單字獵人';
-            dialogText.textContent = `${sourceBadge.textContent}已載入，共 ${words.length} 個可用單字。每關都會重新計時！`;
+            dialogText.textContent = `找出這次的 ${words.length} 個單字！`;
+            wordHuntInfo.hidden = false;
             dialogStars.hidden = true;
             resultList.hidden = true;
             totalStars.hidden = true;

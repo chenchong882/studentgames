@@ -315,16 +315,8 @@
 
   <div class="screen" id="startScreen">
     <h1>🏃 英文跑酷 3D</h1>
-    <div class="sub">Word Parkour・邊跑酷邊學英文！</div>
-    <div class="rules">
-      ⬆️ 上滑＝跳躍（跳過矮牆）<br>
-      ⬇️ 下滑＝滑鏟（鑽過橫樑）<br>
-      ⬅️ ➡️ 左右滑＝切換跑道（閃開路障）<br>
-      📋 遇到「題目門」：會反覆唸出單字並出題，<br>
-      　 聽單字、想答案，門靠近時滑向正確方向！<br>
-      　 想選 ⬆️上跳／⬇️下滑，要先回中間跑道才算數<br>
-      ❤️ 三條命，撞到障礙或答錯扣一命
-    </div>
+    <div class="sub">Word Parkour</div>
+    <div class="game-intro-line"><span>閃避障礙，衝過正確答案門！</span><button class="game-info-button" id="startGuideBtn" type="button" aria-label="查看詳細玩法">!</button></div>
     <div id="modePanel" class="typePanel">
       <div class="tpTitle">題目內容</div>
       <div class="tpSeg hidden" id="allPicRow"><button type="button" id="allPicMix">混合練習（推薦）</button><button type="button" id="allPicOnly">只玩圖片題</button></div>
@@ -1273,8 +1265,8 @@ $('pauseBtn').addEventListener('click', togglePause);
   $('pauseBtn').addEventListener(ev, e => e.stopPropagation()));
 $('resumeBtn').addEventListener('click', togglePause);
 $('pauseMenuBtn').addEventListener('click', () => window.openGameExitConfirm());
+$('startGuideBtn').addEventListener('click', openGuide);
 $('guideBtn').addEventListener('click', closeGuide);
-try { if (!localStorage.getItem('runnerGuideSeen')) openGuide(); } catch(e){ openGuide(); }
 
 // 待機畫面也讓角色原地跑
 resetPlayer();

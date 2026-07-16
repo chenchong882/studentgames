@@ -150,17 +150,22 @@ button{font-family:'Outfit',sans-serif;}
   <div class="unit-title" id="unit-title">等待教材資料...</div>
 
   <section id="start-screen" class="start-card">
-    <div class="panel">
-      <div class="rules">
-        <div class="rule"><strong>勝利目標</strong><br>推倒敵方基地，或時間到時基地血量較高。</div>
-        <div class="rule"><strong>答對獎勵</strong><br>+25 金，連對 3 題再 +15 金。</div>
-        <div class="rule" id="difficulty-summary"><strong>敵方壓力</strong><br>普通：開場 30 金，答錯敵方增援。</div>
-        <div class="rule"><strong>題型</strong><br>單字題（中英互選、看字選圖）賺金幣；一般／困難穿插填空／文法題賺強化值。任何題連對達標（簡單 5 題、其他 8 題）再 +1 強化值。</div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="section-title">兵種數值表</div>
-      <div class="unit-grid" id="unit-table"></div>
+    <div class="game-intro-line">
+      <span>答題賺資源，派兵推倒敵方基地！</span>
+      <details class="game-info">
+        <summary aria-label="查看詳細玩法">!</summary>
+        <div class="game-info-panel">
+          <h2>⚔️ 詳細玩法</h2>
+          答對單字題可獲得金幣並派兵；答對填空／文法題可累積強化值。<br>
+          限時內推倒敵方基地，或在時間到時保有較高血量即可獲勝。<br><br>
+          <div class="rules">
+            <div class="rule"><strong>答對獎勵</strong><br>+25 金，連對 3 題再 +15 金。</div>
+            <div class="rule" id="difficulty-summary"><strong>敵方壓力</strong><br>普通：開場 30 金，答錯敵方增援。</div>
+          </div>
+          <div class="section-title" style="margin-top:14px">兵種數值表</div>
+          <div class="unit-grid" id="unit-table"></div>
+        </div>
+      </details>
     </div>
     <div class="panel">
       <div class="section-title">題目內容</div>

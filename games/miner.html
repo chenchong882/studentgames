@@ -561,7 +561,7 @@
             <div id="miner-startscreen" class="startscreen hidden">
                 <div class="startscreen-card">
                     <h2 id="ss-title">⛏️ 單字挖金礦</h2>
-                    <p id="ss-sub">看單字／中文／圖片，抓正確的金塊 · 三關挑戰</p>
+                    <div class="game-intro-line"><span id="ss-sub">看題目，抓正確金塊！</span><button class="game-info-button" id="miner-guide-open" type="button" aria-label="查看詳細玩法">!</button></div>
                     <div class="ss-stats" id="ss-stats" hidden>
                         <div class="ss-stat"><span>答對</span><b id="ss-correct">0</b></div>
                         <div class="ss-stat"><span>抓錯</span><b id="ss-wrong">0</b></div>
@@ -1048,7 +1048,7 @@
             startBtn.textContent = "🔄 再玩一次";
         } else {
             ssTitleEl.textContent = "⛏️ 單字挖金礦";
-            ssSubEl.textContent = "看單字／中文／圖片，抓正確的金塊 · 三關挑戰";
+            ssSubEl.textContent = "看題目，抓正確金塊！";
             ssStatsEl.hidden = true;
             startBtn.textContent = "▶ 開始遊戲";
         }
@@ -2170,8 +2170,8 @@
     settingsBtn.addEventListener("click", togglePause);
     document.getElementById("miner-resume").addEventListener("click", closeSettings);
     document.getElementById("miner-menu").addEventListener("click", () => window.openGameExitConfirm());
-    document.getElementById("miner-guide-ok").addEventListener("click", () => { closeGuide(); beginGame(); });
-    try { if (!localStorage.getItem("minerGuideSeen")) openGuide(); } catch (e) { openGuide(); }
+    document.getElementById("miner-guide-open").addEventListener("click", openGuide);
+    document.getElementById("miner-guide-ok").addEventListener("click", closeGuide);
 
     function bindMoveButton(button, direction) {
         const setPressed = (pressed) => {

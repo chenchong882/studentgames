@@ -140,12 +140,23 @@
 <!-- 開始畫面 -->
 <div class="overlay" id="start-overlay">
   <h1>狙擊暗殺 <span class="accent">單字特務</span></h1>
-  <p>你<b>蹲在圍牆後</b>，對面大樓很遠。按<b>開鏡＝探頭瞄準</b>看清每層樓的單字與目標；放開就<b>縮回掩體</b>。讀懂情報，找出對應單字的那一層，趁目標<b>經過窗戶</b>時將他狙殺。</p>
-  <p>每關<b>限時間、只有 3 發子彈</b>。打錯人、彈盡或超時會<b>用掉 1 次機會（共 3 次）</b>，機會用完才任務失敗，看清情報再開槍。第 4、7 關後會遇到<b>軍火商</b>，用資金升級裝備（含可貫穿石牆的穿甲彈）。</p>
-  <div class="help">
-    <div class="row phone">📱 <b>手機</b>：單指<b>拖曳</b>平移視野瞄準，按 <b>🔭 開鏡</b>放大，按 <b>🔫 開火</b>射擊（雙指捏合也可開/收鏡）</div>
-    <div class="row tablet">📲 <b>平板</b>：左手 <b>🔭 開鏡</b>、右手 <b>🔫 開火</b>，單指<b>拖曳</b>瞄準（雙指捏合也可開/收鏡）</div>
-    <div class="row desktop">💻 <b>電腦</b>：<b>移動滑鼠</b>瞄準，<kbd>右鍵</kbd>按住或 <kbd>Z</kbd> 開鏡，<kbd>左鍵</kbd>或<kbd>空白</kbd>開火，滾輪切換</div>
+  <div class="game-intro-line">
+    <span>讀懂情報，狙擊正確單字目標！</span>
+    <details class="game-info">
+      <summary aria-label="查看詳細玩法">!</summary>
+      <div class="game-info-panel">
+        <h2>🎯 詳細玩法</h2>
+        先開鏡找出正確單字樓層，趁目標經過窗戶時射擊；收鏡即可躲回掩體。<br>
+        每關限時且只有 <b>3 發子彈</b>。打錯、彈盡或超時會用掉 1 次機會，全場共 3 次。<br>
+        第 4、7 關後可向軍火商升級裝備。<br><br>
+        <div class="help">
+          <div class="row phone">📱 <b>手機</b>：單指拖曳瞄準，按 🔭 開鏡、🔫 開火。</div>
+          <div class="row tablet">📲 <b>平板</b>：左手開鏡、右手開火，單指拖曳瞄準。</div>
+          <div class="row desktop">💻 <b>電腦</b>：滑鼠瞄準，右鍵或 Z 開鏡，左鍵或空白鍵開火。</div>
+        </div>
+        困難模式開槍落空會被發現，需在 3 秒內收鏡躲回掩體。
+      </div>
+    </details>
   </div>
   <div id="theme-pick" style="margin-top:16px;width:min(640px,92vw)">
     <div style="color:#fbbf24;font-size:14px;font-weight:700;margin-bottom:8px">📚 選擇練習主題（可複選，不選＝全部）</div>
@@ -169,7 +180,6 @@
   <div id="mode-hint"></div>
   <button class="btn" id="start-sniper-btn">開始遊戲</button>
   <button class="btn pick-btn game-menu-return" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
-  <p style="font-size:13px;color:#94a3b8;margin-top:10px">三模式共用 <b>3 次機會</b>　｜　簡單／一般：玩法相同、只差題型　｜　困難：<b>開槍沒中就被發現</b>，3 秒內沒收鏡蹲回掩體就挨打</p>
   <button id="open-settings" style="margin-top:14px;background:rgba(255,255,255,0.08);color:#cbd5e1;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:8px 18px;font-size:13px;cursor:pointer">⚙️ 操控設定</button>
 </div>
 
