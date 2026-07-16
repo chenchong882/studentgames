@@ -47,6 +47,7 @@ button{font-family:'Outfit',sans-serif;}
 #topbar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;}
 .stat{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:6px 8px;font-size:.84rem;text-align:center;white-space:nowrap;}
 .stat span{font-weight:900;color:#f9c74f;}
+.stage-stat{background:linear-gradient(135deg,rgba(76,201,240,.16),rgba(199,125,255,.16));border-color:rgba(125,211,252,.45);}
 #canvas{border-radius:14px;border:2px solid rgba(255,255,255,.15);display:block;width:100%;height:auto;background:#111827;}
 #panels{display:flex;gap:10px;margin-top:10px;}
 #deploy{display:flex;flex-direction:column;gap:8px;min-width:210px;}
@@ -74,12 +75,20 @@ button{font-family:'Outfit',sans-serif;}
 #feedback{margin-top:8px;font-size:.88rem;min-height:20px;font-weight:900;}
 .fb-correct{color:#4cc864;}
 .fb-wrong{color:#ff6b6b;}
-#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:99;padding:20px;text-align:center;overflow:hidden;}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:99;padding:20px;text-align:center;overflow-x:hidden;overflow-y:auto;}
 #overlay.show{display:flex;}
 #overlay h2{font-size:2.8rem;font-weight:900;position:relative;z-index:2;}
 #overlay .stats{font-size:1rem;color:#d1d5db;line-height:2;position:relative;z-index:2;}
 #overlay .note{color:#9ca3af;font-size:.9rem;font-weight:800;position:relative;z-index:2;}
 .overlay-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;position:relative;z-index:2;}
+.intermission{display:none;position:relative;z-index:2;width:min(650px,94vw);padding:13px;border:1px solid rgba(125,211,252,.4);border-radius:14px;background:rgba(15,23,42,.78);}
+.intermission.show{display:block;}
+.intermission-title{font-weight:900;color:#7dd3fc;margin-bottom:9px;}
+.intermission-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.intermission-grid button{min-height:54px;padding:8px;border:1.5px solid rgba(255,255,255,.22);border-radius:10px;background:rgba(255,255,255,.08);color:#fff;font-weight:900;cursor:pointer;}
+.intermission-grid button.ready{border-color:#f9c74f;background:rgba(249,199,79,.16);}
+.intermission-grid button:disabled{opacity:.38;cursor:not-allowed;}
+.intermission-grid small{display:block;color:#cbd5e1;margin-top:3px;}
 /* ── 勝利畫面強化 ── */
 #confetti{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;display:none;}
 #overlay.win #confetti{display:block;}
@@ -139,6 +148,13 @@ button{font-family:'Outfit',sans-serif;}
   #quiz-type{font-size:.78rem;padding:5px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   #question{font-size:1.12rem;}
   .opt-btn{font-size:.86rem;}
+  .intermission-grid{grid-template-columns:1fr;}
+  #overlay{gap:10px;padding:14px 10px;justify-content:flex-start;}
+  #overlay h2{font-size:2rem;}
+  #overlay .stats{font-size:.85rem;line-height:1.6;}
+  #overlay-emoji{font-size:3.5rem;margin-top:4px;}
+  .intermission{padding:10px;}
+  .intermission-grid button{min-height:46px;}
 }
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
@@ -194,6 +210,7 @@ button{font-family:'Outfit',sans-serif;}
 
   <section id="game-screen">
     <div id="topbar">
+      <div class="stat stage-stat">戰役 <span id="stage-display">1 / 3</span></div>
       <div class="stat">金幣 <span id="gold-display">30</span></div>
       <div class="stat" id="stat-power">強化值 <span id="power-display">0</span></div>
       <div class="stat" id="stat-level">等級 <span id="level-display">Lv1</span></div>
@@ -254,8 +271,18 @@ button{font-family:'Outfit',sans-serif;}
   <div id="overlay-stars"></div>
   <div class="stats" id="overlay-stats"></div>
   <div class="note" id="overlay-note"></div>
+  <div class="intermission" id="intermission-upgrades">
+    <div class="intermission-title">戰後整備｜可先使用強化值再前往下一關</div>
+    <div class="intermission-grid">
+      <button type="button" id="intermission-sword" onclick="upgradeUnit('sword')">⚔️ 劍士<small></small></button>
+      <button type="button" id="intermission-archer" onclick="upgradeUnit('archer')">🏹 弓箭手<small></small></button>
+      <button type="button" id="intermission-mage" onclick="upgradeUnit('mage')">🔮 法師<small></small></button>
+    </div>
+  </div>
   <div class="overlay-actions">
-    <button class="primary-btn" onclick="startGame()">同難度再來一局</button>
+    <button class="primary-btn" id="overlay-next" onclick="nextStage()">前往下一關</button>
+    <button class="primary-btn" id="overlay-retry" onclick="retryStage()">重試本關</button>
+    <button class="primary-btn" id="overlay-restart" onclick="startGame()">重新開始戰役</button>
     <button class="secondary-btn" onclick="showStartScreen()">回難度選擇</button>
   </div>
 </div>
@@ -275,8 +302,9 @@ button{font-family:'Outfit',sans-serif;}
     <div class="r">
       這是一場<b>答題攻防戰</b>：畫面下方出單字／填空文法題，<b>點選正確答案</b>。<br>
       ✅ 答對單字題（中英互選、看圖選答）→ 獲得金幣、派我方士兵攻向敵方基地。<br>
-      📘 答對填空／文法題 → 累積強化值，可<b>升級全軍</b>（攻擊與血量倍率提升）。<br>
+      📘 答對填空／文法題 → 累積強化值，可將兵種一路進化到 <b>Lv5</b>。<br>
       🔥 任何題型<b>連續答對達標</b>（簡單 5 題、其他 8 題）→ 再 +1 強化值，答錯歸零重數。<br>
+      🗺️ 戰役共有<b>三關</b>，勝利後兵種等級與強化值會帶到下一關。<br>
       ⏳ 限時內把<b>敵方基地血量打到 0</b> 就獲勝；小心敵軍與 BOSS 反推你的基地！<br>
       ⏸ 戰鬥中可按 <b>ESC</b> 暫停。
     </div>
@@ -293,8 +321,8 @@ const BASE_CONFIG = {
   comboBonus: 15,
   // ── 方案乙：全軍等級系統（文法題養成）──
   powerPerGrammar: 1,                  // 文法答對 +1 強化值
-  levelCost: { 2: 2, 3: 5 },           // 升到 Lv2 花 2、Lv3 花 5（一場難以升滿，須取捨）
-  levelMult: { 1: 1.0, 2: 1.4, 3: 2.0 }, // 各級全軍 HP+攻擊倍率
+  levelCost: { 2: 2, 3: 4, 4: 6, 5: 8 }, // 三關戰役可集中養成一種兵，或平均分配
+  levelMult: { 1: 1.0, 2: 1.3, 3: 1.65, 4: 2.05, 5: 2.5 },
   // ── 敵方階梯成長（隨時間自動變強）──
   enemyTierTimes: [50, 100],           // 0:50、1:40 各跳一階
   enemyTierMult: [1.0, 1.45, 2.0],
@@ -306,6 +334,26 @@ const BASE_CONFIG = {
   // 各難度 BOSS 行為（在 DIFFICULTY_CONFIG 設定）：
   //   bossChipMode: 'count' 每答對就扣血 / 'peak' 只在刷新「連續答對最高紀錄」時扣血
   //   bossWrong:    'none' 答錯血量不變 / 'full' 答錯補滿血（須一路連續）
+};
+
+const STAGES = [
+  { name:'草原前線', scene:'plains', durationSec:120, enemyBaseHP:360, intervalMult:1.12, enemyMult:1.0,
+    bossTimes:[78], bossHP:[780], bossAtk:[34], bossChip:[1/3], intro:'穿越晨霧草原，守住第一道防線。' },
+  { name:'暮色森林', scene:'forest', durationSec:120, enemyBaseHP:480, intervalMult:.92, enemyMult:1.22,
+    bossTimes:[52,102], bossHP:[900,1200], bossAtk:[42,55], bossChip:[1/3,1/4], intro:'敵軍藏身林間，進攻節奏開始加快。' },
+  { name:'城堡決戰', scene:'castle', durationSec:135, enemyBaseHP:650, intervalMult:.78, enemyMult:1.5,
+    bossTimes:[42,92], bossHP:[1150,1650], bossAtk:[52,72], bossChip:[1/4,1/5], intro:'攻向敵方城堡，擊潰最後的守軍。' },
+];
+
+const EVOLUTION_NAMES = {
+  sword:['輕裝劍士','盾衛','鎧甲劍士','重甲騎士','傳說勇者'],
+  archer:['弓箭手','兜帽獵手','長弓衛士','精英遊俠','傳說神射手'],
+  mage:['見習法師','水晶術士','高階法師','符文賢者','傳說大法師'],
+};
+const EVOLUTION_PERKS = {
+  sword:{ 4:'解鎖範圍斬擊', 5:'範圍傷害提升' },
+  archer:{ 4:'解鎖穿透箭', 5:'穿透傷害提升' },
+  mage:{ 4:'解鎖範圍爆破', 5:'爆破傷害提升' },
 };
 
 const DIFFICULTY_CONFIG = {
@@ -459,6 +507,7 @@ let currentQuestion = null;
 let lastTime = 0;
 let paused = false;
 let pauseStart = 0;
+let campaign = null;
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -803,7 +852,7 @@ class Unit{
     this.tier  = side === 'enemy'  ? (state ? state.enemyTier : 0) : 0;
     const mult = side === 'player'
       ? (CONFIG.levelMult[this.level] || 1)
-      : (CONFIG.enemyTierMult[this.tier] || 1);
+      : (CONFIG.enemyTierMult[this.tier] || 1) * (state ? state.stage.enemyMult : 1);
     this.isBoss = false;
     this.hp = d.hp * mult;
     this.maxHp = d.hp * mult;
@@ -818,6 +867,9 @@ class Unit{
     this.attackRate = 1050;
     this.state = 'walk';
     this.phase = Math.random() * Math.PI * 2;
+    this.walkPhase = this.phase;
+    this.walkBlend = 1;
+    this.lastFoot = Math.floor(this.walkPhase / Math.PI);
     this.attackFlash = 0;
   }
   enemies(){
@@ -835,29 +887,45 @@ class Unit{
     const { unit:target, dist } = this.nearestEnemy();
     if(target && dist <= this.range){
       this.state = 'fight';
+      this.walkBlend = Math.max(0, this.walkBlend - dt / 150);
       if(now - this.lastAttack > this.attackRate){
         target.hp -= this.atk;
         this.lastAttack = now;
         this.attackFlash = now;
         addAttackEffect(this, target, now);
+        applyEliteAbility(this, target, now);
         state.floats.push({ x:target.x, y:target.y-20, text:'-'+this.atk, color:'#ff6b6b', life:760, born:now });
       }
       return;
     }
     this.state = 'walk';
+    this.walkBlend = Math.min(1, this.walkBlend + dt / 130);
     const dir = this.side === 'player' ? 1 : -1;
-    this.x += this.spd * dir * (dt / 16);
+    const distance = this.spd * (dt / 16);
+    this.x += distance * dir;
+    const gait = this.type === 'archer' ? .25 : this.type === 'mage' ? .19 : .22;
+    this.walkPhase += distance * gait;
+    const foot = Math.floor(this.walkPhase / Math.PI);
+    if(foot !== this.lastFoot){
+      this.lastFoot = foot;
+      const dustCount = state.effects.filter(e => e.kind === 'dust').length;
+      if(dustCount < 22) state.effects.push({ kind:'dust', x:this.x-dir*7, y:this.y+11, side:this.side, life:360, born:now });
+    }
   }
 }
 
-function initState(){
+function initState(stageIndex, progress){
   const now = Date.now();
+  const stage = STAGES[stageIndex];
   return {
     phase:'playing',
+    stageIndex,
+    stage,
     gold:CONFIG.startGold,
     playerHP:CONFIG.baseHP,
-    enemyHP:CONFIG.baseHP,
+    enemyHP:stage.enemyBaseHP,
     maxHP:CONFIG.baseHP,
+    enemyMaxHP:stage.enemyBaseHP,
     units:[],
     effects:[],
     floats:[],
@@ -869,13 +937,13 @@ function initState(){
     correctStreak:0,         // 全題型連對（滿 streakNeed 的倍數 +1 強化值）
     deployCount:0,
     startMs:now,
-    timeLeft:CONFIG.durationSec,
+    timeLeft:stage.durationSec,
     lastPassiveGold:now,
     lastEnemySpawn:now,
     quizLocked:false,
     // ── 等級系統 ──
-    power:0,                 // 強化值（文法題／連對賺）
-    levels:{ sword:1, archer:1, mage:1 },   // 各兵種獨立等級 1~3
+    power:progress.power,                 // 跨關保留
+    levels:{ ...progress.levels },        // 各兵種獨立等級 1~5
     // ── 敵方階梯 ──
     enemyTier:0,             // 0/1/2 對應 enemyTierMult
     // ── BOSS ──
@@ -887,6 +955,8 @@ function initState(){
     grammarStreak:0,         // 連續答對文法（擊退 BOSS 用）
     vocabSincePower:0,       // 已連續出幾題單字（每 3 題穿插 1 題強化值題）
     powerCount:0,            // 已出幾題強化值題（用來「填空×3 → 文法×1」輪替）
+    cameraShake:0,
+    progressCommitted:false,
   };
 }
 
@@ -933,13 +1003,44 @@ function addAttackEffect(attacker, target, now){
   });
 }
 
+function applyEliteAbility(attacker, target, now){
+  if(attacker.side !== 'player' || attacker.level < 4 || attacker.isBoss) return;
+  const ratio = attacker.level >= 5 ? .55 : .35;
+  const dir = attacker.side === 'player' ? 1 : -1;
+  let extras = [];
+  if(attacker.type === 'sword'){
+    extras = state.units.filter(u => u.side !== attacker.side && u !== target && u.hp > 0 && Math.abs(u.x-target.x) < 58 && Math.abs(u.y-target.y) < 32).slice(0,2);
+  } else if(attacker.type === 'archer'){
+    extras = state.units.filter(u => u.side !== attacker.side && u !== target && u.hp > 0 && (u.x-target.x)*dir > 0 && Math.abs(u.x-target.x) < 85 && Math.abs(u.y-target.y) < 34).slice(0,1);
+  } else {
+    extras = state.units.filter(u => u.side !== attacker.side && u !== target && u.hp > 0 && Math.hypot(u.x-target.x,u.y-target.y) < 72).slice(0,3);
+  }
+  if(!extras.length) return;
+  const dmg = Math.max(1, Math.round(attacker.atk * ratio));
+  extras.forEach(u => {
+    u.hp -= dmg;
+    state.floats.push({ x:u.x, y:u.y-30, text:'-'+dmg, color:attacker.type === 'mage' ? '#e9d5ff' : '#fde68a', life:650, born:now });
+  });
+  state.effects.push({ kind:attacker.type === 'mage' ? 'burst' : 'eliteSlash', x:target.x, y:target.y-10, side:attacker.side, color:attacker.color, life:360, born:now });
+  if(attacker.type==='mage'&&attacker.level>=5) state.cameraShake=Math.max(state.cameraShake,70);
+}
+
 function startGame(){
   unlockSpeech();   // iOS：趁真實按鈕點擊解鎖語音
   getAudioCtx();
-  startBgm();
   clampMode();
   buildVocabByMode();   // 套用本局模式與全圖檔開關的題型組合
-  state = initState();
+  campaign = {
+    stageIndex:0,
+    power:0,
+    levels:{ sword:1, archer:1, mage:1 },
+    totals:{ correct:0, wrong:0, deployed:0, boss:0, maxCombo:0 },
+  };
+  resetQuestionQueues();
+  startStage(0);
+}
+
+function applyBattleRules(){
   // ── 依「內建單字 / 段考」與難度決定本局規則 ──
   // 段考（builtin=false）：無視難度，永遠單字＋文法題、可升級、BOSS 走文法。
   // 內建：依難度設定——簡單不穿插填空/文法（powerQuiz=false）、BOSS 走單字；普通/困難照舊。
@@ -953,8 +1054,15 @@ function startGame(){
     state.powerQuiz = (CONFIG.powerQuiz !== false);
     state.streakNeed = CONFIG.streakNeed || 8;
   }
+}
+
+function startStage(stageIndex){
+  if(!campaign || !STAGES[stageIndex]) return;
+  campaign.stageIndex = stageIndex;
+  state = initState(stageIndex, campaign);
+  applyBattleRules();
+  startBgm();
   spawnEnemy('sword', 'opening');
-  resetQuestionQueues();
   // 無升級機制時隱藏強化值／等級與兵種進化
   const showLevel = state.allowLevelUp;
   ['stat-power','stat-level','upgrade-section'].forEach(id => {
@@ -964,22 +1072,85 @@ function startGame(){
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('game-screen').style.display = 'block';
   document.getElementById('battle-pause-btn').style.display = 'block';
+  document.getElementById('stage-display').textContent = `${stageIndex+1} / ${STAGES.length}・${state.stage.name}`;
   Confetti.stop();
   document.getElementById('overlay').classList.remove('show','win','rout');
+  document.getElementById('intermission-upgrades').classList.remove('show');
+  updateHUD();
+  state.floats.push({ x:450, y:86, text:`第 ${stageIndex+1} 關｜${state.stage.name}`, color:'#fde68a', life:1800, born:Date.now() });
+  state.floats.push({ x:450, y:108, text:state.stage.intro, color:'#e2e8f0', life:1800, born:Date.now() });
   loadQuestion();
   lastTime = performance.now();
   requestAnimationFrame(loop);
 }
 
-function drawBg(){
-  const sky = ctx.createLinearGradient(0,0,0,260);
-  sky.addColorStop(0,'#1a1a3e'); sky.addColorStop(1,'#2d6a9f');
-  ctx.fillStyle = sky; ctx.fillRect(0,0,900,280);
-  const gnd = ctx.createLinearGradient(0,280,0,360);
-  gnd.addColorStop(0,'#2d5a1b'); gnd.addColorStop(1,'#1a3a0f');
-  ctx.fillStyle = gnd; ctx.fillRect(0,280,900,80);
-  ctx.strokeStyle = '#4a8a2a'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(0,280); ctx.lineTo(900,280); ctx.stroke();
+function commitStageProgress(){
+  if(!campaign || !state || state.progressCommitted) return;
+  campaign.power = state.power;
+  campaign.levels = { ...state.levels };
+  campaign.totals.correct += state.correctCount;
+  campaign.totals.wrong += state.wrongCount;
+  campaign.totals.deployed += state.deployCount;
+  campaign.totals.boss += state.bossDefeated;
+  campaign.totals.maxCombo = Math.max(campaign.totals.maxCombo, state.maxCombo);
+  state.progressCommitted = true;
+}
+
+function nextStage(){
+  if(!state || state.stageResult !== 'win' || state.stageIndex >= STAGES.length-1) return;
+  commitStageProgress();
+  startStage(state.stageIndex + 1);
+}
+
+function retryStage(){
+  if(!campaign || !state) return;
+  startStage(campaign.stageIndex);
+}
+
+function drawBg(now){
+  const scene = state ? state.stage.scene : 'plains';
+  const sky = ctx.createLinearGradient(0,0,0,285);
+  if(scene === 'plains'){ sky.addColorStop(0,'#17365d'); sky.addColorStop(.58,'#5c8db2'); sky.addColorStop(1,'#f2b56b'); }
+  else if(scene === 'forest'){ sky.addColorStop(0,'#17152f'); sky.addColorStop(.62,'#51446f'); sky.addColorStop(1,'#b2675a'); }
+  else { sky.addColorStop(0,'#100f24'); sky.addColorStop(.62,'#38223c'); sky.addColorStop(1,'#a34336'); }
+  ctx.fillStyle=sky;ctx.fillRect(0,0,900,286);
+
+  const orbX=scene==='plains'?690:scene==='forest'?170:740,orbY=scene==='plains'?74:scene==='forest'?68:84;
+  const glow=ctx.createRadialGradient(orbX,orbY,4,orbX,orbY,55);glow.addColorStop(0,scene==='plains'?'rgba(255,244,188,.95)':'rgba(255,229,190,.75)');glow.addColorStop(1,'rgba(255,220,160,0)');
+  ctx.fillStyle=glow;ctx.beginPath();ctx.arc(orbX,orbY,55,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=scene==='plains'?'#fff1b8':'#f4e8d0';ctx.beginPath();ctx.arc(orbX,orbY,scene==='plains'?18:13,0,Math.PI*2);ctx.fill();
+
+  // 遠山與移動很慢的雲，製造景深但不干擾戰鬥。
+  ctx.fillStyle=scene==='plains'?'#355f70':scene==='forest'?'#272942':'#292138';
+  ctx.beginPath();ctx.moveTo(0,240);for(let x=0;x<=900;x+=75){const y=185+Math.sin(x*.021)*26+Math.sin(x*.047)*12;ctx.lineTo(x,y);}ctx.lineTo(900,286);ctx.lineTo(0,286);ctx.closePath();ctx.fill();
+  const cloudShift=(now*.004)%980;
+  ctx.fillStyle='rgba(255,255,255,.11)';
+  for(let i=0;i<4;i++){const x=((i*270-cloudShift+1050)%1050)-80,y=55+i%2*55;ctx.beginPath();ctx.ellipse(x,y,52,12,0,0,Math.PI*2);ctx.ellipse(x+38,y+3,40,9,0,0,Math.PI*2);ctx.fill();}
+
+  if(scene === 'forest'){
+    ctx.fillStyle='#151f26';
+    for(let x=0;x<900;x+=38){const h=42+(x*17%45);ctx.fillRect(x+15,260-h,7,h+25);ctx.beginPath();ctx.moveTo(x-5,250-h*.62);ctx.lineTo(x+19,205-h*.55);ctx.lineTo(x+43,250-h*.62);ctx.closePath();ctx.fill();}
+    ctx.fillStyle='rgba(251,146,60,.18)';for(let x=115;x<900;x+=260){ctx.beginPath();ctx.arc(x,255,12+Math.sin(now/300+x)*2,0,Math.PI*2);ctx.fill();}
+  } else if(scene === 'castle'){
+    ctx.fillStyle='#191827';ctx.fillRect(590,160,250,120);ctx.fillRect(610,120,48,160);ctx.fillRect(770,105,50,175);
+    for(let x=590;x<850;x+=34)ctx.fillRect(x,145,18,22);
+    ctx.fillStyle='rgba(249,115,22,.55)';for(const x of [628,787]){ctx.fillRect(x,168,12,22);ctx.beginPath();ctx.arc(x+6,168,6,Math.PI,0);ctx.fill();}
+    ctx.fillStyle='rgba(71,85,105,.3)';for(let i=0;i<5;i++){const x=610+i*52,y=80-(now*.012+i*31)%95;ctx.beginPath();ctx.arc(x,y,13+i*2,0,Math.PI*2);ctx.fill();}
+  } else {
+    ctx.fillStyle='#264b36';for(let x=0;x<900;x+=85){ctx.beginPath();ctx.arc(x,259,28+(x%4)*4,Math.PI,0);ctx.fill();}
+  }
+
+  const gnd=ctx.createLinearGradient(0,268,0,360);
+  if(scene==='plains'){gnd.addColorStop(0,'#507a36');gnd.addColorStop(1,'#263f24');}
+  else if(scene==='forest'){gnd.addColorStop(0,'#30402d');gnd.addColorStop(1,'#18231d');}
+  else {gnd.addColorStop(0,'#4b4439');gnd.addColorStop(1,'#24231f');}
+  ctx.fillStyle=gnd;ctx.fillRect(0,268,900,92);
+  ctx.fillStyle=scene==='plains'?'#8b7148':scene==='forest'?'#665445':'#716257';
+  ctx.beginPath();ctx.moveTo(0,288);ctx.quadraticCurveTo(450,252,900,289);ctx.lineTo(900,360);ctx.lineTo(0,360);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.09)';ctx.lineWidth=1;
+  for(let x=90;x<850;x+=95){const y=306+(x*7%38);ctx.beginPath();ctx.ellipse(x,y,8,3,.2,0,Math.PI*2);ctx.stroke();}
+  ctx.strokeStyle=scene==='plains'?'#8fbd59':'#5f7a4d';ctx.lineWidth=2;
+  for(let x=12;x<900;x+=31){const y=277+(x*13%12);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-3,y-7);ctx.moveTo(x,y);ctx.lineTo(x+4,y-9);ctx.stroke();}
 }
 
 function drawBase(x, label, hp, maxHP, isPlayer){
@@ -1004,14 +1175,17 @@ function drawBase(x, label, hp, maxHP, isPlayer){
 
 function drawWeapon(u, dir, cx, groundY, attackPower){
   const handY = groundY - 26;
+  const lv = u.side === 'player' ? u.level : 1;
   if(u.type === 'sword'){
-    ctx.strokeStyle = '#f8fafc';
-    ctx.lineWidth = 3;
+    if(lv >= 5){ ctx.shadowColor = '#fde68a'; ctx.shadowBlur = 9; }
+    ctx.strokeStyle = lv >= 4 ? '#fef3c7' : '#f8fafc';
+    ctx.lineWidth = lv >= 4 ? 4 : 3;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(cx + dir * 9, handY);
-    ctx.lineTo(cx + dir * (22 + attackPower * 8), handY - 12 - attackPower * 6);
+    ctx.lineTo(cx + dir * (22 + lv*1.5 + attackPower * 8), handY - 12 - attackPower * 6);
     ctx.stroke();
+    ctx.shadowBlur = 0;
     ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -1021,10 +1195,10 @@ function drawWeapon(u, dir, cx, groundY, attackPower){
     return;
   }
   if(u.type === 'archer'){
-    ctx.strokeStyle = '#d97706';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = lv >= 5 ? '#fde047' : lv >= 3 ? '#f59e0b' : '#d97706';
+    ctx.lineWidth = lv >= 4 ? 4 : 3;
     ctx.beginPath();
-    ctx.arc(cx + dir * 14, handY - 2, 14, dir > 0 ? -1.2 : Math.PI - 1.2, dir > 0 ? 1.2 : Math.PI + 1.2);
+    ctx.arc(cx + dir * 14, handY - 2, 13 + lv*.7, dir > 0 ? -1.2 : Math.PI - 1.2, dir > 0 ? 1.2 : Math.PI + 1.2);
     ctx.stroke();
     ctx.strokeStyle = '#e5e7eb';
     ctx.lineWidth = 1.5;
@@ -1042,29 +1216,32 @@ function drawWeapon(u, dir, cx, groundY, attackPower){
     }
     return;
   }
-  ctx.strokeStyle = '#e9d5ff';
-  ctx.lineWidth = 3;
+  if(lv >= 5){ ctx.shadowColor = '#e879f9'; ctx.shadowBlur = 10; }
+  ctx.strokeStyle = lv >= 4 ? '#f5d0fe' : '#e9d5ff';
+  ctx.lineWidth = lv >= 4 ? 4 : 3;
   ctx.lineCap = 'round';
   ctx.beginPath();
   ctx.moveTo(cx + dir * 8, handY + 10);
   ctx.lineTo(cx + dir * 18, handY - 22);
   ctx.stroke();
-  ctx.fillStyle = attackPower > 0 ? '#f0abfc' : '#c084fc';
+  ctx.fillStyle = lv >= 5 ? '#fde68a' : attackPower > 0 ? '#f0abfc' : '#c084fc';
   ctx.beginPath();
-  ctx.arc(cx + dir * 19, handY - 24, 5 + attackPower * 3, 0, Math.PI * 2);
+  ctx.arc(cx + dir * 19, handY - 24, 4 + lv*.7 + attackPower * 3, 0, Math.PI * 2);
   ctx.fill();
+  ctx.shadowBlur = 0;
 }
 
 function drawBoss(u, now){
   const dir = -1;
   const attackAge = now - u.attackFlash;
   const attackPower = attackAge >= 0 && attackAge < 280 ? 1 - attackAge / 280 : 0;
-  const bob = u.state === 'walk' ? Math.sin(now / 130 + u.phase) * 2 : 0;
+  const stride = Math.sin(u.walkPhase||0) * 11 * (u.walkBlend||0);
+  const bob = -Math.abs(Math.sin((u.walkPhase||0)*2)) * 1.2 * (u.walkBlend||0);
   const cx = u.x + dir * attackPower * 7;
   const gy = u.y + bob;
   const kind = u.bossKind || 'oni';
   ctx.fillStyle = 'rgba(0,0,0,.42)';
-  ctx.beginPath(); ctx.ellipse(u.x, gy+20, 38, 10, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(u.x, u.y+20, 38, 10, 0, 0, Math.PI*2); ctx.fill();
   if(u.bossAura){
     const g = ctx.createRadialGradient(u.x, gy-30, 8, u.x, gy-30, 58);
     g.addColorStop(0, u.bossAura); g.addColorStop(1, 'rgba(0,0,0,0)');
@@ -1082,7 +1259,7 @@ function drawBoss(u, now){
   ctx.fillStyle = u.bossColor;
   ctx.beginPath(); ctx.roundRect(cx-25,gy-45,50,54,15); ctx.fill(); ctx.stroke();
   ctx.strokeStyle = '#111827'; ctx.lineWidth = 7;
-  ctx.beginPath(); ctx.moveTo(cx-14,gy+4); ctx.lineTo(cx-18,gy+21); ctx.moveTo(cx+14,gy+4); ctx.lineTo(cx+18,gy+21); ctx.stroke();
+  ctx.beginPath();ctx.moveTo(cx-14,gy+4);ctx.lineTo(cx-10-stride*.35,gy+12);ctx.lineTo(cx-18-stride, u.y+21);ctx.moveTo(cx+14,gy+4);ctx.lineTo(cx+10+stride*.35,gy+12);ctx.lineTo(cx+18+stride,u.y+21);ctx.stroke();
   ctx.strokeStyle = '#111827'; ctx.lineWidth = 6;
   ctx.beginPath(); ctx.moveTo(cx-23,gy-33); ctx.lineTo(cx-35,gy-10); ctx.moveTo(cx+23,gy-33); ctx.lineTo(cx+35,gy-10); ctx.stroke();
   if(kind === 'skeleton'){
@@ -1123,74 +1300,121 @@ function drawUnit(u, now){
     drawBoss(u, now);                              // 不依賴系統 emoji，所有平台都能看見清楚的怪物
     return;
   }
+  const lv = u.side === 'player' ? u.level : 1;
+  const scale = u.side === 'player' ? [1,1.03,1.06,1.09,1.12][lv-1] : 1;
   const teamColor = u.side === 'player' ? '#38bdf8' : '#fb7185';
-  const coatColor = u.type === 'sword' ? teamColor : u.type === 'archer' ? '#facc15' : '#c084fc';
+  const coatColor = u.type === 'sword' ? teamColor : u.type === 'archer' ? '#eab308' : '#a855f7';
   const attackAge = now - u.attackFlash;
   const attackPower = attackAge >= 0 && attackAge < 280 ? 1 - attackAge / 280 : 0;
-  const bob = u.state === 'walk' ? Math.sin(now / 110 + u.phase) * 3 : 0;
-  const cx = u.x + dir * attackPower * 5;
-  const groundY = u.y + bob;
+  const phase = u.walkPhase || 0;
+  const blend = u.walkBlend || 0;
+  const stride = Math.sin(phase) * (u.type === 'archer' ? 10 : u.type === 'mage' ? 6 : 8) * blend;
+  const bodyBob = -Math.abs(Math.sin(phase*2)) * 1.1 * blend;
+  const leftLift = Math.max(0, -Math.cos(phase)) * 4 * blend;
+  const rightLift = Math.max(0, Math.cos(phase)) * 4 * blend;
+  const baseX = u.x + dir * attackPower * 5;
+  const baseY = u.y + 10;
 
   ctx.fillStyle = 'rgba(0,0,0,.3)';
-  ctx.beginPath(); ctx.ellipse(u.x,groundY+15,18,6,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(u.x,u.y+13,18*scale*(1+Math.abs(stride)*.012),5.5,0,0,Math.PI*2); ctx.fill();
 
-  ctx.strokeStyle = teamColor;
-  ctx.lineWidth = 4;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(cx - dir * 4, groundY - 10);
-  ctx.lineTo(cx - dir * 9, groundY + 10);
-  ctx.moveTo(cx + dir * 5, groundY - 10);
-  ctx.lineTo(cx + dir * 12, groundY + 10);
-  ctx.stroke();
+  ctx.save();
+  ctx.translate(baseX, baseY);
+  ctx.scale(scale, scale);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
-  ctx.fillStyle = coatColor;
-  ctx.strokeStyle = 'rgba(255,255,255,.85)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.roundRect(cx - 10, groundY - 36, 20, 24, 6);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = '#fde68a';
-  ctx.beginPath();
-  ctx.arc(cx, groundY - 47, 10, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = u.side === 'player' ? '#0f172a' : '#7f1d1d';
-  ctx.beginPath();
-  ctx.arc(cx + dir * 4, groundY - 49, 1.8, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.strokeStyle = teamColor;
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(cx - dir * 7, groundY - 28);
-  ctx.lineTo(cx - dir * 16, groundY - 19);
-  ctx.moveTo(cx + dir * 7, groundY - 28);
-  ctx.lineTo(cx + dir * 12, groundY - 23);
-  ctx.stroke();
-  drawWeapon(u, dir, cx, groundY, attackPower);
-
-  if(u.side === 'player' && u.level >= 2){     // Lv2：盾牌
-    const sx = cx - dir * 12;
-    ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.ellipse(sx, groundY - 22, 5, 9, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  if(u.side === 'player' && lv >= 5){
+    const aura = ctx.createRadialGradient(0,-27,5,0,-27,34);
+    aura.addColorStop(0,u.type === 'mage' ? 'rgba(232,121,249,.2)' : 'rgba(253,224,71,.14)'); aura.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle = aura; ctx.beginPath(); ctx.arc(0,-27,34,0,Math.PI*2); ctx.fill();
   }
-  if(u.side === 'player' && u.level >= 3){     // Lv3：鎧甲
-    ctx.fillStyle = 'rgba(226,232,240,.9)';
-    ctx.beginPath(); ctx.roundRect(cx - 8, groundY - 33, 16, 16, 4); ctx.fill();
-    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1.2; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, groundY - 33); ctx.lineTo(cx, groundY - 17); ctx.stroke();
+
+  // 披風、箭袋與法袍先畫在身體後方，移動時會有些微拖曳。
+  if(u.side === 'player' && ((u.type === 'sword' && lv >= 5) || (u.type === 'archer' && lv >= 4))){
+    const sway = -stride*.18-dir*3;
+    ctx.fillStyle = u.type === 'sword' ? '#b91c1c' : '#166534';
+    ctx.beginPath(); ctx.moveTo(-dir*7,-34+bodyBob); ctx.lineTo(-dir*(16+sway),-8); ctx.lineTo(dir*3,-12); ctx.lineTo(dir*5,-32); ctx.closePath(); ctx.fill();
   }
+  if(u.type === 'archer' && u.side === 'player' && lv >= 2){
+    ctx.strokeStyle='#854d0e';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-dir*8,-34);ctx.lineTo(-dir*14,-10);ctx.stroke();
+    ctx.strokeStyle='#fef3c7';ctx.lineWidth=1.5;for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(-dir*(8+i*2),-38);ctx.lineTo(-dir*(12+i*2),-25);ctx.stroke();}
+  }
+
+  // 兩段式腿骨架：腳掌以地面為基準，身體不再整隻上下漂浮。
+  const hipY = -11 + bodyBob;
+  function leg(hipX, footX, lift, front){
+    const kneeX = (hipX+footX)/2 + dir*(front?2:-2), kneeY = -5-lift*.45;
+    ctx.strokeStyle = front ? teamColor : (u.side === 'player' ? '#1976a0' : '#9f1239');
+    ctx.lineWidth = lv >= 4 && u.type === 'sword' ? 5 : 4;
+    ctx.beginPath(); ctx.moveTo(hipX,hipY); ctx.lineTo(kneeX,kneeY); ctx.lineTo(footX,-lift); ctx.stroke();
+    ctx.strokeStyle = '#111827'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(footX-dir*2,-lift); ctx.lineTo(footX+dir*6,-lift); ctx.stroke();
+  }
+  leg(-4,-dir*stride,leftLift,false);
+  leg(4,dir*stride,rightLift,true);
+
+  if(u.type === 'mage'){
+    const robeSway = stride*.18;
+    ctx.fillStyle = coatColor; ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.moveTo(-9,-35+bodyBob); ctx.lineTo(10,-35+bodyBob); ctx.lineTo(14+robeSway,-9); ctx.lineTo(-14+robeSway,-9); ctx.closePath(); ctx.fill(); ctx.stroke();
+  } else {
+    const wide = u.type === 'sword' && lv >= 4 ? 13 : 10;
+    ctx.fillStyle = coatColor; ctx.strokeStyle = 'rgba(255,255,255,.82)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(-wide,-36+bodyBob,wide*2,24,lv >= 3 ? 4 : 6); ctx.fill(); ctx.stroke();
+  }
+
+  // 職階裝備：每一級都改變輪廓，而不是只疊一小塊色塊。
+  if(u.side === 'player' && u.type === 'sword' && lv >= 2){
+    const sx=-dir*(lv>=4?15:12), sy=-24+bodyBob;
+    ctx.fillStyle=lv>=4?'#94a3b8':'#cbd5e1';ctx.strokeStyle=lv>=4?'#f8fafc':'#475569';ctx.lineWidth=1.7;
+    ctx.beginPath();ctx.moveTo(sx-7,sy-9);ctx.lineTo(sx+7,sy-9);ctx.lineTo(sx+6,sy+5);ctx.lineTo(sx,sy+11);ctx.lineTo(sx-6,sy+5);ctx.closePath();ctx.fill();ctx.stroke();
+  }
+  if(u.side === 'player' && u.type === 'sword' && lv >= 3){
+    ctx.fillStyle=lv>=4?'#cbd5e1':'#e2e8f0';ctx.strokeStyle='#64748b';ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.roundRect(-9,-34+bodyBob,18,17,3);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(0,-34+bodyBob);ctx.lineTo(0,-17+bodyBob);ctx.stroke();
+  }
+  if(u.side === 'player' && u.type === 'archer' && lv >= 3){
+    ctx.fillStyle='#713f12';ctx.fillRect(-9,-28+bodyBob,18,4);
+    if(lv>=4){ctx.strokeStyle='#bef264';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-8,-18);ctx.lineTo(8,-18);ctx.stroke();}
+  }
+  if(u.side === 'player' && u.type === 'mage' && lv >= 2){
+    ctx.fillStyle=lv>=4?'#e9d5ff':'#c4b5fd';ctx.beginPath();ctx.arc(-dir*8,-29+bodyBob,3.5,0,Math.PI*2);ctx.arc(dir*8,-29+bodyBob,3.5,0,Math.PI*2);ctx.fill();
+  }
+
+  const headY = -47 + bodyBob;
+  ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(0,headY,10,0,Math.PI*2); ctx.fill();
+  if(u.side === 'player' && u.type === 'sword' && lv >= 3){
+    ctx.fillStyle=lv>=4?'#94a3b8':'#cbd5e1';ctx.strokeStyle='#475569';ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.arc(0,headY,11,Math.PI,0);ctx.lineTo(9,headY+2);ctx.lineTo(-9,headY+2);ctx.closePath();ctx.fill();ctx.stroke();
+    if(lv>=5){ctx.fillStyle='#ef4444';ctx.beginPath();ctx.moveTo(-2,headY-10);ctx.quadraticCurveTo(-7,headY-22,-1,headY-25);ctx.quadraticCurveTo(7,headY-18,3,headY-9);ctx.fill();}
+  } else if(u.side === 'player' && u.type === 'archer' && lv >= 2){
+    ctx.fillStyle=lv>=4?'#166534':'#a16207';ctx.beginPath();ctx.arc(0,headY-1,12,Math.PI*.9,Math.PI*2.1);ctx.lineTo(dir*8,headY+6);ctx.lineTo(-dir*9,headY+5);ctx.closePath();ctx.fill();
+  } else if(u.side === 'player' && u.type === 'mage' && lv >= 3){
+    ctx.fillStyle=lv>=5?'#7e22ce':'#6d28d9';ctx.beginPath();ctx.moveTo(-13,headY-6);ctx.lineTo(12,headY-7);ctx.lineTo(3,headY-28);ctx.lineTo(-2,headY-13);ctx.closePath();ctx.fill();
+    ctx.fillRect(-14,headY-8,28,4);
+  }
+  ctx.fillStyle = u.side === 'player' ? '#0f172a' : '#7f1d1d'; ctx.beginPath(); ctx.arc(dir*4,headY-1,1.8,0,Math.PI*2); ctx.fill();
+
+  const armSwing = stride*.35;
+  ctx.strokeStyle=teamColor;ctx.lineWidth=4;
+  ctx.beginPath();ctx.moveTo(-dir*7,-29+bodyBob);ctx.lineTo(-dir*(13+armSwing),-19);ctx.moveTo(dir*7,-29+bodyBob);ctx.lineTo(dir*12,-23-attackPower*3);ctx.stroke();
+  drawWeapon(u,dir,0,bodyBob,attackPower);
+
+  if(u.side === 'player' && u.type === 'mage' && lv >= 4){
+    ctx.strokeStyle=lv>=5?'rgba(253,224,71,.8)':'rgba(216,180,254,.72)';ctx.lineWidth=1.5;ctx.setLineDash([3,4]);
+    ctx.beginPath();ctx.ellipse(0,-28+bodyBob,20,7,Math.sin(now/500)*.15,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  }
+  ctx.restore();
 
   const bw = 28, ratio = Math.max(0, u.hp / u.maxHp);
-  ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(u.x-bw/2,groundY-65,bw,5);
+  const barY=u.y-61*scale;
+  ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.fillRect(u.x-bw/2,barY,bw,5);
   ctx.fillStyle = ratio > .5 ? '#4cc864' : ratio > .25 ? '#f9c74f' : '#ff5050';
-  ctx.fillRect(u.x-bw/2,groundY-65,bw*ratio,5);
+  ctx.fillRect(u.x-bw/2,barY,bw*ratio,5);
   if(u.state === 'fight'){
     ctx.strokeStyle = u.side === 'player' ? 'rgba(125,211,252,.7)' : 'rgba(251,113,133,.7)';
     ctx.lineWidth = 1.5; ctx.setLineDash([3,3]);
-    ctx.beginPath(); ctx.arc(u.x,groundY-28,24,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.arc(u.x,u.y-18,24*scale,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
   }
 }
 
@@ -1209,6 +1433,20 @@ function drawEffects(now){
       ctx.beginPath();
       ctx.arc(e.x - dir * 7, e.y - 16, 20 + t * 8, dir > 0 ? -1.05 : Math.PI - 1.05, dir > 0 ? .85 : Math.PI + .85, dir < 0);
       ctx.stroke();
+    } else if(e.kind === 'dust'){
+      ctx.globalAlpha = (1-t)*.28;
+      ctx.fillStyle = state.stage.scene === 'plains' ? '#d9c58b' : '#9a8065';
+      ctx.beginPath();ctx.ellipse(e.x-5*t,e.y-3*t,4+7*t,2+3*t,0,0,Math.PI*2);ctx.fill();
+    } else if(e.kind === 'eliteSlash'){
+      const dir=e.side==='player'?1:-1;ctx.strokeStyle='#fde68a';ctx.lineWidth=3;ctx.globalAlpha=1-t;
+      for(let i=0;i<2;i++){ctx.beginPath();ctx.arc(e.x-dir*5,e.y,24+i*9+t*12,dir>0?-1.2:Math.PI-1.2,dir>0?.9:Math.PI+.9,dir<0);ctx.stroke();}
+    } else if(e.kind === 'burst'){
+      const g=ctx.createRadialGradient(e.x,e.y,2,e.x,e.y,12+38*t);g.addColorStop(0,'rgba(253,224,71,.8)');g.addColorStop(.35,e.color||'#c084fc');g.addColorStop(1,'rgba(192,132,252,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(e.x,e.y,12+38*t,0,Math.PI*2);ctx.fill();
+    } else if(e.kind === 'upgrade'){
+      ctx.strokeStyle=e.color||'#7dd3fc';ctx.lineWidth=3;ctx.globalAlpha=1-t;
+      ctx.beginPath();ctx.arc(e.x,e.y,8+34*t,0,Math.PI*2);ctx.stroke();
+      for(let i=0;i<8;i++){const a=i*Math.PI/4+t;ctx.beginPath();ctx.moveTo(e.x+Math.cos(a)*(8+18*t),e.y+Math.sin(a)*(8+18*t));ctx.lineTo(e.x+Math.cos(a)*(15+30*t),e.y+Math.sin(a)*(15+30*t));ctx.stroke();}
     } else {
       const x = e.fromX + (e.toX - e.fromX) * t;
       const y = e.fromY + (e.toY - e.fromY) * t;
@@ -1257,9 +1495,9 @@ function drawFloats(now){
 }
 
 function getEnemyInterval(elapsed){
-  if(elapsed >= 120) return CONFIG.enemyIntervals.late;
-  if(elapsed >= 60) return CONFIG.enemyIntervals.mid;
-  return CONFIG.enemyIntervals.early;
+  const ratio=elapsed/state.stage.durationSec;
+  const base=ratio>=.82?CONFIG.enemyIntervals.late:ratio>=.5?CONFIG.enemyIntervals.mid:CONFIG.enemyIntervals.early;
+  return base*state.stage.intervalMult;
 }
 
 function pickEnemyType(){
@@ -1295,8 +1533,10 @@ function applyWrongPenalty(){
 }
 
 function getTimedResult(){
-  if(state.enemyHP < state.playerHP) return 'win';
-  if(state.playerHP < state.enemyHP) return 'lose';
+  const playerRatio=Math.max(0,state.playerHP)/state.maxHP;
+  const enemyRatio=Math.max(0,state.enemyHP)/state.enemyMaxHP;
+  if(enemyRatio < playerRatio) return 'win';
+  if(playerRatio < enemyRatio) return 'lose';
   return 'draw';
 }
 
@@ -1321,7 +1561,8 @@ function loop(ts){
   lastTime = ts;
   const now = Date.now();
   const elapsed = (now - state.startMs) / 1000;
-  state.timeLeft = Math.max(0, CONFIG.durationSec - Math.floor(elapsed));
+  state.timeLeft = Math.max(0, state.stage.durationSec - Math.floor(elapsed));
+  state.cameraShake = Math.max(0, state.cameraShake - dt);
 
   updateEnemyTier(elapsed);
   maybeSpawnBoss(elapsed);
@@ -1342,11 +1583,13 @@ function loop(ts){
     if(u.side === 'player' && u.x >= 840){
       state.enemyHP -= u.atk; u.hp = 0;
       playSound('baseHit', 180);
+      state.cameraShake = Math.max(state.cameraShake,120);
       state.effects.push({ kind:'slash', x:840, y:248, side:'player', color:'#7dd3fc', life:260, born:now });
     }
     if(u.side === 'enemy' && u.x <= 60){
       state.playerHP -= u.atk; u.hp = 0;
       playSound('baseHit', 180);
+      state.cameraShake = Math.max(state.cameraShake,120);
       state.effects.push({ kind:'slash', x:60, y:248, side:'enemy', color:'#fb7185', life:260, born:now });
     }
   }
@@ -1363,14 +1606,17 @@ function loop(ts){
   }
 
   ctx.clearRect(0,0,900,360);
-  drawBg();
+  ctx.save();
+  if(state.cameraShake>0){const strength=Math.min(3,state.cameraShake/55);ctx.translate((Math.random()-.5)*strength,(Math.random()-.5)*strength);}
+  drawBg(now);
   drawBase(60,'我方基地',state.playerHP,state.maxHP,true);
-  drawBase(840,'敵方基地',state.enemyHP,state.maxHP,false);
+  drawBase(840,'敵方基地',state.enemyHP,state.enemyMaxHP,false);
   state.units
     .sort((a,b) => a.y - b.y)
     .forEach(u => drawUnit(u, now));
   drawEffects(now);
   drawFloats(now);
+  ctx.restore();
   updateHUD();
 
   if(state.enemyHP <= 0){ endGame('win', 'rout'); return; }   // 打爆敵方基地 → 完全制霸
@@ -1415,6 +1661,7 @@ document.getElementById('battle-guide-ok').addEventListener('click', () => {
 });
 
 function updateHUD(){
+  document.getElementById('stage-display').textContent = `${state.stageIndex+1} / ${STAGES.length}・${state.stage.name}`;
   document.getElementById('gold-display').textContent = state.gold;
   document.getElementById('time-display').textContent = `${Math.floor(state.timeLeft/60)}:${String(state.timeLeft%60).padStart(2,'0')}`;
   document.getElementById('score-display').textContent = `${state.correctCount} / ${state.wrongCount}`;
@@ -1432,15 +1679,26 @@ function updateHUD(){
     const upBtn = document.getElementById('up-' + key);
     if(!upBtn) continue;
     const costEl = upBtn.querySelector('.cost');
+    const nameEl = upBtn.querySelector('.name');
     const lv = state.levels[key];
-    if(lv >= 3){
+    if(nameEl) nameEl.textContent = `${UNIT_DEF[key].label}｜${EVOLUTION_NAMES[key][lv-1]}`;
+    if(lv >= 5){
       upBtn.classList.add('disabled'); upBtn.classList.remove('ready');
-      if(costEl) costEl.textContent = '已滿級 Lv3';
+      if(costEl) costEl.textContent = '已滿級 Lv5';
     } else {
       const cost = CONFIG.levelCost[lv+1];
-      if(costEl) costEl.textContent = `升 Lv${lv+1}・${cost} 強化值`;
+      const perk=EVOLUTION_PERKS[key][lv+1];
+      if(costEl) costEl.textContent = `升 Lv${lv+1}・${cost} 強化值${perk?'｜'+perk:''}`;
       upBtn.classList.toggle('disabled', state.power < cost);
       upBtn.classList.toggle('ready', state.power >= cost);
+    }
+    const mini=document.getElementById('intermission-'+key);
+    if(mini){
+      const small=mini.querySelector('small');
+      const maxed=lv>=5, cost=maxed?0:CONFIG.levelCost[lv+1];
+      const perk=maxed?'':EVOLUTION_PERKS[key][lv+1];
+      if(small) small.textContent=maxed?`${EVOLUTION_NAMES[key][lv-1]}｜已滿級`:`Lv${lv} ${EVOLUTION_NAMES[key][lv-1]} → Lv${lv+1}｜${cost} 點${perk?'｜'+perk:''}`;
+      mini.disabled=maxed||state.power<cost;mini.classList.toggle('ready',!maxed&&state.power>=cost);
     }
   }
   const banner = document.getElementById('boss-banner');
@@ -1476,9 +1734,9 @@ function deployUnit(type){
 }
 
 function upgradeUnit(type){
-  if(!state || state.phase !== 'playing') return;
+  if(!state || !['playing','intermission'].includes(state.phase)) return;
   if(!state.allowLevelUp) return;                    // 保險：無升級機制時擋下
-  if(!UNIT_DEF[type] || state.levels[type] >= 3) return;
+  if(!UNIT_DEF[type] || state.levels[type] >= 5) return;
   const next = state.levels[type] + 1;
   const cost = CONFIG.levelCost[next];
   if(state.power < cost) return;
@@ -1494,15 +1752,14 @@ function upgradeUnit(type){
     u.level = next;
   }
   playSound('combo');
-  state.floats.push({ x:105, y:150, text:`${UNIT_DEF[type].label}進化至 Lv${next}！`, color:'#7dd3fc', life:1200, born:Date.now() });
+  state.floats.push({ x:105, y:150, text:`${EVOLUTION_NAMES[type][next-1]} Lv${next}！`, color:'#7dd3fc', life:1200, born:Date.now() });
+  state.effects.push({ kind:'upgrade', x:110, y:225, color:UNIT_DEF[type].color, life:650, born:Date.now() });
   updateHUD();
 }
 
 function updateEnemyTier(elapsed){
-  let tier = 0;
-  for(let i=0;i<CONFIG.enemyTierTimes.length;i++){
-    if(elapsed >= CONFIG.enemyTierTimes[i]) tier = i + 1;
-  }
+  const ratio=elapsed/state.stage.durationSec;
+  const tier=ratio>=.78?2:ratio>=.42?1:0;
   if(tier > state.enemyTier){
     state.enemyTier = tier;
     state.floats.push({ x:790, y:150, text:`敵方變強了！（階 ${tier+1}）`, color:'#fb7185', life:1400, born:Date.now() });
@@ -1511,8 +1768,8 @@ function updateEnemyTier(elapsed){
 }
 
 function maybeSpawnBoss(elapsed){
-  if(state.bossesSpawned >= CONFIG.bossTimes.length) return;
-  if(elapsed >= CONFIG.bossTimes[state.bossesSpawned]){
+  if(state.bossesSpawned >= state.stage.bossTimes.length) return;
+  if(elapsed >= state.stage.bossTimes[state.bossesSpawned]){
     const i = state.bossesSpawned;
     const bt = BOSS_TYPES[state.bossQueue[state.bossQueuePos % BOSS_TYPES.length]];
     state.bossQueuePos += 1;
@@ -1523,12 +1780,12 @@ function maybeSpawnBoss(elapsed){
     boss.bossKind = bt.kind;
     boss.bossColor = bt.color;
     boss.bossAura = bt.aura;
-    boss.hp = boss.maxHp = CONFIG.bossHP[i] || 900;
-    boss.atk = CONFIG.bossAtk[i] || 40;
+    boss.hp = boss.maxHp = state.stage.bossHP[i] || 900;
+    boss.atk = state.stage.bossAtk[i] || 40;
     boss.spd = 0.55;
     boss.range = 46;
     boss.attackRate = 1200;
-    const chip = (CONFIG.bossChip && CONFIG.bossChip[i]) || (1/3);
+    const chip = (state.stage.bossChip && state.stage.bossChip[i]) || (1/3);
     boss.need = Math.max(1, Math.round(1 / chip));   // 共需答對幾題文法
     boss.chipDmg = boss.maxHp * chip;                // 每次答對扣的血
     boss.streak = 0;                                 // 目前連續答對
@@ -1537,6 +1794,7 @@ function maybeSpawnBoss(elapsed){
     state.boss = boss;
     state.bossesSpawned += 1;
     state.grammarStreak = 0;
+    state.cameraShake = 260;
     const tip = state.bossMode === 'vocab'
       ? `答對 ${boss.need} 題單字擊退`
       : CONFIG.bossWrong === 'full'
@@ -1736,25 +1994,27 @@ function winStars(){
 
 function endGame(result, winType){
   stopBgm();
-  state.phase = 'ended';
+  const isWin = result === 'win';
+  const isFinal = state.stageIndex === STAGES.length-1;
+  state.phase = isWin && !isFinal ? 'intermission' : 'ended';
+  state.stageResult = result;
   document.getElementById('battle-pause-btn').style.display = 'none';
   const overlay = document.getElementById('overlay');
-  const isWin = result === 'win';
   const isRout = isWin && winType === 'rout';     // 打爆敵方基地：超級慶祝
   overlay.classList.toggle('win', isWin);
   overlay.classList.toggle('rout', isRout);
   if(!isWin){ Confetti.stop(); }
 
   const titleMap = {
-    win:['🎉 大勝利！🎉','#f9c74f'],
+    win:[isFinal?'🏆 戰役制霸！🏆':`第 ${state.stageIndex+1} 關突破！`,'#f9c74f'],
     lose:['敗北…','#ff5050'],
     draw:['平手','#ff9f1c'],
   };
   let [title, color] = titleMap[result] || titleMap.draw;
-  if(isRout){ title = '💥 完全制霸！💥'; }
+  if(isRout && !isFinal){ title = `💥 ${state.stage.name}制霸！`; }
   document.getElementById('overlay-title').textContent = title;
   document.getElementById('overlay-title').style.color = color;
-  document.getElementById('overlay-emoji').textContent = isRout ? '🏆' : '🎉';
+  document.getElementById('overlay-emoji').textContent = isFinal&&isWin ? '👑' : isRout ? '🏆' : isWin ? '🗺️' : '🛡️';
 
   // 星等：打爆基地直接 3 星，否則依存活血量＋正確率
   const starsEl = document.getElementById('overlay-stars');
@@ -1766,21 +2026,36 @@ function endGame(result, winType){
     starsEl.innerHTML = '';
   }
 
+  if(isWin&&isFinal) commitStageProgress();
+  const totalCorrect=(campaign?.totals.correct||0)+(state.progressCommitted?0:state.correctCount);
+  const totalWrong=(campaign?.totals.wrong||0)+(state.progressCommitted?0:state.wrongCount);
+  const totalBoss=(campaign?.totals.boss||0)+(state.progressCommitted?0:state.bossDefeated);
+  const totalDeploy=(campaign?.totals.deployed||0)+(state.progressCommitted?0:state.deployCount);
+  const totalCombo=Math.max(campaign?.totals.maxCombo||0,state.maxCombo);
   const lvLine = state.allowLevelUp
     ? `兵種等級：⚔️${state.levels.sword} 🏹${state.levels.archer} 🔮${state.levels.mage}　擊退 BOSS：${state.bossDefeated} 次<br>`
     : `擊退 BOSS：${state.bossDefeated} 次<br>`;
   document.getElementById('overlay-stats').innerHTML =
-    `難度：${CONFIG.label}<br>` +
+    `第 ${state.stageIndex+1} 關：${state.stage.name}｜難度：${CONFIG.label}<br>` +
     `答對：${state.correctCount} 題　答錯：${state.wrongCount} 題<br>` +
     lvLine +
     `最高連勝：${state.maxCombo}　派兵：${state.deployCount} 次<br>` +
     `我方基地：${Math.max(0, Math.ceil(state.playerHP))} / ${state.maxHP}<br>` +
-    `敵方基地：${Math.max(0, Math.ceil(state.enemyHP))} / ${state.maxHP}`;
-  const note = isRout ? '直接攻破敵方基地，完全制霸！🔥'
-    : isWin ? '時間到！我方基地血量較高，判定勝利！'
-    : result === 'lose' ? '我方基地血量較低，判定敗北。'
-    : '雙方基地血量相同，這局平手。';
+    `敵方基地：${Math.max(0, Math.ceil(state.enemyHP))} / ${state.enemyMaxHP}`+
+    (isFinal&&isWin?`<br><b>戰役總計：答對 ${totalCorrect}｜答錯 ${totalWrong}｜派兵 ${totalDeploy}｜BOSS ${totalBoss}｜最高連對 ${totalCombo}</b>`:'');
+  const note = isWin&&!isFinal ? `兵種等級與 ${state.power} 點強化值會保留。整備後前往「${STAGES[state.stageIndex+1].name}」。`
+    : isRout ? '直接攻破最後基地，完成三關戰役！🔥'
+    : isWin ? '三道防線全部突破，戰役完成！'
+    : result === 'lose' ? '重試會回到本關開始前的升級狀態。'
+    : '雙方基地血量相同，請重試本關。';
   document.getElementById('overlay-note').textContent = note;
+
+  const intermission=document.getElementById('intermission-upgrades');
+  intermission.classList.toggle('show',isWin&&!isFinal);
+  document.getElementById('overlay-next').style.display=isWin&&!isFinal?'':'none';
+  document.getElementById('overlay-retry').style.display=!isWin?'':'none';
+  document.getElementById('overlay-restart').style.display=isFinal&&isWin?'':'none';
+  updateHUD();
 
   overlay.classList.add('show');
   // 音效：制霸先轟一聲再放號角；一般勝利只放號角
