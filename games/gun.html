@@ -21,9 +21,11 @@
     padding:9px 16px;border-radius:8px;color:#cfd3da;font-size:13px;z-index:5;
     backdrop-filter:blur(3px);pointer-events:none;}
   #kills .val{font-weight:800;color:#fff;font-size:18px;margin-left:8px;}
+  #topActions{position:fixed;top:calc(14px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));
+    z-index:8;display:flex;align-items:flex-start;gap:8px;pointer-events:none;}
   #status{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:5;color:#fff;
-    text-align:center;text-shadow:0 2px 6px #000;pointer-events:none;min-width:250px;}
-  #weaponProgress{width:min(390px,88vw);margin:0 auto 7px;background:rgba(8,14,22,.78);
+    text-align:center;text-shadow:0 2px 6px #000;pointer-events:none;width:min(500px,48vw);}
+  #weaponProgress{width:320px;margin:0;background:rgba(8,14,22,.78);pointer-events:none;
     border:1px solid rgba(185,235,255,.35);border-radius:10px;padding:7px 9px;box-sizing:border-box;}
   #weaponText{font-size:12px;font-weight:900;color:#d7f5ff;margin-bottom:4px;}
   #weaponTrack{height:8px;background:rgba(255,255,255,.16);border-radius:5px;overflow:hidden;}
@@ -36,13 +38,16 @@
   #weaponStages .active{color:#ffe59a;font-weight:900;background:rgba(255,211,77,.12);border-radius:4px;}
   #weaponStages .active b{color:#ffe59a;}
   #wave{font-size:21px;font-weight:900;letter-spacing:1px;color:#ffe59a;}
-  #question{margin-top:5px;font-size:17px;font-weight:800;background:rgba(12,19,28,.68);
-    padding:7px 14px;border-radius:10px;display:inline-block;max-width:min(88vw,580px);}
+  #missionLine{display:flex;align-items:center;justify-content:center;gap:12px;}
+  #question{font-size:17px;font-weight:800;min-width:0;}
+  #questionTimer{flex:none;padding-left:12px;border-left:1px solid rgba(255,255,255,.28);
+    color:#ffe59a;font-size:16px;font-weight:900;white-space:nowrap;}
   #combo{font-size:13px;margin-top:5px;color:#b9ebff;font-weight:800;}
-  #captureHud{display:none;width:min(390px,88vw);margin:7px auto 0;background:rgba(8,28,24,.8);
-    border:1px solid rgba(105,255,193,.5);border-radius:9px;padding:6px 9px;box-sizing:border-box;}
-  #captureText{font-size:12px;font-weight:900;color:#c7ffe9;margin-bottom:4px;}
-  #captureTrack{height:9px;background:rgba(255,255,255,.15);border-radius:5px;overflow:hidden;}
+  #captureHud{display:none;width:100%;margin:7px auto 0;background:rgba(8,28,24,.8);
+    border:1px solid rgba(105,255,193,.5);border-radius:10px;padding:8px 11px;box-sizing:border-box;}
+  #captureText{font-size:12px;font-weight:900;color:#c7ffe9;margin-top:5px;}
+  #houseWord{display:none;margin-top:4px;font-size:17px;font-weight:900;color:#fff1a3;letter-spacing:.4px;}
+  #captureTrack{display:none;height:9px;margin-top:5px;background:rgba(255,255,255,.15);border-radius:5px;overflow:hidden;}
   #captureFill{height:100%;width:0;background:linear-gradient(90deg,#49d68a,#ffe66d);transition:width .12s;}
   #bossHud{display:none;width:min(390px,88vw);margin:7px auto 0;background:rgba(40,8,10,.78);
     border:1px solid rgba(255,100,80,.58);border-radius:9px;padding:6px 9px;box-sizing:border-box;}
@@ -136,7 +141,7 @@
   #jumpBtn{position:absolute;right:150px;bottom:52px;width:70px;height:70px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;
     background:rgba(80,160,255,.28);border:3px solid rgba(120,180,255,.7);text-shadow:0 1px 4px #000;}
-  #btnPause{position:fixed;top:calc(14px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));z-index:8;width:46px;height:46px;border-radius:12px;
+  #btnPause{position:static;flex:0 0 46px;width:46px;height:46px;border-radius:12px;
     font-size:20px;background:rgba(20,26,38,.6);color:#ffe9a8;
     border:1px solid rgba(255,216,120,.4);pointer-events:auto;}
   #pauseOverlay{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -147,6 +152,28 @@
     #fireBtn{right:24px;bottom:48px;width:86px;height:86px;font-size:19px;}
     #reloadBtn{right:37px;bottom:146px;width:60px;height:60px;font-size:13px;}
     #grenadeBtn{right:115px;bottom:130px;width:60px;height:60px;font-size:13px;}
+  }
+  @media (max-width:1100px){
+    #weaponProgress{width:230px;}
+    #weaponStages{font-size:8px;}
+    #status{width:min(380px,42vw);}
+    #question{font-size:15px;}
+    #questionTimer{font-size:14px;}
+  }
+  @media (max-width:850px){
+    #weaponProgress{width:160px;padding:6px 7px;}
+    #weaponStages{display:none;}
+    #weaponText{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    #status{width:300px;}
+    #missionLine{gap:7px;}
+    #questionTimer{padding-left:7px;}
+  }
+  @media (max-width:720px){
+    #weaponProgress{width:125px;}
+    #status{width:230px;}
+    #question{font-size:13px;}
+    #questionTimer{font-size:12px;}
+    #captureHud{padding:6px 7px;}
   }
   #gunRotateWarning{display:none;position:fixed;inset:0;z-index:10000;align-items:center;justify-content:center;
     padding:32px;background:rgba(8,12,20,.98);color:#ffe9a8;text-align:center;font:800 21px/1.6 -apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;cursor:auto;}
@@ -178,10 +205,14 @@
 </div>
 <div id="reloadBar"><div id="reloadFill"></div></div>
 <div id="kills">擊殺 KILLS<span class="val" id="vKills">0</span></div>
-<div id="status">
+<div id="topActions">
   <div id="weaponProgress"><div id="weaponText">武器分數 0 ・ 下一階：答對 0 / 3 ・ 擊殺 0 / 15</div><div id="weaponTrack"><div id="weaponFill"></div></div><div id="weaponStages"><span class="active"><b>手槍</b>0–29 分</span><span><b>衝鋒槍</b>30–69 分<br>答對 3・擊殺 15</span><span><b>步槍</b>70 分以上<br>答對 7・擊殺 40</span></div></div>
-  <div id="wave">🌊 第 1 波準備中</div><div id="question">準備佔領正確小屋</div><div id="combo">手槍 ・ COMBO ×0</div>
-  <div id="captureHud"><div id="captureText">尋找正確小屋</div><div id="captureTrack"><div id="captureFill"></div></div></div>
+  <button id="btnPause" class="hidden" type="button" aria-label="暫停">⏸</button>
+</div>
+<div id="status">
+  <div id="wave">🌊 第 1 波</div>
+  <div id="captureHud"><div id="missionLine"><div id="question">準備找小屋</div><div id="questionTimer">剩餘 38 秒</div></div><div id="captureText">找小屋</div><div id="houseWord"></div><div id="captureTrack"><div id="captureFill"></div></div></div>
+  <div id="combo">手槍 ・ COMBO ×0</div>
   <div id="bossHud"><div id="bossText">BOSS 生命</div><div id="bossTrack"><div id="bossFill"></div></div></div>
 </div>
 <div id="health">❤️ 玩家血量 <span id="hpText">100 / 100</span><div class="bar"><div class="fill" id="hpFill"></div></div></div>
@@ -203,7 +234,6 @@
   <button id="grenadeBtn" type="button">手榴彈</button>
   <button id="jumpBtn" type="button">跳</button>
 </div>
-<button id="btnPause" class="hidden" type="button" aria-label="暫停">⏸</button>
 <div id="overlay">
   <h1>🧟 殭屍堡壘 3D</h1>
   <div class="sub">Z O M B I E&nbsp;&nbsp;F O R T</div>
@@ -319,16 +349,21 @@ const sndWave=()=>{tone(330,0.14,0.18,'square');setTimeout(()=>tone(495,0.16,0.2
 const sndShield=()=>{tone(480,0.11,0.25,'sine');setTimeout(()=>tone(840,0.24,0.28,'sine'),100);};
 const sndGrenade=()=>{noiseSnd(.42,1500,70,.55);tone(75,.35,.34,'sawtooth',38);};
 const sndCrateBreak=()=>{noiseSnd(.2,1250,120,.48,'bandpass');tone(145,.14,.28,'triangle',62);setTimeout(()=>noiseSnd(.12,780,90,.3,'lowpass'),75);};
-let bgmNodes=null,speechToken=0,activeUtterance=null,voices=[];
+let bgmAudio=null,bgmFade=null,speechToken=0,activeUtterance=null,voices=[];
+function ensureBgmAudio(){
+  if(bgmAudio)return bgmAudio;
+  bgmAudio=new Audio('../assets/music/Blocky Sunrise.mp3');bgmAudio.loop=true;bgmAudio.preload='auto';bgmAudio.volume=0;return bgmAudio;
+}
+function fadeBgm(to,ms,onDone){
+  clearInterval(bgmFade);const a=bgmAudio;if(!a)return;
+  const steps=Math.ceil(ms/30),from=a.volume,d=(to-from)/steps;let i=0;
+  bgmFade=setInterval(()=>{i++;a.volume=Math.min(1,Math.max(0,from+d*i));if(i>=steps){clearInterval(bgmFade);if(onDone)onDone();}},30);
+}
 function startBgm(){
-  if(!AC||bgmNodes)return;
-  const g=AC.createGain();g.gain.value=0.035;g.connect(master);
-  const a=AC.createOscillator(),b=AC.createOscillator();a.type='sine';b.type='triangle';
-  a.frequency.value=55;b.frequency.value=82.41;a.connect(g);b.connect(g);a.start();b.start();bgmNodes={a,b,g};
+  const a=ensureBgmAudio();a.volume=0;const p=a.play();if(p&&p.catch)p.catch(()=>{});fadeBgm(.6,900);
 }
 function stopBgm(){
-  if(!bgmNodes)return;
-  try{bgmNodes.a.stop();bgmNodes.b.stop();}catch(e){} bgmNodes=null;
+  if(!bgmAudio)return;fadeBgm(0,500,()=>{try{bgmAudio.pause();}catch(e){}});
 }
 function refreshVoices(){try{voices=speechSynthesis.getVoices()||[];}catch(e){voices=[];}}
 refreshVoices();
@@ -923,7 +958,7 @@ function hitmarkShow(){
 }
 
 /* ============ 波次、單字與逃生目標 ============ */
-const waveEl=document.getElementById('wave'),questionEl=document.getElementById('question'),comboEl=document.getElementById('combo'),
+const waveEl=document.getElementById('wave'),questionEl=document.getElementById('question'),questionTimerEl=document.getElementById('questionTimer'),comboEl=document.getElementById('combo'),
   objectiveEl=document.getElementById('objective');
 const WEAPON=[{name:'手槍',cap:7,rate:.28,damage:1,head:3,color:0x181a1f,scale:1},
   {name:'衝鋒槍',cap:12,rate:.11,damage:1,head:3,color:0x263842,scale:1.16},
@@ -934,7 +969,7 @@ let wave=0,targetWord=null,roundKind='word',combo=0,weaponLevel=0,weaponScore=0,
   gateReady=false,gateOpen=false,gameWon=false,survivalStart=0,exitGate=null;
 const CAPTURE_SECONDS=10,QUESTION_SECONDS=38;
 let captureHouse=null,captureT=0,questionT=QUESTION_SECONDS,captureActive=false,captureCooldown=0,roundTransition=false,transitionT=0;
-const captureHudEl=document.getElementById('captureHud'),captureTextEl=document.getElementById('captureText'),captureFillEl=document.getElementById('captureFill');
+const captureHudEl=document.getElementById('captureHud'),captureTextEl=document.getElementById('captureText'),captureTrackEl=document.getElementById('captureTrack'),captureFillEl=document.getElementById('captureFill'),houseWordEl=document.getElementById('houseWord');
 function pickWord(except){
   const list=VOCAB.filter(x=>x!==except);return (list.length?list:VOCAB)[(rnd(list.length||1))|0];
 }
@@ -1000,12 +1035,13 @@ function assignHouseAnswers(){
     setHouseLabel(h,labelForWord(h.answer));
   }
   captureHouse=null;captureT=0;questionT=QUESTION_SECONDS;captureActive=true;
-  captureHudEl.style.display='block';captureFillEl.style.width='0%';captureTextEl.textContent='找小屋 ・ 剩 '+QUESTION_SECONDS+' 秒';
+  captureHudEl.style.display='block';captureTrackEl.style.display='none';captureFillEl.style.width='0%';captureTextEl.textContent='找小屋';
+  houseWordEl.style.display='none';houseWordEl.textContent='';questionTimerEl.textContent='剩餘 '+QUESTION_SECONDS+' 秒';
 }
 function setQuestion(say=true){
   const words=questionWords(),pool=words.filter(w=>wordKey(w)!==wordKey(targetWord));targetWord=(pool.length?pool:words)[(rnd((pool.length?pool:words).length))|0];
-  if(gameMode==='simple')questionEl.textContent='🔊 '+targetWord.word+' → 佔領正確圖片小屋';
-  else questionEl.textContent=roundKind==='listen'?'🔊 聽發音，佔領正確英文小屋':('題目：'+targetWord.chinese+' → 佔領英文小屋');
+  if(gameMode==='simple')questionEl.textContent='🔊 題目：'+targetWord.word;
+  else questionEl.textContent=roundKind==='listen'?'🔊 聽發音找英文':('題目：'+targetWord.chinese);
   if(say)speakWord(targetWord.word);assignHouseAnswers();
 }
 function spawnCrowd(count){for(let i=0;i<count;i++)spawnZombie('normal');}
@@ -1032,7 +1068,7 @@ function spawnWaveThreats(){
 function beginWave(){
   if(gameWon||gateReady)return;roundTransition=false;
   wave++;roundKind=wave===7?'boss':(gameMode==='hard'&&wave%3===0?'listen':(gameMode==='simple'?'image':'word'));
-  waveEl.textContent='🌊 第 '+wave+' 波 '+(roundKind==='boss'?'魔王來襲！':roundKind==='listen'?'聽力佔領':'小屋佔領');
+  waveEl.textContent='🌊 第 '+wave+' 波';
   setNight(wave>=5);setQuestion(true);sndWave();spawnWaveThreats();
   if(roundKind==='boss'){
     const shield=gameMode==='hard'?4:3;showObjective('👑 佔領正確小屋 '+shield+' 次，破除 BOSS 護盾');
@@ -1082,22 +1118,24 @@ function onQuestionTimeout(){
 }
 function insideHouse(h){return player.y<1.4&&Math.abs(player.x-h.cx)<h.w/2-T-.2&&Math.abs(player.z-h.cz)<h.d/2-T-.2;}
 function updateCapture(dt){
-  if(!captureActive||roundTransition)return;if(captureCooldown>0){captureCooldown-=dt;captureTextEl.textContent='重新洗牌中…';return;}
-  const h=HOUSES.find(insideHouse)||null;if(!h)questionT-=dt;
+  if(!captureActive||roundTransition)return;
+  questionT=Math.max(0,questionT-dt);questionTimerEl.textContent='剩餘 '+Math.max(0,Math.ceil(questionT))+' 秒';
+  if(captureCooldown>0){captureCooldown-=dt;captureTextEl.textContent='重新洗牌中…';captureTrackEl.style.display='none';houseWordEl.style.display='none';return;}
+  const h=HOUSES.find(insideHouse)||null;
   if(h){
     if(captureHouse!==h){
       captureHouse=h;captureT=gameMode==='hard'?0:(h.captureT||0);
       showObjective(gameMode==='hard'?('留在 '+h.name+' 裡守滿 10 秒；離開會重新計時'):('留在 '+h.name+' 裡防守；離開後會保留這間的進度'));
     }
     captureT+=dt;h.captureT=captureT;const left=Math.max(0,CAPTURE_SECONDS-captureT);
-    captureTextEl.textContent=h.name+' 佔領中 ・ 還要 '+left.toFixed(1)+' 秒';captureFillEl.style.width=(Math.min(1,captureT/CAPTURE_SECONDS)*100)+'%';
+    captureTextEl.textContent='佔領倒數 '+left.toFixed(1)+' 秒';houseWordEl.textContent='目前小屋：'+(h.answer&&h.answer.word?h.answer.word:'—');houseWordEl.style.display='block';captureTrackEl.style.display='block';captureFillEl.style.width=(Math.min(1,captureT/CAPTURE_SECONDS)*100)+'%';
     if(captureT>=CAPTURE_SECONDS){captureActive=false;captureHudEl.style.display='none';h.correct?onHouseCorrect(h):onHouseWrong(h);return;}
   }else{
     if(captureHouse&&gameMode==='hard')captureHouse.captureT=0;
     captureHouse=null;captureT=0;
     const saved=gameMode==='hard'?0:Math.max(0,...HOUSES.map(x=>x.captureT||0));
-    captureFillEl.style.width=(saved/CAPTURE_SECONDS*100)+'%';
-    captureTextEl.textContent=(saved>0?'已保留 '+saved.toFixed(1)+' 秒 ・ 回原本小屋繼續':'找小屋')+' ・ 剩 '+Math.max(0,Math.ceil(questionT))+' 秒';
+    captureFillEl.style.width=(saved/CAPTURE_SECONDS*100)+'%';captureTrackEl.style.display=saved>0?'block':'none';
+    captureTextEl.textContent=saved>0?('找小屋 ・ 已保留 '+saved.toFixed(1)+' 秒'):'找小屋';houseWordEl.style.display='none';houseWordEl.textContent='';
   }
   if(questionT<=0){captureActive=false;onQuestionTimeout();}
 }
@@ -1148,7 +1186,7 @@ function winGame(){
 }
 
 /* ============ 彈藥補給（走近自動撿） ============ */
-const pickups=[];
+const pickups=[],AMMO_PICKUP_AMOUNT=10;
 function ammoBox(x,z,amount,big){
   const s=big?0.85:0.55;
   const m=block(s,s,s,TEX.ammo,s);m.position.set(x,0.55,z);scene.add(m);
@@ -1170,20 +1208,20 @@ function grenadeBox(x,z){
 function spawnZombieDrop(x,z){
   const r=Math.random();
   if(r<.05)grenadeBox(x+rnd(-.6,.6),z+rnd(-.6,.6));
-  else if(r<.35)ammoBox(x+rnd(-.6,.6),z+rnd(-.6,.6),5,false);
+  else if(r<.35)ammoBox(x+rnd(-.6,.6),z+rnd(-.6,.6),AMMO_PICKUP_AMOUNT,false);
 }
 function spawnCaptureReward(h){
   const a=rnd(TAU),x=h.cx+Math.sin(a)*2,z=h.cz+Math.cos(a)*2,r=Math.random();
-  if(r<.55){ammoBox(x,z,10,false);return '屋內出現 +10 彈藥箱';}
+  if(r<.55){ammoBox(x,z,AMMO_PICKUP_AMOUNT,false);return '屋內出現 +10 彈藥箱';}
   if(r<.85){grenadeBox(x,z);return '屋內出現 1 顆手榴彈';}
-  ammoBox(x-1,z,8,false);grenadeBox(x+1,z);return '稀有補給：彈藥箱＋手榴彈';
+  ammoBox(x-1,z,AMMO_PICKUP_AMOUNT,false);grenadeBox(x+1,z);return '稀有補給：+10 彈藥箱＋手榴彈';
 }
 const ROADSIDE_SPOTS=[[-31,-5],[-20,5],[18,-5],[34,5],[5,-35],[-5,-48],[5,23],[-5,39],[-38,23],[42,-9],[-58,5],[55,5]];
 let fixedAmmoSpawned=false,roadsideSupplyT=0,surpriseSupplyT=0,supplyAlertHoldT=0;
 function spawnRoadsidePickup(){
   const open=ROADSIDE_SPOTS.filter(p=>Math.hypot(p[0]-player.x,p[1]-player.z)>9&&!pickups.some(b=>!b.taken&&Math.hypot(b.x-p[0],b.z-p[1])<3));
   if(!open.length)return false;
-  const p=open[(rnd(open.length))|0],item=Math.random()<.85?ammoBox(p[0]+rnd(-1.4,1.4),p[1]+rnd(-1.4,1.4),5,false):grenadeBox(p[0],p[1]);
+  const p=open[(rnd(open.length))|0],item=Math.random()<.85?ammoBox(p[0]+rnd(-1.4,1.4),p[1]+rnd(-1.4,1.4),AMMO_PICKUP_AMOUNT,false):grenadeBox(p[0],p[1]);
   item.roadside=true;item.life=30;return true;
 }
 function surpriseBox(x,z){
@@ -1234,7 +1272,7 @@ function updateSupplyAlert(dt){
 function setupFixedAmmo(){
   if(fixedAmmoSpawned)return;fixedAmmoSpawned=true;
   const spots=[[-8,0],[40,-44],[-42,36]],p=spots[(rnd(spots.length))|0];
-  if(Math.random()<.3)ammoBox(p[0],p[1],6,true);
+  if(Math.random()<.3)ammoBox(p[0],p[1],AMMO_PICKUP_AMOUNT,true);
   spawnRoadsidePickup();roadsideSupplyT=rnd(45,66);surpriseSupplyT=rnd(90,120);
 }
 function updateRoadsideSupply(dt){
