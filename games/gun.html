@@ -187,7 +187,7 @@
 <div id="damageFlash"></div>
 <div id="ammo">
   <div class="gname">9MM 手槍</div>
-  <div class="num" id="ammoNum"><span id="vMag">5</span> <small>/ <span id="vReserve">15</span></small></div>
+  <div class="num" id="ammoNum"><span id="vMag">7</span> <small>/ <span id="vReserve">30</span></small></div>
   <div id="grenades">💣 手榴彈 ×<span id="vGrenades">0</span></div>
 </div>
 <div id="banner">🏘️ 找到正確單字的小屋，在裡面守住 10 秒！殭屍只是生存威脅</div>
@@ -911,7 +911,7 @@ function hitmarkShow(){
 /* ============ 波次、單字與逃生目標 ============ */
 const waveEl=document.getElementById('wave'),questionEl=document.getElementById('question'),comboEl=document.getElementById('combo'),
   objectiveEl=document.getElementById('objective');
-const WEAPON=[{name:'手槍',cap:5,rate:.28,damage:1,head:3,color:0x181a1f,scale:1},
+const WEAPON=[{name:'手槍',cap:7,rate:.28,damage:1,head:3,color:0x181a1f,scale:1},
   {name:'衝鋒槍',cap:12,rate:.11,damage:1,head:3,color:0x263842,scale:1.16},
   {name:'步槍',cap:20,rate:.18,damage:2,head:6,color:0x4a3b24,scale:1.34}];
 let wave=0,targetWord=null,roundKind='word',combo=0,weaponLevel=0,weaponScore=0,slowT=0,
@@ -1147,7 +1147,7 @@ function grenadeBox(x,z){
 function spawnZombieDrop(x,z){
   const r=Math.random();
   if(r<.05)grenadeBox(x+rnd(-.6,.6),z+rnd(-.6,.6));
-  else if(r<.15)ammoBox(x+rnd(-.6,.6),z+rnd(-.6,.6),5,false);
+  else if(r<.35)ammoBox(x+rnd(-.6,.6),z+rnd(-.6,.6),5,false);
 }
 function spawnCaptureReward(h){
   const a=rnd(TAU),x=h.cx+Math.sin(a)*2,z=h.cz+Math.cos(a)*2,r=Math.random();
@@ -1253,7 +1253,7 @@ const player={x:0,z:34,yaw:0,pitch:0,vx:0,vz:0,vy:0,y:0,onGround:true};
 const EYE=1.7,WALK=6.5,JUMP=7.8;     // 跳躍力剛好上 1.15m 木箱、上不了 1.5m 矮牆
 const key={};
 let playing=false,paused=false;
-let mag=5,reserve=15,grenades=0,grenadeCd=0,recoil=0,bobT=0,kills=0,hp=100,fireCd=0,fireHeld=false;
+let mag=7,reserve=30,grenades=0,grenadeCd=0,recoil=0,bobT=0,kills=0,hp=100,fireCd=0,fireHeld=false;
 let fireAmmoT=0,iceAmmoT=0,weaponBoostT=0,armorT=0;
 let reloading=false,reloadT=0,reloadS1=false,reloadS2=false;
 const reloadBarEl=document.getElementById('reloadBar'),
