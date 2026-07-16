@@ -623,13 +623,15 @@ const clouds=[];
 }
 
 /* ============ 殭屍（單字牌／AI／波次會在下方控制） ============ */
-const zombies=[];
+const zombies=[],enemyArrows=[];
 const Z_SPAWNS=[[0,-62],[56,-4],[-60,10],[30,56],[-36,-56],[64,44],[-64,-38],[12,66]];
 let boss=null;
 const ZOMBIE_SPEED_MULT=3,ENRAGED_SPEED_MULT=5;
+const ENEMY_ARROW_SPEED=8,ENEMY_ARROW_DAMAGE=14;
 const MODE_CFG={simple:{speed:1,hp:1,dogs:false},normal:{speed:1,hp:1,dogs:false},hard:{speed:1.15,hp:1.25,dogs:true}};
 function zombieHp(kind){
   if(kind==='dog')return 2;
+  if(kind==='archer')return Math.ceil((wave>=6?4:3)*MODE_CFG[gameMode].hp);
   if(kind==='boss')return gameMode==='hard'?42:30;
   const i=clamp((wave||1)-1,0,6),table={normal:[3,3,4,4,5,5,6],fast:[2,2,3,3,4,4,5],tank:[6,6,8,8,10,10,12]};
   return Math.ceil(table[kind||'normal'][i]*MODE_CFG[gameMode].hp);
@@ -661,9 +663,49 @@ function setRageVisual(g,on){
   const u=g.userData;if(!u.rageMats)return;
   u.rageMats.forEach((m,i)=>m.color.setHex(on?(i===1?0x7f1717:0xd9322d):u.rageBase[i]));
 }
+function makeEnemyArrow(){
+  const g=new THREE.Group(),shaftMat=new THREE.MeshBasicMaterial({color:0xf0c56b}),tipMat=new THREE.MeshBasicMaterial({color:0xff754b});
+  const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.8,6),shaftMat);shaft.rotation.x=Math.PI/2;g.add(shaft);
+  const tip=new THREE.Mesh(new THREE.ConeGeometry(.09,.24,6),tipMat);tip.rotation.x=Math.PI/2;tip.position.z=.5;g.add(tip);
+  for(const s of[-1,1]){const feather=new THREE.Mesh(new THREE.BoxGeometry(.16,.035,.22),tipMat);feather.position.set(s*.07,0,-.43);feather.rotation.z=s*.42;g.add(feather);}
+  g.traverse(o=>{o.userData.noHit=true;});return g;
+}
+function arrowBlocked(x,y,z){
+  for(const s of solids)if(x>s.x1-.04&&x<s.x2+.04&&z>s.z1-.04&&z<s.z2+.04&&y>s.y1-.04&&y<s.y2+.04)return true;
+  return false;
+}
+function clearArrowPath(x,z,tx,tz){
+  const dx=tx-x,dz=tz-z,steps=Math.ceil(Math.hypot(dx,dz)/.45);
+  for(let i=1;i<steps;i++)if(arrowBlocked(x+dx*i/steps,1.55,z+dz*i/steps))return false;
+  return true;
+}
+function shootEnemyArrow(z){
+  if(!z.userData.alive)return;
+  const m=makeEnemyArrow(),origin=z.localToWorld(new THREE.Vector3(.58,1.55,.7)),target=new THREE.Vector3(player.x,player.y+1.05,player.z);
+  const dir=target.sub(origin).normalize();m.position.copy(origin);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),dir);scene.add(m);
+  enemyArrows.push({m,vx:dir.x*ENEMY_ARROW_SPEED,vy:dir.y*ENEMY_ARROW_SPEED,vz:dir.z*ENEMY_ARROW_SPEED,life:5,owner:z});
+}
+function clearEnemyArrows(){
+  for(const a of enemyArrows)scene.remove(a.m);enemyArrows.length=0;
+}
+function updateEnemyArrows(dt){
+  const adt=dt*(slowT>.01?.35:1),steps=Math.max(1,Math.ceil(ENEMY_ARROW_SPEED*adt/.2));
+  for(let i=enemyArrows.length-1;i>=0;i--){
+    const a=enemyArrows[i];a.life-=adt;let gone=a.life<=0;
+    for(let n=0;n<steps&&!gone;n++){
+      a.m.position.x+=a.vx*adt/steps;a.m.position.y+=a.vy*adt/steps;a.m.position.z+=a.vz*adt/steps;
+      if(arrowBlocked(a.m.position.x,a.m.position.y,a.m.position.z)){sparks(a.m.position,0xf0c56b,5);gone=true;break;}
+      if(Math.hypot(a.m.position.x-player.x,a.m.position.y-(player.y+1.05),a.m.position.z-player.z)<.68){
+        hurt(ENEMY_ARROW_DAMAGE,{x:a.owner.position.x,z:a.owner.position.z});gone=true;if(!playing)return;
+      }
+    }
+    if(gone){scene.remove(a.m);enemyArrows.splice(i,1);}
+  }
+}
 function makeZombie(x,z,kind='normal'){
   const g=new THREE.Group();
   const spec=kind==='dog'?{scale:.88,speed:2.15,damage:35,color:0x4b4038,range:.82,push:.58}:
+    kind==='archer'?{scale:.94,speed:.72,damage:ENEMY_ARROW_DAMAGE,color:0xd8d2ba,range:22,push:.82}:
     kind==='fast'?{scale:.76,speed:1.4,damage:7,color:0x86d748,range:1.08,push:.8}:
     kind==='tank'?{scale:1.28,speed:.52,damage:13,color:0x746f50,range:1.2,push:1.1}:
     kind==='boss'?{scale:1.48,speed:.58,damage:18,color:0x746f50,range:1.85,push:1.35}:{scale:1,speed:.82,damage:10,color:0x57a63e,range:1.08,push:.95};
@@ -673,6 +715,7 @@ function makeZombie(x,z,kind='normal'){
   const shirt=new THREE.MeshLambertMaterial({color:0x2f8f86});
   const pants=new THREE.MeshLambertMaterial({color:0x35406e});
   const face=new THREE.MeshLambertMaterial({map:TEX.zface});
+  let archerBow=null;
   if(kind==='dog'){
     const body=new THREE.Mesh(new THREE.BoxGeometry(1.22,.58,.54),skin);body.position.y=.62;body.userData.part='body';g.add(body);
     const head=new THREE.Mesh(new THREE.BoxGeometry(.58,.55,.62),skin);head.position.set(0,.73,.55);head.userData.part='head';g.add(head);
@@ -680,6 +723,20 @@ function makeZombie(x,z,kind='normal'){
     for(const s of[-1,1])for(const z2 of[-.34,.34]){
       const leg=new THREE.Mesh(new THREE.BoxGeometry(.2,.55,.2),pants);leg.position.set(s*.42,.28,z2);leg.userData.part='body';leg.userData.isDogLeg=true;g.add(leg);
     }
+  }else if(kind==='archer'){
+    shirt.color.setHex(0x4b365f);pants.color.setHex(0x302538);
+    const head=new THREE.Mesh(new THREE.BoxGeometry(.72,.72,.72),skin);head.position.y=2.16;head.userData.part='head';g.add(head);
+    for(const s of[-1,1]){const eye=new THREE.Mesh(new THREE.BoxGeometry(.13,.12,.035),new THREE.MeshBasicMaterial({color:0xff593d}));eye.position.set(s*.16,2.2,.375);eye.userData.part='head';g.add(eye);}
+    const body=new THREE.Mesh(new THREE.BoxGeometry(.8,1.05,.4),shirt);body.position.y=1.25;body.userData.part='body';g.add(body);
+    for(const s of[-1,1]){
+      const leg=new THREE.Mesh(new THREE.BoxGeometry(.3,1,.3),skin);leg.position.set(s*.2,.5,0);leg.userData.part='body';g.add(leg);
+      const arm=new THREE.Mesh(new THREE.BoxGeometry(.25,.25,.95),skin);arm.position.set(s*.5,1.58,.48);arm.userData.part='body';arm.userData.isArm=true;g.add(arm);
+    }
+    archerBow=new THREE.Group();const bowMat=new THREE.MeshLambertMaterial({color:0x8b572f});
+    const upper=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.76,6),bowMat);upper.position.y=.32;upper.rotation.z=-.42;archerBow.add(upper);
+    const lower=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.76,6),bowMat);lower.position.y=-.32;lower.rotation.z=.42;archerBow.add(lower);
+    const stringGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(.16,.68,0),new THREE.Vector3(-.08,0,-.18),new THREE.Vector3(.16,-.68,0)]);
+    archerBow.add(new THREE.Line(stringGeo,new THREE.LineBasicMaterial({color:0xe9dfc0})));archerBow.position.set(.72,1.55,.52);g.add(archerBow);
   }else{
     const head=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.72,0.72),
       [skin,skin,skin,skin,face,skin]);              // +z 面是臉
@@ -697,14 +754,17 @@ function makeZombie(x,z,kind='normal'){
   g.position.set(x,0,z);g.rotation.y=rnd(TAU);g.scale.setScalar(spec.scale);
   g.traverse(o=>{o.userData.zomb=g;});
   g.userData={phase:rnd(TAU),hp,maxHp:hp,alive:true,kx:0,kz:0,flash:0,deadT:0,
-    mats:[skin,shirt,pants,face],kind,speed:spec.speed,damage:spec.damage,attackT:rnd(.2,.8),
+    mats:[skin,shirt,pants,face],kind,speed:spec.speed,damage:spec.damage,attackT:kind==='archer'?rnd(1.8,2.6):rnd(.2,.8),
     attackRange:spec.range,pushRadius:spec.push,bossShield:kind==='boss'?(gameMode==='hard'?4:3):0,
     secondShield:false,bossRage:false,windup:0,enrage:0,attackAnim:0,stuckT:0,los:false,losT:0,
-    rageMats:kind==='dog'?null:[skin,shirt,face],rageBase:kind==='dog'?null:[skin.color.getHex(),shirt.color.getHex(),face.color.getHex()]};
+    bow:archerBow,rageMats:kind==='dog'?null:[skin,shirt,face],rageBase:kind==='dog'?null:[skin.color.getHex(),shirt.color.getHex(),face.color.getHex()]};
   if(kind==='boss'){
     boss=g;setZombieLabel(g,'👑 BOSS 護盾 ×'+g.userData.bossShield,'#7d47b8');
     const warn=new THREE.Mesh(new THREE.RingGeometry(.7,1.8,32),new THREE.MeshBasicMaterial({color:0xff3028,transparent:true,opacity:.62,side:THREE.DoubleSide}));
     warn.rotation.x=-Math.PI/2;warn.position.y=.03;warn.visible=false;warn.userData.noHit=true;g.add(warn);g.userData.warn=warn;
+  }else if(kind==='archer'){
+    const warn=new THREE.Mesh(new THREE.RingGeometry(.58,.82,28),new THREE.MeshBasicMaterial({color:0xff9b3f,transparent:true,opacity:.8,side:THREE.DoubleSide}));
+    warn.rotation.x=-Math.PI/2;warn.position.y=.035;warn.visible=false;warn.userData.noHit=true;g.add(warn);g.userData.warn=warn;
   }
   scene.add(g);zombies.push(g);
   return g;
@@ -771,6 +831,23 @@ function moveZombieToward(z,dx,dz,pace,dt){
   if(moved){z.rotation.y=Math.atan2(mx,mz);u.stuckT=0;}
   else if((u.stuckT+=dt)>.25){u.los=false;u.losT=0;navPlayerIndex=-1;u.stuckT=0;}
 }
+function moveArcherAway(z,dx,dz,pace,dt){
+  const d=Math.hypot(dx,dz)||1,step=pace*dt,nx=z.position.x-dx/d*step,nz=z.position.z-dz/d*step,r=.4;
+  if(!blockedForZombie(nx,z.position.z,r))z.position.x=nx;if(!blockedForZombie(z.position.x,nz,r))z.position.z=nz;
+  z.rotation.y=Math.atan2(dx,dz);
+}
+function updateArcher(z,u,dx,dz,d,pace,dt){
+  const timeScale=(slowT>.01?.35:1)*(u.freezeT>0?.48:1),los=clearArrowPath(z.position.x,z.position.z,player.x,player.z);
+  if(!los||d>22)moveZombieToward(z,dx,dz,pace,dt);else if(d<9)moveArcherAway(z,dx,dz,pace,dt);else z.rotation.y=Math.atan2(dx,dz);
+  if(u.windup>0){
+    u.windup-=dt*timeScale;if(u.warn){u.warn.visible=true;u.warn.material.opacity=.52+Math.sin(performance.now()*.018)*.3;}
+    if(u.bow)u.bow.position.z=.52-Math.max(0,u.windup)/.8*.12;
+    if(u.windup<=0){if(u.warn)u.warn.visible=false;if(u.bow)u.bow.position.z=.52;shootEnemyArrow(z);u.attackT=rnd(2.7,3.3);}
+  }else{
+    if(u.warn)u.warn.visible=false;u.attackT-=dt*timeScale;
+    if(u.attackT<=0&&los&&d<25){u.windup=.8;if(u.warn)u.warn.visible=true;}
+  }
+}
 function hitZombie(g,part,hitPoint){
   const u=g.userData;if(!u.alive)return;
   if(g===boss&&u.bossShield>0){
@@ -793,7 +870,7 @@ function hitZombie(g,part,hitPoint){
   if(u.hp<=0)finishZombie(g);else part==='head'?sndHead():sndHit();
 }
 function finishZombie(g){
-  const u=g.userData;if(!u.alive)return;u.alive=false;u.deadT=0;kills++;
+  const u=g.userData;if(!u.alive)return;u.alive=false;u.deadT=0;if(u.warn)u.warn.visible=false;kills++;
   document.getElementById('vKills').textContent=kills;sndKill();sparks(g.position.clone().setY(1.4),0xffe08a,12);
   if(g===boss){boss=null;onBossDefeated();}else spawnZombieDrop(g.position.x,g.position.z);
 }
@@ -910,9 +987,14 @@ function setQuestion(say=true){
 }
 function spawnCrowd(count){for(let i=0;i<count;i++)spawnZombie('normal');}
 function clearWaveEnemies(){
-  for(const z of zombies)if(z.userData.alive&&z!==boss){z.userData.alive=false;z.userData.deadT=.72;}
+  for(const z of zombies)if(z.userData.alive&&z!==boss){z.userData.alive=false;z.userData.deadT=.72;if(z.userData.warn)z.userData.warn.visible=false;}
+  clearEnemyArrows();
 }
 function spawnHardDogs(count){for(let i=0;i<count;i++)spawnZombie('dog');}
+function spawnHardArchers(count){
+  const alive=zombies.filter(z=>z.userData.alive&&z.userData.kind==='archer').length;
+  for(let i=alive;i<count;i++)spawnZombie('archer');
+}
 function baseNormalCount(w){
   let n=3+Math.min(4,w),answerCount=Math.min(9,4+w);
   for(let i=0;i<answerCount;i++)if(!(i%7===4||(w>3&&i%9===6)))n++;
@@ -932,10 +1014,15 @@ function beginWave(){
   if(roundKind==='boss'){
     const shield=gameMode==='hard'?4:3;showObjective('👑 佔領正確小屋 '+shield+' 次，破除 BOSS 護盾');
     spawnZombie('boss');updateBossHud(boss);
-    if(gameMode==='hard')spawnHardDogs(2);
+    if(gameMode==='hard'){spawnHardDogs(2);spawnHardArchers(2);showObjective('👑 佔領正確小屋 4 次破盾 ・ 🐕 殭屍狗 ・ 🏹 弓箭手');}
   }else{
     showObjective(gameMode==='hard'?'進入正確小屋，一次守滿 10 秒；離開就重算':'進入正確小屋守滿 10 秒；撤出後可回來接著守');
-    if(gameMode==='hard'&&wave>=3){spawnHardDogs(wave>=5?2:1);showObjective('守住正確小屋 10 秒 ・ 🐕 小心高速殭屍狗！');}
+    if(gameMode==='hard'){
+      const hazards=[];
+      if(wave>=3){spawnHardDogs(wave>=5?2:1);hazards.push('🐕 高速殭屍狗');}
+      if(wave>=4){spawnHardArchers(wave>=6?2:1);hazards.push('🏹 側移或躲牆後避箭');}
+      if(hazards.length)showObjective('守住正確小屋 10 秒 ・ '+hazards.join(' ・ '));
+    }
   }
 }
 function setNight(on){
@@ -1030,7 +1117,7 @@ function openGateQuiz(){
   };box.appendChild(b);}document.getElementById('quiz').classList.add('show');
 }
 function winGame(){
-  gameWon=true;playing=false;stopBgm();waveEl.textContent='🎉 成功逃生！';
+  gameWon=true;playing=false;clearEnemyArrows();stopBgm();waveEl.textContent='🎉 成功逃生！';
   document.getElementById('btnPause').classList.add('hidden');
   const sec=Math.max(1,Math.round((performance.now()-survivalStart)/1000));
   overlay.innerHTML='<h1>🏆 成功逃生！</h1><div class="sub">T O W N &nbsp; C L E A R</div><p>擊殺 '+kills+' 隻 ・ 武器分數 '+weaponScore+' ・ 存活 '+sec+' 秒</p><p class="go">找對小屋、守住佔領區，就能帶著補給活下去！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再守一輪</button>';
@@ -1223,7 +1310,7 @@ function hurt(amount,from){
   document.getElementById('hpFill').style.width=hp+'%';sndHurt();
   const f=document.getElementById('damageFlash');f.classList.remove('show');void f.offsetWidth;f.classList.add('show');
   if(hp<=0){
-    playing=false;paused=true;stopBgm();
+    playing=false;paused=true;clearEnemyArrows();stopBgm();
     document.getElementById('btnPause').classList.add('hidden');
     overlay.innerHTML='<h1>💀 小鎮失守</h1><div class="sub">T R Y &nbsp; A G A I N</div><p>擊殺 '+kills+' 隻 ・ 撐到第 '+wave+' 波</p><p class="go">看清屋頂字牌，進正確小屋守住 10 秒！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再試一次</button>';
     overlay.classList.remove('hidden');
@@ -1443,7 +1530,9 @@ function loop(now){
         const dx=player.x-z.position.x,dz=player.z-z.position.z,d=Math.hypot(dx,dz)||.001;
         if(u.freezeT)u.freezeT=Math.max(0,u.freezeT-dt);
         const pace=u.speed*((u.enrage||u.bossRage)?ENRAGED_SPEED_MULT:ZOMBIE_SPEED_MULT)*(slowT>.01?.35:1)*(u.freezeT>0?.48:1);
-        if(u.kind==='boss'&&u.windup>0){
+        if(u.kind==='archer'){
+          updateArcher(z,u,dx,dz,d,pace,dt);
+        }else if(u.kind==='boss'&&u.windup>0){
           u.windup-=dt*(slowT>.01?.35:1);if(u.warn)u.warn.visible=true;
           if(u.windup<=0){if(u.warn)u.warn.visible=false;u.attackAnim=.55;if(d<u.attackRange+.75)hurt(u.damage,{x:z.position.x,z:z.position.z});u.attackT=1.45;}
         }else if(d>u.attackRange){
@@ -1457,7 +1546,7 @@ function loop(now){
         }
         if(u.enrage){u.enrage-=dt;if(u.enrage<=0){u.enrage=0;setRageVisual(z,false);}}
         u.attackAnim=Math.max(0,u.attackAnim-dt);const grab=u.attackAnim>0?Math.sin((1-u.attackAnim/.55)*Math.PI)*1.2:0;
-        z.children.forEach((ch,ci)=>{if(ch.userData.isArm)ch.rotation.x=Math.sin(p)*0.09+grab;if(ch.userData.isDogLeg)ch.rotation.x=Math.sin(p*2+ci)*.55;});
+        z.children.forEach((ch,ci)=>{if(ch.userData.isArm)ch.rotation.x=u.kind==='archer'&&u.windup>0?-1.05:Math.sin(p)*0.09+grab;if(ch.userData.isDogLeg)ch.rotation.x=Math.sin(p*2+ci)*.55;});
         if(u.kx||u.kz){                // 擊退（撞牆就停）
           const zx=z.position.x+u.kx*dt,zz=z.position.z+u.kz*dt;
           if(!blockedForZombie(zx,zz,Math.min(.58,(u.pushRadius||.95)*.48))){z.position.x=zx;z.position.z=zz;}
@@ -1479,6 +1568,7 @@ function loop(now){
         if(u.deadT>1.15){scene.remove(z);zombies.splice(i,1);}
       }
     }
+    updateEnemyArrows(dt);
     /* 彈藥箱：旋轉＋撿取＋重生 */
     for(let i=pickups.length-1;i>=0;i--){
       const b=pickups[i];
