@@ -26,9 +26,9 @@
         .card { padding:clamp(16px, 3vw, 26px); border:1px solid rgba(255,255,255,.9); border-radius:24px; background:rgba(255,255,255,.78); box-shadow:0 14px 38px rgba(77, 72, 127, .14); }
         .instruction { margin:0 0 16px; color:#5b647f; font-weight:700; text-align:center; }
         .word-list { display:flex; justify-content:center; gap:9px; flex-wrap:wrap; margin-bottom:20px; }
-        button.word-card { min-width:105px; min-height:0; padding:9px 12px; border:2px solid #e4e5f7; border-radius:14px; color:#414b70; text-align:center; background:#fff; box-shadow:0 3px 8px rgba(70, 57, 141, .12); font:900 16px/1 Arial, "Noto Sans TC", sans-serif; transition:opacity .2s, transform .2s, background .2s, border-color .2s; }
+        button.word-card { min-width:105px; min-height:0; padding:9px 12px; border:2px solid #e4e5f7; border-radius:14px; color:#414b70; text-align:center; background:#fff; box-shadow:0 3px 8px rgba(70, 57, 141, .12); font:900 16px/1 Arial, "Noto Sans TC", sans-serif; transition:opacity .2s, transform .2s, background .2s, border-color .2s; touch-action:manipulation; }
         button.word-card:hover { border-color:#aaa4e8; background:#f8f7ff; filter:none; transform:translateY(-1px); }
-        button.word-card:active { box-shadow:0 1px 4px rgba(70, 57, 141, .15); transform:scale(.97); }
+        button.word-card:active { box-shadow:0 1px 4px rgba(70, 57, 141, .15); }
         button.word-card:focus-visible { outline:3px solid rgba(113,101,217,.35); outline-offset:3px; }
         .word-card .icon { margin-right:5px; font-size:20px; vertical-align:-2px; }
         .word-card .speaker { margin-left:6px; font-size:14px; opacity:.7; }
