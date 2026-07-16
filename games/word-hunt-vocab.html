@@ -26,8 +26,13 @@
         .card { padding:clamp(16px, 3vw, 26px); border:1px solid rgba(255,255,255,.9); border-radius:24px; background:rgba(255,255,255,.78); box-shadow:0 14px 38px rgba(77, 72, 127, .14); }
         .instruction { margin:0 0 16px; color:#5b647f; font-weight:700; text-align:center; }
         .word-list { display:flex; justify-content:center; gap:9px; flex-wrap:wrap; margin-bottom:20px; }
-        .word-card { min-width:105px; padding:9px 12px; border:2px solid #e4e5f7; border-radius:14px; color:#414b70; text-align:center; background:#fff; font-weight:900; transition:opacity .2s, transform .2s, background .2s; }
+        button.word-card { min-width:105px; min-height:0; padding:9px 12px; border:2px solid #e4e5f7; border-radius:14px; color:#414b70; text-align:center; background:#fff; box-shadow:0 3px 8px rgba(70, 57, 141, .12); font:900 16px/1 Arial, "Noto Sans TC", sans-serif; transition:opacity .2s, transform .2s, background .2s, border-color .2s; }
+        button.word-card:hover { border-color:#aaa4e8; background:#f8f7ff; filter:none; transform:translateY(-1px); }
+        button.word-card:active { box-shadow:0 1px 4px rgba(70, 57, 141, .15); transform:scale(.97); }
+        button.word-card:focus-visible { outline:3px solid rgba(113,101,217,.35); outline-offset:3px; }
         .word-card .icon { margin-right:5px; font-size:20px; vertical-align:-2px; }
+        .word-card .speaker { margin-left:6px; font-size:14px; opacity:.7; }
+        .word-card.speaking { border-color:#8176df; color:#5048aa; background:#efedff; transform:translateY(-2px); }
         .word-card.found { border-color:#8addae; color:#20784b; text-decoration:line-through; background:#e6f8ee; opacity:.82; transform:scale(.97); }
         .word-card.hint { border-color:#f6a83b; background:#fff4d9; animation:hintPulse .7s ease-in-out infinite alternate; }
         .grid-wrap { position:relative; width:min(100%, 620px); margin:0 auto; border:8px solid #f0effa; border-radius:18px; background:#f0effa; touch-action:none; }
@@ -84,7 +89,7 @@
         </header>
 
         <section class="card">
-            <p class="instruction">從第一個字母拖到最後一個字母；橫、直、斜線都可以！</p>
+            <p class="instruction">點上方單字可聽發音；從第一個字母拖到最後一個字母，橫、直、斜線都可以！</p>
             <div class="word-list" id="wordList" aria-label="本關單字"></div>
             <div class="grid-wrap" id="gridWrap">
                 <svg class="ribbons" id="ribbons" aria-hidden="true"></svg>
@@ -189,6 +194,41 @@
         let activeSelection = null;
         let paused = false;
         let hintTimeoutId = null;
+        const speech = 'speechSynthesis' in window ? window.speechSynthesis : null;
+        let englishVoice = null;
+        let activeUtterance = null;
+        let activeSpeechCard = null;
+
+        function cacheEnglishVoice() {
+            if (!speech) return;
+            const voices = speech.getVoices();
+            englishVoice = voices.find((voice) => /^en-US$/i.test(voice.lang)) || voices.find((voice) => /^en\b/i.test(voice.lang)) || null;
+        }
+
+        function speakWord(word, card) {
+            if (!speech || typeof SpeechSynthesisUtterance === 'undefined') {
+                setFeedback('這台裝置不支援單字發音。', 'bad');
+                return;
+            }
+            if (speech.speaking || speech.pending) speech.cancel();
+            activeSpeechCard?.classList.remove('speaking');
+            const utterance = new SpeechSynthesisUtterance(word.toLowerCase());
+            utterance.lang = 'en-US';
+            utterance.rate = .88;
+            if (englishVoice) utterance.voice = englishVoice;
+            const clearSpeechState = () => {
+                if (activeUtterance !== utterance) return;
+                card.classList.remove('speaking');
+                activeSpeechCard = null;
+                activeUtterance = null;
+            };
+            utterance.onend = clearSpeechState;
+            utterance.onerror = clearSpeechState;
+            activeUtterance = utterance;
+            activeSpeechCard = card;
+            card.classList.add('speaking');
+            speech.speak(utterance);
+        }
 
         function randomLetter() {
             return String.fromCharCode(65 + Math.floor(Math.random() * 26));
@@ -225,16 +265,26 @@
         function renderWords() {
             wordList.replaceChildren();
             gameLevels[levelIndex].words.forEach((item) => {
-                const card = document.createElement('div');
+                const card = document.createElement('button');
+                card.type = 'button';
                 card.className = 'word-card';
                 card.dataset.word = item.word;
+                card.setAttribute('aria-label', `播放 ${item.word} 的英文發音`);
+                card.title = `點一下聽 ${item.word} 的發音`;
                 if (item.icon) {
                     const icon = document.createElement('span');
                     icon.className = 'icon';
+                    icon.setAttribute('aria-hidden', 'true');
                     icon.textContent = item.icon;
                     card.append(icon);
                 }
                 card.append(item.word);
+                const speaker = document.createElement('span');
+                speaker.className = 'speaker';
+                speaker.setAttribute('aria-hidden', 'true');
+                speaker.textContent = '🔊';
+                card.append(speaker);
+                card.addEventListener('click', () => speakWord(item.word, card));
                 wordList.append(card);
             });
         }
@@ -622,6 +672,10 @@
         window.addEventListener('message', (event) => {
             if (event.data?.type === 'WORD_HUNT_DATA') applyWordHuntData(event.data.payload);
         });
+        if (speech) {
+            cacheEnglishVoice();
+            speech.addEventListener('voiceschanged', cacheEnglishVoice);
+        }
         dialogButton.onclick = () => beginLevel(0);
         applyWordHuntData(readHashData());
     </script>
