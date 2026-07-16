@@ -287,12 +287,11 @@
       <button id="start-simple" style="background:linear-gradient(180deg,#7be38a,#33c45a); color:#06310f;">🌱 簡單模式</button>
       <button id="start-normal" style="background:linear-gradient(180deg,#7fc4ff,#2f6bd6); color:#06213a;">🙂 一般模式</button>
       <button id="start-hard" style="background:linear-gradient(180deg,#ff9d6b,#ec5a2c); color:#3a1200;">🔴 困難模式</button>
-      <button id="start-special" style="background:linear-gradient(180deg,#c39bff,#7d4fd6); color:#fff;">🟣 特殊模式</button>
     </div>
     <button id="start-ship-btn" type="button">開始遊戲</button>
     <button class="game-menu-return" type="button" onclick="location.href='../index.html'+location.hash" style="background:rgba(255,255,255,.16); color:#fff; font-size:clamp(15px,3.6vw,20px); padding:10px 32px;">← 返回遊戲選單</button>
     <div class="sub" id="mode-hint" style="font-size:clamp(12px,2.8vw,15px);"></div>
-    <div class="sub" style="font-size:clamp(12px,2.8vw,15px);">簡單／一般／困難：每回合 6 發・海怪需命中 5 次｜困難：約 10 秒後反擊｜特殊：單字＋外觀雙重確認・18 秒</div>
+    <div class="sub" style="font-size:clamp(12px,2.8vw,15px);">簡單／一般／困難：每回合 6 發・海怪需命中 5 次｜困難：約 10 秒後反擊</div>
   </div>
 
   <div id="over-screen" class="overlay hidden">
@@ -362,7 +361,6 @@ const bossLevels = {
 
 const ROUND_TIME_NORMAL = 16; // 簡單／一般模式每回合秒數（兩者玩法完全相同）
 const ROUND_TIME_HARD = 14;  // 困難模式回合時限（反擊才是主要壓力）
-const ROUND_TIME_SPECIAL = 18; // 特殊模式每回合秒數
 const ENEMY_AGGRO     = 10;  // 困難模式：船開來幾秒後鎖定你
 const ENEMY_AIM_WARN  = 1.5; // 鎖定後到開火的預警秒數
 const ROUNDS_PER_LEVEL = 2;  // 每關需擊沉幾艘目標才過關
@@ -409,7 +407,7 @@ function project(x, z) {
 /* ════════════════ 遊戲狀態 ════════════════ */
 const game = {
   state: "menu",          // menu | playing | over | win
-  difficulty: "hard",     // simple | normal | hard | special（簡單與一般玩法相同，只差題型）
+  difficulty: "hard",     // simple | normal | hard（簡單與一般玩法相同，只差題型）
   level: 1,
   score: 0,
   lives: 3,
@@ -438,7 +436,6 @@ const game = {
   shakeT: 0,
   fireLock: false,
   roundEnding: false,     // 回合結算中：擋掉 update 每幀重複觸發逃走／扣命
-  activeDims: [],         // 特殊模式：本回合的判定維度
   bossesDone: {},         // 已擊敗的魔王 { "4": true, ... }
 };
 
@@ -580,9 +577,7 @@ function showToast(text, color) {
 
 /* ════════════════ 回合 / 關卡產生 ════════════════ */
 function conditionKeysForLevel(lv) {
-  if (lv <= 1) return ["word"];
-  if (lv === 2) return ["word", "color"];
-  return ["word", "color", "flag"];
+  return ["word"];
 }
 
 function startRoundCommon() {
@@ -603,8 +598,6 @@ function newRound() {
   // 魔王關偵測：抵達指定關卡且尚未擊敗 → 進入魔王回合
   if (bossLevels[lv] && !game.bossesDone[lv]) { startBossRound(lv); return; }
   game.boss = null;
-
-  if (game.difficulty === "special") { newRoundSpecial(lv); return; }
 
   game.conditions = conditionKeysForLevel(lv);
   // ── 本回合題型（鐵則：圖片題一律「英文＋發音→打圖」，絕不看圖選字、絕不圖↔中）──
@@ -662,70 +655,6 @@ function newRound() {
   updateQuestionUI();
 }
 
-/* ── 特殊模式（雙線索）：每回合固定考「單字＋外觀」，場上保證有同單字與同外觀兩種陷阱船，
-      單看任一線索都會誤擊，逼玩家先認單字、再核對外觀 ── */
-const pickDifferent = (arr, cur) => { let v; do { v = pick(arr); } while (v === cur); return v; };
-
-function pickDiffByDim(d, target) {
-  if (d === "word")  return pickDifferent(wordBank, target.word);
-  if (d === "color") return pickDifferent(shipColors, target.color);
-  return pickDifferent(flags, target.flag);
-}
-
-function newRoundSpecial(lv) {
-  const visualDims = ["color", "flag"];
-  // 第 6 關起一次核對 2 個外觀特徵，前期單字＋1 個外觀
-  const activeVis = shuffle(visualDims.slice()).slice(0, lv >= 6 ? 2 : 1);
-  const activeDims = ["word", ...activeVis];
-  game.activeDims = activeDims;
-  game.conditions = activeDims;
-
-  const target = {
-    word:  pick(wordBank), color: pick(shipColors),
-    flag:  pick(flags),
-  };
-  game.target = target;
-
-  const count = clamp(2 + lv, 4, 5);   // 至少 4 艘才放得下兩種陷阱船
-  const ships = [makeShip({ ...target }, 0, count, true)];
-
-  // 陷阱一：同單字、判定外觀不符 → 只看單字會誤擊
-  const sameWord = { word: target.word, color: pick(shipColors), flag: pick(flags) };
-  const dv = pick(activeVis);
-  sameWord[dv] = pickDiffByDim(dv, target);
-  ships.push(makeShip(sameWord, 1, count, false));
-
-  // 陷阱二：判定外觀全符、單字不同 → 只看外觀會誤擊
-  const sameLook = { word: pickDifferent(wordBank, target.word), color: pick(shipColors), flag: pick(flags) };
-  for (const d of activeVis) sameLook[d] = target[d];
-  ships.push(makeShip(sameLook, 2, count, false));
-
-  // 其餘干擾：半數抄目標單字或外觀（半陷阱），但保證不會完全符合條件
-  for (let i = 3; i < count; i++) {
-    const attrs = {
-      word:  pick(wordBank), color: pick(shipColors),
-      flag:  pick(flags),
-    };
-    if (Math.random() < 0.5) attrs.word = target.word;
-    else for (const d of activeVis) if (Math.random() < 0.5) attrs[d] = target[d];
-    if (attrs.word === target.word && activeVis.every(d => attrs[d] === target[d])) {
-      const d = pick(activeDims);
-      attrs[d] = pickDiffByDim(d, target);
-    }
-    ships.push(makeShip(attrs, i, count, false));
-  }
-
-  // 打亂航道順序（三個座標欄位一起換）
-  for (let i = ships.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [ships[i].lane,   ships[j].lane]   = [ships[j].lane,   ships[i].lane];
-    [ships[i].spawnX, ships[j].spawnX] = [ships[j].spawnX, ships[i].spawnX];
-    [ships[i].shoreX, ships[j].shoreX] = [ships[j].shoreX, ships[i].shoreX];
-  }
-  game.ships = ships;
-  updateQuestionUI();
-}
-
 function makeShip(attrs, idx, count, isTarget) {
   // 依目前螢幕寬度動態算安全展開距離，防止手機直向模式船隻跑出螢幕
   const safeH = (W / 2) * SPAWN_Z / focal;
@@ -754,7 +683,6 @@ function makeShip(attrs, idx, count, isTarget) {
 
 function updateQuestionUI() {
   const t = game.target;
-  if (game.difficulty === "special") { updateQuestionUISpecial(t); return; }
   let title, chips;
   if (game.qType === "sentence" && t.word.example) {
     const cloze = t.word.example.replace("{W}", "＿＿＿");
@@ -773,24 +701,8 @@ function updateQuestionUI() {
     title = `擊沉符合條件的船（${t.word.pos}）`;
     chips = [`📖 意思：${t.word.meaning}`];
   }
-  if (game.conditions.includes("color")) chips.push(`${t.color.icon} 顏色：${t.color.name}`);
-  if (game.conditions.includes("flag"))  chips.push(`🚩 旗幟：${t.flag.emoji} ${t.flag.name}`);
   renderSkyChips(title, chips, false);
   $("conditions").innerHTML = "";   // 重點已移到上方，底部不再重複
-}
-
-// 特殊模式維度說明：句子用 val、籌碼用 label（帶 icon）
-const dimMeta = {
-  word:  { icon: "📖", name: "意思", val: t => t.word.meaning, label: t => t.word.meaning },
-  color: { icon: "🎨", name: "顏色", val: t => t.color.name,   label: t => t.color.icon + " " + t.color.name },
-  flag:  { icon: "🚩", name: "旗幟", val: t => t.flag.name,    label: t => t.flag.emoji + " " + t.flag.name },
-};
-
-function updateQuestionUISpecial(t) {
-  const dims = game.activeDims;
-  const chips = dims.map(d => `${dimMeta[d].icon} ${dimMeta[d].name}：${dimMeta[d].label(t)}`);
-  renderSkyChips(`雙重確認（${t.word.pos}）：單字＋外觀都要符合`, chips, true);
-  $("conditions").innerHTML = "";
 }
 
 function updateHUD() {
@@ -933,14 +845,7 @@ function resolveImpact(x, y, fxX, fxY, fromBurst) {
       const tgt = game.ships.find(s => s.isTarget && s.alive && s.sinking === 0);
       if (tgt) tgt.speed *= WRONG_HIT_SPEEDUP;
     }
-    // 特殊模式陷阱船：點出漏看了哪條線索
-    if (game.difficulty === "special" && hit.word === game.target.word) {
-      showToast("❌ 單字對了，但外觀不符！-150", "#ff8a80");
-    } else if (game.difficulty === "special" && game.activeDims.every(d => d === "word" || hit[d] === game.target[d])) {
-      showToast(`❌ 外觀對了，但那是 ${hit.word.word}（${hit.word.meaning}）-150`, "#ff8a80");
-    } else {
-      showToast(`❌ 誤擊 ${hit.word.word}（${hit.word.meaning}） -150`, "#ff8a80");
-    }
+    showToast(`❌ 誤擊 ${hit.word.word}（${hit.word.meaning}） -150`, "#ff8a80");
     if (!checkAmmoOut()) game.fireLock = false;
   }
   updateHUD();
@@ -1136,7 +1041,6 @@ function hitMonster(m, fxX, fxY) {
 // 隨機大獎（5 選 1）：三連發砲彈 / 時間延長 / 加分 / 補命 / 補彈
 function grantMonsterReward() {
   let kind = pick(["burst", "time", "score", "life", "ammo"]);
-  if (kind === "ammo" && !usesAmmo()) kind = "score";  // 無限彈模式（特殊）不需要
   if (kind === "life" && game.lives >= 3) kind = "score";
   let msg;
   switch (kind) {
@@ -1551,17 +1455,14 @@ function startGame(difficulty) {
   audio();
   startBgm();
   let diff = difficulty || game.difficulty || "hard";
-  // 依題庫來源 clamp：有圖→簡單／困難（＋特殊）、無圖→一般／困難（＋特殊）
-  if (diff === "simple" && !hasPicBank()) diff = "normal";
-  if (diff === "normal" && hasPicBank()) diff = "simple";
   try{ localStorage.setItem('shipMode3', diff); }catch(e){}
   Object.assign(game, {
     state: "playing", difficulty: diff, level: 1, score: 0, lives: 3, combo: 0, maxCombo: 0,
     clearProgress: 0, lastRoundWon: false, threatPhase: "idle", threatT: 0,
     monster: null, monsterCd: rand(30, 45), burst: 0,
     rockets: [], particles: [], splashes: [], fireLock: false, roundEnding: false,
-    boss: null, bossesDone: {}, nextAmmoBonus: 0, activeDims: [],
-    roundTime: diff === "hard" ? ROUND_TIME_HARD : diff === "special" ? ROUND_TIME_SPECIAL : ROUND_TIME_NORMAL,
+    boss: null, bossesDone: {}, nextAmmoBonus: 0,
+    roundTime: diff === "hard" ? ROUND_TIME_HARD : ROUND_TIME_NORMAL,
     aimX: W / 2, aimY: horizonY + H * 0.18,
   });
   dmgArc = null;
@@ -1579,13 +1480,11 @@ function startGame(difficulty) {
 // 模式面板：先選模式，再由同一顆開始鈕進場。
 function refreshModeUI() {
   const pics = hasPicBank();
-  if (![pics ? 'simple' : 'normal','hard','special'].includes(selectedShipMode)) selectedShipMode = pics ? 'simple' : 'normal';
-  $("start-simple").hidden = !pics;
-  $("start-normal").hidden = pics;
-  ['simple','normal','hard','special'].forEach(m=>{ const b=$("start-"+m); b.classList.toggle('mode-picked',selectedShipMode===m); b.setAttribute('aria-pressed',selectedShipMode===m?'true':'false'); });
+  if (!['simple','normal','hard'].includes(selectedShipMode)) selectedShipMode = pics ? 'simple' : 'normal';
+  ['simple','normal','hard'].forEach(m=>{ const b=$("start-"+m); b.classList.toggle('mode-picked',selectedShipMode===m); b.setAttribute('aria-pressed',selectedShipMode===m?'true':'false'); });
   $("mode-hint").textContent = pics
-    ? "內建圖片單字：可選簡單或困難（特殊不限）"
-    : "連結單字（無圖片）：可選一般或困難（特殊不限）";
+    ? "簡單：圖片題較多｜一般：文字與句子題｜困難：時間較短並有敵艦反擊"
+    : "簡單：不出句子題｜一般：文字與句子題｜困難：時間較短並有敵艦反擊";
   $("allpic-row").style.display = pics ? "flex" : "none";
   $("mix-desc").style.display = pics ? "block" : "none";
   $("allpic-mix").classList.toggle('mode-picked',!allPic);
@@ -1598,7 +1497,6 @@ $("allpic-only").addEventListener("click", () => setAllPic(true));
 $("start-simple").addEventListener("click", () => selectShipMode("simple"));
 $("start-normal").addEventListener("click", () => selectShipMode("normal"));
 $("start-hard").addEventListener("click", () => selectShipMode("hard"));
-$("start-special").addEventListener("click", () => selectShipMode("special"));
 $("start-ship-btn").addEventListener("click", () => startGame(selectedShipMode));
 refreshModeUI();
 $("restart-btn").addEventListener("click", () => startGame());
