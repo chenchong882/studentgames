@@ -381,6 +381,8 @@ let pausedFrom = 'playing', pauseStarted = 0;
 let WB = null;      // word bank
 let roundNo = 0, score = 0, money = 0, combo = 0;
 let ammo = 0, ammoMax = 3;
+const FIRE_COOLDOWN_MS = 500;  // 每發至少間隔 0.5 秒，避免連按一次耗光彈藥
+let nextFireAt = 0;
 // 商店 / 永久升級(整場任務內有效, startGame 重置)
 const SHOP_ROUNDS = [5, 8];     // 進入這幾關之前開軍火商(= 第 4、7 關後)
 let shoppedAt = {};
@@ -558,8 +560,8 @@ function startRound(){
   }
   intelMode = roundType;
 
-  // 風速: 前 4 關為 0, 之後逐步加入(進階調味)
-  wind = roundNo <= 4 ? 0 : rand(-1, 1) * (roundNo-4) * 0.12;
+  // 風速: 簡單模式全程無風；其他模式前 4 關無風，之後逐步加入
+  wind = (mode === 'simple' || roundNo <= 4) ? 0 : rand(-1, 1) * (roundNo-4) * 0.12;
 
   // 天氣: 每關隨機(下雨/下雪/普通夜晚)
   weather = pick(['rain','rain','rain','snow','snow','clear']);
@@ -634,15 +636,18 @@ function renderIntel(){
 function tryFire(){
   if(state !== 'playing') return;
   if(!scoped){ showToast('先開鏡 🔭', '#38bdf8'); return; }
+  if(performance.now() < nextFireAt) return;
   if(ammo <= 0){ clickEmpty(); return; }
 
+  nextFireAt = performance.now() + FIRE_COOLDOWN_MS;
   ammo--;
   recoil = 1; flash = 1;
   gunshot();
   updateHUD();
 
   // 命中世界座標 = 準星 + 風偏移
-  const hitX = aim.x + wind*120;
+  const windGuard = mode === 'simple';
+  const hitX = aim.x + (windGuard ? 0 : wind*120);
   const hitY = aim.y;
 
   // 找子彈落點對到的人, 並看子彈穿過的牆段材質
@@ -1599,6 +1604,7 @@ function startGame(m){
   WB.hasPic = WB.bank.filter(w=>w.emoji).length >= 4;   // 有圖題庫＝帶 emoji 的字 ≥ 4
   roundNo = 0; score = 0; money = 0; combo = 0; lives = MAX_LIVES;
   apUpgrade = false; extraAmmo = 0; extraTime = 0; shoppedAt = {};
+  nextFireAt = 0;
   document.getElementById('shop-overlay').classList.add('hide');
   document.getElementById('start-overlay').classList.add('hide');
   document.getElementById('end-overlay').classList.add('hide');
