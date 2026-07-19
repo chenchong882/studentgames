@@ -148,7 +148,7 @@
         <h2>🎯 詳細玩法</h2>
         先開鏡找出正確單字樓層，趁目標經過窗戶時射擊；收鏡即可躲回掩體。<br>
         每關限時且只有 <b>3 發子彈</b>。打錯、彈盡或超時會用掉 1 次機會，全場共 3 次。<br>
-        第 4、7 關後可向軍火商升級裝備。<br><br>
+        第 4、7 關後可向軍火商升級裝備；第 3 關起可能遇到限時屋頂突襲。<br><br>
         <div class="help">
           <div class="row phone">📱 <b>手機</b>：單指拖曳瞄準，按 🔭 開鏡、🔫 開火。</div>
           <div class="row tablet">📲 <b>平板</b>：左手開鏡、右手開火，單指拖曳瞄準。</div>
@@ -364,7 +364,7 @@ let recoil = 0;                 // 後座抖動量
 let flash = 0;                  // 槍口閃光
 let shake = {x:0,y:0};
 
-const AIM_MINX = BX+30, AIM_MAXX = BX+BW-30, AIM_MINY = BY+30, AIM_MAXY = BY+BH-30;
+const AIM_MINX = BX+30, AIM_MAXX = BX+BW-30, AIM_MINY = BY-110, AIM_MAXY = BY+BH-30;
 function clampAim(){ aim.x = clamp(aim.x, AIM_MINX, AIM_MAXX); aim.y = clamp(aim.y, AIM_MINY, AIM_MAXY); }
 function screenToWorld(sx, sy){ return { x:(sx - VW/2)/zoom + cam.x, y:(sy - VH/2)/zoom + cam.y }; }
 
@@ -420,6 +420,12 @@ let duckDeadline = 0;         // 必須在此時間戳前收鏡(蹲回掩體)
 let shooterIdx = -1;          // 反擊的目標樓層 index
 let damageFlash = 0;          // 中彈紅閃 0..1
 
+// 屋頂突襲: 第 3 關起低機率出現，5 秒內反狙擊成功可抽戰術獎勵
+let roofRaid = null;          // {x,y,deadline,freeShot,hitFlash}
+let roofRaidAt = 0;           // 本關預定觸發時間戳；0 = 本關不觸發／已處理
+let noWindShots = 0;          // 獎勵：下一發不受風力影響
+let tempAPShots = 0;          // 獎勵：下一發臨時穿甲彈
+
 /* 粒子(特效) */
 let particles = [];
 function spawnParticles(wx, wy, color, n, spd){
@@ -469,41 +475,52 @@ function stopBgm(){
 }
 
 /* ---------- 音效(Web Audio 合成槍聲) ---------- */
-let actx = null;
+let actx = null, sfxOut = null;
 function audio(){
-  if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if(!actx){
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    const comp = actx.createDynamicsCompressor();
+    comp.threshold.value = -12; comp.knee.value = 10; comp.ratio.value = 8; comp.attack.value = 0.002; comp.release.value = 0.18;
+    sfxOut = actx.createGain(); sfxOut.gain.value = 1.15;
+    sfxOut.connect(comp); comp.connect(actx.destination);
+  }
   if(actx.state === 'suspended') actx.resume();
   return actx;
 }
 function gunshot(){
   try{
     const ac = audio(); const t = ac.currentTime;
-    // 白噪 burst
-    const len = Math.floor(ac.sampleRate*0.25);
+    // 爆裂噪音：較長衰減，手機喇叭也能清楚聽見
+    const len = Math.floor(ac.sampleRate*0.32);
     const buf = ac.createBuffer(1, len, ac.sampleRate);
     const d = buf.getChannelData(0);
-    for(let i=0;i<len;i++){ d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 2.2); }
+    for(let i=0;i<len;i++){ d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 3.0); }
     const src = ac.createBufferSource(); src.buffer = buf;
-    const lp = ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1800;
-    const g = ac.createGain(); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.25);
-    src.connect(lp); lp.connect(g); g.connect(ac.destination); src.start(t);
-    // 低頻 "thump"
-    const o = ac.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(120,t); o.frequency.exponentialRampToValueAtTime(40,t+0.18);
-    const g2 = ac.createGain(); g2.gain.setValueAtTime(0.7,t); g2.gain.exponentialRampToValueAtTime(0.001,t+0.2);
-    o.connect(g2); g2.connect(ac.destination); o.start(t); o.stop(t+0.22);
+    const bp = ac.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1450; bp.Q.value=0.7;
+    const g = ac.createGain(); g.gain.setValueAtTime(1.35, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.32);
+    const delay = ac.createDelay(); delay.delayTime.value = 0.085;
+    const echo = ac.createGain(); echo.gain.value = 0.22;
+    src.connect(bp); bp.connect(g); g.connect(sfxOut); g.connect(delay); delay.connect(echo); echo.connect(sfxOut); src.start(t);
+    // 槍口爆音 + 低頻後座，讓小型喇叭仍有明顯「砰」聲
+    const crack = ac.createOscillator(); crack.type='sawtooth'; crack.frequency.setValueAtTime(210,t); crack.frequency.exponentialRampToValueAtTime(70,t+0.075);
+    const cg = ac.createGain(); cg.gain.setValueAtTime(0.75,t); cg.gain.exponentialRampToValueAtTime(0.001,t+0.085);
+    crack.connect(cg); cg.connect(sfxOut); crack.start(t); crack.stop(t+0.09);
+    const o = ac.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(105,t); o.frequency.exponentialRampToValueAtTime(36,t+0.22);
+    const g2 = ac.createGain(); g2.gain.setValueAtTime(0.95,t); g2.gain.exponentialRampToValueAtTime(0.001,t+0.24);
+    o.connect(g2); g2.connect(sfxOut); o.start(t); o.stop(t+0.25);
   }catch(e){}
 }
 function clickEmpty(){
   try{ const ac=audio(); const t=ac.currentTime; const o=ac.createOscillator(); o.type='square'; o.frequency.value=900;
     const g=ac.createGain(); g.gain.setValueAtTime(0.12,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.06);
-    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+0.07);}catch(e){}
+    o.connect(g); g.connect(sfxOut||ac.destination); o.start(t); o.stop(t+0.07);}catch(e){}
 }
 // 倒數最後 5 秒的滴答聲: 最後一秒(urgent)音更高更緊
 function tickSnd(urgent){
   try{ const ac=audio(); const t=ac.currentTime;
     const o=ac.createOscillator(); o.type='square'; o.frequency.value = urgent ? 1500 : 1100;
     const g=ac.createGain(); g.gain.setValueAtTime(urgent ? 0.22 : 0.16, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.05);
-    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+0.06);}catch(e){}
+    o.connect(g); g.connect(sfxOut||ac.destination); o.start(t); o.stop(t+0.06);}catch(e){}
 }
 
 /* ---------- 發音(命中正確時唸單字) ---------- */
@@ -544,6 +561,10 @@ function pickRoundType(){
 function startRound(){
   roundNo++;
   if(roundNo > MAX_ROUNDS){ endGame(); return; }
+
+  roofRaid = null;
+  const raidChance = mode==='hard' ? 0.35 : mode==='simple' ? 0.25 : 0.30;
+  roofRaidAt = roundNo >= 3 && Math.random() < raidChance ? performance.now() + rand(4500, 8500) : 0;
 
   roundType = pickRoundType();
   // 選 5 個單字(1 對 4 干擾)：圖片回合只從有 emoji 的字抽；句子回合答案必須有例句
@@ -632,11 +653,80 @@ function renderIntel(){
   }
 }
 
+/* ---------- 屋頂突襲 ---------- */
+function startRoofRaid(){
+  const spots = [-BW*0.31, 0, BW*0.31];
+  roofRaid = { x:pick(spots), y:BY-58, deadline:performance.now()+5000, freeShot:true, hitFlash:0 };
+  roofRaidAt = 0;
+  tickSnd(true);
+  showToast('⚠️ 屋頂狙擊手！5 秒內反擊（附 1 發免費緊急子彈）', '#fbbf24');
+}
+function roofRaidHitTest(x,y){
+  if(!roofRaid) return false;
+  const r = Math.max(30, 48/Math.max(zoom,0.4));   // 手機至少約 48px 命中範圍
+  return Math.abs(x-roofRaid.x) < r && Math.abs(y-roofRaid.y) < r*1.15;
+}
+function grantRoofReward(){
+  const rewards = [
+    { id:'time', ok:()=>true, give:()=>{ timeMax+=6; timeLeft+=6; return '⏱️ 任務時間 +6 秒'; } },
+    { id:'money', ok:()=>true, give:()=>{ money+=200; return '💰 敵方賞金 $200'; } },
+    { id:'score', ok:()=>true, give:()=>{ score+=350; return '🎯 精準擊殺 +350 分'; } },
+    { id:'ammo', ok:()=>ammo<ammoMax, give:()=>{ ammo=Math.min(ammoMax,ammo+1); return '🔸 緊急彈藥 +1'; } },
+    { id:'life', ok:()=>lives<MAX_LIVES, give:()=>{ lives=Math.min(MAX_LIVES,lives+1); return '❤️ 戰地急救 +1 次機會'; } },
+    { id:'wind', ok:()=>roundNo>4 && noWindShots<=0, give:()=>{ noWindShots=1; return '🧭 風向校正：下一發不受風'; } },
+    { id:'ap', ok:()=>!apUpgrade && tempAPShots<=0, give:()=>{ tempAPShots=1; return '🛡️ 臨時穿甲彈 ×1'; } },
+  ].filter(r=>r.ok());
+  return pick(rewards).give();
+}
+function winRoofRaid(){
+  if(!roofRaid) return;
+  spawnParticles(roofRaid.x, roofRaid.y, '#fbbf24', 28, 240);
+  roofRaid = null;
+  const reward = grantRoofReward();
+  updateHUD();
+  showToast(`✅ 屋頂威脅解除！${reward}`, '#34d399');
+}
+function failRoofRaid(){
+  if(!roofRaid) return;
+  roofRaid = null;
+  combo = 0; lives--; damageFlash = 1;
+  gunshot();
+  updateHUD();
+  if(lives <= 0){ failGame('shot'); return; }
+  showToast(`🩸 屋頂狙擊手擊中你！剩 ${lives} 次機會`, '#f87171');
+}
+function updateRoofRaid(dt){
+  const now = performance.now();
+  if(roofRaid){
+    roofRaid.hitFlash = Math.max(0, roofRaid.hitFlash-dt*4);
+    if(now >= roofRaid.deadline) failRoofRaid();
+    return;
+  }
+  if(!roofRaidAt || now < roofRaidAt) return;
+  if(timeLeft <= 8){ roofRaidAt = 0; return; }
+  if(spotted){ roofRaidAt = now + 900; return; }
+  startRoofRaid();
+}
+
 /* ---------- 開火 ---------- */
 function tryFire(){
   if(state !== 'playing') return;
   if(!scoped){ showToast('先開鏡 🔭', '#38bdf8'); return; }
   if(performance.now() < nextFireAt) return;
+
+  // 屋頂突襲期間先處理反狙擊；第一發是免費緊急子彈，射偏後才消耗正常彈藥
+  if(roofRaid){
+    const free = roofRaid.freeShot;
+    if(!free && ammo <= 0){ clickEmpty(); return; }
+    nextFireAt = performance.now() + FIRE_COOLDOWN_MS;
+    roofRaid.freeShot = false;
+    if(!free) ammo--;
+    recoil = 1; flash = 1; gunshot(); updateHUD();
+    if(roofRaidHitTest(aim.x, aim.y)) winRoofRaid();
+    else { roofRaid.hitFlash = 1; showToast(free ? '💨 緊急子彈射偏了！再射會消耗正常彈藥' : '💨 射偏了！快重新瞄準屋頂', '#fbbf24'); }
+    return;
+  }
+
   if(ammo <= 0){ clickEmpty(); return; }
 
   nextFireAt = performance.now() + FIRE_COOLDOWN_MS;
@@ -646,7 +736,10 @@ function tryFire(){
   updateHUD();
 
   // 命中世界座標 = 準星 + 風偏移
-  const windGuard = mode === 'simple';
+  const windGuard = mode === 'simple' || noWindShots > 0;
+  const shotAP = apUpgrade || tempAPShots > 0;
+  if(mode !== 'simple' && noWindShots > 0) noWindShots--;
+  if(tempAPShots > 0) tempAPShots--;
   const hitX = aim.x + (windGuard ? 0 : wind*120);
   const hitY = aim.y;
 
@@ -657,7 +750,7 @@ function tryFire(){
     const r = floorRect(f.i);
     const bodyY = r.y + FLOOR_H*0.58;
     if(Math.abs(hitX - f.px) < SEGW*0.55 && Math.abs(hitY - bodyY) < FLOOR_H*0.42){
-      if(segMatAt(f, hitX) === MAT.STONE && !apUpgrade) blocked = true;  // 石牆擋住(除非有穿甲彈)
+      if(segMatAt(f, hitX) === MAT.STONE && !shotAP) blocked = true;  // 石牆擋住(除非有穿甲彈)
       else target = f;
       break;
     }
@@ -714,6 +807,7 @@ function tryFire(){
 }
 
 function endRound(success){
+  roofRaid = null; roofRaidAt = 0;
   state = 'feedback';
   document.getElementById('fire-btn').disabled = true;
   feedbackUntil = performance.now() + (success ? 1100 : 1700);
@@ -736,6 +830,8 @@ function updateHUD(){
   document.getElementById('money').textContent = money;
   let a = '';
   for(let i=0;i<ammoMax;i++) a += i<ammo ? '🔸' : '▫️';
+  if(noWindShots>0) a += '　🧭';
+  if(tempAPShots>0) a += '　🛡️';
   document.getElementById('ammo').textContent = a;
   const lr = document.getElementById('lives-row');   // 兩模式共用 3 次機會池, 都顯示
   lr.style.display = 'flex';
@@ -774,18 +870,19 @@ function loop(t){
   }
 
   if(state === 'playing'){
-    timeLeft -= rawdt;
+    updateRoofRaid(rawdt);
+    if(!roofRaid) timeLeft -= rawdt;             // 突襲 5 秒期間暫停原本英文關卡計時
     // 最後 5 秒每整數秒一聲滴答(5,4,3,2,1)
     const sec = Math.ceil(timeLeft);
-    if(timeLeft > 0 && sec <= 5 && sec !== lastTickSec){ lastTickSec = sec; tickSnd(sec <= 2); }
-    if(timeLeft <= 0){
+    if(!roofRaid && timeLeft > 0 && sec <= 5 && sec !== lastTickSec){ lastTickSec = sec; tickSnd(sec <= 2); }
+    if(state==='playing' && !roofRaid && timeLeft <= 0){
       timeLeft = 0;
       combo = 0; lives--; updateHUD();      // 時間到: 扣 1 次機會
       if(lives <= 0){ showToast(`⏰ 時間到！目標是 ${answer.word}`, '#f87171'); failGame('miss'); }
       else { showToast(`⏰ 時間到！目標是 ${answer.word}（剩 ${lives} 次機會）`, '#f87171'); endRound(false); }
     }
-    if(difficulty === 'hard') updateHardMode(rawdt);
-    updateHUD();
+    if(state==='playing' && !roofRaid && difficulty === 'hard') updateHardMode(rawdt);
+    if(state==='playing') updateHUD();
   }
 
   if(state === 'feedback' && performance.now() > feedbackUntil){
@@ -871,6 +968,8 @@ function render(){
 
   drawGround();
   drawBuilding();
+  drawBuildingRoof();
+  drawRoofRaid();
   drawParticles();
   if(state !== 'killcam') drawForeground();    // 我方掩體牆 + 蹲姿狙擊手(隨開鏡淡出)
   if(difficulty === 'hard') drawSpotted();
@@ -952,14 +1051,17 @@ function drawAllySniper(wallTop){
   if(left) ctx.scale(-1,1);
   ctx.scale(S, S);
   const cloth='#3c4a39', clothD='#2b3729', clothL='#52624c', skin='#c69a70';
-  // 步槍: 蹲下時收低, 起身時舉高指向大樓(畫面右上)
-  ctx.save();
-  ctx.rotate(-0.10 - up*0.16);
-  ctx.strokeStyle = '#14171c'; ctx.lineWidth = 8; ctx.lineCap = 'round';
-  const bl = 70 + up*95;
-  ctx.beginPath(); ctx.moveTo(6, -6); ctx.lineTo(30, -bl); ctx.stroke();
-  if(up > 0.25){ ctx.fillStyle = '#0e1116'; ctx.fillRect(14, -bl*0.55, 16, 24); } // 瞄準鏡
-  ctx.restore();
+  // 步槍只在探頭開鏡時舉起；蹲下時完全藏進牆後，避免只露一根黑色槍管
+  if(up > 0.18){
+    ctx.save();
+    ctx.globalAlpha = clamp((up-0.18)/0.34,0,1);
+    ctx.rotate(-0.10 - up*0.16);
+    ctx.strokeStyle = '#14171c'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+    const bl = 70 + up*95;
+    ctx.beginPath(); ctx.moveTo(6, -6); ctx.lineTo(30, -bl); ctx.stroke();
+    if(up > 0.25){ ctx.fillStyle = '#0e1116'; ctx.fillRect(14, -bl*0.55, 16, 24); } // 瞄準鏡
+    ctx.restore();
+  }
   // 肩背(寬圓漸層)
   const bg = ctx.createLinearGradient(-48,0, 48,0);
   bg.addColorStop(0,clothD); bg.addColorStop(0.5,cloth); bg.addColorStop(1,clothL);
@@ -1110,6 +1212,57 @@ function drawBuilding(){
 
   // 大樓外框
   ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 3; ctx.strokeRect(tl.x, tl.y, fw, fhAll);
+}
+
+// 屋頂女兒牆與設備，讓突襲狙擊手有清楚、合理的出現位置
+function drawBuildingRoof(){
+  const l = worldToScreen(BX,BY), r = worldToScreen(BX+BW,BY);
+  const h = Math.max(7,18*zoom);
+  ctx.save();
+  const g = ctx.createLinearGradient(0,l.y-h,0,l.y+3);
+  g.addColorStop(0,'#323947'); g.addColorStop(1,'#111620');
+  ctx.fillStyle = g; ctx.fillRect(l.x,l.y-h,r.x-l.x,h);
+  ctx.fillStyle = '#4b5565'; ctx.fillRect(l.x,l.y-h,r.x-l.x,Math.max(2,3*zoom));
+  ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = Math.max(1,2*zoom); ctx.strokeRect(l.x,l.y-h,r.x-l.x,h);
+  // 小型通風箱與天線只放在後方，不遮住三個突襲點
+  const vent = worldToScreen(BX+BW*0.13,BY);
+  ctx.fillStyle = '#242b37'; ctx.fillRect(vent.x-22*zoom,l.y-38*zoom,44*zoom,20*zoom);
+  const ant = worldToScreen(BX+BW*0.86,BY);
+  ctx.strokeStyle = '#252c37'; ctx.lineWidth = Math.max(1.5,3*zoom);
+  ctx.beginPath(); ctx.moveTo(ant.x,l.y-h); ctx.lineTo(ant.x,l.y-66*zoom); ctx.stroke();
+  ctx.restore();
+}
+
+function drawRoofRaid(){
+  if(!roofRaid) return;
+  const p = worldToScreen(roofRaid.x,roofRaid.y);
+  const z = Math.max(0.58,zoom), pulse = 0.5+0.5*Math.sin(performance.now()/85);
+  const remain = Math.max(0,(roofRaid.deadline-performance.now())/1000);
+  ctx.save();
+  ctx.translate(p.x,p.y);
+  // 敵方狙擊手：頭、身體、步槍與紅色鏡片反光
+  ctx.strokeStyle = '#171a20'; ctx.lineWidth = 15*z; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0,10*z); ctx.lineTo(0,55*z); ctx.stroke();
+  ctx.fillStyle = '#20242c'; ctx.beginPath(); ctx.arc(0,-4*z,13*z,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#0e1116'; ctx.lineWidth = 5*z;
+  ctx.beginPath(); ctx.moveTo(-5*z,17*z); ctx.lineTo(38*z,2*z); ctx.stroke();
+  ctx.strokeStyle = `rgba(255,55,55,${0.55+pulse*0.45})`; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(28*z,5*z,(13+pulse*9)*z,0,Math.PI*2); ctx.stroke();
+  ctx.fillStyle = '#ff3535'; ctx.shadowColor='#ff3030'; ctx.shadowBlur=18;
+  ctx.beginPath(); ctx.arc(28*z,5*z,4.5*z,0,Math.PI*2); ctx.fill();
+  if(roofRaid.hitFlash>0){ ctx.strokeStyle=`rgba(255,210,80,${roofRaid.hitFlash})`; ctx.lineWidth=6; ctx.beginPath(); ctx.arc(0,18*z,55*z,0,Math.PI*2); ctx.stroke(); }
+  ctx.restore();
+
+  // 固定提示框：手機直向也不會被情報卡蓋住
+  const bw = Math.min(330,VW-28), bh = 58, bx = (VW-bw)/2, by = Math.max(82,Math.min(VH*0.42,p.y-88));
+  ctx.save();
+  ctx.fillStyle='rgba(78,8,14,.92)'; ctx.strokeStyle='#ff5b5b'; ctx.lineWidth=2;
+  roundRectPath(bx,by,bw,bh,13); ctx.fill(); ctx.stroke();
+  ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='900 18px "Noto Sans TC",sans-serif';
+  ctx.fillText(`⚠️ 屋頂狙擊手　${remain.toFixed(1)} 秒`,VW/2,by+24);
+  ctx.fillStyle=roofRaid.freeShot?'#fde68a':'#fecaca'; ctx.font='700 13px "Noto Sans TC",sans-serif';
+  ctx.fillText(roofRaid.freeShot?'緊急子彈 1/1（不耗彈）':'緊急子彈已用，快重新瞄準',VW/2,by+45);
+  ctx.restore();
 }
 
 function drawWallSegment(mat, x, y, w, h){
@@ -1604,7 +1757,7 @@ function startGame(m){
   WB.hasPic = WB.bank.filter(w=>w.emoji).length >= 4;   // 有圖題庫＝帶 emoji 的字 ≥ 4
   roundNo = 0; score = 0; money = 0; combo = 0; lives = MAX_LIVES;
   apUpgrade = false; extraAmmo = 0; extraTime = 0; shoppedAt = {};
-  nextFireAt = 0;
+  roofRaid = null; roofRaidAt = 0; noWindShots = 0; tempAPShots = 0; nextFireAt = 0;
   document.getElementById('shop-overlay').classList.add('hide');
   document.getElementById('start-overlay').classList.add('hide');
   document.getElementById('end-overlay').classList.add('hide');
@@ -1616,6 +1769,7 @@ function startGame(m){
 }
 function finishOverlay(title){
   stopBgm();
+  roofRaid = null; roofRaidAt = 0;
   state = 'over';
   document.querySelector('#end-overlay h1').textContent = title;
   document.getElementById('end-overlay').classList.remove('hide');
@@ -1804,6 +1958,8 @@ function resumeGame(){
   if(killUntil) killUntil += gap;
   if(spotWarnUntil) spotWarnUntil += gap;
   if(duckDeadline) duckDeadline += gap;
+  if(roofRaidAt) roofRaidAt += gap;
+  if(roofRaid) roofRaid.deadline += gap;
   state = pausedFrom;
   lastT = now;
   document.getElementById('pause-overlay').classList.add('hide');
@@ -1813,6 +1969,7 @@ function resumeGame(){
 function returnToMainMenu(){
   stopBgm();
   state = 'menu';
+  roofRaid = null; roofRaidAt = 0;
   scoped = false; scopeBlend = 0; targetZoom = ZOOM_OUT;
   document.getElementById('pause-overlay').classList.add('hide');
   document.getElementById('shop-overlay').classList.add('hide');
