@@ -1450,12 +1450,12 @@ addEventListener('mouseup',e=>{if(e.button===0)fireHeld=false;});
 /* 觸控：左半螢幕虛擬搖桿、右半螢幕滑動環視 */
 if(isTouch)document.getElementById('touchUI').classList.remove('hidden');
 const stickEl=document.getElementById('moveStick'),knob=document.getElementById('moveKnob');
-let stickId=null,lookId=null,stickVec={x:0,y:0},lookLast={x:0,y:0};
+let stickId=null,lookId=null,fireTouchId=null,stickVec={x:0,y:0},lookLast={x:0,y:0},fireLookLast={x:0,y:0};
 addEventListener('touchstart',e=>{
   if(!playing)return;
   for(const t of e.changedTouches){
     const el=document.elementFromPoint(t.clientX,t.clientY);
-    if(el&&(el.id==='fireBtn')){fire();fireHeld=true;el.classList.add('active');continue;}
+    if(el&&(el.id==='fireBtn')){fire();fireHeld=true;fireTouchId=t.identifier;fireLookLast={x:t.clientX,y:t.clientY};el.classList.add('active');continue;}
     if(el&&(el.id==='reloadBtn')){reload();continue;}
     if(el&&(el.id==='grenadeBtn')){throwGrenade();continue;}
     if(el&&(el.id==='jumpBtn')){doJump();continue;}
@@ -1469,7 +1469,11 @@ addEventListener('touchstart',e=>{
 },{passive:false});
 addEventListener('touchmove',e=>{
   for(const t of e.changedTouches){
-    if(t.identifier===stickId)updStick(t);
+    if(t.identifier===fireTouchId){
+      player.yaw-=(t.clientX-fireLookLast.x)*0.0052;
+      player.pitch=clamp(player.pitch-(t.clientY-fireLookLast.y)*0.0052,-1.45,1.45);
+      fireLookLast={x:t.clientX,y:t.clientY};
+    }else if(t.identifier===stickId)updStick(t);
     else if(t.identifier===lookId){
       player.yaw-=(t.clientX-lookLast.x)*0.0052;
       player.pitch=clamp(player.pitch-(t.clientY-lookLast.y)*0.0052,-1.45,1.45);
@@ -1478,14 +1482,15 @@ addEventListener('touchmove',e=>{
   }
   if(playing)e.preventDefault();
 },{passive:false});
-addEventListener('touchend',e=>{
+function releaseTouch(e){
   for(const t of e.changedTouches){
+    if(t.identifier===fireTouchId){fireTouchId=null;fireHeld=false;document.getElementById('fireBtn').classList.remove('active');}
     if(t.identifier===stickId){stickId=null;stickVec={x:0,y:0};knob.style.left='70px';knob.style.top='70px';}
     if(t.identifier===lookId)lookId=null;
   }
-  document.getElementById('fireBtn').classList.remove('active');
-  fireHeld=false;
-});
+}
+addEventListener('touchend',releaseTouch);
+addEventListener('touchcancel',releaseTouch);
 function updStick(t){
   const r=stickEl.getBoundingClientRect();
   let dx=t.clientX-(r.left+70),dy=t.clientY-(r.top+70);
