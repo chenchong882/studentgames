@@ -692,16 +692,18 @@ function wordSprite(text,color='#173443'){
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
   const m=new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false});const s=new THREE.Sprite(m);s.scale.set(2.85,.59,1);return s;
 }
-function houseSprite(text){
-  const c=document.createElement('canvas');c.width=512;c.height=120;const g=c.getContext('2d');
-  g.fillStyle='rgba(12,26,33,.94)';g.fillRect(5,5,502,110);g.strokeStyle='#ffe08a';g.lineWidth=8;g.strokeRect(5,5,502,110);
-  g.fillStyle='#fff';g.font='900 76px Arial,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(text||'?',256,61,470);
+function houseSprite(text,large=false){
+  const c=document.createElement('canvas');c.width=512;c.height=large?220:120;const g=c.getContext('2d');
+  g.fillStyle='rgba(12,26,33,.94)';g.fillRect(5,5,502,c.height-10);g.strokeStyle=large?'#5de8ff':'#ffe08a';g.lineWidth=8;g.strokeRect(5,5,502,c.height-10);
+  g.fillStyle='#fff';g.font=large?'900 164px "Apple Color Emoji","Segoe UI Emoji",Arial,sans-serif':'900 76px Arial,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(text||'?',256,c.height/2,470);
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
-  const m=new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false});const s=new THREE.Sprite(m);s.scale.set(4.7,1.1,1);s.userData.noHit=true;return s;
+  const m=new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false});const s=new THREE.Sprite(m);s.scale.set(large?7.4:4.7,large?3.18:1.1,1);s.userData.noHit=true;return s;
 }
-function setHouseLabel(h,text){
-  if(h.label){scene.remove(h.label);h.label.material.map.dispose();h.label.material.dispose();}
-  h.label=houseSprite(text);h.label.position.set(h.cx,h.labelY||h.h+3.05,h.cz);scene.add(h.label);
+function clearHouseLabel(h){
+  if(!h.label)return;scene.remove(h.label);h.label.material.map.dispose();h.label.material.dispose();h.label=null;
+}
+function setHouseLabel(h,text,large=false){
+  clearHouseLabel(h);h.label=houseSprite(text,large);h.label.position.set(h.cx,(h.labelY||h.h+3.05)+(large?1.05:0),h.cz);scene.add(h.label);
 }
 function setZombieLabel(g,text,color){
   if(g.userData.label){g.remove(g.userData.label);g.userData.label.material.map.dispose();g.userData.label.material.dispose();}
@@ -1026,16 +1028,19 @@ function registerWrong(){
 }
 function questionWords(){const list=gameMode==='simple'?VOCAB.filter(w=>w.emoji):VOCAB;return list.length?list:VOCAB;}
 function wordKey(w){return w?String(w.word).trim().toLowerCase():'';}
+function houseSearchText(){return gameMode==='simple'?'找亮起圖片的小屋':'找小屋';}
 function assignHouseAnswers(){
-  const words=questionWords(),others=words.filter(w=>wordKey(w)!==wordKey(targetWord)),correctIndex=(rnd(HOUSES.length))|0;
-  for(let i=0;i<HOUSES.length;i++){
-    const h=HOUSES[i];h.correct=!others.length||i===correctIndex;
-    h.answer=h.correct?targetWord:others[(i+(rnd(others.length||1)|0))%(others.length||1)];
+  const words=questionWords(),others=words.filter(w=>wordKey(w)!==wordKey(targetWord)),pool=HOUSES.slice(),active=[];
+  while(pool.length&&active.length<(gameMode==='simple'?4:HOUSES.length))active.push(pool.splice((rnd(pool.length))|0,1)[0]);
+  const correctIndex=(rnd(active.length))|0;
+  for(const h of HOUSES){
+    const i=active.indexOf(h);h.active=i>=0;h.correct=h.active&&(!others.length||i===correctIndex);
+    h.answer=!h.active?null:(h.correct?targetWord:others[(i+(rnd(others.length||1)|0))%(others.length||1)]);
     h.captureT=0;
-    setHouseLabel(h,labelForWord(h.answer));
+    if(h.active)setHouseLabel(h,labelForWord(h.answer),gameMode==='simple');else clearHouseLabel(h);
   }
   captureHouse=null;captureT=0;questionT=QUESTION_SECONDS;captureActive=true;
-  captureHudEl.style.display='block';captureTrackEl.style.display='none';captureFillEl.style.width='0%';captureTextEl.textContent='找小屋';
+  captureHudEl.style.display='block';captureTrackEl.style.display='none';captureFillEl.style.width='0%';captureTextEl.textContent=houseSearchText();
   houseWordEl.style.display='none';houseWordEl.textContent='';questionTimerEl.textContent='剩餘 '+QUESTION_SECONDS+' 秒';
 }
 function setQuestion(say=true){
@@ -1121,7 +1126,7 @@ function updateCapture(dt){
   if(!captureActive||roundTransition)return;
   questionT=Math.max(0,questionT-dt);questionTimerEl.textContent='剩餘 '+Math.max(0,Math.ceil(questionT))+' 秒';
   if(captureCooldown>0){captureCooldown-=dt;captureTextEl.textContent='重新洗牌中…';captureTrackEl.style.display='none';houseWordEl.style.display='none';return;}
-  const h=HOUSES.find(insideHouse)||null;
+  const h=HOUSES.find(h=>h.active&&insideHouse(h))||null;
   if(h){
     if(captureHouse!==h){
       captureHouse=h;captureT=gameMode==='hard'?0:(h.captureT||0);
@@ -1135,7 +1140,7 @@ function updateCapture(dt){
     captureHouse=null;captureT=0;
     const saved=gameMode==='hard'?0:Math.max(0,...HOUSES.map(x=>x.captureT||0));
     captureFillEl.style.width=(saved/CAPTURE_SECONDS*100)+'%';captureTrackEl.style.display=saved>0?'block':'none';
-    captureTextEl.textContent=saved>0?('找小屋 ・ 已保留 '+saved.toFixed(1)+' 秒'):'找小屋';houseWordEl.style.display='none';houseWordEl.textContent='';
+    captureTextEl.textContent=saved>0?(houseSearchText()+' ・ 已保留 '+saved.toFixed(1)+' 秒'):houseSearchText();houseWordEl.style.display='none';houseWordEl.textContent='';
   }
   if(questionT<=0){captureActive=false;onQuestionTimeout();}
 }
