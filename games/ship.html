@@ -276,7 +276,7 @@
         <summary aria-label="查看詳細玩法">!</summary>
         <div class="game-info-panel">
           <h2>🌊 詳細玩法</h2>
-          🖱️ <b>滑鼠移動準星</b>，左鍵或空白鍵發射；手機單指拖曳瞄準、第二指點一下發射。<br>
+          🖱️ <b>滑鼠移動準星</b>，左鍵或空白鍵發射；手機單指拖曳瞄準，另一指可按「發射」鈕開火。<br>
           🚀 擊沉<b>符合天空所有條件</b>的船，越遠分數越高；連續命中可提高連擊倍率。<br>
           📖 題目包含中文意思、挖空句子與圖片題。<br>
           🏁 每關擊沉 <b>2 艘</b>目標船才過關；失敗會扣命。<br>
@@ -1509,6 +1509,8 @@ refreshModeUI();
 $("restart-btn").addEventListener("click", () => startGame());
 $("winagain-btn").addEventListener("click", () => startGame());
 $("fire-btn").addEventListener("click", fire);
+// 拖曳準星時瀏覽器不一定會替第二根手指合成 click，按下發射鈕便立刻開火。
+$("fire-btn").addEventListener("touchstart", e => { e.preventDefault(); fire(); }, { passive: false });
 $("pause-btn").addEventListener("click", togglePause);
 $("resume-btn").addEventListener("click", togglePause);
 $("menu-btn").addEventListener("click", () => window.openGameExitConfirm());
