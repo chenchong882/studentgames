@@ -1616,6 +1616,10 @@ function menuBtnYs() {
 }
 // 全圖檔開關（DOM checkbox）擺放位置：模式鈕上方
 function menuAllPicY() { return menuBtnYs().simpleY - menuBtnH() / 2 - clamp(H * 0.055, 30, 44); }
+// 平板橫向高度有限：上方三行依圖片題開關往上收合，避免與題型說明重疊。
+function menuGuideY() { return menuAllPicY() - clamp(H * 0.08, 58, 70); }
+function menuSubtitleY() { return menuGuideY() - clamp(H * 0.075, 50, 64); }
+function menuTitleY() { return Math.min(H * 0.19, menuSubtitleY() - clamp(H * 0.07, 48, 58)); }
 
 function drawMenu(c) {
   c.fillStyle='rgba(5,10,30,0.88)'; c.fillRect(0,0,W,H);
@@ -1625,12 +1629,12 @@ function drawMenu(c) {
   c.save();
   c.font=`bold ${clamp(H * 0.082, 46, 68)}px "Arial Rounded MT Bold", Arial`;
   c.fillStyle='#FFD700'; c.shadowColor='#FF6600'; c.shadowBlur=24;
-  c.fillText('💣 炸彈英文', W/2, H*0.19);
+  c.fillText('💣 炸彈英文', W/2, menuTitleY());
   c.shadowBlur=0;
   c.font=`${clamp(H * 0.032, 18, 26)}px Arial`; c.fillStyle='rgba(255,255,255,0.75)';
-  c.fillText(`Bomb English — ${bombLessonTitle}`, W/2, H*0.29);
+  c.fillText(`Bomb English — ${bombLessonTitle}`, W/2, menuSubtitleY());
   c.font=`bold ${clamp(H * 0.027, 16, 22)}px Arial`; c.fillStyle='rgba(255,255,255,0.92)';
-  c.fillText('看題目，炸中正確單字房子！', W/2, H*0.36);
+  c.fillText('看題目，炸中正確單字房子！', W/2, menuGuideY());
   c.restore();
 
   // Buttons：三顆永遠都畫出來，不可選的灰化
@@ -2710,7 +2714,7 @@ const _speechOverlay = (() => {
       menuBtn.style.display = 'block';
       infoEl.hidden = false;
       infoEl.style.left = Math.min(W - 54, W/2 + clamp(W * .22, 145, 220)) + 'px';
-      infoEl.style.top = (H * .36 - 19) + 'px';
+      infoEl.style.top = (menuGuideY() - 19) + 'px';
       if (hasPicBank()) {
         const rw = Math.min(W * 0.9, 440);
         allPicRow.style.left = (W/2 - rw/2) + 'px';
