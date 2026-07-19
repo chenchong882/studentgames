@@ -212,7 +212,7 @@
 <div id="status">
   <div id="wave">🌊 第 1 波</div>
   <div id="captureHud"><div id="missionLine"><div id="question">準備找小屋</div><div id="questionTimer">剩餘 38 秒</div></div><div id="captureText">找小屋</div><div id="houseWord"></div><div id="captureTrack"><div id="captureFill"></div></div></div>
-  <div id="combo">手槍 ・ COMBO ×0</div>
+  <div id="combo">COMBO ×0</div>
   <div id="bossHud"><div id="bossText">BOSS 生命</div><div id="bossTrack"><div id="bossFill"></div></div></div>
 </div>
 <div id="health">❤️ 玩家血量 <span id="hpText">100 / 100</span><div class="bar"><div class="fill" id="hpFill"></div></div></div>
@@ -1001,7 +1001,7 @@ function updateWeaponUI(){
   document.getElementById('weaponText').textContent=recovering?('武器搶救 '+recoveryStreak+' / 2 ・ 連錯將永久失去'):
     (done?('武器分數 '+weaponScore+' ・ 已完成最高階段'):('武器分數 '+weaponScore+' ・ 下一階：答對 '+weaponCorrect+' / '+next.correct+' ・ 擊殺 '+kills+' / '+next.kills));
   document.querySelectorAll('#weaponStages span').forEach((el,i)=>el.classList.toggle('active',i===weaponLevel));
-  comboEl.textContent=weaponName()+' ・ COMBO ×'+combo+(recovering?' ・ 搶救中':'');
+  comboEl.textContent='COMBO ×'+combo+(recovering?' ・ 搶救中':'');
   document.querySelector('#ammo .gname').textContent=weaponName();
 }
 function registerCorrect(){
@@ -1028,7 +1028,6 @@ function registerWrong(){
 }
 function questionWords(){const list=gameMode==='simple'?VOCAB.filter(w=>w.emoji):VOCAB;return list.length?list:VOCAB;}
 function wordKey(w){return w?String(w.word).trim().toLowerCase():'';}
-function houseSearchText(){return gameMode==='simple'?'找亮起圖片的小屋':'找小屋';}
 function assignHouseAnswers(){
   const words=questionWords(),others=words.filter(w=>wordKey(w)!==wordKey(targetWord)),pool=HOUSES.slice(),active=[];
   while(pool.length&&active.length<(gameMode==='simple'?4:HOUSES.length))active.push(pool.splice((rnd(pool.length))|0,1)[0]);
@@ -1040,7 +1039,7 @@ function assignHouseAnswers(){
     if(h.active)setHouseLabel(h,labelForWord(h.answer),gameMode==='simple');else clearHouseLabel(h);
   }
   captureHouse=null;captureT=0;questionT=QUESTION_SECONDS;captureActive=true;
-  captureHudEl.style.display='block';captureTrackEl.style.display='none';captureFillEl.style.width='0%';captureTextEl.textContent=houseSearchText();
+  captureHudEl.style.display='block';captureTrackEl.style.display='none';captureFillEl.style.width='0%';captureTextEl.style.display='none';captureTextEl.textContent='';
   houseWordEl.style.display='none';houseWordEl.textContent='';questionTimerEl.textContent='剩餘 '+QUESTION_SECONDS+' 秒';
 }
 function setQuestion(say=true){
@@ -1125,7 +1124,7 @@ function insideHouse(h){return player.y<1.4&&Math.abs(player.x-h.cx)<h.w/2-T-.2&
 function updateCapture(dt){
   if(!captureActive||roundTransition)return;
   questionT=Math.max(0,questionT-dt);questionTimerEl.textContent='剩餘 '+Math.max(0,Math.ceil(questionT))+' 秒';
-  if(captureCooldown>0){captureCooldown-=dt;captureTextEl.textContent='重新洗牌中…';captureTrackEl.style.display='none';houseWordEl.style.display='none';return;}
+  if(captureCooldown>0){captureCooldown-=dt;captureTextEl.style.display='block';captureTextEl.textContent='重新洗牌中…';captureTrackEl.style.display='none';houseWordEl.style.display='none';return;}
   const h=HOUSES.find(h=>h.active&&insideHouse(h))||null;
   if(h){
     if(captureHouse!==h){
@@ -1133,14 +1132,14 @@ function updateCapture(dt){
       showObjective(gameMode==='hard'?('留在 '+h.name+' 裡守滿 10 秒；離開會重新計時'):('留在 '+h.name+' 裡防守；離開後會保留這間的進度'));
     }
     captureT+=dt;h.captureT=captureT;const left=Math.max(0,CAPTURE_SECONDS-captureT);
-    captureTextEl.textContent='佔領倒數 '+left.toFixed(1)+' 秒';houseWordEl.textContent='目前小屋：'+(h.answer&&h.answer.word?h.answer.word:'—');houseWordEl.style.display='block';captureTrackEl.style.display='block';captureFillEl.style.width=(Math.min(1,captureT/CAPTURE_SECONDS)*100)+'%';
+    captureTextEl.style.display='block';captureTextEl.textContent='佔領倒數 '+left.toFixed(1)+' 秒';houseWordEl.textContent='目前小屋：'+(h.answer&&h.answer.word?h.answer.word:'—');houseWordEl.style.display='block';captureTrackEl.style.display='block';captureFillEl.style.width=(Math.min(1,captureT/CAPTURE_SECONDS)*100)+'%';
     if(captureT>=CAPTURE_SECONDS){captureActive=false;captureHudEl.style.display='none';h.correct?onHouseCorrect(h):onHouseWrong(h);return;}
   }else{
     if(captureHouse&&gameMode==='hard')captureHouse.captureT=0;
     captureHouse=null;captureT=0;
     const saved=gameMode==='hard'?0:Math.max(0,...HOUSES.map(x=>x.captureT||0));
     captureFillEl.style.width=(saved/CAPTURE_SECONDS*100)+'%';captureTrackEl.style.display=saved>0?'block':'none';
-    captureTextEl.textContent=saved>0?(houseSearchText()+' ・ 已保留 '+saved.toFixed(1)+' 秒'):houseSearchText();houseWordEl.style.display='none';houseWordEl.textContent='';
+    captureTextEl.style.display=saved>0?'block':'none';captureTextEl.textContent=saved>0?('已保留 '+saved.toFixed(1)+' 秒'):'';houseWordEl.style.display='none';houseWordEl.textContent='';
   }
   if(questionT<=0){captureActive=false;onQuestionTimeout();}
 }
