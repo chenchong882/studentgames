@@ -714,6 +714,29 @@ function setRageVisual(g,on){
   const u=g.userData;if(!u.rageMats)return;
   u.rageMats.forEach((m,i)=>m.color.setHex(on?(i===1?0x7f1717:0xd9322d):u.rageBase[i]));
 }
+function addZombieStatusVisual(g){
+  const frost=new THREE.Group(),frostShell=new THREE.Mesh(new THREE.SphereGeometry(.93,14,11),new THREE.MeshBasicMaterial({color:0x74e8ff,transparent:true,opacity:.22,blending:THREE.AdditiveBlending,depthWrite:false}));
+  frostShell.position.y=1.18;frost.add(frostShell);const shards=[];
+  for(let i=0;i<5;i++){const shard=new THREE.Mesh(new THREE.ConeGeometry(.09,.48,5),new THREE.MeshBasicMaterial({color:0xb8f8ff,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false})),a=i/5*TAU;
+    shard.position.set(Math.cos(a)*.63,.52+(i%2)*.62,Math.sin(a)*.43);shard.rotation.z=Math.PI/2;shard.rotation.y=-a;frost.add(shard);shards.push(shard);}
+  frost.visible=false;frost.traverse(o=>o.userData.noHit=true);g.add(frost);
+  const flames=new THREE.Group(),flameMats=[new THREE.MeshBasicMaterial({color:0xff4e20,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}),new THREE.MeshBasicMaterial({color:0xffc13b,transparent:true,opacity:.95,blending:THREE.AdditiveBlending,depthWrite:false})],flameBits=[];
+  for(let i=0;i<6;i++){const flame=new THREE.Mesh(new THREE.ConeGeometry(i%2?.13:.18,i%2?.48:.7,6),flameMats[i%2]),a=i/6*TAU;
+    flame.position.set(Math.cos(a)*.36,.52+(i%3)*.38,Math.sin(a)*.26);flame.userData.baseY=flame.position.y;flame.userData.seed=i*1.73;flames.add(flame);flameBits.push(flame);}
+  flames.visible=false;flames.traverse(o=>o.userData.noHit=true);g.add(flames);
+  g.userData.status={frost,frostShell,shards,flames,flameBits};
+}
+function igniteZombie(g,duration=3.2){
+  const u=g.userData;if(!u.alive)return;
+  u.burnT=Math.max(u.burnT||0,duration);u.burnTick=Math.min(u.burnTick||.62,.62);
+}
+function updateZombieStatusVisual(g,u,now){
+  const s=u.status;if(!s)return;
+  const frozen=u.freezeT>0,burning=u.burnT>0;
+  s.frost.visible=frozen;s.flames.visible=burning;
+  if(frozen){s.frost.rotation.y=now*.0015;s.frostShell.material.opacity=.17+Math.sin(now*.011)*.08;s.shards.forEach((shard,i)=>shard.scale.y=.78+Math.sin(now*.012+i)*.22);}
+  if(burning){s.flames.rotation.y=now*.004;s.flameBits.forEach(flame=>{const k=.74+Math.sin(now*.019+flame.userData.seed)*.28;flame.scale.set(k,1.05+Math.sin(now*.024+flame.userData.seed)*.3,k);flame.position.y=flame.userData.baseY+Math.sin(now*.017+flame.userData.seed)*.08;});}
+}
 function makeEnemyArrow(){
   const g=new THREE.Group(),shaftMat=new THREE.MeshBasicMaterial({color:0xf0c56b}),tipMat=new THREE.MeshBasicMaterial({color:0xff754b});
   const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.8,6),shaftMat);shaft.rotation.x=Math.PI/2;g.add(shaft);
@@ -809,6 +832,7 @@ function makeZombie(x,z,kind='normal'){
     attackRange:spec.range,pushRadius:spec.push,bossShield:kind==='boss'?(gameMode==='hard'?4:3):0,
     secondShield:false,bossRage:false,windup:0,enrage:0,attackAnim:0,stuckT:0,los:false,losT:0,
     bow:archerBow,rageMats:kind==='dog'?null:[skin,shirt,face],rageBase:kind==='dog'?null:[skin.color.getHex(),shirt.color.getHex(),face.color.getHex()]};
+  addZombieStatusVisual(g);
   if(kind==='boss'){
     boss=g;setZombieLabel(g,'👑 BOSS 護盾 ×'+g.userData.bossShield,'#7d47b8');
     const warn=new THREE.Mesh(new THREE.RingGeometry(.7,1.8,32),new THREE.MeshBasicMaterial({color:0xff3028,transparent:true,opacity:.62,side:THREE.DoubleSide}));
@@ -907,11 +931,12 @@ function hitZombie(g,part,hitPoint){
   const fireOn=fireAmmoT>0,iceOn=iceAmmoT>0,dmg=weaponDamage(part)+(fireOn?1:0);
   u.hp-=dmg;u.flash=0.13;
   if(iceOn)u.freezeT=Math.max(u.freezeT||0,3.5);
+  if(fireOn)igniteZombie(g);
   const d=Math.hypot(g.position.x-player.x,g.position.z-player.z)||1;
   const kb=part==='head'?3.6:2.2;      // 爆頭擊退更多
   u.kx=(g.position.x-player.x)/d*kb;u.kz=(g.position.z-player.z)/d*kb;
   sparks(hitPoint,fireOn?0xff7b32:(iceOn?0x75e6ff:0x7fd45a),fireOn?12:7);
-  if(fireOn)for(const o of zombies){if(o!==g&&o.userData.alive&&Math.hypot(o.position.x-g.position.x,o.position.z-g.position.z)<2.8)blastZombie(o,1,g.position.x,g.position.z);}
+  if(fireOn)for(const o of zombies){if(o!==g&&o.userData.alive&&Math.hypot(o.position.x-g.position.x,o.position.z-g.position.z)<2.8){blastZombie(o,1,g.position.x,g.position.z);igniteZombie(o,2.5);}}
   hitmarkShow();
   popAt(hitPoint,(fireOn?'🔥 ':(iceOn?'❄️ ':''))+(part==='head'?'爆頭 ':'-')+dmg,fireOn?'#ff9a45':(iceOn?'#9cecff':(part==='head'?'#ffd34d':'#fff')));
   if(g===boss){
@@ -922,6 +947,7 @@ function hitZombie(g,part,hitPoint){
 }
 function finishZombie(g){
   const u=g.userData;if(!u.alive)return;u.alive=false;u.deadT=0;if(u.warn)u.warn.visible=false;kills++;
+  if(u.status){u.status.frost.visible=false;u.status.flames.visible=false;}
   document.getElementById('vKills').textContent=kills;checkWeaponUpgrade();updateWeaponUI();sndKill();sparks(g.position.clone().setY(1.4),0xffe08a,12);
   if(g===boss){boss=null;onBossDefeated();}else spawnZombieDrop(g.position.x,g.position.z);
 }
@@ -1144,7 +1170,7 @@ function updateCapture(dt){
   if(questionT<=0){captureActive=false;onQuestionTimeout();}
 }
 function triggerBossSecondShield(g){
-  const u=g.userData;u.secondShield=true;u.hp=Math.ceil(u.maxHp*.5);u.bossShield=gameMode==='hard'?3:2;
+  const u=g.userData;u.secondShield=true;u.hp=Math.ceil(u.maxHp*.5);u.bossShield=gameMode==='hard'?3:2;u.burnT=0;
   setZombieLabel(g,'👑 第二護盾 ×'+u.bossShield,'#7d47b8');
   showObjective('🛡️ BOSS 半血反擊：再答對 '+u.bossShield+' 題！');setQuestion(true);
   spawnCrowd(6);if(gameMode==='hard')spawnHardDogs(1);updateBossHud(g);sndShield();
@@ -1603,6 +1629,11 @@ function loop(now){
         const p=u.phase+now*0.0016;
         const dx=player.x-z.position.x,dz=player.z-z.position.z,d=Math.hypot(dx,dz)||.001;
         if(u.freezeT)u.freezeT=Math.max(0,u.freezeT-dt);
+        if(u.burnT){
+          u.burnT=Math.max(0,u.burnT-dt);u.burnTick-=dt;
+          if(u.burnTick<=0){u.burnTick+=.62;u.hp--;u.flash=.08;sparks(z.position.clone().setY(1.25),0xff672d,3);if(u.hp<=0){finishZombie(z);continue;}}
+        }
+        updateZombieStatusVisual(z,u,now);
         const pace=u.speed*((u.enrage||u.bossRage)?ENRAGED_SPEED_MULT:ZOMBIE_SPEED_MULT)*(slowT>.01?.35:1)*(u.freezeT>0?.48:1);
         if(u.kind==='archer'){
           updateArcher(z,u,dx,dz,d,pace,dt);
