@@ -1289,6 +1289,7 @@ function spawnBossWave() {
     `📖 意思：${targetWord.meaning}（${targetWord.pos}）`,
     { text: "🛡️ 魔王本體打不壞", cls: "special" },
   ], false);
+  speakWord(targetWord.word);
   skyQ.classList.remove("hidden");
 }
 
