@@ -1485,13 +1485,14 @@ function startGame(difficulty) {
 }
 
 // 模式面板：先選模式，再由同一顆開始鈕進場。
+function allowedShipModes(){ return hasPicBank() ? ['simple','hard'] : ['normal','hard']; }
 function refreshModeUI() {
-  const pics = hasPicBank();
-  if (!['simple','normal','hard'].includes(selectedShipMode)) selectedShipMode = pics ? 'simple' : 'normal';
-  ['simple','normal','hard'].forEach(m=>{ const b=$("start-"+m); b.classList.toggle('mode-picked',selectedShipMode===m); b.setAttribute('aria-pressed',selectedShipMode===m?'true':'false'); });
+  const pics = hasPicBank(), allow = allowedShipModes();
+  if (!allow.includes(selectedShipMode)) selectedShipMode = allow[0];
+  ['simple','normal','hard'].forEach(m=>{ const b=$("start-"+m), on=selectedShipMode===m; b.hidden=!allow.includes(m); b.disabled=!allow.includes(m); b.classList.toggle('mode-picked',on); b.setAttribute('aria-pressed',on?'true':'false'); });
   $("mode-hint").textContent = pics
-    ? "簡單：圖片題較多｜一般：文字與句子題｜困難：時間較短並有敵艦反擊"
-    : "簡單：不出句子題｜一般：文字與句子題｜困難：時間較短並有敵艦反擊";
+    ? "內建圖片單字：可選簡單或困難"
+    : "連結單字（無圖片）：可選一般或困難";
   $("allpic-row").style.display = pics ? "flex" : "none";
   $("mix-desc").style.display = pics ? "block" : "none";
   $("allpic-mix").classList.toggle('mode-picked',!allPic);
