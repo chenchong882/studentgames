@@ -62,7 +62,7 @@
     text-align:center;min-width:400px;display:none;}
   #quiz .qq{font-size:22px;font-weight:700;color:#ffe9a8;margin-bottom:14px;}
   #quiz button{margin:0 7px;padding:10px 22px;font-size:19px;font-weight:700;
-    background:#2c3242;color:#fff;border:2px solid #4a5268;border-radius:9px;cursor:none;}
+    background:#2c3242;color:#fff;border:2px solid #4a5268;border-radius:9px;cursor:pointer;touch-action:manipulation;}
   #quiz button:hover{background:#3d4659;border-color:#ffd878;}
   #quiz button.qsel{background:#3d4659;border-color:#ffd878;box-shadow:0 0 12px rgba(255,216,120,.7);}
   #quiz .hk{margin-top:10px;font-size:12px;color:rgba(255,255,255,.6);}
@@ -211,7 +211,7 @@
 <div id="flash"></div>
 <div id="threatGlow"></div>
 <div id="wordPrompt"><button id="promptSpeakBtn" class="q" type="button" aria-label="播放單字發音"></button><div class="s">在樹上找到正確的單字，把它射下來！</div></div>
-<div id="quiz"><div class="qq"></div><div class="bb"></div><div class="tt"><div id="quizBar"></div></div><div class="hk">用滑鼠點選正確答案</div></div>
+<div id="quiz"><div class="qq"></div><div class="bb"></div><div class="tt"><div id="quizBar"></div></div><div class="hk">點選正確答案</div></div>
 <svg id="arcLayer"></svg>
 <div id="atkLog"></div>
 <div id="hint">W/S 前進後退 ・ W＋Shift 衝刺（解鎖後） ・ A/D 轉向 ・ 滑鼠瞄準 ・ 空格鍵／左鍵開砲 ・ Q 光速攻擊 ・ ESC 暫停</div>
@@ -1226,7 +1226,10 @@ function openQuiz(){
   const bb=q.querySelector('.bb');bb.innerHTML='';
   for(const o of opts){
     const b=document.createElement('button');b.textContent=o;
-    b.onclick=ev=>{ev.stopPropagation();answerQuiz(o);};
+    const choose=ev=>{ev.preventDefault();ev.stopPropagation();answerQuiz(o);};
+    b.addEventListener('click',choose);
+    // 方向盤仍由另一根手指按住時，直接在觸碰放開時作答，避免等合成 click 而被拖曳事件吃掉
+    b.addEventListener('touchend',choose,{passive:false});
     bb.appendChild(b);
   }
 }
