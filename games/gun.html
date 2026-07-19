@@ -1488,6 +1488,10 @@ function releaseTouch(e){
     if(t.identifier===lookId)lookId=null;
   }
 }
+function resetTouchControls(){
+  stickId=null;lookId=null;fireTouchId=null;stickVec={x:0,y:0};fireHeld=false;
+  knob.style.left='70px';knob.style.top='70px';document.getElementById('fireBtn').classList.remove('active');
+}
 addEventListener('touchend',releaseTouch);
 addEventListener('touchcancel',releaseTouch);
 function updStick(t){
@@ -1501,7 +1505,7 @@ function updStick(t){
 const pauseOverlay=document.getElementById('pauseOverlay');
 function pauseGame(){
   if(!playing||paused)return;
-  paused=true;fireHeld=false;stopBgm();pauseOverlay.classList.remove('hidden');
+  paused=true;resetTouchControls();stopBgm();pauseOverlay.classList.remove('hidden');
   if(document.pointerLockElement===renderer.domElement)document.exitPointerLock();
 }
 function resumeGame(){
