@@ -379,6 +379,9 @@ function stopBgm(){
 function refreshVoices(){try{voices=speechSynthesis.getVoices()||[];}catch(e){voices=[];}}
 refreshVoices();
 try{speechSynthesis.addEventListener('voiceschanged',refreshVoices);}catch(e){}
+function pickEnglishVoice(){
+  return voices.find(x=>/^en[-_]?US/i.test(x.lang))||voices.find(x=>/^en/i.test(x.lang))||null;
+}
 function speakWord(word){
   if(!word||!('speechSynthesis' in window))return;
   const token=++speechToken, ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||
@@ -386,8 +389,8 @@ function speakWord(word){
   try{
     const s=speechSynthesis;if(s.speaking||s.pending)s.cancel();
     if(ios&&AC&&AC.state==='running')AC.suspend();
-    const u=new SpeechSynthesisUtterance(word);activeUtterance=u;u.lang='en-US';u.rate=.86;
-    const v=voices.find(x=>/^en(-|_)/i.test(x.lang));if(v)u.voice=v;
+    const u=new SpeechSynthesisUtterance(word);activeUtterance=u;
+    const v=pickEnglishVoice();if(v)u.voice=v;u.lang=(v&&v.lang)||'en-US';u.rate=.85;u.pitch=1;
     const restore=()=>{if(token!==speechToken)return;if(ios&&AC&&AC.state==='suspended')AC.resume();};
     u.onend=restore;u.onerror=restore;s.speak(u);setTimeout(restore,3500);
   }catch(e){if(ios&&AC&&AC.state==='suspended')AC.resume();}
