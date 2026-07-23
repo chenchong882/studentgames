@@ -388,14 +388,88 @@
       { word:"bird", emoji:"🐦", chinese:"鳥", sentence:"A small brown {W} sang a cheerful song on the windowsill." },
     ]},
   ];
+  // Ivan 提供的原始 30 字：保留為獨立主題，即使其中部分字也出現在其他主題。
+  // 這樣老師可單獨指定這一組練習，而「全部主題」仍會依各主題保留重複字。
+  const ORIGINAL_WORDS = {
+    "blanket": ["🛏️","毯子","She put a warm {W} over her legs before going to sleep."],
+    "pillow": ["🖼️","枕頭","He put his head on a soft {W} and closed his eyes."],
+    "mirror": ["🪞","鏡子","She looked in the {W} before she left the house."],
+    "cousin": ["👨‍👩‍👦","表／堂兄弟姊妹","My {W} came to my house to play after school."],
+    "puzzle": ["🧩","拼圖","We put the pieces together to finish the {W}."],
+    "eraser": ["🖼️","橡皮擦","She used an {W} to remove the wrong answer."],
+    "mountain": ["⛰️","山","We could see the tall {W} from our window."],
+    "spaghetti": ["🍝","義大利麵","Dad cooked {W} with tomato sauce for dinner."],
+    "cookie": ["🍪","餅乾","I ate a chocolate chip {W} after lunch."],
+    "egg": ["🥚","蛋","She cracked an {W} into the bowl."],
+    "sandwich": ["🥪","三明治","I made a cheese {W} for my lunch."],
+    "lemonade": ["🍋","檸檬水","We drank cold {W} on a hot day."],
+    "hospital": ["🏥","醫院","The doctor works at the {W}."],
+    "bakery": ["🥖","麵包店","We bought fresh bread from the {W}."],
+    "police station": ["🚔","警察局","The police officers work at the {W}."],
+    "library": ["📚","圖書館","I borrowed a book from the {W}."],
+    "subway": ["🚇","捷運","We took the {W} to the city."],
+    "flashlight": ["🔦","手電筒","He used a {W} to see in the dark."],
+    "towel": ["🖼️","毛巾","She dried her hands with a {W}."],
+    "basket": ["🧺","籃子","She put the apples in a {W}."],
+    "castle": ["🏰","城堡","The king lived in a large {W}."],
+    "TV": ["📺","電視","We watched a movie on the {W}."],
+    "door": ["🚪","門","Please close the {W} when you leave."],
+    "clock": ["🕰️","時鐘","The {W} on the wall shows three o'clock."],
+    "hotel": ["🏨","旅館","We stayed at a {W} near the beach."],
+    "store": ["🏪","商店","Mom went to the {W} to buy milk."],
+    "yogurt": ["🥛","優格","She ate {W} with a spoon for breakfast."],
+    "coffee": ["☕","咖啡","Dad drinks a cup of {W} every morning."],
+    "music": ["🎵","音樂","We listened to {W} in class."],
+    "water": ["💧","水","Please drink some {W} after you run."],
+    "moon": ["🌙","月亮","The {W} was bright in the night sky."],
+    "astronaut": ["🧑‍🚀","太空人","The {W} travelled into space in a rocket."],
+    "satellite": ["🛰️","人造衛星","The {W} sends pictures of Earth from space."],
+    "hot": ["🥵","炎熱的","It is very {W} today, so drink plenty of water."],
+    "boat": ["🚤","船","The {W} moved quickly across the lake."],
+    "race car": ["🏎️","賽車","The red {W} drove around the track very fast."],
+    "mask": ["😷","口罩","He wore a {W} because he had a cold."],
+    "running": ["🏃","跑步","She goes {W} in the park every morning."],
+    "dancing": ["💃","跳舞","The children enjoyed {W} to the music."],
+    "roller skate": ["🛼","直排輪","She put on one {W} and then the other before practice."]
+  };
+  const existingWords = Object.fromEntries(THEMES.flatMap(theme => theme.words.map(item => [item.word, item])));
+  function wordEntry(word){
+    if(existingWords[word]) return { ...existingWords[word] };
+    const [emoji, chinese, sentence] = ORIGINAL_WORDS[word];
+    return { word, emoji, chinese, sentence };
+  }
+  THEMES.unshift({ id:"original", name:"原始 30 字", words:[
+    "blanket", "pillow", "mirror", "cousin", "backpack", "crayons", "scissors", "puzzle", "eraser", "mountain",
+    "spaghetti", "cookie", "egg", "sandwich", "lemonade", "hospital", "bakery", "police station", "museum", "library",
+    "subway", "rocket", "flashlight", "notebook", "paintbrush", "towel", "basket", "ticket", "castle", "traffic light"
+  ].map(wordEntry) });
+  function replaceThemeWords(themeId, replacements){
+    const theme = THEMES.find(item => item.id === themeId);
+    theme.words = theme.words.map(item => replacements[item.word] ? wordEntry(replacements[item.word]) : item);
+  }
+  replaceThemeWords("living", { umbrella:"TV", skateboard:"door", bicycle:"clock" });
+  replaceThemeWords("places", { taxi:"hotel", "cable car":"store" });
+  replaceThemeWords("food", { "yogurt cup":"yogurt", "hot chocolate":"coffee" });
+  replaceThemeWords("school", { "music stand":"music", "flash card":"notebook" });
+  replaceThemeWords("weather", {
+    sun:"umbrella", "partly cloudy":"earth", "water drop":"water", sparkles:"sun",
+    "full moon":"moon", "crescent moon":"astronaut", "new moon":"satellite", earth:"hot"
+  });
+  replaceThemeWords("vehicles", {
+    "pickup truck":"bicycle", moped:"scooter", scooter:"skateboard", balloon:"taxi",
+    speedboat:"boat", "cruise ship":"race car", "flying saucer":"cable car"
+  });
+  replaceThemeWords("clothing", { sari:"mask" });
+  replaceThemeWords("sports", { "ice hockey":"running", "field hockey":"dancing", "roller skates":"roller skate" });
+
   // 同一道句子填空題中，這些字可能都說得通；保留字彙，但不互相當干擾選項。
   const SENTENCE_CONFLICTS = [
-    ["suitcase","backpack"], ["compass","map"], ["ferry","ship","sailboat","cruise ship"], ["taxi","car"],
+    ["suitcase","backpack"], ["compass","map"], ["ferry","ship","sailboat"], ["taxi","car"],
     ["cupcake","donut"], ["watermelon","melon"], ["pear","mango"], ["cherry","apple"], ["tomato","bell pepper"],
     ["leafy greens","broccoli","beans","potato","sweet potato"], ["potato","sweet potato"],
     ["storm","thunderstorm"], ["comet","shooting star"],
-    ["car","taxi","van","pickup truck","truck"], ["van","car","pickup truck","truck"],
-    ["motorcycle","moped","scooter"], ["train","high speed train"], ["pants","shorts"], ["socks","gloves"],
+    ["car","taxi","van","truck"], ["van","car","taxi","truck"],
+    ["motorcycle","scooter"], ["train","high speed train"], ["pants","shorts"], ["socks","gloves"],
     ["baseball","softball"], ["tennis","volleyball"], ["handbag","backpack"], ["mouse","rat"]
   ];
   function avoidFor(word){
@@ -414,5 +488,5 @@
     })));
     return out;
   }
-  g.WORD_BANK = { version:1, themes:themeList, getWords:getWords, _raw:THEMES };
+  g.WORD_BANK = { version:2, themes:themeList, getWords:getWords, _raw:THEMES };
 })(typeof window!=='undefined'?window:globalThis);
