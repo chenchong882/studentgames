@@ -1155,17 +1155,37 @@ function drawBg(now){
 
 function drawBase(x, label, hp, maxHP, isPlayer){
   const barW = 92;
+  const ratio = Math.max(0, hp / maxHP);
+  const now = performance.now();
+  if(ratio <= .65){
+    for(let i=0;i<4;i++){
+      const phase=(now*.00022+i*.24)%1;
+      const smokeX=x-10+Math.sin(now*.0018+i*2.4)*7+phase*8;
+      const smokeY=222-phase*58;
+      ctx.fillStyle=`rgba(71,85,105,${.42*(1-phase)})`;
+      ctx.beginPath();ctx.arc(smokeX,smokeY,6+phase*10,0,Math.PI*2);ctx.fill();
+    }
+  }
   ctx.fillStyle = isPlayer ? '#2a4a8a' : '#6a1a1a';
   ctx.beginPath(); ctx.roundRect(x-30,220,60,70,6); ctx.fill();
   ctx.fillStyle = isPlayer ? '#3a6ac0' : '#a02020';
   ctx.beginPath(); ctx.roundRect(x-25,215,50,30,4); ctx.fill();
+  if(ratio <= .35){
+    for(let i=-1;i<=1;i++){
+      const flicker=Math.sin(now*.015+i*2.1);
+      const flameX=x+i*16, flameY=268+flicker*2;
+      ctx.fillStyle='rgba(249,115,22,.9)';
+      ctx.beginPath();ctx.moveTo(flameX-8,flameY+14);ctx.quadraticCurveTo(flameX-10,flameY-3,flameX+i*2,flameY-18-flicker*5);ctx.quadraticCurveTo(flameX+11,flameY-2,flameX+8,flameY+14);ctx.closePath();ctx.fill();
+      ctx.fillStyle='rgba(253,224,71,.9)';
+      ctx.beginPath();ctx.moveTo(flameX-4,flameY+13);ctx.quadraticCurveTo(flameX-3,flameY+1,flameX+2,flameY-8+flicker*2);ctx.quadraticCurveTo(flameX+6,flameY+3,flameX+4,flameY+13);ctx.closePath();ctx.fill();
+    }
+  }
   ctx.fillStyle = isPlayer ? '#4cc9f0' : '#ff6b6b';
   ctx.beginPath(); ctx.moveTo(x,195); ctx.lineTo(x+16,205); ctx.lineTo(x,215); ctx.fill();
   ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(x,195); ctx.lineTo(x,260); ctx.stroke();
   ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Outfit'; ctx.textAlign = 'center';
   ctx.fillText(label,x,292);
-  const ratio = Math.max(0, hp / maxHP);
   ctx.fillStyle = 'rgba(0,0,0,.5)'; ctx.beginPath(); ctx.roundRect(x-barW/2,200,barW,10,5); ctx.fill();
   ctx.fillStyle = ratio > .5 ? '#4cc864' : ratio > .25 ? '#f9c74f' : '#ff5050';
   ctx.beginPath(); ctx.roundRect(x-barW/2,200,barW*ratio,10,5); ctx.fill();
