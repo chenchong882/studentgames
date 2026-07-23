@@ -1098,7 +1098,10 @@ function clearWaveEnemies(){
   for(const z of zombies)if(z.userData.alive&&z!==boss){z.userData.alive=false;z.userData.deadT=.72;if(z.userData.warn)z.userData.warn.visible=false;}
   clearEnemyArrows();
 }
-function spawnHardDogs(count){for(let i=0;i<count;i++)spawnZombie('dog');}
+function spawnHardDogs(count){
+  const alive=zombies.filter(z=>z.userData.alive&&z.userData.kind==='dog').length;
+  for(let i=alive;i<count;i++)spawnZombie('dog');
+}
 function spawnHardArchers(count){
   const alive=zombies.filter(z=>z.userData.alive&&z.userData.kind==='archer').length;
   for(let i=alive;i<count;i++)spawnZombie('archer');
@@ -1109,7 +1112,7 @@ function baseNormalCount(w){
   return n;
 }
 function spawnWaveThreats(){
-  const alive=zombies.filter(z=>z.userData.alive&&z.userData.kind==='normal').length,desired=baseNormalCount(Math.min(wave,6))*3;
+  const alive=zombies.filter(z=>z.userData.alive&&z.userData.kind==='normal').length,crowdMult=gameMode==='hard'?2:3,desired=baseNormalCount(Math.min(wave,6))*crowdMult;
   spawnCrowd(Math.max(0,desired-alive));
   const answerCount=Math.min(9,4+Math.min(wave,6));
   for(let i=0;i<answerCount;i++){const kind=i%7===4?'fast':(wave>3&&i%9===6?'tank':'normal');if(kind!=='normal')spawnZombie(kind);}
@@ -1158,12 +1161,12 @@ function onHouseCorrect(h){
 }
 function onHouseWrong(h){
   registerWrong();hurt(gameMode==='hard'?25:18,{x:h.cx,z:h.cz});if(!playing)return;
-  spawnNearHouse(h,gameMode==='hard'?4:3);showObjective('❌ 佔領錯誤：扣血，屋外出現增援！同一題重新洗牌');
+  spawnNearHouse(h,3);showObjective('❌ 佔領錯誤：扣血，屋外出現增援！同一題重新洗牌');
   assignHouseAnswers();captureCooldown=1.4;if(gameMode==='simple'||roundKind==='listen')speakQuestionTwice(targetWord.word);
 }
 function onQuestionTimeout(){
   registerWrong();for(const z of zombies)if(z.userData.alive&&z!==boss){z.userData.enrage=Math.max(z.userData.enrage,gameMode==='hard'?7:6);setRageVisual(z,true);}
-  spawnCrowd(gameMode==='hard'?5:3);showObjective('⏰ 超時：全場殭屍短暫狂暴，題目與小屋重新洗牌！');setQuestion(true);captureCooldown=1.4;
+  spawnCrowd(3);showObjective('⏰ 超時：全場殭屍短暫狂暴，題目與小屋重新洗牌！');setQuestion(true);captureCooldown=1.4;
 }
 function insideHouse(h){return player.y<1.4&&Math.abs(player.x-h.cx)<h.w/2-T/2&&Math.abs(player.z-h.cz)<h.d/2-T/2;}
 function updateCapture(dt){
@@ -1193,7 +1196,7 @@ function triggerBossSecondShield(g){
   const u=g.userData;u.secondShield=true;u.hp=Math.ceil(u.maxHp*.5);u.bossShield=gameMode==='hard'?3:2;u.burnT=0;
   setZombieLabel(g,'👑 第二護盾 ×'+u.bossShield,'#7d47b8');
   showObjective('🛡️ BOSS 半血反擊：再答對 '+u.bossShield+' 題！');setQuestion(true);
-  spawnCrowd(6);if(gameMode==='hard')spawnHardDogs(1);updateBossHud(g);sndShield();
+  spawnCrowd(gameMode==='hard'?4:6);if(gameMode==='hard')spawnHardDogs(1);updateBossHud(g);sndShield();
 }
 function updateBossHud(g){
   const hud=document.getElementById('bossHud');if(!g){hud.style.display='none';return;}
