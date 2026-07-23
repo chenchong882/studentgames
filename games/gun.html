@@ -39,7 +39,11 @@
   #weaponStages .active b{color:#ffe59a;}
   #wave{font-size:21px;font-weight:900;letter-spacing:1px;color:#ffe59a;}
   #missionLine{display:flex;align-items:center;justify-content:center;gap:12px;}
-  #question{font-size:17px;font-weight:800;min-width:0;}
+  #question{min-width:0;padding:4px 8px;border:1px solid rgba(185,235,255,.45);border-radius:7px;
+    background:rgba(14,42,52,.72);color:#fff;font-family:inherit;font-size:17px;font-weight:800;text-shadow:inherit;cursor:pointer;
+    pointer-events:auto;touch-action:manipulation;-webkit-appearance:none;appearance:none;}
+  #question:active{background:rgba(35,91,105,.9);transform:scale(.98);}
+  #question:focus-visible{outline:3px solid #fff;outline-offset:2px;}
   #questionTimer{flex:none;padding-left:12px;border-left:1px solid rgba(255,255,255,.28);
     color:#ffe59a;font-size:16px;font-weight:900;white-space:nowrap;}
   #combo{font-size:13px;margin-top:5px;color:#b9ebff;font-weight:800;}
@@ -211,7 +215,7 @@
 </div>
 <div id="status">
   <div id="wave">🌊 第 1 波</div>
-  <div id="captureHud"><div id="missionLine"><div id="question">準備找小屋</div><div id="questionTimer">剩餘 38 秒</div></div><div id="captureText">找小屋</div><div id="houseWord"></div><div id="captureTrack"><div id="captureFill"></div></div></div>
+  <div id="captureHud"><div id="missionLine"><button id="question" type="button" title="點擊重播英文單字" aria-label="重播英文單字">🔊 準備找小屋</button><div id="questionTimer">剩餘 38 秒</div></div><div id="captureText">找小屋</div><div id="houseWord"></div><div id="captureTrack"><div id="captureFill"></div></div></div>
   <div id="combo">COMBO ×0</div>
   <div id="bossHud"><div id="bossText">BOSS 生命</div><div id="bossTrack"><div id="bossFill"></div></div></div>
 </div>
@@ -226,7 +230,7 @@
   <div id="grenades">💣 手榴彈 ×<span id="vGrenades">0</span></div>
 </div>
 <div id="banner">🏘️ 找到正確單字的小屋，在裡面守住 10 秒！殭屍只是生存威脅</div>
-<div id="hint">WASD 移動 ・ 滑鼠環視 ・ 左鍵開槍 ・ G 手榴彈 ・ R 換彈匣 ・ 空白鍵跳躍 ・ ESC 暫停</div>
+<div id="hint">WASD 移動 ・ 滑鼠環視 ・ 左鍵開槍 ・ V 重播單字 ・ G 手榴彈 ・ R 換彈匣 ・ 空白鍵跳躍 ・ ESC 暫停</div>
 <div id="touchUI" class="hidden">
   <div id="moveStick"><div id="moveKnob"></div></div>
   <button id="fireBtn" type="button">開槍</button>
@@ -1071,9 +1075,14 @@ function assignHouseAnswers(){
 function setQuestion(say=true){
   const words=questionWords(),pool=words.filter(w=>wordKey(w)!==wordKey(targetWord));targetWord=(pool.length?pool:words)[(rnd((pool.length?pool:words).length))|0];
   if(gameMode==='simple')questionEl.textContent='🔊 題目：'+targetWord.word;
-  else questionEl.textContent=roundKind==='listen'?'🔊 聽發音找英文':('題目：'+targetWord.chinese);
+  else questionEl.textContent=roundKind==='listen'?'🔊 聽發音找英文':('🔊 題目：'+targetWord.chinese);
+  questionEl.title='點擊重播 '+targetWord.word;questionEl.setAttribute('aria-label','重播英文單字 '+targetWord.word);
   if(say)speakWord(targetWord.word);assignHouseAnswers();
 }
+function replayQuestionWord(){if(playing&&!paused&&targetWord)speakWord(targetWord.word);}
+questionEl.addEventListener('click',replayQuestionWord);
+questionEl.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
+questionEl.addEventListener('touchend',e=>e.stopPropagation(),{passive:true});
 function spawnCrowd(count){for(let i=0;i<count;i++)spawnZombie('normal');}
 function clearWaveEnemies(){
   for(const z of zombies)if(z.userData.alive&&z!==boss){z.userData.alive=false;z.userData.deadT=.72;if(z.userData.warn)z.userData.warn.visible=false;}
@@ -1357,6 +1366,7 @@ const reloadBarEl=document.getElementById('reloadBar'),
 addEventListener('keydown',e=>{
   key[e.code]=true;
   if(e.code==='Space'){e.preventDefault();doJump();}
+  if(e.code==='KeyV'&&!e.repeat)replayQuestionWord();
   if(e.code==='KeyR')reload();
   if(e.code==='KeyG')throwGrenade();
 });
