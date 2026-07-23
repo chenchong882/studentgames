@@ -2,10 +2,10 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>侏羅紀坦克 3D Jurassic Tank</title>
 <style>
-  html,body{margin:0;height:100%;overflow:hidden;background:#000;
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;touch-action:none;
     font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;cursor:none;}
   canvas{display:block;}
   #hud{position:fixed;top:14px;left:14px;background:rgba(18,20,26,.55);
@@ -1180,6 +1180,8 @@ function startRound(){
     wp.querySelector('.q').textContent='🔊 '+entry.en;
     document.getElementById('promptSpeakBtn').disabled=false;
     speakWord(entry.en);
+    const thisRound=round;
+    setTimeout(()=>{if(state==='play'&&!paused&&round===thisRound)speakWord(entry.en);},3000);
   }
   return true;
 }

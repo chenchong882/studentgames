@@ -393,7 +393,7 @@ const Audio = (() => {
     }
 
     try { window.speechSynthesis.resume(); } catch (e) {}  // iOS 有時會自動 pause
-    window.speechSynthesis.cancel();
+    if (window.speechSynthesis.speaking || window.speechSynthesis.pending) window.speechSynthesis.cancel();
     window.speechSynthesis.speak(msg);
   }
 
@@ -2081,7 +2081,14 @@ class Game {
     this.qType = this._pickQType();
     this.wrongAtt = 0;
     this.qStartT = performance.now();   // 本題開始計時：答得越快速度分越高
-    if (this.qType !== 'cn2en') Audio.speak(this.targetWord);   // 中→英不唸（唸英文會洩題）
+    if (this.qType !== 'cn2en') {
+      Audio.speak(this.targetWord);   // 中→英不唸（唸英文會洩題）
+      const questionStartedAt = this.qStartT;
+      const questionWord = this.targetWord;
+      setTimeout(() => {
+        if (this.phase === 'playing' && this.qStartT === questionStartedAt && this.targetWord === questionWord) Audio.speak(questionWord);
+      }, 3000);
+    }
   }
 
   // ── Drop Bomb ──────────────────────────

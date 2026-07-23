@@ -1246,7 +1246,14 @@
         updateHud();
 
         if (autoSpeak && gamePhase === "PLAYING" && currentQ === "word") {
-            setTimeout(() => speakWord(targetWordObj.word), 450);
+            const spokenRound = round;
+            const spokenTarget = targetWordObj;
+            setTimeout(() => {
+                if (gamePhase === "PLAYING" && !paused && round === spokenRound && targetWordObj === spokenTarget) speakWord(spokenTarget.word);
+            }, 450);
+            setTimeout(() => {
+                if (gamePhase === "PLAYING" && !paused && round === spokenRound && targetWordObj === spokenTarget) speakWord(spokenTarget.word);
+            }, 3000);
         }
     }
 

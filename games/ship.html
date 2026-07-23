@@ -699,10 +699,18 @@ function updateQuestionUI() {
     title = "聽發音，擊沉掛著正確圖片的船";
     chips = [`🔊 ${t.word.word}`];
     speakWord(t.word.word);
+    const questionType = game.qType;
+    setTimeout(() => {
+      if (game.state === "playing" && !game.boss && !game.roundEnding && game.target === t && game.qType === questionType) speakWord(t.word.word);
+    }, 3000);
   } else if (game.qType === "en2cn") {
     title = "擊沉「中文意思」正確的船";
     chips = [`🔊 ${t.word.word}（${t.word.pos}）`];
     speakWord(t.word.word);
+    const questionType = game.qType;
+    setTimeout(() => {
+      if (game.state === "playing" && !game.boss && !game.roundEnding && game.target === t && game.qType === questionType) speakWord(t.word.word);
+    }, 3000);
   } else {
     title = `擊沉符合條件的船（${t.word.pos}）`;
     chips = [`📖 意思：${t.word.meaning}`];
@@ -1290,6 +1298,9 @@ function spawnBossWave() {
     { text: "🛡️ 魔王本體打不壞", cls: "special" },
   ], false);
   speakWord(targetWord.word);
+  setTimeout(() => {
+    if (game.state === "playing" && game.boss === b && b.clue === targetWord && !game.roundEnding) speakWord(targetWord.word);
+  }, 3000);
   skyQ.classList.remove("hidden");
 }
 

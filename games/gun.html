@@ -2,10 +2,10 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>殭屍堡壘 3D Zombie Fort</title>
 <style>
-  html,body{margin:0;height:100%;overflow:hidden;background:#000;
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;touch-action:none;
     font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;}
   canvas{display:block;}
   #cross{position:fixed;left:50%;top:50%;width:26px;height:26px;transform:translate(-50%,-50%);
@@ -17,8 +17,10 @@
   #ammo .num small{font-size:18px;color:rgba(255,255,255,.65);font-weight:700;}
   #ammo .num.low{color:#ff5a4a;animation:pulse 1s infinite;}
   #grenades{margin-top:4px;font-size:15px;font-weight:900;color:#c8f6a0;}
-  #kills{position:fixed;top:14px;left:14px;background:rgba(18,20,26,.55);
-    padding:9px 16px;border-radius:8px;color:#cfd3da;font-size:13px;z-index:5;
+  #killActions{position:fixed;top:calc(14px + env(safe-area-inset-top));left:calc(14px + env(safe-area-inset-left));
+    z-index:8;display:flex;align-items:center;gap:8px;}
+  #kills{position:static;background:rgba(18,20,26,.55);
+    padding:9px 16px;border-radius:8px;color:#cfd3da;font-size:13px;
     backdrop-filter:blur(3px);pointer-events:none;}
   #kills .val{font-weight:800;color:#fff;font-size:18px;margin-left:8px;}
   #topActions{position:fixed;top:calc(14px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));
@@ -67,7 +69,7 @@
     color:#fff3ad;background:rgba(48,26,68,.76);font-size:12px;font-weight:900;line-height:1.45;
     text-shadow:0 1px 4px #000;pointer-events:none;backdrop-filter:blur(3px);}
   #powerup:empty{display:none;}
-  #supplyAlert{position:fixed;right:14px;top:72px;z-index:5;max-width:235px;padding:9px 12px;border-radius:10px;
+  #supplyAlert{position:fixed;right:calc(14px + env(safe-area-inset-right));top:calc(104px + env(safe-area-inset-top));z-index:5;max-width:235px;padding:9px 12px;border-radius:10px;
     color:#fff3c2;background:rgba(69,36,22,.84);border:1px solid rgba(255,205,100,.65);font-size:13px;
     font-weight:900;line-height:1.5;text-align:center;text-shadow:0 1px 4px #000;pointer-events:none;backdrop-filter:blur(3px);}
   #supplyAlert:empty{display:none;}
@@ -208,10 +210,12 @@
   </svg>
 </div>
 <div id="reloadBar"><div id="reloadFill"></div></div>
-<div id="kills">擊殺 KILLS<span class="val" id="vKills">0</span></div>
+<div id="killActions">
+  <div id="kills">擊殺 KILLS<span class="val" id="vKills">0</span></div>
+  <button id="btnPause" class="hidden" type="button" aria-label="暫停">⏸</button>
+</div>
 <div id="topActions">
   <div id="weaponProgress"><div id="weaponText">武器分數 0 ・ 下一階：答對 0 / 3 ・ 擊殺 0 / 15</div><div id="weaponTrack"><div id="weaponFill"></div></div><div id="weaponStages"><span class="active"><b>手槍</b>0–29 分</span><span><b>衝鋒槍</b>30–69 分<br>答對 3・擊殺 15</span><span><b>步槍</b>70 分以上<br>答對 7・擊殺 40</span></div></div>
-  <button id="btnPause" class="hidden" type="button" aria-label="暫停">⏸</button>
 </div>
 <div id="status">
   <div id="wave">🌊 第 1 波</div>
@@ -384,6 +388,11 @@ function speakWord(word){
     const restore=()=>{if(token!==speechToken)return;if(ios&&AC&&AC.state==='suspended')AC.resume();};
     u.onend=restore;u.onerror=restore;s.speak(u);setTimeout(restore,3500);
   }catch(e){if(ios&&AC&&AC.state==='suspended')AC.resume();}
+}
+function speakQuestionTwice(word){
+  const question=targetWord;
+  speakWord(word);
+  setTimeout(()=>{if(playing&&!paused&&captureActive&&targetWord===question)speakWord(word);},3000);
 }
 
 /* ============ 像素材質（canvas 產生，無外部圖檔） ============ */
@@ -1077,7 +1086,7 @@ function setQuestion(say=true){
   if(gameMode==='simple')questionEl.textContent='🔊 題目：'+targetWord.word;
   else questionEl.textContent=roundKind==='listen'?'🔊 聽發音找英文':('🔊 題目：'+targetWord.chinese);
   questionEl.title='點擊重播 '+targetWord.word;questionEl.setAttribute('aria-label','重播英文單字 '+targetWord.word);
-  if(say)speakWord(targetWord.word);assignHouseAnswers();
+  if(say)speakQuestionTwice(targetWord.word);assignHouseAnswers();
 }
 function replayQuestionWord(){if(playing&&!paused&&targetWord)speakWord(targetWord.word);}
 questionEl.addEventListener('click',replayQuestionWord);
@@ -1149,7 +1158,7 @@ function onHouseCorrect(h){
 function onHouseWrong(h){
   registerWrong();hurt(gameMode==='hard'?25:18,{x:h.cx,z:h.cz});if(!playing)return;
   spawnNearHouse(h,gameMode==='hard'?4:3);showObjective('❌ 佔領錯誤：扣血，屋外出現增援！同一題重新洗牌');
-  assignHouseAnswers();captureCooldown=1.4;if(gameMode==='simple'||roundKind==='listen')speakWord(targetWord.word);
+  assignHouseAnswers();captureCooldown=1.4;if(gameMode==='simple'||roundKind==='listen')speakQuestionTwice(targetWord.word);
 }
 function onQuestionTimeout(){
   registerWrong();for(const z of zombies)if(z.userData.alive&&z!==boss){z.userData.enrage=Math.max(z.userData.enrage,gameMode==='hard'?7:6);setRageVisual(z,true);}

@@ -7,7 +7,7 @@
     <style>
         :root { --ink:#243047; --purple:#7165d9; --pink:#f46fa1; --paper:#fffdf8; --soft:#eef0ff; --line:#d8daf2; --red:#f15a68; --green:#32bd72; }
         * { box-sizing:border-box; }
-        html, body { min-height:100%; overscroll-behavior:none; }
+        html, body { min-height:100%; overscroll-behavior:none; touch-action:manipulation; }
         body { margin:0; min-height:100vh; color:var(--ink); font-family:Arial, "Noto Sans TC", sans-serif; background:radial-gradient(circle at 8% 5%, #ffe2b7 0, transparent 27rem), radial-gradient(circle at 92% 14%, #d9d6ff 0, transparent 28rem), #f7f7ff; user-select:none; }
         button { min-height:48px; border:0; border-radius:14px; padding:0 22px; color:white; font:800 17px/1 Arial, "Noto Sans TC", sans-serif; cursor:pointer; background:linear-gradient(135deg, #8275e6, #6055c6); box-shadow:0 5px 0 #4c43a4, 0 10px 20px rgba(70, 57, 141, .24); transition:transform .15s ease, filter .15s ease; -webkit-tap-highlight-color:transparent; }
         button:hover { filter:brightness(1.06); transform:translateY(-1px); }
