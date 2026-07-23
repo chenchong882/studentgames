@@ -133,7 +133,7 @@
       <a class="game-card" href="./games/word-hunt-vocab.html" data-href="./games/word-hunt-vocab.html"><h2>單字獵人</h2><span>拖曳連起英文單字，挑戰三道單字關卡。</span></a>
       <a class="game-card foundation" href="https://english-memory-game.pages.dev" target="_blank" rel="noopener"><h2>記憶翻牌<span class="badge">先練這個</span></h2><span>翻牌配對單字與圖卡，打好基礎單字再玩其他遊戲。（外部連結）</span></a>
     </section>
-    <p class="note">※ 選「系統內建單字」可在上方<b>勾選練習主題</b>（共 360 字，分 12 主題），選好再點遊戲就會帶入；選「本次段考單字」需由學生頁面開啟才會帶入該單元的單字，此時主題選單會自動隱藏。<br>※「記憶翻牌」是外部連結（另開分頁），用它自己的題庫，不會帶入這裡選的單字。</p>
+    <p class="note">※ 選「系統內建單字」可在上方<b>勾選練習主題</b>（共 390 字，分 13 主題），選好再點遊戲就會帶入；選「本次段考單字」需由學生頁面開啟才會帶入該單元的單字，此時主題選單會自動隱藏。<br>※「記憶翻牌」是外部連結（另開分頁），用它自己的題庫，不會帶入這裡選的單字。</p>
   </main>
   <script src="./data/wordbank.js"></script>
   <script>
@@ -209,7 +209,7 @@
       lessonBtn.setAttribute('aria-pressed', scope === 'lesson' ? 'true' : 'false');
       builtinBtn.setAttribute('aria-pressed', scope === 'builtin' ? 'true' : 'false');
       lessonInfo.textContent = hasLesson ? `${lesson.data.unitTitle || '本次段考'}・${lesson.data.words.length} 字${scope === 'lesson' ? '　✓ 已選擇' : ''}` : '需從學生教材頁進入';
-      document.getElementById('scope-builtin-info').textContent = scope === 'builtin' ? '✓ 已選擇' : '可選 12 個練習主題';
+      document.getElementById('scope-builtin-info').textContent = scope === 'builtin' ? '✓ 已選擇' : '可選 13 個練習主題';
       // 段考單字時隱藏主題選單；系統內建單字時才顯示
       themeSection.style.display = (scope === 'builtin' && window.WORD_BANK) ? '' : 'none';
     }
