@@ -1031,7 +1031,7 @@ function updateWeaponUI(){
   document.querySelector('#ammo .gname').textContent=weaponName();
 }
 function registerCorrect(){
-  combo++;
+  combo++;const oldHp=hp;hp=Math.min(100,hp+20);document.getElementById('hpText').textContent=hp+' / 100';document.getElementById('hpFill').style.width=hp+'%';
   if(gameMode==='hard'&&recovering){
     recoveryStreak++;
     if(recoveryStreak>=2){
@@ -1041,7 +1041,7 @@ function registerCorrect(){
   }else{
     weaponCorrect++;weaponScore+=10;checkWeaponUpgrade();
   }
-  updateWeaponUI();
+  updateWeaponUI();return hp-oldHp;
 }
 function registerWrong(){
   combo=0;
@@ -1123,19 +1123,19 @@ function spawnNearHouse(h,count){
   for(let i=0;i<count;i++){const p=spots[(rnd(spots.length))|0],x=p[0]+rnd(-1,1),z=p[1]+rnd(-1,1);if(!blockedForZombie(x,z,.46))makeZombie(x,z,'normal');else spawnZombie('normal');}
 }
 function onHouseCorrect(h){
-  registerCorrect();const reward=spawnCaptureReward(h);
+  const healed=registerCorrect(),reward=spawnCaptureReward(h),healText=healed>0?('❤️ 答對回復 '+healed+' HP ・ '):'❤️ 血量已滿 ・ ';
   if(boss&&boss.userData.bossShield>0){
     boss.userData.bossShield--;sndShield();
     if(boss.userData.bossShield<=0){
       slowT=1.1;captureActive=false;captureHudEl.style.display='none';boss.userData.bossRage=boss.userData.secondShield;
-      setZombieLabel(boss,boss.userData.bossRage?'👑 最終狂暴！':'👑 護盾破除！','#cf4c3e');showObjective('⚡ 護盾破除了！集中火力攻擊 BOSS');
+      setZombieLabel(boss,boss.userData.bossRage?'👑 最終狂暴！':'👑 護盾破除！','#cf4c3e');showObjective(healText+'⚡ 護盾破除了！集中火力攻擊 BOSS');
     }else{
-      setZombieLabel(boss,'👑 BOSS 護盾 ×'+boss.userData.bossShield,'#7d47b8');setQuestion(true);
+      setZombieLabel(boss,'👑 BOSS 護盾 ×'+boss.userData.bossShield,'#7d47b8');setQuestion(true);showObjective(healText+'BOSS 護盾剩 '+boss.userData.bossShield+' 層');
     }
     updateBossHud(boss);
     return;
   }
-  completeWave(reward);
+  completeWave(healText+reward);
 }
 function onHouseWrong(h){
   registerWrong();hurt(gameMode==='hard'?25:18,{x:h.cx,z:h.cz});if(!playing)return;
@@ -1146,12 +1146,13 @@ function onQuestionTimeout(){
   registerWrong();for(const z of zombies)if(z.userData.alive&&z!==boss){z.userData.enrage=Math.max(z.userData.enrage,gameMode==='hard'?7:6);setRageVisual(z,true);}
   spawnCrowd(gameMode==='hard'?5:3);showObjective('⏰ 超時：全場殭屍短暫狂暴，題目與小屋重新洗牌！');setQuestion(true);captureCooldown=1.4;
 }
-function insideHouse(h){return player.y<1.4&&Math.abs(player.x-h.cx)<h.w/2-T-.2&&Math.abs(player.z-h.cz)<h.d/2-T-.2;}
+function insideHouse(h){return player.y<1.4&&Math.abs(player.x-h.cx)<h.w/2-T/2&&Math.abs(player.z-h.cz)<h.d/2-T/2;}
 function updateCapture(dt){
   if(!captureActive||roundTransition)return;
-  questionT=Math.max(0,questionT-dt);questionTimerEl.textContent='剩餘 '+Math.max(0,Math.ceil(questionT))+' 秒';
-  if(captureCooldown>0){captureCooldown-=dt;captureTextEl.style.display='block';captureTextEl.textContent='重新洗牌中…';captureTrackEl.style.display='none';houseWordEl.style.display='none';return;}
   const h=HOUSES.find(h=>h.active&&insideHouse(h))||null;
+  if(!h)questionT=Math.max(0,questionT-dt);
+  questionTimerEl.textContent=h?('倒數暫停（剩餘 '+Math.max(0,Math.ceil(questionT))+' 秒）'):('剩餘 '+Math.max(0,Math.ceil(questionT))+' 秒');
+  if(captureCooldown>0){captureCooldown-=dt;captureTextEl.style.display='block';captureTextEl.textContent='重新洗牌中…';captureTrackEl.style.display='none';houseWordEl.style.display='none';return;}
   if(h){
     if(captureHouse!==h){
       captureHouse=h;captureT=gameMode==='hard'?0:(h.captureT||0);
@@ -1262,7 +1263,7 @@ function surpriseBox(x,z){
   m.position.set(x,.62,z);scene.add(m);
   const pil=new THREE.Mesh(new THREE.BoxGeometry(.62,13,.62),new THREE.MeshBasicMaterial({color:0xc76cff,transparent:true,opacity:.22,blending:THREE.AdditiveBlending,depthWrite:false}));
   pil.position.set(x,6.5,z);pil.userData.noHit=true;scene.add(pil);
-  const hits=Math.floor(rnd(5,11)),item={m,pil,x,z,type:'surprise',amount:1,big:false,taken:false,t:0,life:75,hitsLeft:hits,maxHits:hits};
+  const item={m,pil,x,z,type:'surprise',amount:1,big:false,taken:false,t:0,life:75,hitsLeft:null,maxHits:0};
   base.userData.surprise=lid.userData.surprise=band.userData.surprise=item;pickups.push(item);return item;
 }
 function spawnSurpriseBox(){
@@ -1287,7 +1288,9 @@ function breakSurpriseBox(item,hitPoint){
   supplyAlertHoldT=4;supplyAlertEl.textContent=zombieRoll?('⚠️ 箱子裡跳出殭屍！獲得 '+reward):('🎁 驚喜箱開啟：'+reward);
 }
 function hitSurpriseBox(item,hitPoint){
-  if(!item||item.taken)return;item.hitsLeft--;sparks(hitPoint,0xc58a52,8);
+  if(!item||item.taken)return;
+  if(item.hitsLeft===null){const ranges=[[3,5],[5,10],[10,15]],range=ranges[weaponLevel];item.hitsLeft=Math.floor(rnd(range[0],range[1]+1));item.maxHits=item.hitsLeft;}
+  item.hitsLeft--;sparks(hitPoint,0xc58a52,8);
   if(item.hitsLeft<=0)breakSurpriseBox(item,hitPoint);else popAt(hitPoint,'木箱剩 '+item.hitsLeft+' 發','#ffe0a3');
 }
 function updateSupplyAlert(dt){
