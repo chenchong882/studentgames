@@ -354,7 +354,8 @@ const sndMagIn=()=>{tone(760,0.08,0.26,'square',920);noiseSnd(0.05,1600,500,0.1,
 const sndHit=()=>tone(150,0.06,0.26,'square',90);
 const sndHead=()=>tone(1250,0.09,0.22,'sine',1650);
 const sndKill=()=>{noiseSnd(0.25,900,150,0.3);tone(90,0.2,0.3,'sawtooth',45);};
-const sndPickup=()=>{tone(660,0.07,0.24,'square');setTimeout(()=>tone(990,0.09,0.24,'square'),80);};
+const sndAmmoPickup=()=>{tone(620,.07,.25,'square');setTimeout(()=>tone(930,.08,.24,'square'),75);setTimeout(()=>tone(1240,.1,.2,'square'),145);};
+const sndGrenadePickup=()=>{tone(280,.09,.28,'triangle');setTimeout(()=>tone(440,.11,.26,'triangle'),85);setTimeout(()=>tone(660,.14,.22,'triangle'),175);};
 const sndHurt=()=>{noiseSnd(0.15,600,90,0.32);tone(110,0.12,0.22,'sawtooth',55);};
 const sndWave=()=>{tone(330,0.14,0.18,'square');setTimeout(()=>tone(495,0.16,0.2,'square'),150);};
 const sndShield=()=>{tone(480,0.11,0.25,'sine');setTimeout(()=>tone(840,0.24,0.28,'sine'),100);};
@@ -1049,7 +1050,7 @@ function weaponRate(){return weaponBoostT>0?Math.max(.065,WEAPON[weaponLevel].ra
 function weaponCapacity(){return WEAPON[weaponLevel].cap;}
 function setWeaponLevel(level){
   weaponLevel=clamp(level,0,2);const cfg=WEAPON[weaponLevel];
-  if(typeof mag==='number'&&mag>cfg.cap){reserve+=mag-cfg.cap;mag=cfg.cap;updAmmo();}
+  if(typeof mag==='number'&&mag>cfg.cap){const excess=mag-cfg.cap;mag=cfg.cap;addAmmo(excess);}
   if(gunGrp&&gunGrp.userData.bodyMat){gunGrp.userData.bodyMat.color.setHex(weaponBoostT>0?0xd99330:cfg.color);gunGrp.scale.set(1,1,weaponBoostT>0?1.42:cfg.scale);}
 }
 function earnedWeaponLevel(){
@@ -1235,7 +1236,7 @@ function completeWave(reward){
   roundTransition=true;transitionT=.65;captureActive=false;captureHudEl.style.display='none';waveEl.textContent='✅ 第 '+wave+' 波守住了！';showObjective('🎁 '+reward+' ・ 下一波立刻開始');
 }
 function onBossDefeated(){
-  clearWaveEnemies();weaponScore+=20;checkWeaponUpgrade();reserve+=15;updAmmo();updateWeaponUI();updateBossHud(null);
+  clearWaveEnemies();weaponScore+=20;checkWeaponUpgrade();addAmmo(15);updateWeaponUI();updateBossHud(null);
   gateReady=true;gateOpen=true;waveEl.textContent='🏆 最終 BOSS 擊倒！';showObjective('BOSS 倒下！前往金色逃生門');activateGate();
 }
 function activateGate(){
@@ -1266,7 +1267,7 @@ function winGame(){
 }
 
 /* ============ 彈藥補給（走近自動撿） ============ */
-const pickups=[],AMMO_PICKUP_AMOUNT=10;
+const pickups=[],AMMO_PICKUP_AMOUNT=10,AMMO_MAX=300;
 function ammoBox(x,z,amount,big){
   const s=big?0.85:0.55;
   const m=block(s,s,s,TEX.ammo,s);m.position.set(x,0.55,z);scene.add(m);
@@ -1423,6 +1424,10 @@ function updAmmo(){
   document.getElementById('vMag').textContent=mag;
   document.getElementById('vReserve').textContent=reserve;
   ammoNumEl.classList.toggle('low',reserve<5);
+}
+function addAmmo(amount){
+  const added=Math.min(Math.max(0,amount),Math.max(0,AMMO_MAX-reserve));
+  reserve+=added;updAmmo();return added;
 }
 function updGrenades(){document.getElementById('vGrenades').textContent=grenades;}
 function updatePowerupUI(){
@@ -1738,9 +1743,11 @@ function loop(now){
       b.m.position.y=0.55+Math.sin(now*0.003+b.x)*0.09;
       if(!b.big){b.life-=dt;if(b.life<=0){scene.remove(b.m);scene.remove(b.pil);pickups.splice(i,1);continue;}}
       if(b.type!=='surprise'&&Math.hypot(b.x-player.x,b.z-player.z)<1.5&&player.y<1.2){
-        if(b.type==='grenade'){grenades+=b.amount;updGrenades();popAt(b.m.position.clone().setY(1.4),'+1 手榴彈','#b8ef71');}
-        else{reserve+=b.amount;updAmmo();popAt(b.m.position.clone().setY(1.4),'+'+b.amount+' 彈藥','#ffd34d');}
-        sndPickup();
+        if(b.type==='grenade'){grenades+=b.amount;updGrenades();popAt(b.m.position.clone().setY(1.4),'+1 手榴彈','#b8ef71');sndGrenadePickup();}
+        else{
+          const added=addAmmo(b.amount);if(!added)continue;
+          popAt(b.m.position.clone().setY(1.4),'+'+added+' 彈藥','#ffd34d');sndAmmoPickup();
+        }
         if(b.big){b.taken=true;b.t=0;b.m.visible=b.pil.visible=false;}
         else{scene.remove(b.m);scene.remove(b.pil);pickups.splice(i,1);}
       }
