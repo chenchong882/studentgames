@@ -1253,8 +1253,8 @@ function startBossRound(lv) {
     z: SPAWN_Z, speed: cfg.speed, bobPhase: rand(0, Math.PI * 2),
     sinking: 0, landed: false, clue: null,
   };
-  game.conditions = ["word"];     // 魔王只考單字，密集練習
-  game.qType = "cn2en";           // 魔王戰固定意思題（護衛艦掛英文字）
+  game.conditions = ["word"];
+  game.qType = allPic && hasPicBank() ? "en2pic" : "cn2en";   // 只玩圖片題時，魔王護衛艦也全改掛圖片
   game.monster = null;            // 魔王戰不出海怪
   $("conditions").innerHTML = "";
   // 限彈模式魔王戰配給較多彈藥（HP + 3）
@@ -1268,9 +1268,11 @@ function startBossRound(lv) {
 function spawnBossWave() {
   const b = game.boss;
   const count = 4;
-  const targetWord = pick(wordBank);
+  const bossWordPool = game.qType === "en2pic" ? wordBank.filter(w => w.emoji) : wordBank;
+  const targetWord = pick(bossWordPool);
   b.clue = targetWord;
-  const others = shuffle(wordBank.filter(w => w.word !== targetWord.word));
+  const others = shuffle(bossWordPool.filter(w => w.word !== targetWord.word &&
+    (game.qType !== "en2pic" || w.emoji !== targetWord.emoji)));
   const words = shuffle([targetWord, others[0], others[1], others[2]]);
 
   const bossSpread = Math.min(95, (W / 2) * 0.82 * 150 / focal);
@@ -1293,8 +1295,8 @@ function spawnBossWave() {
     });
   }
   game.ships = ships;
-  renderSkyChips("擊落符合意思的護衛艦", [
-    `📖 意思：${targetWord.meaning}（${targetWord.pos}）`,
+  renderSkyChips(game.qType === "en2pic" ? "聽發音，擊落掛著正確圖片的護衛艦" : "擊落符合意思的護衛艦", [
+    game.qType === "en2pic" ? `🔊 ${targetWord.word}` : `📖 意思：${targetWord.meaning}（${targetWord.pos}）`,
     { text: "🛡️ 魔王本體打不壞", cls: "special" },
   ], false);
   speakWord(targetWord.word);
@@ -1750,7 +1752,7 @@ function drawShip(ship, now) {
   // ── 船身標籤：en2pic 掛 emoji、en2cn 掛中文、其餘掛英文單字 ──
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  if (game.qType === "en2pic" && !ship.isEscort) {
+  if (game.qType === "en2pic") {
     ctx.font = `${3.4 * u}px sans-serif`;
     ctx.fillText(ship.word.emoji || "❓", 0, -hullH * 0.6);
   } else {

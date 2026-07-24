@@ -108,6 +108,10 @@
     color:#fff;background:#274553;font:800 15px inherit;cursor:pointer;}
   .modeBtn.selected{color:#231b0a;background:linear-gradient(180deg,#ffe17b,#e9a33b);border-color:#ffe7a1;}
   .modeBtn:disabled{opacity:.32;filter:grayscale(1);cursor:not-allowed;}
+  #allPicRow{display:none;gap:8px;margin-top:14px;flex-wrap:wrap;justify-content:center;}
+  #allPicRow.show{display:flex;}
+  #allPicRow .modeBtn.selected{color:#231b0a;background:linear-gradient(180deg,#ffe17b,#e9a33b);border-color:#ffe7a1;}
+  #mixDesc{display:none;max-width:520px;margin:7px 18px 0;font-size:12px;color:#b9ebff;line-height:1.5;}
   #modeHint{min-height:19px;font-size:12px;color:#b9ebff;margin-bottom:10px;}
   @keyframes pulse{0%,100%{opacity:.55}50%{opacity:1}}
   .actionBtn{appearance:none;border:0;border-radius:12px;background:linear-gradient(180deg,#ffd96d,#e99b34);
@@ -262,6 +266,11 @@
       </div>
     </details>
   </div>
+  <div id="allPicRow">
+    <button class="modeBtn" id="allPicMix" type="button">混合練習（推薦）</button>
+    <button class="modeBtn" id="allPicOnly" type="button">只玩圖片題</button>
+  </div>
+  <div id="mixDesc">混合練習：英文／發音選圖片＋中英文字題；簡單圖片較多、困難文字較多。</div>
   <div id="modePanel">
     <button class="modeBtn" type="button" data-mode="simple">🖼️ 簡單</button>
     <button class="modeBtn" type="button" data-mode="normal">🔤 一般</button>
@@ -297,6 +306,7 @@ let VOCAB=[
   {word:'grass',chinese:'草地',emoji:'🌿'},{word:'sky',chinese:'天空',emoji:'🌤️'},{word:'cloud',chinese:'雲',emoji:'☁️'}
 ];
 let gameMode='normal';
+let allPic=(()=>{try{return localStorage.getItem('sgAllPic')==='1';}catch(e){return false;}})();
 function normalizeGunVocab(list){
   if(!Array.isArray(list))return[];
   return list.map(o=>{
@@ -1033,7 +1043,7 @@ const WEAPON=[{name:'手槍',cap:7,rate:.28,damage:1,head:3,color:0x181a1f,scale
   {name:'衝鋒槍',cap:12,rate:.11,damage:1,head:3,color:0x263842,scale:1.16},
   {name:'步槍',cap:20,rate:.18,damage:2,head:6,color:0x4a3b24,scale:1.34}];
 const WEAPON_STAGE=[{score:0,correct:0,kills:0},{score:30,correct:3,kills:15},{score:70,correct:7,kills:40}];
-let wave=0,targetWord=null,roundKind='word',combo=0,weaponLevel=0,weaponScore=0,weaponCorrect=0,slowT=0,
+let wave=0,targetWord=null,roundKind='word',roundUsesPic=false,combo=0,weaponLevel=0,weaponScore=0,weaponCorrect=0,slowT=0,
   recovering=false,recoverLevel=0,recoveryStreak=0,
   gateReady=false,gateOpen=false,gameWon=false,survivalStart=0,exitGate=null;
 const CAPTURE_SECONDS=10,QUESTION_SECONDS=38;
@@ -1043,7 +1053,7 @@ function pickWord(except){
   const list=VOCAB.filter(x=>x!==except);return (list.length?list:VOCAB)[(rnd(list.length||1))|0];
 }
 function showObjective(text){objectiveEl.textContent=text;}
-function labelForWord(w){return gameMode==='simple'&&w&&w.emoji?w.emoji:(w?w.word:'');}
+function labelForWord(w){return roundUsesPic&&w&&w.emoji?w.emoji:(w?w.word:'');}
 function weaponName(){return weaponBoostT>0?'實驗武器':WEAPON[weaponLevel].name;}
 function weaponDamage(part){const base=part==='head'?WEAPON[weaponLevel].head:WEAPON[weaponLevel].damage;return weaponBoostT>0?base+(part==='head'?3:2):base;}
 function weaponRate(){return weaponBoostT>0?Math.max(.065,WEAPON[weaponLevel].rate*.5):WEAPON[weaponLevel].rate;}
@@ -1093,7 +1103,7 @@ function registerWrong(){
   }
   updateWeaponUI();
 }
-function questionWords(){const list=gameMode==='simple'?VOCAB.filter(w=>w.emoji):VOCAB;return list.length?list:VOCAB;}
+function questionWords(){const list=roundUsesPic?VOCAB.filter(w=>w.emoji):VOCAB;return list.length?list:VOCAB;}
 function wordKey(w){return w?String(w.word).trim().toLowerCase():'';}
 function assignHouseAnswers(){
   const words=questionWords(),others=words.filter(w=>wordKey(w)!==wordKey(targetWord)),pool=HOUSES.slice(),active=[];
@@ -1103,7 +1113,7 @@ function assignHouseAnswers(){
     const i=active.indexOf(h);h.active=i>=0;h.correct=h.active&&(!others.length||i===correctIndex);
     h.answer=!h.active?null:(h.correct?targetWord:others[(i+(rnd(others.length||1)|0))%(others.length||1)]);
     h.captureT=0;
-    if(h.active)setHouseLabel(h,labelForWord(h.answer),gameMode==='simple');else clearHouseLabel(h);
+    if(h.active)setHouseLabel(h,labelForWord(h.answer),roundUsesPic);else clearHouseLabel(h);
   }
   captureHouse=null;captureT=0;questionT=QUESTION_SECONDS;captureActive=true;
   captureHudEl.style.display='block';captureTrackEl.style.display='none';captureFillEl.style.width='0%';captureTextEl.style.display='none';captureTextEl.textContent='';
@@ -1111,7 +1121,7 @@ function assignHouseAnswers(){
 }
 function setQuestion(say=true){
   const words=questionWords(),pool=words.filter(w=>wordKey(w)!==wordKey(targetWord));targetWord=(pool.length?pool:words)[(rnd((pool.length?pool:words).length))|0];
-  if(gameMode==='simple')questionEl.textContent='🔊 題目：'+targetWord.word;
+  if(roundUsesPic)questionEl.textContent='🔊 題目：'+targetWord.word;
   else questionEl.textContent=roundKind==='listen'?'🔊 聽發音找英文':('🔊 題目：'+targetWord.chinese);
   questionEl.title='點擊重播 '+targetWord.word;questionEl.setAttribute('aria-label','重播英文單字 '+targetWord.word);
   if(say)speakQuestionTwice(targetWord.word);assignHouseAnswers();
@@ -1144,9 +1154,15 @@ function spawnWaveThreats(){
   const answerCount=Math.min(9,4+Math.min(wave,6));
   for(let i=0;i<answerCount;i++){const kind=i%7===4?'fast':(wave>3&&i%9===6?'tank':'normal');if(kind!=='normal')spawnZombie(kind);}
 }
+function pickRoundUsesPic(){
+  if(!hasImageVocab()||gameMode==='normal')return false;
+  if(allPic)return true;
+  return Math.random()<(gameMode==='simple'?2/3:1/3);
+}
 function beginWave(){
   if(gameWon||gateReady)return;roundTransition=false;
   wave++;roundKind=wave===7?'boss':(gameMode==='hard'&&wave%3===0?'listen':(gameMode==='simple'?'image':'word'));
+  roundUsesPic=pickRoundUsesPic();
   waveEl.textContent='🌊 第 '+wave+' 波';
   setNight(wave>=5);setQuestion(true);sndWave();spawnWaveThreats();
   if(roundKind==='boss'){
@@ -1494,14 +1510,23 @@ function refreshModeUI(){
   if(modeAllowed(saved))gameMode=saved;
   if(!modeAllowed(gameMode))gameMode=hasImageVocab()?'simple':'normal';
   document.querySelectorAll('.modeBtn').forEach(b=>{
+    if(!b.dataset.mode)return;
     const allowed=modeAllowed(b.dataset.mode);b.disabled=!allowed;b.classList.toggle('selected',b.dataset.mode===gameMode);
   });
   document.getElementById('modeHint').textContent=hasImageVocab()?'圖片題庫：可選簡單或困難':'文字題庫：可選一般或困難';
+  document.getElementById('allPicRow').classList.toggle('show',hasImageVocab());
+  document.getElementById('mixDesc').style.display=hasImageVocab()?'block':'none';
+  document.getElementById('allPicMix').classList.toggle('selected',!allPic);
+  document.getElementById('allPicOnly').classList.toggle('selected',allPic);
 }
 document.querySelectorAll('.modeBtn').forEach(b=>b.addEventListener('click',()=>{
+  if(!b.dataset.mode)return;
   if(!modeAllowed(b.dataset.mode)||playing)return;gameMode=b.dataset.mode;
   try{localStorage.setItem('gunMode3',gameMode);}catch(e){}refreshModeUI();
 }));
+function setAllPic(on){if(playing)return;allPic=on;try{localStorage.setItem('sgAllPic',on?'1':'0');}catch(e){}refreshModeUI();}
+document.getElementById('allPicMix').addEventListener('click',()=>setAllPic(false));
+document.getElementById('allPicOnly').addEventListener('click',()=>setAllPic(true));
 function startGame(){
   ensureAudio();
   try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}

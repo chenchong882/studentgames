@@ -460,7 +460,8 @@ function updateDifficultyUI(){
   document.getElementById('allpic-mix').classList.toggle('sel', !allPic);
   document.getElementById('allpic-only').classList.toggle('sel', allPic);
   const summary = document.getElementById('difficulty-summary');
-  if(summary) summary.innerHTML = `<strong>敵方壓力</strong><br>${CONFIG.summary}`;
+  if(summary) summary.innerHTML = `<strong>敵方壓力</strong><br>${CONFIG.summary}` +
+    (allPic && hasPicBank() ? '<br><strong>題目內容</strong><br>只玩圖片題：全程英文／發音選圖片，包含 BOSS。' : '');
   document.getElementById('gold-display').textContent = CONFIG.startGold;
 }
 
@@ -1053,6 +1054,11 @@ function applyBattleRules(){
     state.useFill = (CONFIG.useFill !== false);
     state.powerQuiz = (CONFIG.powerQuiz !== false);
     state.streakNeed = CONFIG.streakNeed || 8;
+    if(allPic && hasPicBank()){
+      state.bossMode = 'vocab';            // 只玩圖片題：BOSS 也沿用圖片單字題
+      state.useFill = false;
+      state.powerQuiz = false;              // 不再穿插填空／文法，確保全程只有圖片答案
+    }
   }
 }
 
