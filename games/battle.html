@@ -494,6 +494,7 @@ const FALLBACK_WORDS = [
   { id:'fallback-4', word:'collect', chinese:'收集', emoji:'📦', sentence:'He likes to {W} old stamps from many different countries.' },
   { id:'fallback-5', word:'weather', chinese:'天氣', emoji:'⛅', sentence:'The {W} is sunny and warm, so let’s go to the park.' },
 ];
+const BATTLE_EXCLUDED_WORDS = new Set(['pillow', 'eraser', 'towel']);
 
 let uid = 0;
 let state = null;
@@ -707,7 +708,9 @@ function buildDefaultGrammar(){
 
 function buildQuestionPools(payload){
   const isBuiltin = !!payload.builtin;
-  const words = (payload.words || []).filter(w => w && w.word && w.chinese);
+  const words = (payload.words || []).filter(w =>
+    w && w.word && w.chinese && !BATTLE_EXCLUDED_WORDS.has(String(w.word).trim().toLowerCase())
+  );
   wordPool = words.length >= 4 ? words : FALLBACK_WORDS;
   picPool = wordPool.filter(w => w.emoji);     // 圖片題用：自己與干擾選項都要有 emoji
 
