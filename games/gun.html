@@ -77,6 +77,15 @@
   #objective{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:5;color:#d7f5ff;
     background:rgba(12,24,30,.58);padding:7px 14px;border-radius:9px;font-size:13px;font-weight:700;
     text-align:center;pointer-events:none;max-width:75vw;}
+  #bossSurprise{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%) scale(.82);z-index:8;
+    width:min(560px,82vw);padding:18px 22px;border:2px solid #ffb24d;border-radius:14px;
+    background:linear-gradient(145deg,rgba(112,18,17,.94),rgba(28,8,12,.94));color:#fff2b0;
+    text-align:center;text-shadow:0 3px 8px #000;box-shadow:0 12px 45px #000,0 0 34px rgba(255,70,35,.45);
+    pointer-events:none;opacity:0;transition:opacity .18s,transform .18s;}
+  #bossSurprise strong{display:block;font-size:27px;color:#ffd36a;margin-bottom:7px;}
+  #bossSurprise span{font-size:19px;font-weight:900;}
+  #bossSurprise.show{opacity:1;transform:translate(-50%,-50%) scale(1);animation:bossAlarm .46s ease-out;}
+  @keyframes bossAlarm{0%{filter:brightness(2);transform:translate(-50%,-50%) scale(.7)}65%{transform:translate(-50%,-50%) scale(1.06)}100%{filter:brightness(1);transform:translate(-50%,-50%) scale(1)}}
   #damageFlash{position:fixed;inset:0;pointer-events:none;z-index:6;opacity:0;
     background:radial-gradient(ellipse at center,transparent 42%,rgba(220,28,25,.7) 100%);}
   #damageFlash.show{animation:damageFlash .33s ease-out;}
@@ -233,6 +242,7 @@
 <div id="powerup"></div>
 <div id="supplyAlert"></div>
 <div id="objective">找到正確小屋，守住 10 秒完成佔領</div>
+<div id="bossSurprise" role="status" aria-live="assertive"><strong>⚠️ BOSS 發出震天怒吼！</strong><span>最後一批殭屍從四面八方湧來了！</span></div>
 <div id="damageFlash"></div>
 <div id="ammo">
   <div class="gname">9MM 手槍</div>
@@ -828,7 +838,7 @@ function updateEnemyArrows(dt){
 }
 function makeZombie(x,z,kind='normal'){
   const g=new THREE.Group();
-  const spec=kind==='dog'?{scale:.88,speed:2.15,damage:35,color:0x4b4038,range:.82,push:.58}:
+  const spec=kind==='dog'?{scale:.88,speed:1.74,damage:10,color:0x4b4038,range:.82,push:.58}:
     kind==='archer'?{scale:.94,speed:.72,damage:ENEMY_ARROW_DAMAGE,color:0xd8d2ba,range:22,push:.82}:
     kind==='fast'?{scale:.76,speed:1.4,damage:7,color:0x86d748,range:1.08,push:.8}:
     kind==='tank'?{scale:1.28,speed:.52,damage:13,color:0x746f50,range:1.2,push:1.1}:
@@ -1039,6 +1049,7 @@ function hitmarkShow(){
 /* ============ 波次、單字與逃生目標 ============ */
 const waveEl=document.getElementById('wave'),questionEl=document.getElementById('question'),questionTimerEl=document.getElementById('questionTimer'),comboEl=document.getElementById('combo'),
   objectiveEl=document.getElementById('objective');
+const bossSurpriseEl=document.getElementById('bossSurprise');let bossSurpriseTimer=0;
 const WEAPON=[{name:'手槍',cap:7,rate:.28,damage:1,head:3,color:0x181a1f,scale:1},
   {name:'衝鋒槍',cap:12,rate:.11,damage:1,head:3,color:0x263842,scale:1.16},
   {name:'步槍',cap:20,rate:.18,damage:2,head:6,color:0x4a3b24,scale:1.34}];
@@ -1053,6 +1064,10 @@ function pickWord(except){
   const list=VOCAB.filter(x=>x!==except);return (list.length?list:VOCAB)[(rnd(list.length||1))|0];
 }
 function showObjective(text){objectiveEl.textContent=text;}
+function showBossSurprise(){
+  clearTimeout(bossSurpriseTimer);bossSurpriseEl.classList.remove('show');void bossSurpriseEl.offsetWidth;bossSurpriseEl.classList.add('show');
+  bossSurpriseTimer=setTimeout(()=>bossSurpriseEl.classList.remove('show'),3000);
+}
 function labelForWord(w){return roundUsesPic&&w&&w.emoji?w.emoji:(w?w.word:'');}
 function weaponName(){return weaponBoostT>0?'實驗武器':WEAPON[weaponLevel].name;}
 function weaponDamage(part){const base=part==='head'?WEAPON[weaponLevel].head:WEAPON[weaponLevel].damage;return weaponBoostT>0?base+(part==='head'?3:2):base;}
@@ -1143,6 +1158,8 @@ function spawnHardArchers(count){
   const alive=zombies.filter(z=>z.userData.alive&&z.userData.kind==='archer').length;
   for(let i=alive;i<count;i++)spawnZombie('archer');
 }
+function hardArcherCount(w){return w<2?0:2+Math.floor((w-2)/2);}
+function hardDogCount(w){return w<3?0:2+Math.floor((w-3)/2);}
 function baseNormalCount(w){
   let n=3+Math.min(4,w),answerCount=Math.min(9,4+w);
   for(let i=0;i<answerCount;i++)if(!(i%7===4||(w>3&&i%9===6)))n++;
@@ -1168,13 +1185,16 @@ function beginWave(){
   if(roundKind==='boss'){
     const shield=gameMode==='hard'?4:3;showObjective('👑 佔領正確小屋 '+shield+' 次，破除 BOSS 護盾');
     spawnZombie('boss');updateBossHud(boss);
-    if(gameMode==='hard'){spawnHardDogs(2);spawnHardArchers(2);showObjective('👑 佔領正確小屋 4 次破盾 ・ 🐕 殭屍狗 ・ 🏹 弓箭手');}
+    if(gameMode==='hard'){
+      const archers=hardArcherCount(wave),dogs=hardDogCount(wave);spawnHardArchers(archers);spawnHardDogs(dogs);
+      showObjective('👑 佔領正確小屋 4 次破盾 ・ 🏹 弓箭手 '+archers+' ・ 🐕 殭屍狗 '+dogs);
+    }
   }else{
     showObjective(gameMode==='hard'?'進入正確小屋，一次守滿 10 秒；離開就重算':'進入正確小屋守滿 10 秒；撤出後可回來接著守');
     if(gameMode==='hard'){
-      const hazards=[];
-      if(wave>=3){spawnHardDogs(wave>=5?2:1);hazards.push('🐕 高速殭屍狗');}
-      if(wave>=4){spawnHardArchers(wave>=6?2:1);hazards.push('🏹 側移或躲牆後避箭');}
+      const hazards=[],archers=hardArcherCount(wave),dogs=hardDogCount(wave);
+      if(archers){spawnHardArchers(archers);hazards.push('🏹 弓箭手 '+archers);}
+      if(dogs){spawnHardDogs(dogs);hazards.push('🐕 殭屍狗 '+dogs);}
       if(hazards.length)showObjective('守住正確小屋 10 秒 ・ '+hazards.join(' ・ '));
     }
   }
@@ -1238,8 +1258,8 @@ function updateCapture(dt){
 function triggerBossSecondShield(g){
   const u=g.userData;u.secondShield=true;u.hp=Math.ceil(u.maxHp*.5);u.bossShield=gameMode==='hard'?3:2;u.burnT=0;
   setZombieLabel(g,'👑 第二護盾 ×'+u.bossShield,'#7d47b8');
-  showObjective('🛡️ BOSS 半血反擊：再答對 '+u.bossShield+' 題！');setQuestion(true);
-  spawnCrowd(gameMode==='hard'?4:6);if(gameMode==='hard')spawnHardDogs(1);updateBossHud(g);sndShield();
+  showBossSurprise();showObjective('🧟 最終屍潮來襲！守住正確小屋，再答對 '+u.bossShield+' 題破除第二護盾！');setQuestion(true);
+  spawnCrowd(6);updateBossHud(g);sndShield();sndWave();
 }
 function updateBossHud(g){
   const hud=document.getElementById('bossHud');if(!g){hud.style.display='none';return;}
@@ -1338,12 +1358,13 @@ function spawnSurpriseBox(){
   if(!open.length)return false;const p=open[(rnd(open.length))|0];surpriseBox(p[0],p[1]);supplyAlertHoldT=0;return true;
 }
 function applySurpriseReward(pos){
-  const reward=(rnd(5))|0;let text='';
+  const reward=(rnd(6))|0;let text='';
   if(reward===0){grenades+=2;updGrenades();text='💣 手榴彈 ×2';}
   else if(reward===1){fireAmmoT=22;iceAmmoT=0;text='🔥 火焰子彈 22 秒';}
   else if(reward===2){iceAmmoT=22;fireAmmoT=0;text='❄️ 冰凍子彈 22 秒';}
   else if(reward===3){weaponBoostT=18;gunGrp.userData.bodyMat.color.setHex(0xd99330);gunGrp.scale.z=1.42;updateWeaponUI();text='⚡ 實驗武器 18 秒';}
-  else{hp=Math.min(100,hp+30);armorT=12;document.getElementById('hpText').textContent=hp+' / 100';document.getElementById('hpFill').style.width=hp+'%';text='🛡️ 急救護甲：+30 HP、減傷 12 秒';}
+  else if(reward===4){hp=Math.min(100,hp+30);armorT=12;document.getElementById('hpText').textContent=hp+' / 100';document.getElementById('hpFill').style.width=hp+'%';text='🛡️ 急救護甲：+30 HP、減傷 12 秒';}
+  else{speedT=15;text='🧪 快速藥水：速度與跳躍提升 15 秒';}
   updatePowerupUI();popAt(pos.clone().setY(1.7),text,'#ffe27a');return text;
 }
 function breakSurpriseBox(item,hitPoint){
@@ -1406,6 +1427,7 @@ const gunGrp=new THREE.Group();
   flash.position.set(0,0.05,-0.98);flash.visible=false;flash.userData.noHit=true;
   gunGrp.add(flash);gunGrp.userData.flash=flash;
   gunGrp.userData.bodyMat=bk;
+  gunGrp.traverse(o=>o.userData.noHit=true);
 }
 
 /* ============ 玩家狀態與操控 ============ */
@@ -1413,8 +1435,8 @@ const player={x:0,z:34,yaw:0,pitch:0,vx:0,vz:0,vy:0,y:0,onGround:true};
 const EYE=1.7,WALK=6.5,JUMP=7.8;     // 跳躍力剛好上 1.15m 木箱、上不了 1.5m 矮牆
 const key={};
 let playing=false,paused=false;
-let mag=7,reserve=30,grenades=0,grenadeCd=0,recoil=0,bobT=0,kills=0,hp=100,fireCd=0,fireHeld=false;
-let fireAmmoT=0,iceAmmoT=0,weaponBoostT=0,armorT=0;
+let mag=7,reserve=30,grenades=0,grenadeCd=0,recoil=0,bobT=0,kills=0,hp=100,fireCd=0,fireHeld=false,meleeT=0;
+let fireAmmoT=0,iceAmmoT=0,weaponBoostT=0,armorT=0,speedT=0;
 let reloading=false,reloadT=0,reloadS1=false,reloadS2=false;
 const reloadBarEl=document.getElementById('reloadBar'),
       reloadFillEl=document.getElementById('reloadFill'),
@@ -1429,7 +1451,7 @@ addEventListener('keydown',e=>{
 });
 addEventListener('keyup',e=>key[e.code]=false);
 function doJump(){
-  if(playing&&!paused&&player.onGround){player.vy=JUMP;player.onGround=false;}
+  if(playing&&!paused&&player.onGround){player.vy=speedT>0?9:JUMP;player.onGround=false;}
 }
 function reload(){                    // 1 秒換彈：期間不能開槍，可移動
   if(!playing||reloading||mag>=weaponCapacity()||reserve<=0)return;
@@ -1440,6 +1462,7 @@ function updAmmo(){
   document.getElementById('vMag').textContent=mag;
   document.getElementById('vReserve').textContent=reserve;
   ammoNumEl.classList.toggle('low',reserve<5);
+  document.getElementById('fireBtn').textContent=mag<=0&&reserve<=0?'槍託':'開槍';
 }
 function addAmmo(amount){
   const added=Math.min(Math.max(0,amount),Math.max(0,AMMO_MAX-reserve));
@@ -1448,10 +1471,11 @@ function addAmmo(amount){
 function updGrenades(){document.getElementById('vGrenades').textContent=grenades;}
 function updatePowerupUI(){
   const active=[];if(fireAmmoT>0)active.push('🔥 火焰彈 '+Math.ceil(fireAmmoT)+' 秒');if(iceAmmoT>0)active.push('❄️ 冰凍彈 '+Math.ceil(iceAmmoT)+' 秒');
-  if(weaponBoostT>0)active.push('⚡ 實驗武器 '+Math.ceil(weaponBoostT)+' 秒');if(armorT>0)active.push('🛡️ 護甲 '+Math.ceil(armorT)+' 秒');powerupEl.textContent=active.join(' ・ ');
+  if(weaponBoostT>0)active.push('⚡ 實驗武器 '+Math.ceil(weaponBoostT)+' 秒');if(armorT>0)active.push('🛡️ 護甲 '+Math.ceil(armorT)+' 秒');
+  if(speedT>0)active.push('🧪 快速藥水 '+Math.ceil(speedT)+' 秒');powerupEl.textContent=active.join(' ・ ');
 }
 function updatePowerups(dt){
-  const hadBoost=weaponBoostT>0;fireAmmoT=Math.max(0,fireAmmoT-dt);iceAmmoT=Math.max(0,iceAmmoT-dt);weaponBoostT=Math.max(0,weaponBoostT-dt);armorT=Math.max(0,armorT-dt);
+  const hadBoost=weaponBoostT>0;fireAmmoT=Math.max(0,fireAmmoT-dt);iceAmmoT=Math.max(0,iceAmmoT-dt);weaponBoostT=Math.max(0,weaponBoostT-dt);armorT=Math.max(0,armorT-dt);speedT=Math.max(0,speedT-dt);
   if(hadBoost&&weaponBoostT===0){setWeaponLevel(weaponLevel);updateWeaponUI();}
   updatePowerupUI();
 }
@@ -1482,11 +1506,30 @@ function hurt(amount,from){
   }
 }
 const ray=new THREE.Raycaster();
-ray.near=1.6;ray.far=250;             // near 避開第一人稱槍模型
+ray.near=.05;ray.far=250;             // 槍模型已排除命中，貼近殭屍也能射到
 const RAY_C=new THREE.Vector2(0,0);
+function buttStrike(){
+  fireCd=.65;meleeT=.35;tone(115,.08,.18,'square',72);
+  const fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw);let target=null,best=2.2;
+  for(const z of zombies){
+    if(!z.userData.alive)continue;const dx=z.position.x-player.x,dz=z.position.z-player.z,d=Math.hypot(dx,dz)||.001;
+    if(d<best&&(dx*fx+dz*fz)/d>.38&&clearZombiePath(player.x,player.z,z.position.x,z.position.z,.06)){target=z;best=d;}
+  }
+  if(!target)return;
+  const p=target.position.clone().setY(target.userData.kind==='dog'?.75:1.45);
+  if(target===boss&&target.userData.bossShield>0){
+    if(target.userData.shieldVisual)target.userData.shieldVisual.flashT=.22;sparks(p,0x7deaff,10);popAt(p,'🛡️ 護盾擋住槍託！','#a9f5ff');sndEmpty();return;
+  }
+  blastZombie(target,1,player.x,player.z);
+  if(target.userData.alive){
+    const dx=target.position.x-player.x,dz=target.position.z-player.z,d=Math.hypot(dx,dz)||1;
+    target.userData.kx=dx/d*9;target.userData.kz=dz/d*9;
+  }
+  sparks(p,0xffd28a,8);popAt(p,'槍託 -1','#ffe0a3');hitmarkShow();if(target.userData.alive)sndHit();
+}
 function fire(){
   if(!playing||paused||reloading||fireCd>0)return;
-  if(mag<=0){sndEmpty();reload();return;}
+  if(mag<=0){if(reserve>0){sndEmpty();reload();}else buttStrike();return;}
   fireCd=weaponRate();
   mag--;updAmmo();recoil=1;sndShot();
   const f=gunGrp.userData.flash;
@@ -1651,8 +1694,8 @@ function loop(now){
     fw+=-stickVec.y;st+=stickVec.x;
     const mLen=Math.hypot(fw,st);
     if(mLen>1){fw/=mLen;st/=mLen;}
-    const sy=Math.sin(player.yaw),cy=Math.cos(player.yaw);
-    const tx=(-sy*fw+cy*st)*WALK, tz=(-cy*fw-sy*st)*WALK;
+    const sy=Math.sin(player.yaw),cy=Math.cos(player.yaw),moveSpeed=WALK*(speedT>0?1.5:1);
+    const tx=(-sy*fw+cy*st)*moveSpeed, tz=(-cy*fw-sy*st)*moveSpeed;
     player.vx+=(tx-player.vx)*Math.min(1,dt*10);
     player.vz+=(tz-player.vz)*Math.min(1,dt*10);
     /* 分軸位移＋碰撞（帶腳高，可站上箱子） */
@@ -1693,13 +1736,16 @@ function loop(now){
     bobT+=dt*(4+sp*1.1);
     camera.position.set(player.x,EYE+player.y+Math.sin(bobT)*0.015*(sp/WALK),player.z);
     camera.rotation.set(player.pitch,player.yaw,0);
-    recoil=Math.max(0,recoil-dt*8);
+    recoil=Math.max(0,recoil-dt*8);meleeT=Math.max(0,meleeT-dt);
     gunGrp.position.z=-0.95+recoil*0.12;
     if(reloading){                     // 換彈動畫：槍下沉側轉再回位
       const k=Math.sin(Math.PI*Math.min(1,reloadT));
       gunGrp.position.y=-0.38-0.34*k;
       gunGrp.rotation.z=0.7*k;
       gunGrp.rotation.x=-0.25*k;
+    }else if(meleeT>0){
+      const k=Math.sin((1-meleeT/.35)*Math.PI);gunGrp.rotation.z=-.78*k;gunGrp.rotation.x=.42*k;
+      gunGrp.position.y=-.38+.15*k;gunGrp.position.z=-.95-.32*k;
     }else{
       gunGrp.rotation.z=0;
       gunGrp.rotation.x=recoil*0.14;
