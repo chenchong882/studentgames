@@ -2,138 +2,247 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#182034">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>英文單字遊戲主機</title>
   <style>
+    :root {
+      --bg: #080d1a;
+      --surface: rgba(19, 28, 48, .82);
+      --surface-strong: #151f35;
+      --line: rgba(255, 255, 255, .12);
+      --text: #f8fafc;
+      --muted: #aebbd0;
+      --yellow: #fbd34d;
+      --cyan: #4dd9ff;
+      --green: #53e6a5;
+      --radius-lg: 26px;
+      --radius-md: 18px;
+      --shadow: 0 24px 70px rgba(0, 0, 0, .32);
+    }
     * { box-sizing: border-box; }
-    html { background: #182034; touch-action: manipulation; }
+    html { background: var(--bg); touch-action: manipulation; scroll-behavior: smooth; }
     body {
-      margin: 0;
-      min-height: 100vh;
-      color: #f8fafc;
-      font-family: Arial, "Noto Sans TC", sans-serif;
+      margin: 0; min-height: 100vh; min-height: 100dvh; color: var(--text);
+      font-family: "Arial Rounded MT Bold", "Noto Sans TC", Arial, sans-serif;
       background:
-        radial-gradient(circle at 15% 12%, rgba(250, 204, 21, 0.22), transparent 24rem),
-        radial-gradient(circle at 86% 18%, rgba(45, 212, 191, 0.2), transparent 26rem),
-        linear-gradient(145deg, #182034 0%, #111827 48%, #171717 100%);
+        radial-gradient(circle at 7% 4%, rgba(84, 86, 255, .27), transparent 28rem),
+        radial-gradient(circle at 94% 15%, rgba(0, 214, 201, .16), transparent 30rem),
+        linear-gradient(155deg, #10182d 0%, var(--bg) 42%, #090b13 100%);
+      overscroll-behavior: contain;
     }
-    main { width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: max(24px, env(safe-area-inset-top)) 0 40px; }
-    header { margin-bottom: 28px; }
-    h1 { margin: 0 0 10px; font-size: clamp(30px, 5vw, 52px); line-height: 1.05; }
-    p { margin: 0; color: #cbd5e1; font-size: 17px; line-height: 1.6; }
-    .scope {
-      margin-top: 22px; padding: 16px 18px; border: 1px solid rgba(255,255,255,0.14);
-      border-radius: 12px; background: rgba(15,23,42,0.6);
+    body::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .18;
+      background-image: linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+      background-size: 48px 48px; -webkit-mask-image: linear-gradient(to bottom, #000, transparent 72%); mask-image: linear-gradient(to bottom, #000, transparent 72%);
     }
-    .scope-title { font-size: 14px; color: #cbd5e1; margin-bottom: 12px; }
-    .source-cards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-    .source-card { min-height:110px; padding:15px 16px; text-align:left; cursor:pointer; color:#e2e8f0;
-      border:1px solid rgba(255,255,255,.22); border-radius:12px; background:rgba(255,255,255,.04); font:inherit; }
-    .source-card:focus-visible, .scope-btn:focus-visible, .vocab-toggle:focus-visible { outline:3px solid #fff; outline-offset:3px; }
-    .source-card .source-name { display:block; font-size:17px; font-weight:800; }
-    .source-card .source-desc { display:block; margin-top:5px; font-size:13px; line-height:1.45; color:#cbd5e1; }
-    .source-card .source-state { display:block; margin-top:8px; min-height:18px; font-size:13px; font-weight:800; }
-    .source-card.lesson.active { color:#331a04; border-color:#fb923c; background:linear-gradient(135deg,#fb923c,#facc15); }
-    .source-card.builtin.active { color:#06243a; border-color:#38bdf8; background:linear-gradient(135deg,#38bdf8,#2dd4bf); }
-    .source-card.active .source-desc { color:rgba(0,0,0,.68); }
-    .source-card.disabled { opacity:.72; cursor:not-allowed; }
-    .source-card.disabled .source-state { color:#fbbf24; }
-    .scope-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { font: inherit; }
+    main { position: relative; width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: max(28px, env(safe-area-inset-top)) 0 max(56px, env(safe-area-inset-bottom)); }
+    .hero { position: relative; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(250px, .6fr); gap: 28px; align-items: end; padding: 34px 36px; overflow: hidden; border: 1px solid var(--line); border-radius: 32px; background: linear-gradient(135deg, rgba(37,49,83,.94), rgba(15,24,43,.84)); box-shadow: var(--shadow); }
+    .hero::after { content: ""; position: absolute; width: 280px; aspect-ratio: 1; right: -80px; top: -110px; border: 44px solid rgba(77,217,255,.1); border-radius: 50%; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px; color: var(--cyan); font-size: 12px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+    .eyebrow::before { content: ""; width: 24px; height: 3px; border-radius: 999px; background: var(--cyan); }
+    h1 { max-width: 680px; margin: 0; font-size: clamp(38px, 6vw, 72px); line-height: .98; letter-spacing: -.045em; }
+    .hero-copy { max-width: 650px; margin: 18px 0 0; color: #c8d3e5; font-size: clamp(15px, 2vw, 18px); line-height: 1.7; }
+    .hero-stats { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat { padding: 15px 10px; text-align: center; border: 1px solid rgba(255,255,255,.1); border-radius: 16px; background: rgba(5,10,22,.36); }
+    .stat strong { display: block; color: var(--yellow); font-size: 22px; }
+    .stat span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .panel { margin-top: 24px; padding: 26px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); backdrop-filter: blur(16px); }
+    .section-head { display: flex; gap: 14px; align-items: center; margin-bottom: 18px; }
+    .step { display: grid; flex: 0 0 auto; place-items: center; width: 38px; height: 38px; border-radius: 12px; color: #07111e; background: var(--yellow); font-size: 16px; font-weight: 900; box-shadow: 0 7px 20px rgba(251,211,77,.2); }
+    .section-head h2 { margin: 0; font-size: clamp(20px, 3vw, 27px); letter-spacing: -.02em; }
+    .section-head p { margin: 4px 0 0; color: var(--muted); font-family: Arial, "Noto Sans TC", sans-serif; font-size: 14px; line-height: 1.5; }
+    .source-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .source-card { position: relative; min-height: 132px; padding: 20px 58px 18px 20px; overflow: hidden; text-align: left; cursor: pointer; color: var(--text); border: 1px solid rgba(255,255,255,.14); border-radius: var(--radius-md); background: rgba(255,255,255,.035); transition: transform .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease; }
+    .source-card:hover:not(:disabled) { transform: translateY(-2px); border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.07); }
+    .source-card::after { content: ""; position: absolute; top: 20px; right: 20px; width: 24px; height: 24px; border: 2px solid rgba(255,255,255,.28); border-radius: 50%; }
+    .source-card.active::after { border: 7px solid #fff; background: #111827; }
+    .source-card .source-kicker { display: block; margin-bottom: 7px; color: var(--muted); font: 800 11px/1 Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+    .source-card .source-name { display: block; font-size: 19px; font-weight: 900; }
+    .source-card .source-desc { display: block; margin-top: 7px; color: #b9c5d7; font: 14px/1.5 Arial, "Noto Sans TC", sans-serif; }
+    .source-card .source-state { display: block; margin-top: 11px; min-height: 18px; color: var(--yellow); font: 800 13px/1.4 Arial, "Noto Sans TC", sans-serif; }
+    .source-card.lesson.active { color: #211700; border-color: #fbd34d; background: linear-gradient(135deg, #ffd85d, #ff9f43); box-shadow: 0 12px 30px rgba(255,167,56,.2); }
+    .source-card.builtin.active { color: #03232e; border-color: #4dd9ff; background: linear-gradient(135deg, #5de0ff, #55e7bd); box-shadow: 0 12px 30px rgba(77,217,255,.16); }
+    .source-card.active .source-kicker, .source-card.active .source-desc { color: rgba(0,0,0,.64); }
+    .source-card.active .source-state { color: rgba(0,0,0,.78); }
+    .source-card.disabled { opacity: .52; cursor: not-allowed; }
+    .scope-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
     .scope-opts { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    .scope-btn {
-      cursor: pointer; border: 1px solid rgba(255,255,255,0.22); border-radius: 999px;
-      padding: 9px 18px; font-size: 15px; color: #e2e8f0; background: rgba(255,255,255,0.04);
-      transition: background .15s ease, color .15s ease, border-color .15s ease; user-select: none;
+    .scope-btn, .vocab-toggle { min-height: 44px; cursor: pointer; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; color: #dce6f5; background: rgba(255,255,255,.04); transition: color .2s ease, border-color .2s ease, background .2s ease, transform .2s ease; }
+    .scope-btn { padding: 10px 17px; font-size: 14px; user-select: none; }
+    .scope-btn:hover, .vocab-toggle:hover { border-color: rgba(255,255,255,.38); background: rgba(255,255,255,.09); }
+    .scope-btn.active { color: #142033; border-color: var(--yellow); background: var(--yellow); font-weight: 900; }
+    .vocab-toggle { padding: 9px 17px; font-size: 13px; font-weight: 800; }
+    #vocab-preview { margin-top: 14px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(7,13,26,.6); }
+    #vocab-preview-title { margin-bottom: 12px; color: var(--muted); font-size: 13px; font-weight: 800; }
+    .vocab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; max-height: 340px; overflow-y: auto; }
+    .vocab-item { padding: 10px 12px; line-height: 1.35; border: 1px solid rgba(255,255,255,.07); border-radius: 11px; background: rgba(255,255,255,.045); }
+    .vocab-en { color: #ffe06e; font-size: 14px; font-weight: 900; }
+    .vocab-zh { margin-top: 3px; color: #aebbd0; font-size: 12px; }
+    .games-section { margin-top: 48px; }
+    .games-section .section-head { margin-bottom: 20px; }
+    .games-count { margin-left: auto; color: var(--muted); font-size: 13px; font-weight: 800; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .game-card { --card: #4dd9ff; position: relative; display: flex; min-height: 230px; flex-direction: column; overflow: hidden; padding: 20px; color: inherit; text-decoration: none; border: 1px solid rgba(255,255,255,.12); border-radius: 22px; background: linear-gradient(155deg, color-mix(in srgb, var(--card) 14%, #182239), #101727 68%); box-shadow: 0 18px 46px rgba(0,0,0,.2); transition: transform .22s cubic-bezier(.2,.8,.2,1), border-color .22s ease, box-shadow .22s ease; }
+    .game-card::before { content: ""; position: absolute; width: 150px; height: 150px; right: -70px; top: -74px; border-radius: 50%; background: var(--card); opacity: .15; }
+    .game-card:hover { transform: translateY(-5px); border-color: color-mix(in srgb, var(--card) 60%, white); box-shadow: 0 24px 56px rgba(0,0,0,.3), 0 0 0 1px color-mix(in srgb, var(--card) 25%, transparent); }
+    .game-card:active { transform: translateY(-1px) scale(.99); }
+    .game-card[data-tone="gold"] { --card: #ffc857; }
+    .game-card[data-tone="orange"] { --card: #ff8a4c; }
+    .game-card[data-tone="lime"] { --card: #7fe36c; }
+    .game-card[data-tone="blue"] { --card: #4da3ff; }
+    .game-card[data-tone="violet"] { --card: #a98bff; }
+    .game-card[data-tone="pink"] { --card: #ff77ae; }
+    .game-card[data-tone="red"] { --card: #ff6473; }
+    .game-card[data-tone="teal"] { --card: #4fe0c1; }
+    .game-card[data-tone="green"] { --card: #53e6a5; }
+    .card-top { position: relative; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .game-icon { display: grid; place-items: center; width: 48px; height: 48px; color: #09111f; border-radius: 14px; background: var(--card); box-shadow: 0 9px 24px color-mix(in srgb, var(--card) 22%, transparent); }
+    .game-icon svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .game-tag { padding: 6px 9px; color: var(--card); border: 1px solid color-mix(in srgb, var(--card) 30%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--card) 9%, transparent); font: 800 11px/1 Arial, sans-serif; }
+    .game-card h3 { margin: 19px 0 7px; font-size: 21px; letter-spacing: -.02em; }
+    .game-card .game-desc { margin: 0; color: #b8c4d6; font: 14px/1.55 Arial, "Noto Sans TC", sans-serif; }
+    .card-cta { display: flex; align-items: center; gap: 7px; margin-top: auto; padding-top: 18px; color: var(--card); font-size: 13px; font-weight: 900; }
+    .card-cta svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; transition: transform .2s ease; }
+    .game-card:hover .card-cta svg { transform: translateX(4px); }
+    .game-card.foundation { grid-column: span 3; min-height: 190px; border-color: rgba(83,230,165,.34); }
+    .badge { display: inline-block; margin-left: 7px; padding: 3px 8px; vertical-align: middle; color: #06291c; border-radius: 999px; background: var(--green); font-size: 10px; font-weight: 900; }
+    .note { margin: 30px 4px 0; color: #8492a9; font: 13px/1.75 Arial, "Noto Sans TC", sans-serif; }
+    .source-card:focus-visible, .scope-btn:focus-visible, .vocab-toggle:focus-visible, .game-card:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+    @supports not (color: color-mix(in srgb, white, black)) {
+      .game-card { background: linear-gradient(155deg, #1b2a42, #101727 68%); }
     }
-    .scope-btn.active { background: rgba(250,204,21,0.92); color: #1f2937; border-color: rgba(250,204,21,0.92); font-weight: bold; }
-    .scope-btn.disabled { opacity: 0.4; cursor: not-allowed; }
-    .scope-info { font-size: 13px; color: #94a3b8; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 24px; }
-    .game-card {
-      display: block; border: 1px solid rgba(255,255,255,0.16); border-radius: 12px;
-      padding: 20px; color: inherit; text-decoration: none;
-      background: rgba(15,23,42,0.78); box-shadow: 0 18px 40px rgba(0,0,0,0.22);
-      transition: transform .15s ease, border-color .15s ease;
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-stats { max-width: 420px; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .game-card.foundation { grid-column: span 2; }
     }
-    .game-card:hover { transform: translateY(-3px); border-color: rgba(250,204,21,0.6); }
-    .game-card.foundation {
-      border-color: rgba(52,211,153,0.7);
-      background: linear-gradient(140deg, rgba(16,67,52,0.92), rgba(15,23,42,0.85));
-      box-shadow: 0 18px 40px rgba(0,0,0,0.22), 0 0 22px rgba(52,211,153,0.28);
+    @media (max-width: 620px) {
+      main { width: min(100% - 20px, 1120px); padding-top: max(10px, env(safe-area-inset-top)); }
+      .hero { padding: 28px 20px; border-radius: 24px; }
+      .hero-stats { width: 100%; }
+      .panel { padding: 20px 14px; border-radius: 22px; }
+      .source-cards, .grid { grid-template-columns: 1fr; }
+      .games-section { margin-top: 36px; }
+      .game-card, .game-card.foundation { grid-column: auto; min-height: 210px; }
+      .games-count { display: none; }
     }
-    .game-card.foundation:hover { border-color: rgba(110,231,183,0.95); }
-    .game-card.foundation h2 { color: #6ee7b7; }
-    .badge { display: inline-block; margin-left: 8px; padding: 2px 9px; border-radius: 999px;
-      font-size: 12px; font-weight: 700; vertical-align: middle;
-      background: rgba(52,211,153,0.18); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.5); }
-    .game-card h2 { margin: 0 0 8px; font-size: 22px; }
-    .game-card span { color: #cbd5e1; font-size: 14px; line-height: 1.5; }
-    .note { margin-top: 28px; color: #94a3b8; font-size: 13px; line-height: 1.7; }
-    .vocab-toggle {
-      cursor: pointer; font-size: 13px; color: #94a3b8;
-      border: 1px solid rgba(255,255,255,0.15); border-radius: 999px;
-      padding: 5px 14px; background: transparent; white-space: nowrap;
-      transition: color .15s, border-color .15s;
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
-    .vocab-toggle:hover { color: #e2e8f0; border-color: rgba(255,255,255,0.32); }
-    #vocab-preview {
-      margin-top: 12px; padding: 14px 16px;
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 12px; background: rgba(15,23,42,0.55);
-    }
-    #vocab-preview-title { font-size: 13px; color: #94a3b8; margin-bottom: 10px; }
-    .vocab-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
-      gap: 7px; max-height: 340px; overflow-y: auto;
-    }
-    .vocab-item {
-      background: rgba(255,255,255,0.05); border-radius: 8px;
-      padding: 8px 10px; line-height: 1.35;
-    }
-    .vocab-en { font-size: 14px; font-weight: bold; color: #fbbf24; }
-    .vocab-zh { font-size: 12px; color: #94a3b8; margin-top: 2px; }
-    @media (max-width:600px){ .source-cards { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <h1>🎮 英文單字遊戲主機</h1>
-      <p>八款單字遊戲共用主機。學生頁面會把該單元的單字傳進來，自動換成最新段考單字。</p>
+    <header class="hero">
+      <div>
+        <div class="eyebrow">Student Game Arcade</div>
+        <h1>把單字練習，<br>變成一場遊戲。</h1>
+        <p class="hero-copy">先選今天要練的單字，再挑一款遊戲出發。每一局都會自動換成你的課程內容。</p>
+      </div>
+      <div class="hero-stats" aria-label="遊戲內容統計">
+        <div class="stat"><strong>10</strong><span>款遊戲</span></div>
+        <div class="stat"><strong>13</strong><span>個主題</span></div>
+        <div class="stat"><strong>390</strong><span>個單字</span></div>
+      </div>
     </header>
-    <section class="scope">
-      <div class="scope-title">選擇練習單字範圍：</div>
+    <section class="panel" aria-labelledby="word-source-title">
+      <div class="section-head">
+        <span class="step" aria-hidden="true">1</span>
+        <div>
+          <h2 id="word-source-title">選擇今天的單字</h2>
+          <p>遊戲會依照你選的範圍自動出題。</p>
+        </div>
+      </div>
       <div class="source-cards">
-        <button id="scope-lesson" class="source-card lesson" type="button" aria-pressed="false"><span class="source-name">📝 本次段考單字</span><span class="source-desc">老師這次指定的單字</span><span id="scope-lesson-info" class="source-state"></span></button>
-        <button id="scope-builtin" class="source-card builtin" type="button" aria-pressed="false"><span class="source-name">🎨 系統內建單字</span><span class="source-desc">可選主題，包含圖片題</span><span id="scope-builtin-info" class="source-state"></span></button>
+        <button id="scope-lesson" class="source-card lesson" type="button" aria-pressed="false">
+          <span class="source-kicker">Teacher's list</span>
+          <span class="source-name">本次段考單字</span>
+          <span class="source-desc">使用老師這次指定的課程單字</span>
+          <span id="scope-lesson-info" class="source-state"></span>
+        </button>
+        <button id="scope-builtin" class="source-card builtin" type="button" aria-pressed="false">
+          <span class="source-kicker">Topic library</span>
+          <span class="source-name">系統主題單字</span>
+          <span class="source-desc">自由選擇主題，還有圖片題可以玩</span>
+          <span id="scope-builtin-info" class="source-state"></span>
+        </button>
       </div>
       <div class="scope-actions">
-        <button id="vocab-toggle-btn" class="vocab-toggle">👁 預覽單字</button>
+        <button id="vocab-toggle-btn" class="vocab-toggle" type="button" aria-expanded="false" aria-controls="vocab-preview">預覽單字</button>
+      </div>
+      <div id="vocab-preview" style="display:none">
+        <div id="vocab-preview-title"></div>
+        <div class="vocab-grid" id="vocab-grid"></div>
+      </div>
+      <div id="theme-section" style="display:none">
+        <div class="section-head" style="margin-top:22px;margin-bottom:12px">
+          <div>
+            <h2 style="font-size:17px">挑選練習主題</h2>
+            <p>可複選；不選就會使用全部 390 個單字。</p>
+          </div>
+        </div>
+        <div class="scope-opts" id="theme-chips"></div>
       </div>
     </section>
-    <div id="vocab-preview" style="display:none">
-      <div id="vocab-preview-title"></div>
-      <div class="vocab-grid" id="vocab-grid"></div>
-    </div>
-    <section class="scope" id="theme-section" style="display:none">
-      <div class="scope-title">📚 選擇練習主題（可複選，不選＝全部 360 字）：</div>
-      <div class="scope-opts" id="theme-chips"></div>
+    <section class="games-section" aria-labelledby="game-list-title">
+      <div class="section-head">
+        <span class="step" aria-hidden="true">2</span>
+        <div>
+          <h2 id="game-list-title">選一款遊戲出發</h2>
+          <p>每款遊戲都會帶入你剛才選好的單字。</p>
+        </div>
+        <span class="games-count">10 款遊戲任你挑</span>
+      </div>
+      <div class="grid">
+        <a class="game-card" data-tone="gold" href="./games/miner.html" data-href="./games/miner.html">
+          <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 6-6m4-4 6-6M8 4l12 12M5 3l16 16"/></svg></span><span class="game-tag">聽力 × 反應</span></div>
+          <h3>單字挖金礦</h3><p class="game-desc">聽清楚英文發音，抓回正確的金塊。</p><span class="card-cta">進入礦坑 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
+        </a>
+        <a class="game-card" data-tone="orange" href="./games/bomb.html" data-href="./games/bomb.html">
+          <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16M7 7l10 10m0-10L7 17"/><circle cx="12" cy="12" r="9"/></svg></span><span class="game-tag">飛行 × 射擊</span></div>
+          <h3>炸彈英文</h3><p class="game-desc">駕駛飛機鎖定目標，炸掉正確單字。</p><span class="card-cta">準備起飛 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
+        </a>
+        <a class="game-card" data-tone="lime" href="./games/tank.html" data-href="./games/tank.html">
+          <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15h16l2 3H5l-2-3Zm4 0V9h9l3 6M9 9V6h5v3M16 11h5"/><circle cx="8" cy="18" r="1"/><circle cx="16" cy="18" r="1"/></svg></span><span class="game-tag">3D × 瞄準</span></div>
+          <h3>單字坦克</h3><p class="game-desc">穿越叢林，射下樹上正確的單字。</p><span class="card-cta">駕駛坦克 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
+        </a>
+        <a class="game-card" data-tone="blue" href="./games/ship.html" data-href="./games/ship.html">
+          <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 15 3 5h12l3-5-9 2-9-2ZM7 14V8h10v6M10 8V4h4v4"/></svg></span><span class="game-tag">閱讀 × 砲擊</span></div>
+          <h3>海岸防線</h3><p class="game-desc">讀懂線索，擊沉掛著正確單字的船艦。</p><span class="card-cta">守住海岸 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
+        </a>
+        <a class="game-card" data-tone="violet" href="./games/sniper.html" data-href="./games/sniper.html">
+          <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5"/></svg></span><span class="game-tag">情報 × 狙擊</span></div>
+          <h3>狙擊暗殺：單字特務</h3><p class="game-desc">開鏡讀取情報，找出正確樓層的目標。</p><span class="card-cta">接受任務 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
+        </a>
+        <a class="game-card" data-tone="pink" href="./games/runner.html" data-href="./games/runner.html">
+          <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="14" cy="5" r="2"/><path d="m11 9 4 2 2 4m-6-6-3 4-4 1m7-1-2 7m6-9 4-2m-8 5 5 6"/></svg></span><span class="game-tag">3D × 跑酷</span></div>
+          <h3>英文跑酷</h3><p class="game-desc">邊跑邊選答案，閃過前方所有障礙。</p><span class="card-cta">開始奔跑 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
+        </a>
+        <a class="game-card" data-tone="red" href="./games/battle.html" data-href="./games/battle.html">
+          <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 3 14 18M19 3 5 21M3 7l4-4m10 18 4-4M17 3l4 4M3 17l4 4"/></svg></span><span class="game-tag">策略 × 攻防</span></div>
+          <h3>英文攻防戰</h3><p class="game-desc">答對題目賺取資源，派兵突破敵軍防線。</p><span class="card-cta">投入戰場 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
+        </a>
+        <a class="game-card" data-tone="teal" href="./games/gun.html" data-href="./games/gun.html">
+          <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21v-8l3-3h8l3 3v8M8 10V5h8v5M9 16h2m2 0h2M9 5V3m6 2V3"/></svg></span><span class="game-tag">生存 × 守城</span></div>
+          <h3>殭屍堡壘</h3><p class="game-desc">搶下正確單字小屋，抵擋殭屍的進攻。</p><span class="card-cta">進入堡壘 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
+        </a>
+        <a class="game-card" href="./games/word-hunt-vocab.html" data-href="./games/word-hunt-vocab.html">
+          <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h5v5H4zM15 4h5v5h-5zM5 15h5v5H5zM15 15h5v5h-5zM9 7h6m-8 3v5m3 2h5m3-8v6"/></svg></span><span class="game-tag">拼字 × 解謎</span></div>
+          <h3>單字獵人</h3><p class="game-desc">拖曳連起英文字母，破解三道單字關卡。</p><span class="card-cta">開始獵字 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
+        </a>
+        <a class="game-card foundation" data-tone="green" href="https://english-memory-game.pages.dev" target="_blank" rel="noopener">
+          <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="7" height="7" rx="1"/><rect x="14" y="4" width="7" height="7" rx="1"/><rect x="3" y="15" width="7" height="7" rx="1"/><path d="M17.5 15v7m-3.5-3.5h7"/></svg></span><span class="game-tag">基礎練習</span></div>
+          <h3>記憶翻牌 <span class="badge">建議先玩</span></h3><p class="game-desc">配對單字與圖卡，先把基礎記熟再挑戰其他遊戲。</p><span class="card-cta">另開遊戲 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
+        </a>
+      </div>
     </section>
-    <section class="grid">
-      <a class="game-card" href="./games/miner.html" data-href="./games/miner.html"><h2>單字挖金礦</h2><span>聽發音，抓正確金塊。</span></a>
-      <a class="game-card" href="./games/bomb.html" data-href="./games/bomb.html"><h2>炸彈英文</h2><span>駕駛飛機，炸掉目標單字。</span></a>
-      <a class="game-card" href="./games/tank.html" data-href="./games/tank.html"><h2>單字坦克</h2><span>找出樹上正確的單字，射下來。</span></a>
-      <a class="game-card" href="./games/ship.html" data-href="./games/ship.html"><h2>海岸防線</h2><span>讀題（意思或句子），擊沉正確單字的船艦。</span></a>
-      <a class="game-card" href="./games/sniper.html" data-href="./games/sniper.html"><h2>狙擊暗殺：單字特務</h2><span>開鏡讀情報，狙殺正確樓層的目標。</span></a>
-      <a class="game-card" href="./games/runner.html" data-href="./games/runner.html"><h2>英文跑酷</h2><span>邊跑邊選正確答案閃避障礙。</span></a>
-      <a class="game-card" href="./games/battle.html" data-href="./games/battle.html"><h2>英文攻防戰</h2><span>派兵攻防，答對單字才能出兵。</span></a>
-      <a class="game-card" href="./games/gun.html" data-href="./games/gun.html"><h2>殭屍堡壘</h2><span>找到正確單字小屋，守住佔領區並躲過殭屍追擊。</span></a>
-      <a class="game-card" href="./games/word-hunt-vocab.html" data-href="./games/word-hunt-vocab.html"><h2>單字獵人</h2><span>拖曳連起英文單字，挑戰三道單字關卡。</span></a>
-      <a class="game-card foundation" href="https://english-memory-game.pages.dev" target="_blank" rel="noopener"><h2>記憶翻牌<span class="badge">先練這個</span></h2><span>翻牌配對單字與圖卡，打好基礎單字再玩其他遊戲。（外部連結）</span></a>
-    </section>
-    <p class="note">※ 選「系統內建單字」可在上方<b>勾選練習主題</b>（共 390 字，分 13 主題），選好再點遊戲就會帶入；選「本次段考單字」需由學生頁面開啟才會帶入該單元的單字，此時主題選單會自動隱藏。<br>※「記憶翻牌」是外部連結（另開分頁），用它自己的題庫，不會帶入這裡選的單字。</p>
+    <p class="note">選「系統主題單字」可複選練習主題；選「本次段考單字」則需由學生教材頁進入。記憶翻牌使用獨立題庫，會在新分頁開啟。</p>
   </main>
   <script src="./data/wordbank.js"></script>
   <script>
@@ -265,7 +374,8 @@
     vocabToggleBtn.addEventListener('click', () => {
       vocabOpen = !vocabOpen;
       vocabPreview.style.display = vocabOpen ? '' : 'none';
-      vocabToggleBtn.textContent = vocabOpen ? '✕ 收起單字' : '👁 預覽單字';
+      vocabToggleBtn.textContent = vocabOpen ? '收起單字' : '預覽單字';
+      vocabToggleBtn.setAttribute('aria-expanded', vocabOpen ? 'true' : 'false');
       if(vocabOpen) buildVocabPreview();
     });
 
