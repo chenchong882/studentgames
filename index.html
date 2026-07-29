@@ -79,7 +79,9 @@
     #vocab-preview { margin-top: 14px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(7,13,26,.6); }
     #vocab-preview-title { margin-bottom: 12px; color: var(--muted); font-size: 13px; font-weight: 800; }
     .vocab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; max-height: 340px; overflow-y: auto; }
-    .vocab-item { padding: 10px 12px; line-height: 1.35; border: 1px solid rgba(255,255,255,.07); border-radius: 11px; background: rgba(255,255,255,.045); }
+    .vocab-item { width: 100%; padding: 10px 12px; cursor: pointer; text-align: left; font: inherit; line-height: 1.35; color: inherit; border: 1px solid rgba(255,255,255,.07); border-radius: 11px; background: rgba(255,255,255,.045); transition: border-color .18s ease, background .18s ease, transform .18s ease; }
+    .vocab-item:hover { transform: translateY(-1px); border-color: rgba(255,224,110,.45); background: rgba(255,224,110,.09); }
+    .vocab-item:active { transform: scale(.98); }
     .vocab-en { color: #ffe06e; font-size: 14px; font-weight: 900; }
     .vocab-zh { margin-top: 3px; color: #aebbd0; font-size: 12px; }
     .games-section { margin-top: 48px; }
@@ -111,7 +113,7 @@
     .game-card.foundation { grid-column: span 3; min-height: 190px; border-color: rgba(83,230,165,.34); }
     .badge { display: inline-block; margin-left: 7px; padding: 3px 8px; vertical-align: middle; color: #06291c; border-radius: 999px; background: var(--green); font-size: 10px; font-weight: 900; }
     .note { margin: 30px 4px 0; color: #8492a9; font: 13px/1.75 Arial, "Noto Sans TC", sans-serif; }
-    .source-card:focus-visible, .scope-btn:focus-visible, .vocab-toggle:focus-visible, .game-card:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
+    .source-card:focus-visible, .scope-btn:focus-visible, .vocab-toggle:focus-visible, .vocab-item:focus-visible, .game-card:focus-visible { outline: 3px solid #fff; outline-offset: 4px; }
     @supports not (color: color-mix(in srgb, white, black)) {
       .game-card { background: linear-gradient(155deg, #1b2a42, #101727 68%); }
     }
@@ -353,6 +355,28 @@
     const vocabGrid = document.getElementById('vocab-grid');
     const vocabTitle = document.getElementById('vocab-preview-title');
     let vocabOpen = false;
+    let previewVoices = [];
+
+    function loadPreviewVoices(){
+      try { previewVoices = window.speechSynthesis.getVoices() || []; } catch(e){ previewVoices = []; }
+    }
+    if('speechSynthesis' in window){
+      loadPreviewVoices();
+      try { window.speechSynthesis.addEventListener('voiceschanged', loadPreviewVoices); } catch(e){ window.speechSynthesis.onvoiceschanged = loadPreviewVoices; }
+    }
+    function speakPreviewWord(word){
+      if(!word || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return;
+      try {
+        const synth = window.speechSynthesis;
+        if(synth.speaking || synth.pending) synth.cancel();
+        const utterance = new SpeechSynthesisUtterance(String(word));
+        utterance.lang = 'en-US';
+        utterance.rate = .85;
+        const voice = previewVoices.find(v => v.lang === 'en-US') || previewVoices.find(v => /^en[-_]/i.test(v.lang));
+        if(voice) utterance.voice = voice;
+        synth.speak(utterance);
+      } catch(e){}
+    }
 
     function buildVocabPreview(){
       let words = [];
@@ -361,12 +385,22 @@
       } else if(scope === 'builtin' && window.WORD_BANK){
         words = window.WORD_BANK.getWords(selectedThemes).map(w => ({ en: w.word||'', zh: w.chinese||'', emoji: w.emoji||'' }));
       }
-      vocabTitle.textContent = `共 ${words.length} 個單字`;
+      vocabTitle.textContent = `共 ${words.length} 個單字・點一下可聽發音`;
       vocabGrid.innerHTML = '';
       words.forEach(w => {
-        const d = document.createElement('div');
+        const d = document.createElement('button');
+        d.type = 'button';
         d.className = 'vocab-item';
-        d.innerHTML = `<div class="vocab-en">${w.emoji ? w.emoji+' ' : ''}${w.en}</div><div class="vocab-zh">${w.zh}</div>`;
+        d.title = `播放 ${w.en} 的發音`;
+        d.setAttribute('aria-label', `播放英文單字 ${w.en} 的發音`);
+        const en = document.createElement('div');
+        en.className = 'vocab-en';
+        en.textContent = (w.emoji ? w.emoji + ' ' : '') + w.en;
+        const zh = document.createElement('div');
+        zh.className = 'vocab-zh';
+        zh.textContent = w.zh;
+        d.append(en, zh);
+        d.addEventListener('click', () => speakPreviewWord(w.en));
         vocabGrid.appendChild(d);
       });
     }
