@@ -240,13 +240,13 @@ function emojiForWord(word) {
 function chineseForWord(word) {
   return lessonChinese[String(word).toLowerCase()] || '';
 }
-// 題庫來源判斷：pool 中查得到 emoji 的字 ≥ 4 → 有圖題庫
+let bombBuiltinSource = true;
+// 只有主機標記為內建、且至少 4 個字有圖，才開放圖片題。
 function hasPicBank() {
   const words = bombWordPool || DEFAULT_LEVELS.flatMap(l => l.words);
-  return words.filter(w => emojiForWord(w)).length >= 4;
+  return bombBuiltinSource && words.filter(w => emojiForWord(w)).length >= 4;
 }
-// 有圖題庫→簡單／困難；無圖題庫→一般／困難
-function allowedBombModes() { return hasPicBank() ? ['simple', 'hard'] : ['normal', 'hard']; }
+function allowedBombModes() { return ['simple', 'hard']; }
 // 全圖檔開關（所有遊戲共用 sgAllPic 鑰匙）
 let allPic = (() => { try { return localStorage.getItem('sgAllPic') === '1'; } catch (e) { return false; } })();
 let menuMode = (() => { try { return localStorage.getItem('bombMode3') || 'normal'; } catch (e) { return 'normal'; } })();
@@ -264,12 +264,14 @@ function buildLessonLevels() {
 function applyBombData(payload) {
   const words = normalizeBombWords(payload?.words);
   if (words.length === 0) {
+    bombBuiltinSource = true;
     bombWordPool = null;
     lessonEmoji = {};
     lessonChinese = {};
     LEVELS = DEFAULT_LEVELS.map(level => ({ ...level, words: [...level.words] }));
     bombLessonTitle = '示範題庫';
   } else {
+    bombBuiltinSource = payload?.builtin === true;
     lessonEmoji = {};
     lessonChinese = {};
     (payload?.words || []).forEach(w => {
@@ -1660,7 +1662,7 @@ function drawMenu(c) {
     c.restore();
   });
 
-  const hint = hasPicBank() ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
+  const hint = hasPicBank() ? '內建圖片單字：可選簡單或困難' : '段考單字：可選簡單或困難';
   c.font='15px Arial'; c.fillStyle='rgba(255,255,255,0.55)';
   c.fillText(hint, W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.035, 16, 26));
   if(hasPicBank()){ c.font='13px Arial'; c.fillStyle='rgba(255,233,192,0.8)'; c.fillText('混合練習：中英文字題＋英文／發音選圖片（簡單圖片較多、困難文字較多）', W/2, menuAllPicY()-28); }

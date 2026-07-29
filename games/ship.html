@@ -561,8 +561,9 @@ function unlockSpeech(){
 }
 
 /* ════════════════ 三模式共用判定 ════════════════ */
-// 題庫來源：帶 emoji 的字 ≥ 4 → 有圖題庫（內建主題）；否則視為連結單字
-function hasPicBank(){ return wordBank.filter(w => w.emoji).length >= 4; }
+let builtinSource = true;
+// 只有主機標記為內建、且至少 4 個字有圖，才開放圖片題。
+function hasPicBank(){ return builtinSource && wordBank.filter(w => w.emoji).length >= 4; }
 let allPic = (function(){ try{ return localStorage.getItem('sgAllPic') === '1'; }catch(e){ return false; } })();
 let selectedShipMode = (function(){ try{return localStorage.getItem('shipMode3')||'normal';}catch(e){return 'normal';} })();
 
@@ -1498,14 +1499,14 @@ function startGame(difficulty) {
 }
 
 // 模式面板：先選模式，再由同一顆開始鈕進場。
-function allowedShipModes(){ return hasPicBank() ? ['simple','hard'] : ['normal','hard']; }
+function allowedShipModes(){ return ['simple','hard']; }
 function refreshModeUI() {
   const pics = hasPicBank(), allow = allowedShipModes();
   if (!allow.includes(selectedShipMode)) selectedShipMode = allow[0];
   ['simple','normal','hard'].forEach(m=>{ const b=$("start-"+m), on=selectedShipMode===m; b.hidden=!allow.includes(m); b.disabled=!allow.includes(m); b.classList.toggle('mode-picked',on); b.setAttribute('aria-pressed',on?'true':'false'); });
   $("mode-hint").textContent = pics
     ? "內建圖片單字：可選簡單或困難"
-    : "連結單字（無圖片）：可選一般或困難";
+    : "段考單字：可選簡單或困難";
   $("allpic-row").style.display = pics ? "flex" : "none";
   $("mix-desc").style.display = pics ? "block" : "none";
   $("allpic-mix").classList.toggle('mode-picked',!allPic);
@@ -2047,6 +2048,7 @@ function wordsConflict(a,b){
 }
 function applyShipData(payload){
   const next=normalizeShipWords(payload&&payload.words);
+  builtinSource = payload&&payload.builtin===true;
   wordBank = next.length>=4 ? next : DEFAULT_SHIP_WORDBANK;
   if(typeof refreshModeUI==='function') refreshModeUI();   // 依來源更新模式灰化與全圖檔開關
 }

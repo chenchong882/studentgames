@@ -1323,8 +1323,8 @@ function makeRunnerBank(pool, mainTypes, sideTypes){
 let runnerPool=null, hasPicBank=false;   // 有圖題庫＝pool 帶 emoji 的字 ≥ 4
 let runnerMode=(function(){ try{ return localStorage.getItem('runnerMode3'); }catch(e){ return null; } })()||'normal';
 let allPic=(function(){ try{ return localStorage.getItem('sgAllPic')==='1'; }catch(e){ return false; } })();
-// 有圖題庫→簡單／困難；無圖題庫→一般／困難
-function allowedModes(){ return hasPicBank ? ['simple','hard'] : ['normal','hard']; }
+// 兩種來源都只顯示簡單／困難；只有內建來源會出圖片題。
+function allowedModes(){ return ['simple','hard']; }
 function clampMode(){ const a=allowedModes(); if(!a.includes(runnerMode)) runnerMode=a[0]; }
 function rebuildRunnerBank(){
   let main=['en2cn','cn2en'], side=null;   // 一般（或無圖困難）：中英雙向
@@ -1343,7 +1343,7 @@ function applyRunnerData(payload){
   const pool = normalizeRunnerWords(payload&&payload.words);
   if(pool.length>=4){
     runnerPool = pool;
-    hasPicBank = pool.filter(w=>w.emoji).length>=4;   // 有貼圖＝內建主題；學校單字沒 emoji
+    hasPicBank = payload&&payload.builtin===true&&pool.filter(w=>w.emoji).length>=4;
   } else {
     runnerPool = null; hasPicBank = false;
   }
@@ -1367,7 +1367,7 @@ function renderModePanel(){
       rebuildRunnerBank(); renderModePanel();
     } : null;
   });
-  $('modeHint').textContent = hasPicBank ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
+  $('modeHint').textContent = hasPicBank ? '內建圖片單字：可選簡單或困難' : '段考單字：可選簡單或困難';
   $('allPicRow').classList.toggle('hidden', !hasPicBank);
   $('mixDesc').classList.toggle('hidden', !hasPicBank);
   $('allPicMix').classList.toggle('sel', !allPic);

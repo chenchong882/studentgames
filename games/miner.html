@@ -726,14 +726,14 @@
     let availableVoices = [];
     let vocabulary = DEFAULT_GOLD_WORDS;
     let currentUnitTitle = "示範題庫";
+    let builtinSource = true;
 
     /* ── 三模式（簡單／一般／困難）＋全圖檔開關 ── */
     let minerMode = (function () { try { return localStorage.getItem("minerMode3"); } catch (e) { return null; } })() || "normal";
     let allPic = (function () { try { return localStorage.getItem("sgAllPic") === "1"; } catch (e) { return false; } })();
-    /* 題庫來源判斷：帶 emoji 的字 ≥ 4 → 有圖題庫（內建主題）；否則視為連結單字 */
-    function hasPicBank() { return vocabulary.filter(entry => getEntryEmoji(entry)).length >= 4; }
-    /* 有圖題庫→簡單／困難；無圖題庫→一般／困難 */
-    function allowedModes() { return hasPicBank() ? ["simple", "hard"] : ["normal", "hard"]; }
+    /* 只有主機標記為內建、且至少 4 個字有圖，才開放圖片題。 */
+    function hasPicBank() { return builtinSource && vocabulary.filter(entry => getEntryEmoji(entry)).length >= 4; }
+    function allowedModes() { return ["simple", "hard"]; }
     function clampMode() {
         const allow = allowedModes();
         if (!allow.includes(minerMode)) minerMode = allow[0];
@@ -906,9 +906,11 @@
     function applyMinerData(payload) {
         const nextWords = normalizeMinerWords(payload?.words);
         if (nextWords.length > 0) {
+            builtinSource = payload?.builtin === true;
             vocabulary = nextWords;
             currentUnitTitle = payload?.unitTitle || "目前 Level";
         } else {
+            builtinSource = true;
             vocabulary = DEFAULT_GOLD_WORDS;
             currentUnitTitle = "示範題庫";
         }
@@ -2105,7 +2107,7 @@
             btn.classList.toggle("sel", mode === minerMode);
             btn.setAttribute("aria-pressed", mode === minerMode ? "true" : "false");
         });
-        modeHintEl.textContent = hasPicBank() ? "內建圖片單字：可選簡單或困難" : "連結單字（無圖片）：可選一般或困難";
+        modeHintEl.textContent = hasPicBank() ? "內建圖片單字：可選簡單或困難" : "段考單字：可選簡單或困難";
         allPicRowEl.classList.toggle("hidden", !hasPicBank());
         document.getElementById("ss-allpic-mix").classList.toggle("sel", !allPic);
         document.getElementById("ss-allpic-only").classList.toggle("sel", allPic);

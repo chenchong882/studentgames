@@ -424,10 +424,9 @@ function applyDifficultyConfig(){
   };
 }
 
-// 題庫來源判斷：pool 中帶 emoji 的字 ≥ 4 → 有圖題庫（內建主題）；否則視為連結單字
-function hasPicBank(){ return picPool.length >= 4; }
-// 有圖題庫→簡單／困難；無圖題庫→一般／困難
-function allowedModes(){ return hasPicBank() ? ['easy','hard'] : ['normal','hard']; }
+// 只有主機標記為內建、且至少 4 個字有圖，才開放圖片題。
+function hasPicBank(){ return !!battleData.builtin && picPool.length >= 4; }
+function allowedModes(){ return ['easy','hard']; }
 function clampMode(){
   const a = allowedModes();
   if(!a.includes(selectedDifficulty)) selectedDifficulty = a[0];
@@ -453,7 +452,7 @@ function updateDifficultyUI(){
     btn.setAttribute('aria-pressed', level === selectedDifficulty ? 'true' : 'false');
   });
   const hint = document.getElementById('mode-hint');
-  if(hint) hint.textContent = hasPicBank() ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
+  if(hint) hint.textContent = hasPicBank() ? '內建圖片單字：可選簡單或困難' : '段考單字：可選簡單或困難';
   const row = document.getElementById('allpic-row');
   if(row) row.classList.toggle('show', hasPicBank());
   document.getElementById('mix-desc').hidden = !hasPicBank();

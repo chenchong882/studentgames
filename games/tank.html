@@ -776,8 +776,8 @@ let mode=(()=>{try{return localStorage.getItem('tankMode')||'normal'}catch(e){re
 let hasEmoji=false;   // 有圖題庫＝注入題庫帶 emoji 的字 ≥ 4
 let allPic=(()=>{try{return localStorage.getItem('sgAllPic')==='1'}catch(e){return false}})();
 function isSimple(){return mode==='simple';}
-// 有圖題庫→簡單／困難；無圖題庫→一般／困難
-function allowedTankModes(){return hasEmoji?['simple','hard']:['normal','hard'];}
+// 兩種來源都只顯示簡單／困難；只有內建來源會出圖片題。
+function allowedTankModes(){return ['simple','hard'];}
 // 簡單／一般維持足夠目標但空中威脅較低；困難的敵人數量與生成速度明顯提高
 const MODE_CFG={
   simple:{dinoCap:e=>Math.min(10,2+Math.floor(e/10)), spawnBase:5.2, spawnMin:2.2, spawnDecay:0.018,
@@ -2000,7 +2000,7 @@ function refreshModeUI(){
     b.setAttribute('aria-pressed',b.dataset.mode===mode?'true':'false');
   });
   const hint=document.getElementById('modeHint');
-  if(hint)hint.textContent=hasEmoji?'簡單：圖片較多、敵人適中、下墜小｜困難：文字較多、敵人密集、下墜大':'一般：敵人適中、下墜小｜困難：敵人密集、下墜大';
+  if(hint)hint.textContent=hasEmoji?'簡單：圖片較多、敵人適中、下墜小｜困難：文字較多、敵人密集、下墜大':'簡單：敵人適中、下墜小｜困難：敵人密集、下墜大';
   const row=document.getElementById('allPicRow');
   if(row)row.classList.toggle('hidden',!hasEmoji);
   document.getElementById('mixDesc').classList.toggle('hidden',!hasEmoji);
@@ -2222,7 +2222,7 @@ function applyTankData(payload){
   const next=normalizeTankVocab(payload&&payload.words);
   VOCAB = next.length>=4 ? next : DEFAULT_TANK_VOCAB;
   wordQueue=[]; missedList=[]; lastRoundEntry=null;
-  hasEmoji = VOCAB.filter(w=>w.emoji).length>=4;   // 帶 emoji 的字 ≥ 4 → 有圖題庫
+  hasEmoji = payload&&payload.builtin===true&&VOCAB.filter(w=>w.emoji).length>=4;
   if(typeof setMode==='function')setMode(mode);    // 依來源 clamp 模式並更新灰化
 }
 function readLessonDataFromHash(){

@@ -281,7 +281,7 @@ let selectedThemes = []; // 空陣列＝全部主題
 function buildWordBank(){
   const lesson = readLesson();
   const lessonWords = lesson ? normalizeWords(lesson.words) : [];
-  if(lessonWords.length >= 5) return { bank: lessonWords, source:'lesson' };
+  if(lessonWords.length >= 5) return { bank: lessonWords, source:lesson.builtin===true?'builtin':'lesson' };
   // 共用題庫（data/wordbank.js）：依學生選的主題取字
   if(window.WORD_BANK){
     const picked = normalizeWords(window.WORD_BANK.getWords(selectedThemes));
@@ -1754,7 +1754,7 @@ function startGame(m){
   difficulty = (mode === 'hard') ? 'hard' : 'easy';   // 玩法檔：簡單＝一般＝easy、困難＝hard（被發現機制）
   try{ localStorage.setItem('sniperMode3', mode); }catch(e){}
   WB = buildWordBank();
-  WB.hasPic = WB.bank.filter(w=>w.emoji).length >= 4;   // 有圖題庫＝帶 emoji 的字 ≥ 4
+  WB.hasPic = WB.source==='builtin' && WB.bank.filter(w=>w.emoji).length >= 4;
   roundNo = 0; score = 0; money = 0; combo = 0; lives = MAX_LIVES;
   apUpgrade = false; extraAmmo = 0; extraTime = 0; shoppedAt = {};
   roofRaid = null; roofRaidAt = 0; noWindShots = 0; tempAPShots = 0; nextFireAt = 0;
@@ -1879,9 +1879,9 @@ function renderShop(){
 
 /* ---------- 開始畫面三步流程：① 題型 → ② 全圖檔開關 → ③ 模式 ---------- */
 function bankStats(){
-  const bank = buildWordBank().bank;
+  const wb = buildWordBank(), bank = wb.bank;
   return {
-    pics: bank.filter(w=>w.emoji).length >= 4,        // 有圖題庫
+    pics: wb.source==='builtin' && bank.filter(w=>w.emoji).length >= 4,
     sentences: bank.filter(w=>w.example).length >= 5, // 例句夠多才開句子題
   };
 }
@@ -1897,14 +1897,14 @@ function refreshStartUI(){
   document.getElementById('allpic-row').classList.toggle('show', qtype==='word' && st.pics);
   document.getElementById('mix-desc').style.display = qtype==='word' && st.pics ? 'block' : 'none';
   // 模式灰化＝題型 × 來源：句子題簡單永遠灰化；單字題依有無圖片
-  const allow = qtype==='sentence' ? ['normal','hard'] : (st.pics ? ['simple','hard'] : ['normal','hard']);
+  const allow = qtype==='sentence' ? ['normal','hard'] : ['simple','hard'];
   if(!allow.includes(mode)) mode=allow[0];
   document.querySelectorAll('.mode-btn').forEach(b=>{ const on=b.dataset.mode===mode; b.hidden=!allow.includes(b.dataset.mode); b.disabled=!allow.includes(b.dataset.mode); b.classList.toggle('sel',on); b.setAttribute('aria-pressed',on?'true':'false'); });
   document.getElementById('allpic-mix').classList.toggle('sel',!allPic);
   document.getElementById('allpic-only').classList.toggle('sel',allPic);
   document.getElementById('mode-hint').textContent =
     qtype==='sentence' ? '句子題：可選一般或困難（句子沒有簡單版）'
-    : st.pics ? '內建圖片單字：可選簡單或困難' : '連結單字（無圖片）：可選一般或困難';
+    : st.pics ? '內建圖片單字：可選簡單或困難' : '段考單字：可選簡單或困難';
 }
 document.getElementById('qtype-sentence').addEventListener('click', ()=>{
   qtype = 'sentence';
