@@ -46,14 +46,13 @@
     const modal=document.createElement('div');modal.id='sg-review-modal';modal.className='sg-review-backdrop';modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','sg-review-title');
     const card=document.createElement('div');card.className='sg-review-card';modal.appendChild(card);
     const h=document.createElement('h2');h.id='sg-review-title';h.textContent=title||'📚 本局學習回顧';card.appendChild(h);
-    const lead=document.createElement('p');lead.className='sg-review-lead';lead.textContent='先看需要複習的地方，再確認這局答對了什麼。';card.appendChild(lead);
+    const lead=document.createElement('p');lead.className='sg-review-lead';lead.textContent='只整理這局答錯或沒有回答的題目。';card.appendChild(lead);
     const counts={correct:0,wrong:0,unanswered:0};records.forEach(r=>counts[r.status]=(counts[r.status]||0)+1);
     const countBox=document.createElement('div');countBox.className='sg-review-counts';
     [['correct','sg-review-ok','答對'],['wrong','sg-review-wrong','答錯'],['unanswered','sg-review-skip','未作答']].forEach(([key,cls,label])=>{const el=document.createElement('div');el.className='sg-review-count '+cls;el.innerHTML='<b>'+counts[key]+'</b><span>'+label+'</span>';countBox.appendChild(el);});card.appendChild(countBox);
-    const needs=records.filter(r=>r.status!=='correct'),oks=records.filter(r=>r.status==='correct');
+    const needs=records.filter(r=>r.status!=='correct');
     const needSec=document.createElement('section');needSec.className='sg-review-section';const needH=document.createElement('h3');needH.textContent='🎯 這些要再複習';needSec.appendChild(needH);
     if(!needs.length){const perfect=document.createElement('div');perfect.className='sg-review-perfect';perfect.textContent=records.length?'🎉 這局沒有答錯或漏答！':'這局結束前沒有出現單字題。';needSec.appendChild(perfect);}else{const list=document.createElement('div');list.className='sg-review-list';needs.forEach(r=>list.appendChild(row(r)));needSec.appendChild(list);}card.appendChild(needSec);
-    if(oks.length){const okSec=document.createElement('section');okSec.className='sg-review-section';const okH=document.createElement('h3');okH.textContent='✅ 這些答對了';okSec.appendChild(okH);const list=document.createElement('div');list.className='sg-review-list';oks.forEach(r=>list.appendChild(row(r)));okSec.appendChild(list);card.appendChild(okSec);}
     const close=document.createElement('button');close.type='button';close.className='sg-review-close';close.textContent='看完了，查看成績';close.onclick=()=>modal.remove();card.appendChild(close);
     document.body.appendChild(modal);close.focus();
   }
