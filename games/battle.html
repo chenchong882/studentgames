@@ -312,6 +312,7 @@ button{font-family:'Outfit',sans-serif;}
   </div>
 </div>
 
+<script src="round-review.js"></script>
 <script>
 const BASE_CONFIG = {
   durationSec: 150,
@@ -1066,6 +1067,7 @@ function applyBattleRules(){
 
 function startStage(stageIndex){
   if(!campaign || !STAGES[stageIndex]) return;
+  RoundReview.reset();
   campaign.stageIndex = stageIndex;
   state = initState(stageIndex, campaign);
   applyBattleRules();
@@ -1875,6 +1877,7 @@ function bossOnWrong(){
 function loadQuestion(){
   if(!state || state.phase !== 'playing') return;
   currentQuestion = getNextQuestion();
+  RoundReview.begin({prompt:currentQuestion.prompt,answer:currentQuestion.opts[currentQuestion.ans]});
   const isGrammar = isPowerQuestion(currentQuestion);
   const qt = document.getElementById('quiz-type');
   const vocabBossNow = state.boss && state.bossMode === 'vocab';
@@ -1916,6 +1919,7 @@ function checkAnswer(chosen, btn){
   const isGrammar = isPowerQuestion(currentQuestion);
   const fb = document.getElementById('feedback');
   if(chosen === currentQuestion.ans){
+    RoundReview.correct();
     playSound('correct');
     btn.classList.add('correct');
     state.correctCount += 1;
@@ -1955,6 +1959,8 @@ function checkAnswer(chosen, btn){
     fb.className = 'fb-correct';
     setTimeout(loadQuestion, 760);
   } else {
+    RoundReview.wrong({chosen:currentQuestion.opts[chosen]});
+    RoundReview.endQuestion();
     playSound('wrong');
     btn.classList.add('wrong');
     if(btns[currentQuestion.ans]) btns[currentQuestion.ans].classList.add('correct');
@@ -2086,6 +2092,7 @@ function endGame(result, winType){
   updateHUD();
 
   overlay.classList.add('show');
+  RoundReview.show('📚 攻防戰本關學習回顧');
   // 音效：制霸先轟一聲再放號角；一般勝利只放號角
   if(isRout){ playSound('boom'); setTimeout(() => playSound('victory'), 180); }
   else if(isWin){ playSound('victory'); }

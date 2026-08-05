@@ -306,6 +306,7 @@
 </div>
 <div id="quiz"><div id="quizCard"><div id="quizTitle">🔐 逃生門驗證</div><div id="quizPrompt"></div><div id="quizChoices"></div></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script src="round-review.js"></script>
 <script>
 'use strict';
 /* ============ 工具 ============ */
@@ -1143,6 +1144,7 @@ function assignHouseAnswers(){
 }
 function setQuestion(say=true){
   const words=questionWords(),pool=words.filter(w=>wordKey(w)!==wordKey(targetWord));targetWord=(pool.length?pool:words)[(rnd((pool.length?pool:words).length))|0];
+  RoundReview.begin({prompt:roundUsesPic?targetWord.word:targetWord.chinese,answer:targetWord.word,meaning:targetWord.chinese});
   if(roundUsesPic)questionEl.textContent='🔊 題目：'+targetWord.word;
   else questionEl.textContent=roundKind==='listen'?'🔊 聽發音找英文':('🔊 題目：'+targetWord.chinese);
   questionEl.title='點擊重播 '+targetWord.word;questionEl.setAttribute('aria-label','重播英文單字 '+targetWord.word);
@@ -1215,6 +1217,7 @@ function spawnNearHouse(h,count){
   for(let i=0;i<count;i++){const p=spots[(rnd(spots.length))|0],x=p[0]+rnd(-1,1),z=p[1]+rnd(-1,1);if(!blockedForZombie(x,z,.46))makeZombie(x,z,'normal');else spawnZombie('normal');}
 }
 function onHouseCorrect(h){
+  RoundReview.correct();
   const healed=registerCorrect(),reward=spawnCaptureReward(h),healText=healed>0?('❤️ 答對回復 '+healed+' HP ・ '):'❤️ 血量已滿 ・ ';
   if(boss&&boss.userData.bossShield>0){
     boss.userData.bossShield--;sndShield();
@@ -1230,11 +1233,15 @@ function onHouseCorrect(h){
   completeWave(healText+reward);
 }
 function onHouseWrong(h){
-  registerWrong();hurt(gameMode==='hard'?25:18,{x:h.cx,z:h.cz});if(!playing)return;
+  RoundReview.wrong({chosen:h.answer?h.answer.word:''});
+  const wrongDamage=gameMode==='hard'?25:18;
+  if(hp<=(armorT>0?Math.ceil(wrongDamage*.5):wrongDamage))RoundReview.endQuestion();
+  registerWrong();hurt(wrongDamage,{x:h.cx,z:h.cz});if(!playing)return;
   spawnNearHouse(h,3);showObjective('❌ 佔領錯誤：扣血，屋外出現增援！同一題重新洗牌');
   assignHouseAnswers();captureCooldown=1.4;if(gameMode==='simple'||roundKind==='listen')speakQuestionTwice(targetWord.word);
 }
 function onQuestionTimeout(){
+  RoundReview.unanswered();
   registerWrong();for(const z of zombies)if(z.userData.alive&&z!==boss){z.userData.enrage=Math.max(z.userData.enrage,gameMode==='hard'?7:6);setRageVisual(z,true);}
   spawnCrowd(3);showObjective('⏰ 超時：全場殭屍短暫狂暴，題目與小屋重新洗牌！');setQuestion(true);captureCooldown=1.4;
 }
@@ -1322,6 +1329,7 @@ function winGame(){
   const sec=Math.max(1,Math.round((performance.now()-survivalStart)/1000));
   overlay.innerHTML='<h1>🏆 成功逃生！</h1><div class="sub">T O W N &nbsp; C L E A R</div><p>擊殺 '+kills+' 隻 ・ 武器分數 '+weaponScore+' ・ 存活 '+sec+' 秒</p><p class="go">找對小屋、守住佔領區，就能帶著補給活下去！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再守一輪</button>';
   overlay.classList.remove('hidden');
+  RoundReview.show('📚 守城本局學習回顧');
 }
 
 /* ============ 彈藥補給（走近自動撿） ============ */
@@ -1547,6 +1555,7 @@ function hurt(amount,from){
     document.getElementById('btnPause').classList.add('hidden');
     overlay.innerHTML='<h1>💀 小鎮失守</h1><div class="sub">T R Y &nbsp; A G A I N</div><p>擊殺 '+kills+' 隻 ・ 撐到第 '+wave+' 波</p><p class="go">看清屋頂字牌，進正確小屋守住 10 秒！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再試一次</button>';
     overlay.classList.remove('hidden');
+    RoundReview.show('📚 守城本局學習回顧');
   }
 }
 const ray=new THREE.Raycaster();
@@ -1616,6 +1625,7 @@ document.getElementById('allPicMix').addEventListener('click',()=>setAllPic(fals
 document.getElementById('allPicOnly').addEventListener('click',()=>setAllPic(true));
 function startGame(){
   ensureAudio();
+  RoundReview.reset();
   try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}
   overlay.classList.add('hidden');
   if(!playing){

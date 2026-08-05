@@ -219,6 +219,7 @@
 </div>
 
 <script src="../data/wordbank.js"></script>
+<script src="round-review.js"></script>
 <script>
 "use strict";
 /* ============================================================
@@ -580,6 +581,7 @@ function startRound(){
     answer = chosen[randi(0, FLOORS-1)];
   }
   intelMode = roundType;
+  RoundReview.begin({prompt:roundType==='cloze'&&answer.example?answer.example.replace('{W}','＿＿＿'):(roundType==='cn2en'?answer.meaning:answer.word),answer:answer.word,meaning:answer.meaning});
 
   // 風速: 簡單模式全程無風；其他模式前 4 關無風，之後逐步加入
   wind = (mode === 'simple' || roundNo <= 4) ? 0 : rand(-1, 1) * (roundNo-4) * 0.12;
@@ -771,6 +773,7 @@ function tryFire(){
     else if(hitMat === MAT.STONE){ spawnParticles(hitX, hitY, '#d2d2d2', 16, 180); addHole(hitX, hitY, 'stone'); } // 穿甲彈貫穿石牆
     else addHole(hitX, hitY, 'glass');
     if(target.word.word === answer.word){
+      RoundReview.correct();
       combo++;
       const base = 100, timeBonus = Math.round(timeLeft*4), ammoBonus = ammo*30, comboBonus = (combo-1)*25;
       const gained = base + timeBonus + ammoBonus + comboBonus;
@@ -779,6 +782,7 @@ function tryFire(){
       showToast(`✅ ${answer.word}  +${gained}` + (combo>1?`  🔥x${combo}`:''), '#34d399');
       enterKillcam(target, true);
     } else {
+      RoundReview.wrong({chosen:target.word.word});
       combo = 0;
       score = Math.max(0, score - 60);
       showToast(`❌ 判讀錯誤！那是 ${target.word.word}（${target.word.meaning}）`, '#f87171');
@@ -807,6 +811,7 @@ function tryFire(){
 }
 
 function endRound(success){
+  if(!success)RoundReview.unanswered();
   roofRaid = null; roofRaidAt = 0;
   state = 'feedback';
   document.getElementById('fire-btn').disabled = true;
@@ -1749,6 +1754,7 @@ document.getElementById('set-hand').addEventListener('click', ()=>{ SETTINGS.lef
 /* ---------- 流程控制 ---------- */
 function startGame(m){
   unlockSpeech();   // 真實按鈕點擊：解鎖 iOS 發音
+  RoundReview.reset();
   startBgm();
   mode = (m==='simple'||m==='hard') ? m : 'normal';
   difficulty = (mode === 'hard') ? 'hard' : 'easy';   // 玩法檔：簡單＝一般＝easy、困難＝hard（被發現機制）
@@ -1783,8 +1789,10 @@ function endGame(){ // 完成全部關卡
   const modeLabel = ({simple:'簡單模式',normal:'一般模式',hard:'困難模式'})[mode] || '一般模式';
   const qtLabel = qtype==='sentence' ? '句子題' : '單字題';
   document.getElementById('end-detail').textContent = `${modeLabel}・${qtLabel}・完成 ${MAX_ROUNDS} 關狙擊任務（題庫：${src}）。`;
+  RoundReview.show('📚 狙擊任務本局學習回顧');
 }
 function failGame(reason){
+  if(reason === 'judge')RoundReview.endQuestion();
   finishOverlay('任務失敗');
   const lvl = Math.min(roundNo,MAX_ROUNDS);
   if(reason === 'judge'){       // 打錯人用光機會
@@ -1797,6 +1805,7 @@ function failGame(reason){
     document.getElementById('end-summary').textContent = `未能狙殺目標・3 次機會用盡　總分 ${score}`;
     document.getElementById('end-detail').textContent = `撐到第 ${lvl} 關。把握每關 3 發子彈與時間，先讀懂情報再瞄準——3 次機會用完任務就失敗。`;
   }
+  RoundReview.show('📚 狙擊任務本局學習回顧');
 }
 
 /* ---------- 關卡推進 / 軍火商商店 ---------- */

@@ -328,6 +328,7 @@
   </div>
 </div>
 
+<script src="round-review.js"></script>
 <script>
 "use strict";
 
@@ -624,6 +625,7 @@ function newRound() {
   else if (d === "simple") game.qType = Math.random() < 0.5 ? "cn2en" : "en2cn";   // 簡單穿插的中英回合（不出句子）
   else game.qType = (target.word.example && Math.random() < 0.5) ? "sentence"
     : (Math.random() < 0.5 ? "cn2en" : "en2cn");   // 一般／困難：意思題＋英→中＋句子題輪替
+  RoundReview.begin({prompt:game.qType==="sentence"?target.word.example.replace("{W}","＿＿＿"):(game.qType==="cn2en"?target.word.meaning:target.word.word),answer:target.word.word,meaning:target.word.meaning});
 
   const count = clamp(2 + lv, 3, 5);
   // 干擾船：單字必不同；圖片回合的干擾 emoji 也必須與目標不同
@@ -826,6 +828,7 @@ function resolveImpact(x, y, fxX, fxY, fromBurst) {
   hit.sinking = 0.001;
 
   if (hit.isTarget) {
+    RoundReview.correct();
     game.combo++;
     game.maxCombo = Math.max(game.maxCombo, game.combo);
     // 連擊倍率：×1 → ×1.5 → ×2 → ×2.5 →（最高）×3
@@ -852,6 +855,7 @@ function resolveImpact(x, y, fxX, fxY, fromBurst) {
     sfx.splash();
     if (!checkAmmoOut()) game.fireLock = false;
   } else {
+    RoundReview.wrong({chosen:hit.word.word});
     game.score = Math.max(0, game.score - 150);
     game.combo = 0;
     sfx.bad();
@@ -869,6 +873,7 @@ function resolveImpact(x, y, fxX, fxY, fromBurst) {
 function targetEscaped(reason) {
   if (game.roundEnding) return;   // timer 卡在 0 時，擋掉每幀重複觸發（toast 狂跳、命狂掉的元兇）
   game.roundEnding = true;
+  RoundReview.unanswered();
   game.lastRoundWon = false;
   game.score = Math.max(0, game.score - 50);
   game.lives--;
@@ -899,6 +904,7 @@ function gameOver() {
   $("pause-btn").classList.add("hidden");
   hud.classList.add("hidden");
   skyQ.classList.add("hidden");
+  RoundReview.show("📚 海岸防線本局學習回顧");
 }
 
 function winGame() {
@@ -915,6 +921,7 @@ function winGame() {
   $("pause-btn").classList.add("hidden");
   hud.classList.add("hidden");
   skyQ.classList.add("hidden");
+  RoundReview.show("📚 海岸防線本局學習回顧");
 }
 
 function spawnWinConfetti() {
@@ -1272,6 +1279,7 @@ function spawnBossWave() {
   const bossWordPool = game.qType === "en2pic" ? wordBank.filter(w => w.emoji) : wordBank;
   const targetWord = pick(bossWordPool);
   b.clue = targetWord;
+  RoundReview.begin({prompt:game.qType==="en2pic"?targetWord.word:targetWord.meaning,answer:targetWord.word,meaning:targetWord.meaning});
   const others = shuffle(bossWordPool.filter(w => w.word !== targetWord.word &&
     (game.qType !== "en2pic" || w.emoji !== targetWord.emoji)));
   const words = shuffle([targetWord, others[0], others[1], others[2]]);
@@ -1351,6 +1359,7 @@ function resolveBossImpact(x, y, fxX, fxY) {
   hit.sinking = 0.001;
 
   if (hit.isTarget) {
+    RoundReview.correct();
     b.hp--;
     game.score += 150;
     game.combo++;
@@ -1377,6 +1386,7 @@ function resolveBossImpact(x, y, fxX, fxY) {
       setTimeout(() => { if (game.boss && !game.boss.landed) { spawnBossWave(); game.fireLock = false; } }, 900);
     }
   } else {
+    RoundReview.wrong({chosen:hit.word.word});
     game.score = Math.max(0, game.score - 100);
     game.combo = 0;
     b.z -= 22;                 // 答錯：魔王逼近
@@ -1473,6 +1483,7 @@ function drawBoss(now) {
 
 function startGame(difficulty) {
   unlockSpeech();   // 真實按鈕點擊：解鎖 iOS 發音
+  RoundReview.reset();
   audio();
   startBgm();
   let diff = difficulty || game.difficulty || "hard";

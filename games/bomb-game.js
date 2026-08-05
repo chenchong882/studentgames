@@ -1949,6 +1949,7 @@ class Game {
 
   // ── Start ──────────────────────────────
   start(mode) {
+    RoundReview.reset();
     if (bombWordPool) buildLessonLevels();   // 每次開新局重洗，關卡單字組合都不同
     const allow = allowedBombModes();
     if (!allow.includes(mode)) mode = allow[0];   // 依題庫來源 clamp
@@ -2021,7 +2022,7 @@ class Game {
     if (!lv) {
       // 無限模式：打完題庫全部關卡就重洗接著玩，不再跳結算
       if (this.endless) { this._reshuffleRound(); return this._loadLevel(); }
-      this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); this._initVictoryConfetti(); return;
+      this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); this._initVictoryConfetti(); RoundReview.show('📚 炸彈英文本局學習回顧'); return;
     }
     this.wordsLeft = [...lv.words];
     this.solvedCount = 0;
@@ -2081,6 +2082,7 @@ class Game {
     const i = Math.floor(Math.random() * this.wordsLeft.length);
     this.targetWord = this.wordsLeft[i];
     this.qType = this._pickQType();
+    RoundReview.begin({prompt:this.qType==='cn2en'?chineseForWord(this.targetWord):this.targetWord,answer:this.targetWord,meaning:chineseForWord(this.targetWord)});
     this.wrongAtt = 0;
     this.qStartT = performance.now();   // 本題開始計時：答得越快速度分越高
     if (this.qType !== 'cn2en') {
@@ -2144,7 +2146,7 @@ class Game {
     this.plane.invincible = 110;
     this.plane.shake();
     Audio.hit();
-    if (this.lives <= 0) { this.phase = 'gameOver'; clearInterval(this._timerInterval); Audio.stopBgm(); }
+    if (this.lives <= 0) { this.phase = 'gameOver'; clearInterval(this._timerInterval); Audio.stopBgm(); RoundReview.show('📚 炸彈英文本局學習回顧'); }
   }
 
   // ── Float Text ─────────────────────────
@@ -2218,6 +2220,7 @@ class Game {
 
         if (h.word === this.targetWord) {
           // ✅ CORRECT
+          RoundReview.correct();
           h.destroyed = true;
           // 單題速度分：2 秒內答對 = 滿分 100，之後每秒 −12，最低 10
           const qSec = (performance.now() - this.qStartT) / 1000;
@@ -2242,6 +2245,7 @@ class Game {
           }
         } else {
           // ❌ WRONG
+          RoundReview.wrong({chosen:h.word});
           h.shaking = 2.5; h.wrongFlash = 40; h.wrongBubble = 60;
           Audio.wrong();
           this.wrongAtt++;
@@ -2254,6 +2258,7 @@ class Game {
           } else {
             this.timer += CFG.WRONG_PENALTY_S;
             this._float(h.x, h.y - 30, `+${CFG.WRONG_PENALTY_S}s ⏱`, '#FF5555', 20);
+            if(this.lives<=1)RoundReview.endQuestion();
             this._loseLife();
           }
 

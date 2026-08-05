@@ -626,6 +626,7 @@
         </div>
     </div>
 
+<script src="round-review.js"></script>
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
@@ -1080,6 +1081,7 @@
 
     function startGame() {
         if (pendingNextRoundTimer) clearTimeout(pendingNextRoundTimer);
+        RoundReview.reset();
         resetStats();
         gamePhase = "PLAYING";
         startBgm();
@@ -1121,6 +1123,7 @@
         if (window.speechSynthesis?.speaking || window.speechSynthesis?.pending) window.speechSynthesis.cancel();
         updateHud();
         updateControls();
+        RoundReview.show("📚 挖金礦本局學習回顧");
     }
 
     function finishGame() {
@@ -1137,6 +1140,7 @@
         if (window.speechSynthesis?.speaking || window.speechSynthesis?.pending) window.speechSynthesis.cancel();
         updateHud();
         updateControls();
+        RoundReview.show("📚 挖金礦本局學習回顧");
     }
 
     function addTime(seconds) {
@@ -1221,6 +1225,7 @@
         currentA = mode.a;
         const golds = buildRoundGolds(currentQ, currentA);
         targetWordObj = golds[Math.floor(Math.random() * golds.length)];
+        RoundReview.begin({prompt:questionText(targetWordObj,currentQ),answer:targetWordObj.word,meaning:targetWordObj.chinese});
         const slotCount = isCompactLayout() ? 9 : 13;
         const maxObs = Math.max(2, slotCount - golds.length - 1);
         const obsCount = Math.min(LEVELS[level - 1]?.obstacles || 4, maxObs);
@@ -1407,6 +1412,7 @@
             setMessage(`炸彈爆開了，扣 ${BOMB_PENALTY} 分`, "bad", 150);
             addSparkles(origin.x, origin.y + 58, "bad", 28);
         } else if (isCorrect) {
+            RoundReview.correct();
             correctCount += 1;
             score += CORRECT_POINTS + Math.min(streak * 3, 12);
             streak += 1;
@@ -1415,6 +1421,7 @@
             setMessage(`答對了！${displayAnswer(item)} 加分`, "good", 170);
             addSparkles(origin.x, origin.y + 58, "gold", 36);
         } else {
+            RoundReview.wrong({chosen:displayAnswer(item)});
             wrongCount += 1;
             streak = 0;
             setMessage(`你抓到的是 ${displayAnswer(item)}，答案是 ${displayAnswer(targetWordObj)}，扣 ${WRONG_TIME_PENALTY} 秒`, "bad", 210);

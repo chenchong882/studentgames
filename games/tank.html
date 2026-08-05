@@ -274,6 +274,7 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script src="round-review.js"></script>
 <script>
 'use strict';
 /* ============ 工具 ============ */
@@ -796,6 +797,7 @@ let aimYaw=0, aimPitch=0;
 let touchMove={x:0,y:0,mag:0,boost:false,active:false};
 
 function resetGame(){
+  RoundReview.reset();
   endRound();closeQuiz();
   wordQueue=[];missedList=[];lastRoundEntry=null;roundCD=8;
   for(const a of[dinos,pteros,ufos,mysts])for(const e of a)removeObj(e.g);
@@ -852,6 +854,7 @@ function gameOver(reason){
     ${missHtml}
     <div class="go">點擊滑鼠、輕觸螢幕 或 按 R 重新開始</div>`;
   ov.classList.remove('hidden');
+  RoundReview.show('📚 坦克本局學習回顧');
 }
 
 /* ============ 傷害 ============ */
@@ -1153,6 +1156,7 @@ function startRound(){
   const wrongs=otherWords(entry,picked.length-1,pool);
   const ci=(Math.random()*picked.length)|0;
   round={entry,t:modeCfg().roundT,items:[],rtype};
+  RoundReview.begin({prompt:rtype==='cn2en'?entry.zh:entry.en,answer:entry.en,meaning:entry.zh});
   picked.forEach((c,i)=>{
     const ent=i===ci?entry:wrongs.pop();
     // 樹上掛的牌：en2pic=emoji、en2cn=中文字牌、cn2en=英文字牌
@@ -1195,6 +1199,7 @@ function endRound(){
 }
 function roundSuccess(pos){
   if(!round)return;
+  RoundReview.correct({prompt:round.rtype==='cn2en'?round.entry.zh:round.entry.en,answer:round.entry.en,meaning:round.entry.zh});
   addScore(300,pos||tankG.position);
   tank.hp=Math.min(tank.maxHp,tank.hp+15);
   showBanner('✔ '+round.entry.en+'＝'+round.entry.zh);
@@ -1203,12 +1208,15 @@ function roundSuccess(pos){
 }
 function roundFail(){ // 時間到沒找到
   if(!round)return;
+  RoundReview.unanswered({prompt:round.rtype==='cn2en'?round.entry.zh:round.entry.en,answer:round.entry.en,meaning:round.entry.zh});
   showBanner('⌛ 時間到！答案是 '+round.entry.en+'（'+round.entry.zh+'）');
   tone('square',220,140,0.35,0.4);
   if(!missedList.includes(round.entry))missedList.push(round.entry);
   endRound();
 }
 function hitWrongSign(it,idx){ // 射中錯的字
+  RoundReview.wrong({prompt:round.rtype==='cn2en'?round.entry.zh:round.entry.en,answer:round.entry.en,meaning:round.entry.zh,chosen:it.word});
+  RoundReview.endQuestion();
   showBanner('✘ '+it.word+' 不對！恐龍狂暴了！');
   tone('square',220,140,0.35,0.4);
   if(!missedList.includes(round.entry))missedList.push(round.entry);
@@ -1221,6 +1229,7 @@ function openQuiz(){
   const opts=otherWords(entry,2).map(w=>w.en);
   opts.splice((Math.random()*3)|0,0,entry.en);
   quiz={entry,t:8,max:8};
+  RoundReview.begin({prompt:entry.zh,answer:entry.en,meaning:entry.zh});
   effects.slow=Math.max(effects.slow,4.5);
   mouse.down=false;
   const q=document.getElementById('quiz');
@@ -1239,7 +1248,9 @@ function openQuiz(){
 function closeQuiz(){
   quiz=null;document.getElementById('quiz').style.display='none';
 }
-function quizWrong(prefix){
+function quizWrong(prefix,chosen){
+  if(prefix.indexOf('⌛')>=0)RoundReview.unanswered();
+  else{RoundReview.wrong({chosen:chosen||''});RoundReview.endQuestion();}
   showBanner(prefix+'正確是 '+quiz.entry.en+'（'+quiz.entry.zh+'）恐龍狂暴了！');
   tone('square',220,140,0.35,0.4);
   if(!missedList.includes(quiz.entry))missedList.push(quiz.entry);
@@ -1249,11 +1260,12 @@ function quizWrong(prefix){
 function answerQuiz(o){
   if(!quiz)return;
   if(o===quiz.entry.en){
+    RoundReview.correct();
     sPow();
     const ev=EVENTS[(Math.random()*EVENTS.length)|0];
     showBanner('✔ '+quiz.entry.en+'＝'+quiz.entry.zh+'　'+ev.name);
     ev.fn();
-  }else quizWrong('✘ ');
+  }else quizWrong('✘ ',o);
   closeQuiz();
 }
 

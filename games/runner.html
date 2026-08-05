@@ -373,6 +373,7 @@
   </div>
 </div>
 
+<script src="round-review.js"></script>
 <script>
 'use strict';
 
@@ -978,6 +979,8 @@ function resolveObstacle(o){
   if (pass) {
     passed++;
     if (o.type === 'gate') {
+      const idx = DIRS.indexOf(o.answerDir);
+      RoundReview.correct({prompt:o.q.q,answer:DIR_ICON[o.answerDir]+' '+o.q.opts[idx]});
       gateNum++; gateCorrect++;
       combo++;
       let bonus = 0;
@@ -1018,6 +1021,9 @@ function crash(o){
     gateNum++;
     const idx = DIRS.indexOf(o.answerDir);
     const correctText = DIR_ICON[o.answerDir] + ' ' + o.q.opts[idx];
+    const chosenIdx = DIRS.indexOf(o.choice);
+    if(o.choice)RoundReview.wrong({prompt:o.q.q,answer:correctText,chosen:chosenIdx>=0?o.q.opts[chosenIdx]:o.choice});
+    else RoundReview.unanswered({prompt:o.q.q,answer:correctText});
     wrongAnswers.push({ q: o.q.q, correct: correctText });
     showToast('💥 正確答案：' + correctText, 1600);
     refreshHud();
@@ -1184,6 +1190,7 @@ window.addEventListener('blur', () => { if (slideHeld) endSlideHold(); });
 /* ================= 開始 / 結束 ================= */
 function startGame(){
   unlockSpeech();   // iOS：趁真實按鈕點擊解鎖語音
+  RoundReview.reset();
   obstacles.forEach(o => { stopGateSpeech(o); o.el.remove(); });
   obstacles = [];
   score = 0; lives = 3; combo = 0; passed = 0;
@@ -1229,6 +1236,7 @@ function gameOver(){
     });
   }
   $('overScreen').classList.remove('hidden');
+  RoundReview.show('📚 跑酷本局學習回顧');
 }
 
 $('startBtn').addEventListener('click', startGame);
