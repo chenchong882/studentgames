@@ -782,11 +782,11 @@ function allowedTankModes(){return ['simple','hard'];}
 // 簡單／一般維持足夠目標但空中威脅較低；困難的敵人數量與生成速度明顯提高
 const MODE_CFG={
   simple:{dinoCap:e=>Math.min(10,2+Math.floor(e/10)), spawnBase:5.2, spawnMin:2.2, spawnDecay:0.018,
-          ptero:e=>e>60?3:1, ufo:1, myst:true, roundT:22},
+          ptero:e=>e>60?3:1, ufo:1, myst:true, roundT:30},
   normal:{dinoCap:e=>Math.min(10,2+Math.floor(e/10)), spawnBase:5.2, spawnMin:2.2, spawnDecay:0.018,
-          ptero:e=>e>60?3:1, ufo:1, myst:true, roundT:22},
+          ptero:e=>e>60?3:1, ufo:1, myst:true, roundT:30},
   hard:{dinoCap:e=>Math.min(16,2+Math.floor(e/8)), spawnBase:5.0, spawnMin:1.4, spawnDecay:0.022,
-        ptero:e=>e>40?6:2, ufo:2, myst:true, roundT:20},
+        ptero:e=>e>40?6:2, ufo:2, myst:true, roundT:30},
 };
 function modeCfg(){return MODE_CFG[mode]||MODE_CFG.normal;}
 const raycaster=new THREE.Raycaster();
