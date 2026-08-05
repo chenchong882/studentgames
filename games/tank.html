@@ -148,8 +148,8 @@
     box-shadow:0 0 19px rgba(255,203,70,.8);color:#fff;}
   .skillBtn.ready .cd{display:none}.skillBtn.cooldown{background:#555;border-color:#aaa;filter:grayscale(1);}
   #lightBtn{pointer-events:auto;cursor:pointer;}#lightBtn:active.ready{transform:scale(.94)}
-  #dashZone{position:absolute;left:33px;top:-58px;width:84px;height:39px;border-radius:42px 42px 10px 10px;
-    display:none;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;
+  #dashZone{position:absolute;left:-26px;top:-26px;width:52px;height:52px;border-radius:50%;
+    display:none;align-items:center;justify-content:center;font-size:21px;font-weight:900;color:#fff;
     border:2px solid #888;background:rgba(55,58,64,.72);text-shadow:0 1px 3px #000;}
   #dashZone.show{display:flex}#dashZone.ready{border-color:#ffe69a;background:rgba(190,123,22,.72);box-shadow:0 0 12px #ffc94d;}
   #dashZone.cooldown{filter:grayscale(1);background:rgba(70,72,76,.82)}
@@ -217,7 +217,7 @@
 <div id="hint">W/S 前進後退 ・ W＋Shift 衝刺（解鎖後） ・ A/D 轉向 ・ 滑鼠瞄準 ・ 空格鍵／左鍵開砲 ・ Q 光速攻擊 ・ ESC 暫停</div>
 <div id="touchUI" class="hidden">
   <div id="moveStick">
-    <div id="dashZone">衝刺區</div>
+    <div id="dashZone" aria-label="把移動手指拖進左上角圓點即可衝刺">💨</div>
     <span class="ar au">▲</span><span class="ar ad">▼</span><span class="ar al">◀</span><span class="ar arr">▶</span>
     <div id="moveKnob"></div>
   </div>
@@ -267,7 +267,7 @@
     <div class="sec"><b>🎮 操作</b>　W/S 前進後退　・　A/D 轉向　・　<span class="hl">按住前進越久越快</span>（解鎖後 W＋Shift 衝刺）　・　滑鼠瞄準　・　空白鍵 / 左鍵 開砲　・　Q 光速攻擊　・　ESC 暫停</div>
     <div class="sec"><b>🎯 主線任務</b>　畫面上方出題（中文），到<span class="hl">發光的樹</span>上找出對應的<span class="hl">正確英文單字牌</span>，用砲彈射下來。射對加分又回血；射錯恐龍會狂暴！</div>
     <div class="sec"><b>🛸 神祕能量</b>　射擊空中的「?」方塊並答對英文題，隨機獲得強力獎勵。方塊出現時，題目下方會提示方向、距離與剩餘時間。</div>
-    <div class="sec"><b>⭐ 階段獎勵</b>　累積 1,000 分解鎖短距離衝刺；3,000 分讓一般開砲間隔降低 30%、晃動降低 50%；6,000 分解鎖光速攻擊。觸控時把方向桿往上拉進衝刺區即可衝刺。</div>
+    <div class="sec"><b>⭐ 階段獎勵</b>　累積 1,000 分解鎖短距離衝刺；3,000 分讓一般開砲間隔降低 30%、晃動降低 50%；6,000 分解鎖光速攻擊。觸控時把前進中的手指拖進搖桿左上角圓點即可衝刺。</div>
     <div class="sec"><b>💥 難度差異</b>　<span class="hl">簡單／一般</span>有適量敵人、砲彈下墜小；<span class="hl">困難</span>敵人更多、空中威脅更強，砲彈下墜也更明顯。</div>
     <div class="sec wn"><b>⚠️ 危險</b>　霸王龍與腕龍會把坦克一腳踩扁！被攻擊時螢幕邊緣會亮<span class="wn">紅色弧光</span>指出方向，右側也會即時播報敵人方位與距離。</div>
     <button id="guideBtn" class="uiBtn">✓ 我知道了</button>
@@ -1807,7 +1807,7 @@ function updProgressAndSkills(){
   setSkillVisual(elLightBtn,score>=STAGE_SCORE[2],lightCD,STAGE_SCORE[2],'光速攻擊');
   elLightBtn.disabled=score<STAGE_SCORE[2]||lightCD>0;
   elDashZone.className=score>=STAGE_SCORE[0]?'show '+(dashCD>0?'cooldown':'ready'):'';
-  elDashZone.textContent=dashCD>0?'衝刺 '+Math.ceil(dashCD)+'s':'衝刺區';
+  elDashZone.textContent=dashCD>0?Math.ceil(dashCD):'💨';
 }
 function updHUD(){
   elArmor.style.width=(clamp(tank.hp/tank.maxHp,0,1)*100)+'%';
@@ -2096,7 +2096,7 @@ const AIM_GX_COARSE=2.7, AIM_GY_COARSE=1.5;   // 空白滑動：左右大幅、�
 const AIM_FIRE_DEAD=14;                        // 按住開砲時的死區(px)：拇指在這範圍內微晃不算瞄準，避免準心慢慢漂走
 let moveId=null, aimId=null;            // 移動 / 砲管 觸點 id
 let moveCx=0, moveCy=0;                 // 方向盤浮動原點（按下處）
-let dashZoneEntered=false;              // 只在手指「進入」上方衝刺區時觸發一次
+let dashZoneEntered=false;              // 只在手指「進入」左上角衝刺圓點時觸發一次
 let aimLX=0,aimLY=0;                    // 砲管拖曳上一個觸點位置（用增量累積角度，可無限轉）
 let aimStartX=0,aimStartY=0;            // 砲管觸點按下處（給開砲鍵死區判斷用）
 let aimOnFire=false;                    // 此次砲管拖曳是否從開砲鍵起（用微調靈敏度）
@@ -2113,9 +2113,12 @@ function resetTouch(){
 }
 function applyStick(x,y){                // 依浮動原點換算方向
   let dx=x-moveCx, dy=y-moveCy; const rawX=dx,rawY=dy,len=Math.hypot(dx,dy);
-  const inDashZone=rawY<-94&&Math.abs(rawX)<50;        // 必須明確拉過圓盤上緣、進入視覺衝刺區
+  const inDashZone=score>=STAGE_SCORE[0]&&Math.hypot(rawX+75,rawY+75)<34; // 左上角圓點中心相對搖桿原點為 (-75,-75)
   if(inDashZone&&!dashZoneEntered)startDash();
   dashZoneEntered=inDashZone;
+  if(inDashZone){                                      // 圓點只負責觸發；衝刺沿用拖入前的移動方向
+    updMoveKnob(-75,-75);stickEl.classList.add('boost');return;
+  }
   if(len>STICK_R){dx*=STICK_R/len;dy*=STICK_R/len;}
   updMoveKnob(dx,dy);
   const nx=dx/STICK_R, ny=dy/STICK_R, mag=Math.min(1,len/STICK_R);
