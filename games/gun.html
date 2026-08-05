@@ -1408,11 +1408,11 @@ function breakSurpriseBox(item,hitPoint){
   if(zombieRoll){const zx=item.x+rnd(-.8,.8),zz=item.z+rnd(-.8,.8);if(blockedForZombie(zx,zz,.46))spawnZombie('normal');else makeZombie(zx,zz,'normal');}
   supplyAlertHoldT=4;supplyAlertEl.textContent=zombieRoll?('⚠️ 箱子裡跳出殭屍！獲得 '+reward):('🎁 驚喜箱開啟：'+reward);
 }
-function hitSurpriseBox(item,hitPoint){
+function hitSurpriseBox(item,hitPoint,melee=false){
   if(!item||item.taken)return;
   if(item.hitsLeft===null){const ranges=[[3,5],[5,10],[10,15]],range=ranges[weaponLevel];item.hitsLeft=Math.floor(rnd(range[0],range[1]+1));item.maxHits=item.hitsLeft;}
   item.hitsLeft--;sparks(hitPoint,0xc58a52,8);
-  if(item.hitsLeft<=0)breakSurpriseBox(item,hitPoint);else popAt(hitPoint,'木箱剩 '+item.hitsLeft+' 發','#ffe0a3');
+  if(item.hitsLeft<=0)breakSurpriseBox(item,hitPoint);else popAt(hitPoint,melee?('再敲 '+item.hitsLeft+' 下'):('木箱剩 '+item.hitsLeft+' 發'),'#ffe0a3');
 }
 function updateSupplyAlert(dt){
   const item=pickups.find(b=>b.type==='surprise'&&!b.taken);
@@ -1567,11 +1567,16 @@ ray.near=.05;ray.far=250;             // 槍模型已排除命中，貼近殭屍
 const RAY_C=new THREE.Vector2(0,0);
 function buttStrike(){
   fireCd=.65;meleeT=.35;tone(115,.08,.18,'square',72);
-  const fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw);let target=null,best=2.2;
+  const fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw);let target=null,box=null,best=2.2;
+  for(const item of pickups){
+    if(item.type!=='surprise'||item.taken)continue;const dx=item.x-player.x,dz=item.z-player.z,d=Math.hypot(dx,dz)||.001;
+    if(d<best&&(dx*fx+dz*fz)/d>.38){box=item;best=d;}
+  }
   for(const z of zombies){
     if(!z.userData.alive)continue;const dx=z.position.x-player.x,dz=z.position.z-player.z,d=Math.hypot(dx,dz)||.001;
-    if(d<best&&(dx*fx+dz*fz)/d>.38&&clearZombiePath(player.x,player.z,z.position.x,z.position.z,.06)){target=z;best=d;}
+    if(d<best&&(dx*fx+dz*fz)/d>.38&&clearZombiePath(player.x,player.z,z.position.x,z.position.z,.06)){target=z;box=null;best=d;}
   }
+  if(box){const p=new THREE.Vector3(box.x,.9,box.z);hitSurpriseBox(box,p,true);hitmarkShow();return;}
   if(!target)return;
   const p=target.position.clone().setY(target.userData.kind==='dog'?.75:1.45);
   if(target===boss&&target.userData.bossShield>0){
