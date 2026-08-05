@@ -269,7 +269,7 @@
         <h2>🧟 詳細玩法</h2>
         看題目找到正確單字的小屋，進屋防守 <b>10 秒</b>即可佔領。<br>
         殭屍不是答案；開槍與手榴彈只用來保護自己。<br>
-        簡單／一般模式可分段累積佔領時間；困難模式必須一次守滿 10 秒。<br><br>
+        簡單／一般模式離屋後會保留佔領進度；困難模式只要進屋啟動，離開後仍會持續累積到 10 秒。<br><br>
         👑 <b>BOSS</b>：護盾存在時先佔領正確小屋；破盾後射擊 BOSS。半血時會再次開盾。簡單需答對 3＋2 次，困難需答對 4＋3 次。<br><br>
         💻 <b>電腦</b>：WASD 移動、滑鼠瞄準、左鍵開槍、G 手榴彈、R 換彈、空白鍵跳躍。<br>
         📱 <b>手機／平板</b>：左搖桿移動、右側滑動瞄準，使用畫面按鈕攻擊。
@@ -1191,7 +1191,7 @@ function beginWave(){
       showObjective('👑 佔領正確小屋 4 次破盾 ・ 🏹 弓箭手 '+archers+' ・ 🐕 殭屍狗 '+dogs);
     }
   }else{
-    showObjective(gameMode==='hard'?'進入正確小屋，一次守滿 10 秒；離開就重算':'進入正確小屋守滿 10 秒；撤出後可回來接著守');
+    showObjective(gameMode==='hard'?'進入正確小屋啟動佔領；離屋後仍會持續累積':'進入正確小屋守滿 10 秒；撤出後可回來接著守');
     if(gameMode==='hard'){
       const hazards=[],archers=hardArcherCount(wave),dogs=hardDogCount(wave);
       if(archers){spawnHardArchers(archers);hazards.push('🏹 弓箭手 '+archers);}
@@ -1236,21 +1236,36 @@ function insideHouse(h){return player.y<1.4&&Math.abs(player.x-h.cx)<h.w/2-T/2&&
 function updateCapture(dt){
   if(!captureActive||roundTransition)return;
   const h=HOUSES.find(h=>h.active&&insideHouse(h))||null;
-  if(!h)questionT=Math.max(0,questionT-dt);
-  questionTimerEl.textContent=h?('倒數暫停（剩餘 '+Math.max(0,Math.ceil(questionT))+' 秒）'):('剩餘 '+Math.max(0,Math.ceil(questionT))+' 秒');
+  const hardCapturing=gameMode==='hard'&&captureHouse;
+  if(!h&&!hardCapturing)questionT=Math.max(0,questionT-dt);
+  questionTimerEl.textContent=(h||hardCapturing)?('倒數暫停（剩餘 '+Math.max(0,Math.ceil(questionT))+' 秒）'):('剩餘 '+Math.max(0,Math.ceil(questionT))+' 秒');
   if(captureCooldown>0){captureCooldown-=dt;captureTextEl.style.display='block';captureTextEl.textContent='重新洗牌中…';captureTrackEl.style.display='none';houseWordEl.style.display='none';return;}
+  if(gameMode==='hard'){
+    if(!captureHouse&&h){
+      captureHouse=h;captureT=h.captureT||0;
+      showObjective('已啟動 '+h.name+' 佔領；現在離開小屋也會繼續累積');
+    }
+    if(captureHouse){
+      captureT+=dt;captureHouse.captureT=captureT;const left=Math.max(0,CAPTURE_SECONDS-captureT),inside=h===captureHouse;
+      captureTextEl.style.display='block';captureTextEl.textContent=(inside?'佔領倒數 ':'離屋持續佔領 ')+left.toFixed(1)+' 秒';houseWordEl.textContent='佔領小屋：'+(captureHouse.answer&&captureHouse.answer.word?captureHouse.answer.word:'—');houseWordEl.style.display='block';captureTrackEl.style.display='block';captureFillEl.style.width=(Math.min(1,captureT/CAPTURE_SECONDS)*100)+'%';
+      if(captureT>=CAPTURE_SECONDS){const completed=captureHouse;captureActive=false;captureHudEl.style.display='none';completed.correct?onHouseCorrect(completed):onHouseWrong(completed);return;}
+    }else{
+      captureFillEl.style.width='0%';captureTrackEl.style.display='none';captureTextEl.style.display='none';houseWordEl.style.display='none';houseWordEl.textContent='';
+    }
+    if(questionT<=0){captureActive=false;onQuestionTimeout();}
+    return;
+  }
   if(h){
     if(captureHouse!==h){
-      captureHouse=h;captureT=gameMode==='hard'?0:(h.captureT||0);
-      showObjective(gameMode==='hard'?('留在 '+h.name+' 裡守滿 10 秒；離開會重新計時'):('留在 '+h.name+' 裡防守；離開後會保留這間的進度'));
+      captureHouse=h;captureT=h.captureT||0;
+      showObjective('留在 '+h.name+' 裡防守；離開後會保留這間的進度');
     }
     captureT+=dt;h.captureT=captureT;const left=Math.max(0,CAPTURE_SECONDS-captureT);
     captureTextEl.style.display='block';captureTextEl.textContent='佔領倒數 '+left.toFixed(1)+' 秒';houseWordEl.textContent='目前小屋：'+(h.answer&&h.answer.word?h.answer.word:'—');houseWordEl.style.display='block';captureTrackEl.style.display='block';captureFillEl.style.width=(Math.min(1,captureT/CAPTURE_SECONDS)*100)+'%';
     if(captureT>=CAPTURE_SECONDS){captureActive=false;captureHudEl.style.display='none';h.correct?onHouseCorrect(h):onHouseWrong(h);return;}
   }else{
-    if(captureHouse&&gameMode==='hard')captureHouse.captureT=0;
     captureHouse=null;captureT=0;
-    const saved=gameMode==='hard'?0:Math.max(0,...HOUSES.map(x=>x.captureT||0));
+    const saved=Math.max(0,...HOUSES.map(x=>x.captureT||0));
     captureFillEl.style.width=(saved/CAPTURE_SECONDS*100)+'%';captureTrackEl.style.display=saved>0?'block':'none';
     captureTextEl.style.display=saved>0?'block':'none';captureTextEl.textContent=saved>0?('已保留 '+saved.toFixed(1)+' 秒'):'';houseWordEl.style.display='none';houseWordEl.textContent='';
   }
