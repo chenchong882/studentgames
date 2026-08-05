@@ -918,6 +918,7 @@ function tankDamage(dm){
 }
 function crushTank(){
   if(!tank.alive)return;
+  if(tank.shield>0){tankDamage(0);return;}
   tank.flat=true;tank.alive=false;tank.hp=0;shake=2.2;
   tankG.scale.y=0.28;
   tankG.traverse(o=>{if(o.isMesh&&o.material.emissive)o.material.color.multiplyScalar(0.45);});
