@@ -161,7 +161,7 @@
   #jumpBtn{position:absolute;right:150px;bottom:52px;width:70px;height:70px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;
     background:rgba(80,160,255,.28);border:3px solid rgba(120,180,255,.7);text-shadow:0 1px 4px #000;}
-  #dashBtn{position:absolute;left:-26px;top:-26px;width:52px;height:52px;border-radius:50%;
+  #dashBtn{position:absolute;left:44px;top:-48px;width:52px;height:52px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:900;color:#fff;
     background:rgba(126,73,218,.42);border:3px solid rgba(197,163,255,.82);text-shadow:0 1px 4px #000;}
   #dashBtn.active{background:rgba(169,111,255,.78);box-shadow:0 0 18px rgba(190,145,255,.9);}
@@ -258,7 +258,7 @@
 <div id="banner">🏘️ 找到正確單字的小屋，在裡面守住 10 秒！殭屍只是生存威脅</div>
 <div id="hint">WASD 移動 ・ Shift 緊急衝刺 ・ 滑鼠環視 ・ 左鍵開槍 ・ V 重播單字 ・ G 手榴彈 ・ R 換彈匣 ・ 空白鍵跳躍 ・ ESC 暫停</div>
 <div id="touchUI" class="hidden">
-  <div id="moveStick"><div id="dashBtn" role="status" aria-label="把移動手指拖進左上角圓點即可衝刺">⚡</div><div id="moveKnob"></div></div>
+  <div id="moveStick"><div id="dashBtn" role="status" aria-label="把移動手指拖進正上方圓點即可衝刺">⚡</div><div id="moveKnob"></div></div>
   <button id="fireBtn" type="button">開槍</button>
   <button id="reloadBtn" type="button">裝子彈</button>
   <button id="grenadeBtn" type="button">手榴彈</button>
@@ -278,7 +278,7 @@
         簡單／一般模式離屋後會保留佔領進度；困難模式只要進屋啟動，離開後仍會持續累積到 10 秒。<br><br>
         👑 <b>BOSS</b>：護盾存在時先佔領正確小屋；破盾後射擊 BOSS。半血時會再次開盾。簡單需答對 3＋2 次，困難需答對 4＋3 次。<br><br>
         💻 <b>電腦</b>：WASD 移動、Shift 緊急衝刺、滑鼠瞄準、左鍵開槍、G 手榴彈、R 換彈、空白鍵跳躍。<br>
-        📱 <b>手機／平板</b>：左搖桿移動，把前進中的手指拖進搖桿左上角圓點即可衝刺；右側滑動瞄準，使用畫面按鈕攻擊。
+        📱 <b>手機／平板</b>：左搖桿移動，把前進中的手指拖進搖桿正上方圓點即可衝刺；右側滑動瞄準，使用畫面按鈕攻擊。
       </div>
     </details>
   </div>
@@ -1703,11 +1703,11 @@ addEventListener('touchcancel',releaseTouch);
 function updStick(t,allowDash){
   const r=stickEl.getBoundingClientRect();
   let dx=t.clientX-(r.left+70),dy=t.clientY-(r.top+70);
-  const inDashZone=allowDash&&Math.hypot(dx+70,dy+70)<32;
+  const inDashZone=allowDash&&Math.hypot(dx,dy+92)<32;
   if(inDashZone&&!dashZoneEntered)doDash();
   dashZoneEntered=inDashZone;
   stickEl.classList.toggle('dash-target',inDashZone);
-  if(inDashZone){knob.style.left='0px';knob.style.top='0px';return;} // 保留拖入前方向，避免角色朝左上斜衝
+  if(inDashZone){knob.style.left='70px';knob.style.top='-22px';return;} // 保留拖入前方向，圓點只負責觸發衝刺
   const len=Math.hypot(dx,dy),max=58;
   if(len>max){dx*=max/len;dy*=max/len;}
   stickVec={x:dx/max,y:dy/max};
