@@ -148,7 +148,7 @@
     box-shadow:0 0 19px rgba(255,203,70,.8);color:#fff;}
   .skillBtn.ready .cd{display:none}.skillBtn.cooldown{background:#555;border-color:#aaa;filter:grayscale(1);}
   #lightBtn{pointer-events:auto;cursor:pointer;}#lightBtn:active.ready{transform:scale(.94)}
-  #dashZone{position:absolute;left:33px;top:-43px;width:84px;height:39px;border-radius:42px 42px 10px 10px;
+  #dashZone{position:absolute;left:33px;top:-58px;width:84px;height:39px;border-radius:42px 42px 10px 10px;
     display:none;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;
     border:2px solid #888;background:rgba(55,58,64,.72);text-shadow:0 1px 3px #000;}
   #dashZone.show{display:flex}#dashZone.ready{border-color:#ffe69a;background:rgba(190,123,22,.72);box-shadow:0 0 12px #ffc94d;}
@@ -2083,6 +2083,7 @@ const AIM_GX_COARSE=2.7, AIM_GY_COARSE=1.5;   // 空白滑動：左右大幅、�
 const AIM_FIRE_DEAD=14;                        // 按住開砲時的死區(px)：拇指在這範圍內微晃不算瞄準，避免準心慢慢漂走
 let moveId=null, aimId=null;            // 移動 / 砲管 觸點 id
 let moveCx=0, moveCy=0;                 // 方向盤浮動原點（按下處）
+let dashZoneEntered=false;              // 只在手指「進入」上方衝刺區時觸發一次
 let aimLX=0,aimLY=0;                    // 砲管拖曳上一個觸點位置（用增量累積角度，可無限轉）
 let aimStartX=0,aimStartY=0;            // 砲管觸點按下處（給開砲鍵死區判斷用）
 let aimOnFire=false;                    // 此次砲管拖曳是否從開砲鍵起（用微調靈敏度）
@@ -2094,20 +2095,22 @@ function restStick(){stickEl.style.left='';stickEl.style.top='';}               
 function clearMoveKeys(){keys['KeyW']=keys['KeyS']=keys['KeyA']=keys['KeyD']=keys['ShiftLeft']=false;touchMove.active=false;}
 function updMoveKnob(dx,dy){knobEl.style.left=(75+dx)+'px';knobEl.style.top=(75+dy)+'px';}
 function resetTouch(){
-  moveId=aimId=null;aimOnFire=false;clearMoveKeys();mouse.down=false;
+  moveId=aimId=null;aimOnFire=false;dashZoneEntered=false;clearMoveKeys();mouse.down=false;
   updMoveKnob(0,0);restStick();stickEl.classList.remove('boost');fireEl.classList.remove('active');
 }
 function applyStick(x,y){                // 依浮動原點換算方向
   let dx=x-moveCx, dy=y-moveCy; const rawX=dx,rawY=dy,len=Math.hypot(dx,dy);
-  if(rawY<-74&&Math.abs(rawX)<50)startDash();          // 解鎖後把推桿往上拉出圓盤、進入衝刺區
+  const inDashZone=rawY<-94&&Math.abs(rawX)<50;        // 必須明確拉過圓盤上緣、進入視覺衝刺區
+  if(inDashZone&&!dashZoneEntered)startDash();
+  dashZoneEntered=inDashZone;
   if(len>STICK_R){dx*=STICK_R/len;dy*=STICK_R/len;}
   updMoveKnob(dx,dy);
   const nx=dx/STICK_R, ny=dy/STICK_R, mag=Math.min(1,len/STICK_R);
   // 相對鏡頭移動：搖桿向量直接交給 updTank（往哪推就往畫面那個方向開），車身自動轉過去
   const dead=mag<0.18;                                // 中心小死區，避免飄
   touchMove.x=nx;touchMove.y=ny;touchMove.mag=dead?0:mag;
-  touchMove.boost=mag>0.8;touchMove.active=!dead;
-  stickEl.classList.toggle('boost',touchMove.boost);
+  touchMove.boost=false;touchMove.active=!dead;        // 圓盤內只做一般行駛，不再因推到 80% 就瞬間頂速
+  stickEl.classList.toggle('boost',inDashZone);
 }
 function inRect(r,x,y,pad){return !!r&&x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad;}
 function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink,#allPicRow,#startTankBtn,#skillDock');}
@@ -2161,7 +2164,7 @@ addEventListener('touchmove',e=>{
 },{passive:false});
 function endTouch(e){
   for(const t of e.changedTouches){
-    if(t.identifier===moveId){moveId=null;clearMoveKeys();updMoveKnob(0,0);restStick();stickEl.classList.remove('boost');}
+    if(t.identifier===moveId){moveId=null;dashZoneEntered=false;clearMoveKeys();updMoveKnob(0,0);restStick();stickEl.classList.remove('boost');}
     else if(t.identifier===aimId){aimId=null;mouse.down=false;fireEl.classList.remove('active');}
   }
 }
