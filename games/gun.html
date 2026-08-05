@@ -1128,13 +1128,17 @@ function registerWrong(){
 }
 function questionWords(){const list=roundUsesPic?VOCAB.filter(w=>w.emoji):VOCAB;return list.length?list:VOCAB;}
 function wordKey(w){return w?String(w.word).trim().toLowerCase():'';}
+function answerKey(w){return roundUsesPic&&w&&w.emoji?'pic:'+w.emoji:'word:'+wordKey(w);}
 function assignHouseAnswers(){
-  const words=questionWords(),others=words.filter(w=>wordKey(w)!==wordKey(targetWord)),pool=HOUSES.slice(),active=[];
-  while(pool.length&&active.length<(gameMode==='simple'?4:HOUSES.length))active.push(pool.splice((rnd(pool.length))|0,1)[0]);
+  const words=questionWords(),targetKey=answerKey(targetWord),seen=new Set([targetKey]),others=[];
+  for(const w of words){const key=answerKey(w);if(!seen.has(key)){seen.add(key);others.push(w);}}
+  for(let i=others.length-1;i>0;i--){const j=(rnd(i+1))|0,t=others[i];others[i]=others[j];others[j]=t;}
+  const pool=HOUSES.slice(),active=[],activeCount=Math.min(gameMode==='simple'?4:HOUSES.length,others.length+1);
+  while(pool.length&&active.length<activeCount)active.push(pool.splice((rnd(pool.length))|0,1)[0]);
   const correctIndex=(rnd(active.length))|0;
   for(const h of HOUSES){
     const i=active.indexOf(h);h.active=i>=0;h.correct=h.active&&(!others.length||i===correctIndex);
-    h.answer=!h.active?null:(h.correct?targetWord:others[(i+(rnd(others.length||1)|0))%(others.length||1)]);
+    h.answer=!h.active?null:(h.correct?targetWord:others[i<correctIndex?i:i-1]);
     h.captureT=0;
     if(h.active)setHouseLabel(h,labelForWord(h.answer),roundUsesPic);else clearHouseLabel(h);
   }
