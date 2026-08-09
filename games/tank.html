@@ -96,6 +96,15 @@
   #allPicRow button{min-height:44px;padding:8px 12px;font:inherit;font-size:13px;font-weight:700;color:#fff;background:#2c3242;border:2px solid rgba(255,216,120,.4);border-radius:9px;cursor:pointer;}
   #allPicRow button.on{color:#2a2030;background:#ffd878;border-color:#ffd878;}
   #modeHint{margin-top:8px;font-size:13px;color:rgba(255,255,255,.6);}
+  #advancedSettings{width:min(370px,82vw);margin-top:12px;padding:0 12px;border:1px solid rgba(255,216,120,.28);
+    border-radius:10px;background:rgba(18,22,30,.56);box-sizing:border-box;text-align:left;}
+  #advancedSettings summary{padding:9px 0;color:rgba(255,255,255,.78);font-size:13px;font-weight:700;
+    text-align:center;cursor:pointer;touch-action:manipulation;}
+  #advancedSettings[open] summary{border-bottom:1px solid rgba(255,255,255,.12);}
+  .advancedOption{display:flex;align-items:flex-start;gap:10px;padding:10px 2px 11px;cursor:pointer;touch-action:manipulation;}
+  .advancedOption input{flex:0 0 auto;width:20px;height:20px;margin:1px 0 0;accent-color:#ffd878;}
+  .advancedOption b{display:block;color:#ffe9a8;font-size:14px;}.advancedOption small{display:block;margin-top:3px;
+    color:rgba(255,255,255,.62);font-size:11px;line-height:1.4;}
   #guide{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
     background:rgba(6,9,16,.84);z-index:12;}
   #guide .card{max-width:660px;width:88%;background:rgba(20,24,32,.97);
@@ -245,6 +254,10 @@
     <button class="modeBtn" data-mode="hard">🔥 困難</button>
   </div>
   <div id="modeHint"></div>
+  <details id="advancedSettings">
+    <summary>⚙️ 進階設定</summary>
+    <label class="advancedOption"><input id="floatingStickInput" type="checkbox"><span><b>浮動方向鍵</b><small>開啟後，方向鍵會移到左半邊手指按下的位置。</small></span></label>
+  </details>
   <button class="go" id="startTankBtn" type="button">開始遊戲</button>
   <button class="uiBtn game-menu-return" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
 </div>
@@ -779,6 +792,7 @@ function shellGrav(){return mode==='hard'?SHELL_GRAV.hard:SHELL_GRAV.easy;}
 let mode=(()=>{try{return localStorage.getItem('tankMode')||'normal'}catch(e){return 'normal'}})();
 let hasEmoji=false;   // 有圖題庫＝注入題庫帶 emoji 的字 ≥ 4
 let allPic=(()=>{try{return localStorage.getItem('sgAllPic')==='1'}catch(e){return false}})();
+let floatingStick=(()=>{try{return localStorage.getItem('tankFloatingStick')==='1'}catch(e){return false}})();
 function isSimple(){return mode==='simple';}
 // 兩種來源都只顯示簡單／困難；只有內建來源會出圖片題。
 function allowedTankModes(){return ['simple','hard'];}
@@ -2039,6 +2053,12 @@ document.querySelectorAll('.modeBtn').forEach(b=>{
   document.getElementById('allPicOnly').addEventListener('click',()=>setAllPic(true));
 })();
 document.getElementById('startTankBtn').addEventListener('click',()=>{ensureAudio();startGame();});
+const floatingStickInput=document.getElementById('floatingStickInput');
+floatingStickInput.checked=floatingStick;
+floatingStickInput.addEventListener('change',()=>{
+  floatingStick=floatingStickInput.checked;
+  try{localStorage.setItem('tankFloatingStick',floatingStick?'1':'0');}catch(e){}
+});
 setMode(mode);refreshModeUI();
 /* ====== 題目上的喇叭：真實 <button> click → iOS 才唸得出來 ====== */
 (function(){
@@ -2088,7 +2108,7 @@ addEventListener('mousedown',e=>{
   mouse.down=true;
 });
 addEventListener('mouseup',()=>mouse.down=false);
-/* ====== 觸控操控（平板 / 手機）：左半動態方向盤(車體移動/轉向) + 右半轉砲管(開砲鍵按住開砲＋微調、空白處滑動大幅快轉) ====== */
+/* ====== 觸控操控（平板 / 手機）：左側固定方向盤（可選浮動）+ 右半轉砲管(開砲鍵按住開砲＋微調、空白處滑動大幅快轉) ====== */
 const IS_TOUCH = matchMedia('(pointer:coarse)').matches || ('ontouchstart' in window);
 const stickEl=document.getElementById('moveStick'), knobEl=document.getElementById('moveKnob');
 const fireEl=document.getElementById('fireBtn');
@@ -2105,8 +2125,8 @@ let aimLX=0,aimLY=0;                    // 砲管拖曳上一個觸點位置（�
 let aimStartX=0,aimStartY=0;            // 砲管觸點按下處（給開砲鍵死區判斷用）
 let aimOnFire=false;                    // 此次砲管拖曳是否從開砲鍵起（用微調靈敏度）
 const AIM_YAW_PP=0.0016, AIM_PITCH_PP=0.0016;  // 每像素轉多少弧度（再乘下面 gx/gy 靈敏度）
-let fireRect=null;                      // 開砲鍵範圍（快取）
-function refreshTouchRects(){fireRect=fireEl.getBoundingClientRect();}
+let moveRect=null,fireRect=null;        // 固定方向盤／開砲鍵範圍（快取）
+function refreshTouchRects(){moveRect=stickEl.getBoundingClientRect();fireRect=fireEl.getBoundingClientRect();}
 function placeStick(cx,cy){stickEl.style.left=(cx-75)+'px';stickEl.style.top=(cy-75)+'px';} // 圓心移到手指處
 function restStick(){stickEl.style.left='';stickEl.style.top='';}                            // 還原 CSS 左下原位
 function clearMoveKeys(){keys['KeyW']=keys['KeyS']=keys['KeyA']=keys['KeyD']=keys['ShiftLeft']=false;touchMove.active=false;}
@@ -2137,7 +2157,7 @@ function applyStick(x,y){                // 依浮動原點換算方向
   stickEl.classList.remove('boost');
 }
 function inRect(r,x,y,pad){return !!r&&x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad;}
-function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink,#allPicRow,#startTankBtn,#skillDock');}
+function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink,#allPicRow,#advancedSettings,#startTankBtn,#skillDock');}
 addEventListener('touchstart',e=>{
   ensureAudio();
   if(state==='menu'||state==='over'){ // 選單 / 結束畫面：輕觸開始（互動元件除外）
@@ -2151,13 +2171,20 @@ addEventListener('touchstart',e=>{
   let acted=false;
   for(const t of e.changedTouches){
     if(isUIEl(document.elementFromPoint(t.clientX,t.clientY)))continue; // 暫停鈕 / 答題鈕走自己事件
-    if(t.clientX<innerWidth*0.5){                                       // 左半 → 移動（動態方向盤，圓心浮現在手指處）
+    if(t.clientX<innerWidth*0.5){                                       // 左半 → 固定方向盤；開啟進階設定後可從任意位置起手
       if(moveId!==null)continue;
+      if(!floatingStick&&!inRect(moveRect,t.clientX,t.clientY,14))continue;
       moveId=t.identifier;moveStartX=t.clientX;moveStartY=t.clientY;
-      moveCx=clamp(t.clientX,80,innerWidth*0.5);
-      moveCy=clamp(t.clientY,80,innerHeight-80);
+      if(floatingStick){
+        moveCx=clamp(t.clientX,80,innerWidth*0.5);
+        moveCy=clamp(t.clientY,80,innerHeight-80);
+        placeStick(moveCx,moveCy);updMoveKnob(0,0);clearMoveKeys();
+      }else{
+        moveCx=moveRect.left+moveRect.width*0.5;moveCy=moveRect.top+moveRect.height*0.5;
+        restStick();clearMoveKeys();applyStick(t.clientX,t.clientY);
+      }
       dashZoneEntered=inDashZone(t.clientX,t.clientY); // 從衝刺區起手不算滑入，避免輕碰邊界就誤觸
-      placeStick(moveCx,moveCy);updMoveKnob(0,0);clearMoveKeys();acted=true;
+      acted=true;
     }else{                                                             // 右半 → 滑動轉砲管；開砲鍵上＝按住開砲＋微調，空白處＝大幅快轉
       if(aimId!==null)continue;
       aimId=t.identifier;
