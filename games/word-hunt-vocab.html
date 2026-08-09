@@ -17,6 +17,7 @@
         .topbar-actions { display:flex; gap:8px; }
         .topbar-actions button { min-height:42px; padding:0 13px; border-radius:12px; font-size:15px; white-space:nowrap; }
         .topbar-actions [hidden] { display:none; }
+        .topbar-actions button:disabled { cursor:not-allowed; opacity:.5; filter:grayscale(.35); transform:none; }
         h1 { margin:0; font-size:clamp(25px, 5vw, 36px); letter-spacing:.03em; }
         .subtitle { margin:4px 0 0; color:#68708d; font-size:14px; font-weight:700; }
         .source-badge { display:inline-block; margin-left:5px; padding:3px 7px; border-radius:999px; color:#5148a9; background:#e9e7ff; font-size:11px; vertical-align:1px; }
@@ -26,15 +27,15 @@
         .card { padding:clamp(16px, 3vw, 26px); border:1px solid rgba(255,255,255,.9); border-radius:24px; background:rgba(255,255,255,.78); box-shadow:0 14px 38px rgba(77, 72, 127, .14); }
         .instruction { margin:0 0 16px; color:#5b647f; font-weight:700; text-align:center; }
         .word-list { display:flex; justify-content:center; gap:9px; flex-wrap:wrap; margin-bottom:20px; }
-        button.word-card { min-width:105px; min-height:0; padding:9px 12px; border:2px solid #e4e5f7; border-radius:14px; color:#414b70; text-align:center; background:#fff; box-shadow:0 3px 8px rgba(70, 57, 141, .12); font:900 16px/1 Arial, "Noto Sans TC", sans-serif; transition:opacity .2s, transform .2s, background .2s, border-color .2s; touch-action:manipulation; }
+        button.word-card { min-width:105px; min-height:44px; padding:9px 12px; border:2px solid #e4e5f7; border-radius:14px; color:#414b70; text-align:center; background:#fff; box-shadow:0 3px 8px rgba(70, 57, 141, .12); font:900 16px/1 Arial, "Noto Sans TC", sans-serif; transition:opacity .2s, transform .2s, background .2s, border-color .2s; touch-action:manipulation; }
         button.word-card:hover { border-color:#aaa4e8; background:#f8f7ff; filter:none; transform:translateY(-1px); }
         button.word-card:active { box-shadow:0 1px 4px rgba(70, 57, 141, .15); }
         button.word-card:focus-visible { outline:3px solid rgba(113,101,217,.35); outline-offset:3px; }
         .word-card .icon { margin-right:5px; font-size:20px; vertical-align:-2px; }
         .word-card .speaker { margin-left:6px; font-size:14px; opacity:.7; }
         .word-card.speaking { border-color:#8176df; color:#5048aa; background:#efedff; transform:translateY(-2px); }
+        .word-card.selected { border-color:#f6a83b; color:#8a5600; background:#fff4d9; box-shadow:0 0 0 3px rgba(246,168,59,.2); }
         .word-card.found { border-color:#8addae; color:#20784b; text-decoration:line-through; background:#e6f8ee; opacity:.82; transform:scale(.97); }
-        .word-card.hint { border-color:#f6a83b; background:#fff4d9; animation:hintPulse .7s ease-in-out infinite alternate; }
         .grid-wrap { position:relative; width:min(100%, 620px); margin:0 auto; border:8px solid #f0effa; border-radius:18px; background:#f0effa; touch-action:none; }
         .grid { position:relative; display:grid; grid-template-columns:repeat(9, 1fr); overflow:hidden; border-radius:11px; background:#fff; touch-action:none; }
         .ribbons { position:absolute; z-index:1; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
@@ -43,7 +44,7 @@
         .cell { position:relative; z-index:2; display:grid; min-width:0; aspect-ratio:1; place-items:center; color:#263052; font-size:clamp(17px, 5.6vw, 31px); font-weight:900; line-height:1; cursor:crosshair; -webkit-tap-highlight-color:transparent; }
         .cell.wrong { color:#b93745; animation:wrong .34s ease 2; }
         .cell.correct { color:#08783d; animation:correctCell .52s ease; }
-        .cell.hint { color:#9b5b00; background:#fff0c8; animation:hintPulse .7s ease-in-out infinite alternate; }
+        .cell.hint { animation:hintFlash 2.4s ease-in-out; }
         .grid.locked .cell { pointer-events:none; }
         .feedback { min-height:24px; margin:16px 0 0; color:#64708c; font-weight:800; text-align:center; }
         .feedback.good { color:#36855d; }
@@ -68,7 +69,8 @@
         @keyframes correctCell { 45% { color:#fff; text-shadow:0 0 8px #168e4f; transform:scale(1.2); } }
         @keyframes feedbackPop { 45% { transform:scale(1.08); } }
         @keyframes successBurst { 0% { opacity:0; transform:translate(-50%, -35%) scale(.55); } 32% { opacity:1; transform:translate(-50%, -50%) scale(1.08); } 75% { opacity:1; transform:translate(-50%, -54%) scale(1); } 100% { opacity:0; transform:translate(-50%, -78%) scale(.92); } }
-        @keyframes hintPulse { from { box-shadow:0 0 0 0 rgba(246,168,59,.7); } to { box-shadow:0 0 0 8px rgba(246,168,59,0); } }
+        @keyframes hintFlash { 0%, 26%, 52%, 78%, 100% { color:#263052; background:transparent; box-shadow:none; transform:scale(1); } 13%, 39%, 65% { color:#8a4b00; background:#ffd66b; box-shadow:0 0 0 6px rgba(246,168,59,.32); transform:scale(1.14); } }
+        @media (prefers-reduced-motion:reduce) { .cell.hint { color:#8a4b00; background:#ffd66b; box-shadow:0 0 0 4px rgba(246,168,59,.32); animation:none; } }
         @media (max-width:520px) { body { background:#f7f7ff; } .shell { padding:15px 10px 24px; } .topbar { align-items:flex-start; } .stat { min-width:82px; padding:7px 9px; } .word-card { min-width:92px; padding:8px 10px; font-size:14px; } .card { padding:15px 10px; border-radius:18px; } .grid-wrap { border-width:5px; } }
     </style>
     <link rel="stylesheet" href="game-menu-ui.css">
@@ -81,7 +83,7 @@
                 <p class="subtitle">拖曳字母，找出所有英文單字！<span class="source-badge" id="sourceBadge">系統內建單字</span></p>
             </div>
             <div class="topbar-actions">
-                <button type="button" id="hintButton" hidden>💡 提示</button>
+                <button type="button" id="hintButton" hidden>💡 提示（3）</button>
                 <button type="button" id="pauseButton" hidden>⏸ 暫停</button>
             </div>
             <div class="stat"><span class="stat-label" id="levelLabel">關卡</span><span class="stat-value" id="levelValue">1 / 3</span></div>
@@ -89,7 +91,7 @@
         </header>
 
         <section class="card">
-            <p class="instruction">點上方單字可聽發音；從第一個字母拖到最後一個字母，橫、直、斜線都可以！</p>
+            <p class="instruction">點上方單字可聽發音並選定提示目標；從第一個字母拖到最後一個字母，橫、直、斜線都可以！</p>
             <div class="word-list" id="wordList" aria-label="本關單字"></div>
             <div class="grid-wrap" id="gridWrap">
                 <svg class="ribbons" id="ribbons" aria-hidden="true"></svg>
@@ -102,7 +104,7 @@
     <div class="overlay" id="overlay">
         <section class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
             <h2 id="dialogTitle">單字獵人</h2>
-            <div class="game-intro-line" style="color:#475569"><span id="dialogText">拖出藏在字母格裡的單字！</span><details class="game-info" id="wordHuntInfo"><summary aria-label="查看詳細玩法">!</summary><div class="game-info-panel"><h2>🔎 詳細玩法</h2>從第一個字母拖到最後一個字母，橫、直、斜線都可以。<br>點上方單字可以聽英文發音。<br>共有 <b>3 關</b>，每關都會重新計時。<br>第 1 關：2 分鐘內 3 顆星、4 分鐘內 2 顆星<br>第 2 關：3 分鐘內 3 顆星、5 分鐘內 2 顆星<br>第 3 關：4 分鐘內 3 顆星、6 分鐘內 2 顆星</div></details></div>
+            <div class="game-intro-line" style="color:#475569"><span id="dialogText">拖出藏在字母格裡的單字！</span><details class="game-info" id="wordHuntInfo"><summary aria-label="查看詳細玩法">!</summary><div class="game-info-panel"><h2>🔎 詳細玩法</h2>從第一個字母拖到最後一個字母，橫、直、斜線都可以。<br>點上方單字可以聽英文發音並選定提示目標；3 關合計可提示 3 次。<br>共有 <b>3 關</b>，每關都會重新計時。<br>第 1 關：2 分鐘內 3 顆星、4 分鐘內 2 顆星<br>第 2 關：3 分鐘內 3 顆星、5 分鐘內 2 顆星<br>第 3 關：4 分鐘內 3 顆星、6 分鐘內 2 顆星</div></details></div>
             <div class="stars" id="dialogStars" hidden></div>
             <div class="result-list" id="resultList" hidden></div>
             <div class="total" id="totalStars" hidden></div>
@@ -120,6 +122,18 @@
             <div class="dialog-actions game-pause-actions">
                 <button type="button" id="resumeButton">▶ 繼續遊戲</button>
                 <button type="button" class="secondary" id="pauseMenuButton">← 返回遊戲選單</button>
+            </div>
+        </section>
+    </div>
+
+    <div class="overlay" id="hintOverlay" hidden>
+        <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="hintTitle">
+            <h2 id="hintTitle">💡 確定要提示嗎？</h2>
+            <p>要顯示 <strong id="hintWord"></strong> 前 2 個字母的位置嗎？</p>
+            <p id="hintConfirmText"></p>
+            <div class="dialog-actions">
+                <button type="button" id="confirmHintButton">確定提示</button>
+                <button type="button" class="secondary" id="cancelHintButton">先不要</button>
             </div>
         </section>
     </div>
@@ -155,6 +169,7 @@
         ];
 
         const GRID_SIZE = 9;
+        const MAX_HINTS = 3;
         const DIRECTIONS = [{ x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }, { x: -1, y: 1 }, { x: -1, y: 0 }, { x: -1, y: -1 }, { x: 0, y: -1 }, { x: 1, y: -1 }];
         const RIBBON_COLORS = ['#f6a83b', '#76b6f3', '#8bcf75', '#d98ada', '#f47e8b', '#5bc8bd'];
         const CORRECT_COLOR = '#32bd72';
@@ -175,13 +190,19 @@
         const dialogButton = document.getElementById('dialogButton');
         const menuButton = document.getElementById('menuButton');
         const pauseOverlay = document.getElementById('pauseOverlay');
+        const hintOverlay = document.getElementById('hintOverlay');
         const pauseButton = document.getElementById('pauseButton');
         const hintButton = document.getElementById('hintButton');
+        const hintWord = document.getElementById('hintWord');
+        const hintConfirmText = document.getElementById('hintConfirmText');
+        const confirmHintButton = document.getElementById('confirmHintButton');
+        const cancelHintButton = document.getElementById('cancelHintButton');
         const resumeButton = document.getElementById('resumeButton');
         const pauseMenuButton = document.getElementById('pauseMenuButton');
         const sourceBadge = document.getElementById('sourceBadge');
 
         let gameLevels = LEVELS;
+        let wordPool = LEVELS.flatMap((level) => level.words);
         let wordSource = 'builtin';
         let levelIndex = 0;
         let placements = [];
@@ -195,6 +216,8 @@
         let activeSelection = null;
         let paused = false;
         let hintTimeoutId = null;
+        let hintsRemaining = MAX_HINTS;
+        let selectedHintWord = null;
         const speech = 'speechSynthesis' in window ? window.speechSynthesis : null;
         let englishVoice = null;
         let activeUtterance = null;
@@ -270,8 +293,9 @@
                 card.type = 'button';
                 card.className = 'word-card';
                 card.dataset.word = item.word;
-                card.setAttribute('aria-label', `播放 ${item.word} 的英文發音`);
-                card.title = `點一下聽 ${item.word} 的發音`;
+                card.setAttribute('aria-label', `播放 ${item.word} 的英文發音並選定提示目標`);
+                card.setAttribute('aria-pressed', 'false');
+                card.title = `點一下聽 ${item.word} 的發音並選定提示目標`;
                 if (item.icon) {
                     const icon = document.createElement('span');
                     icon.className = 'icon';
@@ -285,7 +309,19 @@
                 speaker.setAttribute('aria-hidden', 'true');
                 speaker.textContent = '🔊';
                 card.append(speaker);
-                card.addEventListener('click', () => speakWord(item.word, card));
+                card.addEventListener('click', () => {
+                    if (!foundWords.has(item.word)) {
+                        selectedHintWord = item.word;
+                        wordList.querySelectorAll('.word-card.selected').forEach((itemCard) => {
+                            itemCard.classList.remove('selected');
+                            itemCard.setAttribute('aria-pressed', 'false');
+                        });
+                        card.classList.add('selected');
+                        card.setAttribute('aria-pressed', 'true');
+                        setFeedback(`已選擇 ${item.word}，需要幫忙時按提示。`);
+                    }
+                    speakWord(item.word, card);
+                });
                 wordList.append(card);
             });
         }
@@ -405,7 +441,11 @@
 
         function markFound(placement) {
             foundWords.add(placement.word);
-            document.querySelector(`.word-card[data-word="${placement.word}"]`).classList.add('found');
+            const foundCard = document.querySelector(`.word-card[data-word="${placement.word}"]`);
+            foundCard.classList.add('found');
+            foundCard.classList.remove('selected');
+            foundCard.setAttribute('aria-pressed', 'false');
+            if (selectedHintWord === placement.word) selectedHintWord = null;
             const from = cellCenter(startCell.row, startCell.col);
             const to = cellCenter(activeSelection.row, activeSelection.col);
             activeLine.setAttribute('stroke', CORRECT_COLOR);
@@ -497,21 +537,60 @@
 
         function clearHint() {
             window.clearTimeout(hintTimeoutId);
+            hintTimeoutId = null;
             grid.querySelectorAll('.cell.hint').forEach((cell) => cell.classList.remove('hint'));
-            wordList.querySelectorAll('.word-card.hint').forEach((card) => card.classList.remove('hint'));
         }
 
-        function showHint() {
+        function updateHintButton() {
+            hintButton.textContent = `💡 提示（${hintsRemaining}）`;
+            hintButton.disabled = hintsRemaining === 0;
+        }
+
+        function requestHint() {
             if (paused || timerId === null) return;
-            const placement = placements.find((item) => !foundWords.has(item.word));
-            if (!placement) return;
+            if (hintsRemaining === 0) {
+                setFeedback('這次遊戲的 3 次提示已經用完了。', 'bad');
+                return;
+            }
+            if (!selectedHintWord) {
+                setFeedback('請先點一下想要提示的單字，再按提示。', 'bad');
+                return;
+            }
+            const placement = placements.find((item) => item.word === selectedHintWord && !foundWords.has(item.word));
+            if (!placement) {
+                selectedHintWord = null;
+                setFeedback('這個單字已經找到了，請選另一個單字。', 'bad');
+                return;
+            }
+            hintWord.textContent = placement.word;
+            hintConfirmText.textContent = `確認後會使用 1 次提示，目前剩下 ${hintsRemaining} 次。`;
+            hintOverlay.hidden = false;
+            confirmHintButton.focus();
+        }
+
+        function confirmHint() {
+            const placement = placements.find((item) => item.word === selectedHintWord && !foundWords.has(item.word));
+            hintOverlay.hidden = true;
+            hintButton.focus();
+            if (!placement || hintsRemaining === 0 || paused || timerId === null) return;
+            hintsRemaining -= 1;
+            updateHintButton();
             clearHint();
-            const firstCell = grid.querySelector(`[data-row="${placement.start.row}"][data-col="${placement.start.col}"]`);
-            const wordCard = wordList.querySelector(`[data-word="${placement.word}"]`);
-            firstCell?.classList.add('hint');
-            wordCard?.classList.add('hint');
-            setFeedback(`提示：先從 ${placement.word} 的第一個字母開始找！`);
-            hintTimeoutId = window.setTimeout(clearHint, 3000);
+            const rowStep = Math.sign(placement.end.row - placement.start.row);
+            const colStep = Math.sign(placement.end.col - placement.start.col);
+            [0, 1].forEach((index) => {
+                const row = placement.start.row + rowStep * index;
+                const col = placement.start.col + colStep * index;
+                grid.querySelector(`[data-row="${row}"][data-col="${col}"]`)?.classList.add('hint');
+            });
+            setFeedback(`提示：${placement.word} 的前 2 個字母正在亮起！（剩 ${hintsRemaining} 次）`);
+            hintTimeoutId = window.setTimeout(clearHint, 2500);
+        }
+
+        function cancelHint() {
+            hintOverlay.hidden = true;
+            hintButton.focus();
+            setFeedback(`已取消提示，仍剩下 ${hintsRemaining} 次。`);
         }
 
         function pauseGame() {
@@ -536,13 +615,17 @@
             levelIndex = index;
             paused = false;
             pauseOverlay.hidden = true;
+            hintOverlay.hidden = true;
             foundWords = new Set();
+            selectedHintWord = null;
+            clearHint();
             levelValue.textContent = `${index + 1} / ${gameLevels.length}`;
             renderWords();
             renderBoard();
             grid.classList.remove('locked');
             pauseButton.hidden = false;
             hintButton.hidden = false;
+            updateHintButton();
             setFeedback(`第 ${index + 1} 關開始，找出所有單字！`);
             hideOverlay();
             startTimer(true);
@@ -551,6 +634,7 @@
         function finishLevel() {
             stopTimer();
             clearHint();
+            hintOverlay.hidden = true;
             grid.classList.add('locked');
             const stars = starsFor(seconds, levelIndex);
             results[levelIndex] = { seconds, stars };
@@ -577,24 +661,24 @@
             totalStars.textContent = `總共獲得 ${total} / ${gameLevels.length * 3} 顆星`;
             totalStars.hidden = false;
             dialogButton.textContent = '重新開始整個遊戲';
-            dialogButton.onclick = () => {
-                results = [];
-                beginLevel(0);
-            };
+            dialogButton.onclick = startNewRun;
         }
 
         function normalizeWordHuntVocab(data) {
             if (!data || !Array.isArray(data.words)) return [];
             const seen = new Set();
             return data.words.map((item) => {
-                const rawWord = String(item?.word || item?.en || '').trim().toUpperCase();
-                const word = rawWord.replace(/[^A-Z]/g, '');
+                const word = String(item?.word || item?.en || '').trim().toUpperCase();
                 return { word, icon: String(item?.icon || item?.emoji || '') };
-            }).filter((item) => item.word.length >= 2 && item.word.length <= GRID_SIZE && !seen.has(item.word) && seen.add(item.word));
+            }).filter((item) => /^[A-Z]+$/.test(item.word) && item.word.length >= 2 && item.word.length <= GRID_SIZE && !seen.has(item.word) && seen.add(item.word));
         }
 
         function buildLevelsFromWords(words) {
-            const pool = words.slice().sort(() => Math.random() - .5);
+            const pool = words.slice();
+            for (let index = pool.length - 1; index > 0; index -= 1) {
+                const swapIndex = Math.floor(Math.random() * (index + 1));
+                [pool[index], pool[swapIndex]] = [pool[swapIndex], pool[index]];
+            }
             let cursor = 0;
             return [3, 4, 5].map((wanted) => {
                 const count = Math.min(wanted, pool.length);
@@ -608,6 +692,14 @@
             });
         }
 
+        function startNewRun() {
+            gameLevels = buildLevelsFromWords(wordPool);
+            results = [];
+            hintsRemaining = MAX_HINTS;
+            selectedHintWord = null;
+            beginLevel(0);
+        }
+
         function applyWordHuntData(data) {
             const words = normalizeWordHuntVocab(data);
             if (!words.length) return false;
@@ -616,17 +708,22 @@
             onPointerCancel();
             paused = false;
             pauseOverlay.hidden = true;
+            hintOverlay.hidden = true;
             gridWrap.querySelector('.success-burst')?.remove();
-            gameLevels = buildLevelsFromWords(words);
+            wordPool = words;
+            gameLevels = buildLevelsFromWords(wordPool);
             wordSource = data.builtin === true ? 'builtin' : 'custom';
             sourceBadge.textContent = wordSource === 'builtin' ? '系統內建單字' : '自訂／段考單字';
             results = [];
+            hintsRemaining = MAX_HINTS;
+            selectedHintWord = null;
             levelIndex = 0;
             levelValue.textContent = `1 / ${gameLevels.length}`;
             timer.textContent = '0 秒';
             grid.classList.add('locked');
             pauseButton.hidden = true;
             hintButton.hidden = true;
+            updateHintButton();
             dialogTitle.textContent = '單字獵人';
             dialogText.textContent = `找出這次的 ${words.length} 個單字！`;
             wordHuntInfo.hidden = false;
@@ -634,7 +731,7 @@
             resultList.hidden = true;
             totalStars.hidden = true;
             dialogButton.textContent = '開始遊戲';
-            dialogButton.onclick = () => beginLevel(0);
+            dialogButton.onclick = startNewRun;
             overlay.hidden = false;
             return true;
         }
@@ -651,7 +748,9 @@
         grid.addEventListener('pointerup', onPointerEnd);
         grid.addEventListener('pointercancel', onPointerCancel);
         pauseButton.addEventListener('click', pauseGame);
-        hintButton.addEventListener('click', showHint);
+        hintButton.addEventListener('click', requestHint);
+        confirmHintButton.addEventListener('click', confirmHint);
+        cancelHintButton.addEventListener('click', cancelHint);
         resumeButton.addEventListener('click', resumeGame);
         menuButton.addEventListener('click', returnToMenu);
         pauseMenuButton.addEventListener('click', returnToMenu);
@@ -680,7 +779,7 @@
             cacheEnglishVoice();
             speech.addEventListener('voiceschanged', cacheEnglishVoice);
         }
-        dialogButton.onclick = () => beginLevel(0);
+        dialogButton.onclick = startNewRun;
         applyWordHuntData(readHashData());
     </script>
 </body>
