@@ -102,7 +102,7 @@
     <div class="overlay" id="overlay">
         <section class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
             <h2 id="dialogTitle">單字獵人</h2>
-            <div class="game-intro-line" style="color:#475569"><span id="dialogText">拖出藏在字母格裡的單字！</span><details class="game-info" id="wordHuntInfo"><summary aria-label="查看詳細玩法">!</summary><div class="game-info-panel"><h2>🔎 詳細玩法</h2>從第一個字母拖到最後一個字母，橫、直、斜線都可以。<br>點上方單字可以聽英文發音。<br>共有 <b>3 關</b>，每關都會重新計時；找得越快，得到的星星越多。</div></details></div>
+            <div class="game-intro-line" style="color:#475569"><span id="dialogText">拖出藏在字母格裡的單字！</span><details class="game-info" id="wordHuntInfo"><summary aria-label="查看詳細玩法">!</summary><div class="game-info-panel"><h2>🔎 詳細玩法</h2>從第一個字母拖到最後一個字母，橫、直、斜線都可以。<br>點上方單字可以聽英文發音。<br>共有 <b>3 關</b>，每關都會重新計時。<br>第 1 關：2 分鐘內 3 顆星、4 分鐘內 2 顆星<br>第 2 關：3 分鐘內 3 顆星、5 分鐘內 2 顆星<br>第 3 關：4 分鐘內 3 顆星、6 分鐘內 2 顆星</div></details></div>
             <div class="stars" id="dialogStars" hidden></div>
             <div class="result-list" id="resultList" hidden></div>
             <div class="total" id="totalStars" hidden></div>
@@ -149,9 +149,9 @@
 
         // 每關 [三星門檻秒數, 二星門檻秒數]；超過二星門檻給一星。
         const STAR_THRESHOLDS = [
-            [20, 40],
-            [30, 60],
-            [45, 90]
+            [120, 240],
+            [180, 300],
+            [240, 360]
         ];
 
         const GRID_SIZE = 9;
