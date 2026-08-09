@@ -53,7 +53,7 @@
             gap: 12px;
         }
 
-        /* 狀態列：關卡 / 分數 / 連擊（倒數移到遊戲畫面內） */
+        /* 狀態列：關卡 / 時間 / 分數 / 連擊 */
         .stat-row {
             display: flex;
             gap: 8px;
@@ -109,6 +109,11 @@
 
         .score-value {
             color: var(--gold);
+        }
+
+        .time-stat {
+            border: 2px solid var(--gold);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 16px rgba(255, 213, 74, 0.32), 0 10px 18px rgba(0, 0, 0, 0.22);
         }
 
         button {
@@ -543,6 +548,10 @@
                     <span class="stat-label">關卡</span>
                     <span class="stat-value" id="level">1 / 6</span>
                 </div>
+                <div class="panel stat time-stat">
+                    <span class="stat-label">時間</span>
+                    <span class="stat-value" id="time-left">3:00</span>
+                </div>
                 <div class="panel stat">
                     <span class="stat-label">分數</span>
                     <span class="stat-value score-value" id="score">0</span>
@@ -598,7 +607,7 @@
             <span id="miner-progress-label"></span>
         </div>
     </div>
-    <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"><span id="status"></span><span id="time-left">3:00</span></div>
+    <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"><span id="status"></span></div>
 
     <div id="miner-pause" class="mOverlay hidden">
         <div class="mCard">
@@ -1473,40 +1482,9 @@
         drawItems();
         drawHookSystem();
         drawParticles();
-        drawTimer();
         renderToast();
         syncCartSpeechButton();
         requestAnimationFrame(loop);
-    }
-
-    /* 畫面內倒數：放在右上、軌道下方，避免擋住移動中的礦車題目。 */
-    function drawTimer() {
-        if (gamePhase !== "PLAYING") return;
-
-        const warning = timeLeft <= 30;
-        const urgent = timeLeft <= 10;
-        const pulse = urgent ? 0.9 + Math.sin(Date.now() / 110) * 0.1 : 1;
-        const w = 154;
-        const h = 58;
-        const x = canvas.width - w - 28;
-        const y = 120;
-
-        ctx.save();
-        ctx.globalAlpha = pulse;
-        roundRect(x, y, w, h, 14);
-        ctx.fillStyle = urgent ? "rgba(80, 12, 12, 0.94)" : "rgba(18, 13, 10, 0.9)";
-        ctx.fill();
-        ctx.strokeStyle = urgent ? "#ff5b4f" : warning ? "#ffad42" : "#ffd54a";
-        ctx.lineWidth = 4;
-        ctx.stroke();
-        ctx.shadowColor = urgent ? "rgba(255, 54, 54, 0.72)" : "rgba(0, 0, 0, 0.62)";
-        ctx.shadowBlur = urgent ? 18 : 10;
-        ctx.fillStyle = urgent ? "#fff2ee" : warning ? "#ffe0a3" : "#fff7dc";
-        ctx.font = '900 30px Arial, "Noto Sans TC", sans-serif';
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(`⏱ ${formatTime(timeLeft)}`, x + w / 2, y + h / 2 + 1);
-        ctx.restore();
     }
 
     function drawBackground() {
