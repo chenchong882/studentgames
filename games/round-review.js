@@ -34,15 +34,14 @@
       .sg-review-backdrop{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:max(18px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));background:rgba(3,8,20,.88);backdrop-filter:blur(8px);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#f8fafc;overscroll-behavior:contain}
       .sg-review-card{width:min(720px,96vw);max-height:min(92vh,850px);max-height:min(92dvh,850px);overflow:auto;border:2px solid rgba(255,255,255,.2);border-radius:24px;background:linear-gradient(160deg,#172554,#0f172a 48%,#111827);box-shadow:0 25px 80px rgba(0,0,0,.65),0 0 45px rgba(59,130,246,.2);padding:clamp(18px,4vw,30px)}
       .sg-review-card h2{margin:0;text-align:center;font-size:clamp(25px,5.5vw,40px);line-height:1.15;color:#fff}.sg-review-lead{text-align:center;color:#cbd5e1;margin:8px 0 16px;font-weight:750}
-      .sg-review-rating{border:2px solid rgba(250,204,21,.42);border-radius:20px;padding:15px 12px;background:rgba(120,53,15,.22);text-align:center}.sg-review-rating-label{font-weight:900;color:#fde68a}.sg-review-stars{display:flex;justify-content:center;align-items:center;gap:clamp(5px,2vw,12px);margin:7px 0 5px;font-size:clamp(34px,9vw,54px);line-height:1}.sg-review-star{color:#475569;text-shadow:none}.sg-review-star.on{color:#facc15;text-shadow:0 0 15px rgba(250,204,21,.72)}.sg-review-rating-text{font-weight:900;color:#fff}
-      .sg-review-learning{display:flex;align-items:center;justify-content:center;gap:10px;margin:12px auto 0;padding:9px 14px;width:max-content;max-width:100%;border:2px dashed #64748b;border-radius:999px;color:#cbd5e1;font-weight:900;transition:.25s ease}.sg-review-learning-star{font-size:27px;filter:grayscale(1);opacity:.55}.sg-review-learning.earned{border-style:solid;border-color:#a78bfa;background:rgba(88,28,135,.34);color:#ede9fe;box-shadow:0 0 22px rgba(167,139,250,.28)}.sg-review-learning.earned .sg-review-learning-star{filter:none;opacity:1;animation:sgStarBurst .4s cubic-bezier(.2,1.55,.4,1)}
+      .sg-review-rating{border:2px solid rgba(250,204,21,.42);border-radius:20px;padding:15px 12px;background:rgba(120,53,15,.22);text-align:center}.sg-review-rating-label{font-weight:900;color:#fde68a}.sg-review-stars{display:flex;justify-content:center;align-items:center;gap:clamp(5px,2vw,12px);margin:7px 0 5px;font-size:clamp(32px,8.5vw,52px);line-height:1}.sg-review-star{color:#475569;text-shadow:none}.sg-review-star.on{color:#facc15;text-shadow:0 0 15px rgba(250,204,21,.72)}.sg-review-star.learning{position:relative;margin-right:clamp(7px,2vw,13px);color:#9a3412;text-shadow:0 0 10px rgba(251,146,60,.14)}.sg-review-star.learning:after{content:"";position:absolute;top:5%;right:calc(clamp(7px,2vw,13px) * -1);width:2px;height:90%;border-radius:2px;background:rgba(255,255,255,.2)}.sg-review-star.learning.earned{color:#fb923c;text-shadow:0 0 18px rgba(251,146,60,.95);animation:sgStarBurst .4s cubic-bezier(.2,1.55,.4,1)}.sg-review-rating-text{font-weight:900;color:#fff}.sg-review-rating-text .learning-state{color:#fdba74}
       .sg-review-progress{text-align:center;margin:18px 0 10px;font-weight:900;color:#e2e8f0}.sg-review-progress b{color:#fde047}.sg-review-deck{position:relative;width:min(360px,88vw);height:220px;margin:0 auto;perspective:1000px;transition:transform .38s ease-in,opacity .38s ease-in}.sg-review-deck:before,.sg-review-deck:after{content:"";position:absolute;inset:7px -7px -7px 7px;border-radius:20px;background:#334155;border:2px solid rgba(255,255,255,.18);z-index:-1}.sg-review-deck:after{inset:14px -14px -14px 14px;background:#1e293b;z-index:-2}
       .sg-review-flip{display:block;width:100%;height:100%;padding:0;border:0;border-radius:20px;background:transparent;color:inherit;font:inherit;cursor:pointer;touch-action:manipulation;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;transition:transform .4s cubic-bezier(.2,.75,.25,1),filter .1s ease;box-shadow:0 16px 42px rgba(0,0,0,.42)}.sg-review-flip:active{filter:brightness(.9)}.sg-review-flip:focus-visible{outline:4px solid #67e8f9;outline-offset:5px}.sg-review-flip.flipped{transform:rotateY(180deg);-webkit-transform:rotateY(180deg)}
       .sg-review-face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;border-radius:20px;backface-visibility:hidden;-webkit-backface-visibility:hidden;border:3px solid}.sg-review-front{background:linear-gradient(145deg,#1d4ed8,#312e81);border-color:#93c5fd}.sg-review-back{transform:rotateY(180deg);-webkit-transform:rotateY(180deg);background:linear-gradient(145deg,#065f46,#064e3b);border-color:#6ee7b7}.sg-review-kicker{font-size:14px;font-weight:900;letter-spacing:.04em;color:#bfdbfe}.sg-review-back .sg-review-kicker{color:#a7f3d0}.sg-review-word{max-width:100%;margin:12px 0;font-size:clamp(28px,8vw,46px);line-height:1.05;font-weight:950;overflow-wrap:anywhere;color:#fff}.sg-review-meaning{font-size:clamp(22px,6vw,34px);line-height:1.15;font-weight:950;color:#fff;overflow-wrap:anywhere}.sg-review-hint{font-size:15px;font-weight:850;color:#dbeafe}.sg-review-confirmed{margin-top:12px;color:#a7f3d0;font-weight:900}
-      .sg-review-deck.collecting{transform:translateY(-170px) scale(.15) rotate(15deg);opacity:0}.sg-review-perfect{margin:18px 0 0;padding:18px;border:2px solid #22c55e;border-radius:18px;text-align:center;background:rgba(20,83,45,.38);font-size:clamp(18px,4vw,23px);font-weight:900;color:#bbf7d0}.sg-review-total{text-align:center;margin:13px 0 0;color:#fde68a;font-weight:900}.sg-review-action{display:block;width:min(390px,100%);min-height:52px;margin:18px auto 0;padding:13px 20px;border:0;border-radius:999px;background:linear-gradient(#fde047,#f59e0b);color:#422006;font:900 18px system-ui;cursor:pointer;box-shadow:0 8px 24px rgba(245,158,11,.28);touch-action:manipulation;transition:filter .1s ease}.sg-review-action:active{filter:brightness(.9)}.sg-review-action:disabled{cursor:wait;filter:saturate(.65);opacity:.8}.sg-review-action:focus-visible{outline:4px solid #67e8f9;outline-offset:4px}
+      .sg-review-deck.collecting{transform:scale(.15) rotate(15deg);opacity:0}.sg-review-flying-star{position:fixed;z-index:100002;left:0;top:0;color:#fb923c;font-size:52px;line-height:1;pointer-events:none;text-shadow:0 0 20px rgba(251,146,60,.95);transform:translate(-50%,-50%) scale(.55) rotate(-25deg);transition:transform .4s ease-in}.sg-review-flying-star.go{transform:translate(calc(-50% + var(--sg-fly-x)),calc(-50% + var(--sg-fly-y))) scale(1) rotate(0)}.sg-review-perfect{margin:18px 0 0;padding:18px;border:2px solid #22c55e;border-radius:18px;text-align:center;background:rgba(20,83,45,.38);font-size:clamp(18px,4vw,23px);font-weight:900;color:#bbf7d0}.sg-review-total{text-align:center;margin:13px 0 0;color:#fde68a;font-weight:900}.sg-review-action{display:block;width:min(390px,100%);min-height:52px;margin:18px auto 0;padding:13px 20px;border:0;border-radius:999px;background:linear-gradient(#fde047,#f59e0b);color:#422006;font:900 18px system-ui;cursor:pointer;box-shadow:0 8px 24px rgba(245,158,11,.28);touch-action:manipulation;transition:filter .1s ease}.sg-review-action:active{filter:brightness(.9)}.sg-review-action:disabled{cursor:wait;filter:saturate(.65);opacity:.8}.sg-review-action:focus-visible{outline:4px solid #67e8f9;outline-offset:4px}
       @keyframes sgStarBurst{0%{transform:scale(0) rotate(-40deg)}70%{transform:scale(1.35) rotate(8deg)}100%{transform:scale(1) rotate(0)}}
-      @media(max-width:520px){.sg-review-backdrop{padding:max(7px,env(safe-area-inset-top)) max(7px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left))}.sg-review-card{max-height:96vh;max-height:96dvh;border-radius:18px;padding:15px 11px}.sg-review-deck{height:205px}.sg-review-stars{gap:3px}.sg-review-rating{padding:12px 8px}}
-      @media(prefers-reduced-motion:reduce){.sg-review-flip,.sg-review-deck,.sg-review-learning{transition:none}.sg-review-learning.earned .sg-review-learning-star{animation:none}.sg-review-deck.collecting{display:none}}
+      @media(max-width:520px){.sg-review-backdrop{padding:max(7px,env(safe-area-inset-top)) max(7px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left))}.sg-review-card{max-height:96vh;max-height:96dvh;border-radius:18px;padding:15px 11px}.sg-review-deck{height:205px}.sg-review-stars{gap:2px}.sg-review-rating{padding:12px 6px}}
+      @media(prefers-reduced-motion:reduce){.sg-review-flip,.sg-review-deck{transition:none}.sg-review-star.learning.earned{animation:none}.sg-review-deck.collecting,.sg-review-flying-star{display:none}}
     `;document.head.appendChild(style);
   }
   function add(status,item,keepActive){
@@ -51,10 +50,11 @@
     records.push(rec);
     if(!keepActive)active=null;
   }
-  function makeStars(count){
-    const box=document.createElement('div');box.className='sg-review-stars';box.setAttribute('aria-label','本局評分 '+count+' 顆星，滿分 5 顆');
+  function makeStars(count,learned){
+    const box=document.createElement('div');box.className='sg-review-stars';box.setAttribute('aria-label',(learned?'學習星已收集。':'學習星尚未收集。')+'本局評分 '+count+' 顆星，滿分 5 顆');
+    const learning=document.createElement('span');learning.className='sg-review-star learning'+(learned?' earned':'');learning.textContent=learned?'★':'☆';learning.setAttribute('aria-hidden','true');box.appendChild(learning);
     for(let i=0;i<5;i++){const star=document.createElement('span');star.className='sg-review-star'+(i<count?' on':'');star.textContent='★';star.setAttribute('aria-hidden','true');box.appendChild(star);}
-    return box;
+    return {box,learning};
   }
   function cardData(item){
     const rec=item.rec;
@@ -72,14 +72,11 @@
     const h=document.createElement('h2');h.id='sg-review-title';h.textContent=title||'本局學習結算';card.appendChild(h);
     const lead=document.createElement('p');lead.className='sg-review-lead';lead.textContent='先看看本局評分，再把學習星一起收下！';card.appendChild(lead);
     const rating=document.createElement('section');rating.className='sg-review-rating';
-    const ratingLabel=document.createElement('div');ratingLabel.className='sg-review-rating-label';ratingLabel.textContent='本局評分';rating.appendChild(ratingLabel);rating.appendChild(makeStars(stars));
-    const ratingText=document.createElement('div');ratingText.className='sg-review-rating-text';ratingText.textContent=stars+' / 5 顆星';rating.appendChild(ratingText);card.appendChild(rating);
-    const learning=document.createElement('div');learning.className='sg-review-learning';
-    const learningStar=document.createElement('span');learningStar.className='sg-review-learning-star';learningStar.textContent='🌟';learningStar.setAttribute('aria-hidden','true');learning.appendChild(learningStar);
-    const learningText=document.createElement('span');learningText.textContent=cards.length?'學習星尚未收集':'全對學習星已收集';learning.appendChild(learningText);card.appendChild(learning);
+    const ratingLabel=document.createElement('div');ratingLabel.className='sg-review-rating-label';ratingLabel.textContent='本局收集到的星星';rating.appendChild(ratingLabel);
+    const starDisplay=makeStars(stars,!cards.length);rating.appendChild(starDisplay.box);
+    const ratingText=document.createElement('div');ratingText.className='sg-review-rating-text';ratingText.innerHTML='<span class="learning-state">'+(cards.length?'橘色學習星尚未收集':'橘色全對學習星已收集')+'</span>　｜　本局評分 '+stars+' / 5';rating.appendChild(ratingText);card.appendChild(rating);
     const total=document.createElement('p');total.className='sg-review-total';total.setAttribute('aria-live','polite');total.textContent='目前收集 '+(stars+(cards.length?0:1))+' 顆星';card.appendChild(total);
     if(!cards.length){
-      learning.classList.add('earned');
       const perfect=document.createElement('div');perfect.className='sg-review-perfect';perfect.textContent=info.items.length?'🎉 這局沒有答錯或漏答，直接獲得全對學習星！':'這局結束前沒有出現單字題，學習星直接收下！';card.appendChild(perfect);
       const done=document.createElement('button');done.type='button';done.className='sg-review-action';done.textContent='收下學習星，查看成績';done.onclick=()=>modal.remove();card.appendChild(done);
       document.body.appendChild(modal);done.focus();return;
@@ -112,9 +109,15 @@
     };
     action.onclick=()=>{
       if(index<cards.length-1){index++;renderCard();flip.focus();return;}
-      action.disabled=true;action.textContent='正在收集單字卡…';deck.classList.add('collecting');
+      action.disabled=true;action.textContent='正在收集單字卡…';
+      const deckRect=deck.getBoundingClientRect(),starRect=starDisplay.learning.getBoundingClientRect();
+      const flying=document.createElement('span');flying.className='sg-review-flying-star';flying.textContent='★';flying.setAttribute('aria-hidden','true');
+      flying.style.left=(deckRect.left+deckRect.width/2)+'px';flying.style.top=(deckRect.top+deckRect.height/2)+'px';
+      flying.style.setProperty('--sg-fly-x',(starRect.left+starRect.width/2-deckRect.left-deckRect.width/2)+'px');flying.style.setProperty('--sg-fly-y',(starRect.top+starRect.height/2-deckRect.top-deckRect.height/2)+'px');document.body.appendChild(flying);
+      deck.classList.add('collecting');
+      requestAnimationFrame(()=>flying.classList.add('go'));
       window.setTimeout(()=>{
-        learning.classList.add('earned');learningText.textContent='學習星已收集';total.textContent='本局共收集 '+(stars+1)+' 顆星';progress.textContent='✅ '+cards.length+' 張單字卡已全部收下！';
+        flying.remove();starDisplay.learning.classList.add('earned');starDisplay.learning.textContent='★';starDisplay.box.setAttribute('aria-label','學習星已收集。本局評分 '+stars+' 顆星，滿分 5 顆');ratingText.innerHTML='<span class="learning-state">橘色學習星已收集</span>　｜　本局評分 '+stars+' / 5';total.textContent='本局共收集 '+(stars+1)+' 顆星';progress.textContent='✅ '+cards.length+' 張單字卡已全部收下！';
         action.disabled=false;action.textContent='看完成績，繼續';action.onclick=()=>modal.remove();action.focus();
       },window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:400);
     };
