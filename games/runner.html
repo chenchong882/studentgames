@@ -45,16 +45,19 @@
     position:absolute; width:1500px; height:3700px;
     left:-750px; top:-3300px;
     transform:rotateX(90deg); transform-origin:50% 3300px;
-    background:var(--ground);
+    /* 草地、路肩與道路畫在同一張平面，避免 Safari 將重疊的 3D 子平面合成出透明缺口。 */
+    background:linear-gradient(90deg,
+      var(--ground) 0 560px,
+      var(--dash) 560px 568px,
+      var(--road) 568px 932px,
+      var(--dash) 932px 940px,
+      var(--ground) 940px 100%);
   }
   #roadTop {
-    position:absolute; left:560px; width:380px; top:0; bottom:0;
-    background:var(--road);
-    border-left:8px solid var(--dash); border-right:8px solid var(--dash);
-    transform:translateZ(1px);
+    position:absolute; left:568px; width:364px; top:0; bottom:0;
   }
   /* 虛線捲動改用 transform（合成器搬移，不重繪）：多留一個 130px 週期在頂端供位移循環。
-     道路與虛線各沿路面法線抬高 1px，避免地面、道路、虛線彼此共面造成 z-fighting（閃爍／破圖） */
+     虛線沿路面法線抬高 1px，避免和單一地面平面共面造成 z-fighting（閃爍／破圖）。 */
   .dash {
     position:absolute; top:-130px; bottom:0; width:7px;
     background-image:repeating-linear-gradient(180deg, var(--dash) 0 50px, transparent 50px 130px);
@@ -62,7 +65,7 @@
   }
   .dash.d1 { left:120px; } .dash.d2 { left:246px; }
 
-  .face { position:absolute; }
+  .face { position:absolute; backface-visibility:hidden; -webkit-backface-visibility:hidden; }
   .part { position:absolute; }
   .cube { position:absolute; left:0; top:0; }
 
@@ -75,11 +78,11 @@
   }
   #char.slide { animation:slide3d .72s ease-in-out; }
   @keyframes slide3d {
-    0%{transform:rotateX(0);} 22%{transform:rotateX(-68deg) translateY(-4px);}
-    78%{transform:rotateX(-68deg) translateY(-4px);} 100%{transform:rotateX(0);}
+    0%{transform:scale(1);} 22%{transform:scale(1.12,.52);}
+    78%{transform:scale(1.12,.52);} 100%{transform:scale(1);}
   }
-  /* 持續滑行：按住期間維持低姿勢（無動畫），鬆開時平滑站起 */
-  #char.slideHold { transform:rotateX(-68deg) translateY(-4px); transition:transform .15s ease-out; }
+  /* 持續滑行：低姿勢不用 rotateX，避免 iOS Safari 將角色與路面交疊時畫出綠色殘影。 */
+  #char.slideHold { transform:scale(1.12,.52); transition:transform .15s ease-out; }
   #char.crashed { animation:crash3d .8s ease-out forwards; }
   @keyframes crash3d {
     25%{transform:rotateX(-40deg) translateZ(20px);}
@@ -202,27 +205,6 @@
     pointer-events:none;
   }
 
-  /* 手機／平板固定方向鍵：只有按到按鈕才會觸發，不再整張畫面都能滑動操作 */
-  #dirPad {
-    position:absolute; left:18px; bottom:calc(env(safe-area-inset-bottom, 0px) + 34px); z-index:22;
-    width:150px; height:150px; display:none;
-    grid-template:repeat(3, 50px) / repeat(3, 50px);
-    pointer-events:none;
-  }
-  .dirBtn {
-    width:48px; height:48px; align-self:center; justify-self:center;
-    border:2px solid rgba(255,255,255,.65); border-radius:13px;
-    background:rgba(19,31,48,.58); color:#fff;
-    box-shadow:0 3px 10px rgba(0,0,0,.3); text-shadow:0 1px 3px #000;
-    font:900 24px/1 inherit; pointer-events:auto; touch-action:none;
-  }
-  .dirBtn:active,.dirBtn.active { background:rgba(58,123,213,.9); transform:scale(.92); }
-  #dirUp { grid-column:2; grid-row:1; }
-  #dirLeft { grid-column:1; grid-row:2; }
-  #dirRight { grid-column:3; grid-row:2; }
-  #dirDown { grid-column:2; grid-row:3; }
-  @media (pointer:coarse) { #dirPad { display:grid; } }
-
   /* ===== 開始 / 結束畫面 ===== */
   .screen {
     position:absolute; inset:0; z-index:50;
@@ -332,13 +314,7 @@
     <div class="qrow"><span class="qopt" id="qDown"></span></div>
   </div>
 
-  <div id="dirPad" aria-label="方向控制">
-    <button class="dirBtn" id="dirUp" type="button" data-dir="up" aria-label="跳躍">▲</button>
-    <button class="dirBtn" id="dirLeft" type="button" data-dir="left" aria-label="往左換道">◀</button>
-    <button class="dirBtn" id="dirRight" type="button" data-dir="right" aria-label="往右換道">▶</button>
-    <button class="dirBtn" id="dirDown" type="button" data-dir="down" aria-label="滑鏟">▼</button>
-  </div>
-  <div id="hintBar">方向鍵：上跳．下滑．左右換道</div>
+  <div id="hintBar">👆 上滑跳．下滑鏟．左右換道</div>
   <div id="flash"></div>
   <div id="toast"></div>
 
@@ -389,11 +365,11 @@
   <div class="screen hidden" id="guideScreen">
     <h1>🏃 如何遊玩</h1>
     <div class="rules">
-      ⬆️ 上鍵 / ↑：跳躍（跳過矮牆，每次跳一下）<br>
-      ⬇️ 下鍵 / ↓：滑鏟（鑽過橫樑）<b>按住下鍵、↓ 或 S 可持續滑行</b><br>
-      ⬅️ ➡️ / ← →：左右換道（閃開路障）<br>
+      ⬆️ 上滑 / ↑ / W：跳躍（跳過矮牆，每次跳一下）<br>
+      ⬇️ 下滑 / ↓ / S：滑鏟（鑽過橫樑）<b>按住 ↓ 或 S 可持續滑行</b><br>
+      ⬅️ ➡️ 左右滑 / ← → / A D：左右換道（閃開路障）<br>
       <br>
-      🎯 遇到「單字門」會<b>反覆唸出單字</b>並出題；聽懂後按<b>正確答案的方向鍵</b>（上／下／左／右）就能通過。<br>
+      🎯 遇到「單字門」會<b>反覆唸出單字</b>並出題；聽懂後往<b>正確答案的方向</b>滑（上／下／左／右）就能通過。<br>
       想選 <b>⬆️上跳</b> 或 <b>⬇️下滑</b> 時，要先回到<b>中間跑道</b>才算數！<br>
       答錯或撞到障礙會扣 ❤️，撐越久分數越高！<br>
       ⏸ 遊戲中可按 <b>ESC</b> 暫停。
@@ -1143,11 +1119,11 @@ function nearestGateInLockRange(){
   obstacles.forEach(o => { if (!o.resolved && (!best || o.dist < best.dist)) best = o; });
   return (best && best.type === 'gate' && best.dist < 1400) ? best : null;
 }
-function onDirection(dir){
+function onSwipe(dir){
   if (state !== 'play') return;
   const g = nearestGateInLockRange();
   if (g) {
-    // 題目門答題：方向鍵＝鎖定答案，動作會在正確時機自動執行
+    // 題目門答題：滑動／鍵盤方向＝鎖定答案，動作會在正確時機自動執行
     g.choice = dir;
     markHudChoice(dir);
     sndTick();
@@ -1164,35 +1140,44 @@ function onDirection(dir){
   }
 }
 
-// 手機／平板只接受固定方向鍵；畫面其他區域不再因按壓或滑動而移動角色。
-document.querySelectorAll('.dirBtn').forEach(btn => {
-  const dir = btn.dataset.dir;
-  btn.addEventListener('pointerdown', e => {
-    e.preventDefault();e.stopPropagation();
-    if (guideOpen || paused || state !== 'play') return;
-    btn.setPointerCapture(e.pointerId);btn.classList.add('active');
-    if (dir === 'down') {
-      const g = nearestGateInLockRange();
-      if (g) { g.choice = 'down'; markHudChoice('down'); sndTick(); }
-      startSlideHold();
-    } else onDirection(dir);
-  });
-  const release = e => {
-    e.preventDefault();e.stopPropagation();btn.classList.remove('active');
-    if (dir === 'down') endSlideHold();
-  };
-  btn.addEventListener('pointerup', release);
-  btn.addEventListener('pointercancel', release);
-  btn.addEventListener('lostpointercapture', () => { btn.classList.remove('active');if (dir === 'down') endSlideHold(); });
+const SWIPE_MIN = 40;
+function handleSwipe(dx, dy){
+  const ax = Math.abs(dx), ay = Math.abs(dy);
+  if (Math.max(ax, ay) < SWIPE_MIN) return;
+  onSwipe(ax > ay ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+}
+let sx = 0, sy = 0, tracking = false;
+document.addEventListener('touchstart', e => {
+  if (guideOpen || paused) return;
+  tracking = true;
+  sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+}, { passive: false });
+document.addEventListener('touchmove', e => {
+  if (state === 'play' || state === 'crash') e.preventDefault();
+}, { passive: false });
+document.addEventListener('touchend', e => {
+  if (!tracking) return;
+  tracking = false;
+  const t = e.changedTouches[0];
+  handleSwipe(t.clientX - sx, t.clientY - sy);
+});
+document.addEventListener('touchcancel', () => { tracking = false; });
+document.addEventListener('mousedown', e => { if (guideOpen || paused) return; tracking = true; sx = e.clientX; sy = e.clientY; });
+document.addEventListener('mouseup', e => {
+  if (!tracking) return;
+  tracking = false;
+  handleSwipe(e.clientX - sx, e.clientY - sy);
 });
 const KEY_DIR = {
   ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
+  KeyW:'up', KeyS:'down', KeyA:'left', KeyD:'right',
   w:'up', W:'up', s:'down', S:'down', a:'left', A:'left', d:'right', D:'right',
 };
+function keyDirection(e){ return KEY_DIR[e.code] || KEY_DIR[e.key]; }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.preventDefault(); if (guideOpen) closeGuide(); else togglePause(); return; }
   if (guideOpen || paused) { e.preventDefault(); return; }
-  const dir = KEY_DIR[e.key];
+  const dir = keyDirection(e);
   if (!dir) return;
   e.preventDefault();
   if (e.repeat) return;                     // 忽略長按自動重複，改走持續滑行邏輯
@@ -1202,11 +1187,11 @@ document.addEventListener('keydown', e => {
     if (g) { g.choice = 'down'; markHudChoice('down'); sndTick(); }
     startSlideHold();
   } else {
-    onDirection(dir);                       // 上＝跳一下、左右＝換道（跳躍仍維持單次）
+    onSwipe(dir);                           // 上＝跳一下、左右＝換道（跳躍仍維持單次）
   }
 });
 document.addEventListener('keyup', e => {
-  if (KEY_DIR[e.key] === 'down') endSlideHold();
+  if (keyDirection(e) === 'down') endSlideHold();
 });
 window.addEventListener('blur', () => { if (slideHeld) endSlideHold(); });
 
@@ -1292,6 +1277,8 @@ function openGuide(){ guideOpen = true; $('guideScreen').classList.remove('hidde
 function closeGuide(){ guideOpen = false; $('guideScreen').classList.add('hidden');
   try { localStorage.setItem('runnerGuideSeen', '1'); } catch(e){} }
 $('pauseBtn').addEventListener('click', togglePause);
+['mousedown','touchstart'].forEach(ev =>           // 別讓點暫停鈕被當成滑動
+  $('pauseBtn').addEventListener(ev, e => e.stopPropagation()));
 $('resumeBtn').addEventListener('click', togglePause);
 $('pauseMenuBtn').addEventListener('click', () => window.openGameExitConfirm());
 $('startGuideBtn').addEventListener('click', openGuide);
