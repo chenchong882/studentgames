@@ -51,9 +51,10 @@
     position:absolute; left:560px; width:380px; top:0; bottom:0;
     background:var(--road);
     border-left:8px solid var(--dash); border-right:8px solid var(--dash);
+    transform:translateZ(1px);
   }
   /* 虛線捲動改用 transform（合成器搬移，不重繪）：多留一個 130px 週期在頂端供位移循環。
-     translateZ(1px) 沿路面法線微抬，避免與路面共面 z-fighting（閃爍／破圖） */
+     道路與虛線各沿路面法線抬高 1px，避免地面、道路、虛線彼此共面造成 z-fighting（閃爍／破圖） */
   .dash {
     position:absolute; top:-130px; bottom:0; width:7px;
     background-image:repeating-linear-gradient(180deg, var(--dash) 0 50px, transparent 50px 130px);
