@@ -148,16 +148,18 @@
     box-shadow:0 0 19px rgba(255,203,70,.8);color:#fff;}
   .skillBtn.ready .cd{display:none}.skillBtn.cooldown{background:#555;border-color:#aaa;filter:grayscale(1);}
   #lightBtn{pointer-events:auto;cursor:pointer;}#lightBtn:active.ready{transform:scale(.94)}
-  #dashZone{position:absolute;left:49px;top:-48px;width:52px;height:52px;border-radius:50%;
-    display:none;align-items:center;justify-content:center;font-size:21px;font-weight:900;color:#fff;
-    border:2px solid #888;background:rgba(55,58,64,.72);text-shadow:0 1px 3px #000;}
+  #dashZone{position:absolute;left:0;bottom:190px;width:52px;height:72px;border-radius:0 18px 18px 0;
+    display:none;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;pointer-events:none;
+    border:3px solid #888;border-left:0;background:rgba(55,58,64,.72);text-shadow:0 1px 3px #000;}
   #dashZone.show{display:flex}#dashZone.ready{border-color:#ffe69a;background:rgba(190,123,22,.72);box-shadow:0 0 12px #ffc94d;}
+  #dashZone.targeted{background:rgba(224,145,28,.9);box-shadow:0 0 22px rgba(255,201,77,.95);}
   #dashZone.cooldown{filter:grayscale(1);background:rgba(70,72,76,.82)}
   #fireHint{position:absolute;right:16px;bottom:14px;width:150px;text-align:center;
     font-size:11px;color:rgba(255,255,255,.5);}
   #btnPause{position:fixed;top:calc(14px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));width:48px;height:48px;border-radius:12px;z-index:9;
     font-size:22px;background:rgba(20,26,38,.6);color:#ffe9a8;
     border:1px solid rgba(255,216,120,.4);pointer-events:auto;}
+  #touchUI:not(.hidden)~#skillDock #dashSkill{display:none;}
   @media(pointer:fine){#skillDock{right:18px;bottom:18px}}
   @media(max-width:700px){
     #tankProgress{top:8px;left:72px;right:72px;width:auto;transform:none}#tankProgress .ph{font-size:10px}
@@ -168,6 +170,7 @@
     #pauseMyst{grid-template-columns:1fr}.mystInfo{font-size:12px;padding:7px 9px}
     .skillBtn{width:72px;height:62px}.skillBtn .si{font-size:21px}.skillBtn .cd{font-size:20px}
   }
+  @media(max-height:420px){#dashZone{bottom:176px;width:48px;height:60px;}}
   #tankRotateWarning{display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;
     padding:32px;background:rgba(8,12,20,.98);color:#ffe9a8;text-align:center;font:800 21px/1.6 -apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;cursor:auto;}
   #tankRotateWarning .rotateIcon{font-size:64px;line-height:1;margin-bottom:18px;animation:tankRotate 1.5s ease-in-out infinite alternate;}
@@ -217,10 +220,10 @@
 <div id="hint">W/S 前進後退 ・ W＋Shift 衝刺（解鎖後） ・ A/D 轉向 ・ 滑鼠瞄準 ・ 空格鍵／左鍵開砲 ・ Q 光速攻擊 ・ ESC 暫停</div>
 <div id="touchUI" class="hidden">
   <div id="moveStick">
-    <div id="dashZone" aria-label="把移動手指拖進正上方圓點即可衝刺">💨</div>
     <span class="ar au">▲</span><span class="ar ad">▼</span><span class="ar al">◀</span><span class="ar arr">▶</span>
     <div id="moveKnob"></div>
   </div>
+  <div id="dashZone" aria-label="把移動手指滑入左側邊界即可衝刺">💨 衝刺</div>
   <div id="fireBtn">開砲</div>
   <div id="fireHint">按住開砲＋微調砲管・滑空白螢幕大幅轉砲</div>
 </div>
@@ -267,7 +270,7 @@
     <div class="sec"><b>🎮 操作</b>　W/S 前進後退　・　A/D 轉向　・　<span class="hl">按住前進越久越快</span>（解鎖後 W＋Shift 衝刺）　・　滑鼠瞄準　・　空白鍵 / 左鍵 開砲　・　Q 光速攻擊　・　ESC 暫停</div>
     <div class="sec"><b>🎯 主線任務</b>　畫面上方出題（中文），到<span class="hl">發光的樹</span>上找出對應的<span class="hl">正確英文單字牌</span>，用砲彈射下來。射對加分又回血；射錯恐龍會狂暴！</div>
     <div class="sec"><b>🛸 神祕能量</b>　射擊空中的「?」方塊並答對英文題，隨機獲得強力獎勵。方塊出現時，題目下方會提示方向、距離與剩餘時間。</div>
-    <div class="sec"><b>⭐ 階段獎勵</b>　累積 1,000 分解鎖短距離衝刺；3,000 分讓一般開砲間隔降低 30%、晃動降低 50%；6,000 分解鎖光速攻擊。觸控時把前進中的手指拖進搖桿正上方圓點即可衝刺。</div>
+    <div class="sec"><b>⭐ 階段獎勵</b>　累積 1,000 分解鎖短距離衝刺；3,000 分讓一般開砲間隔降低 30%、晃動降低 50%；6,000 分解鎖光速攻擊。觸控時先用左搖桿移動，再把同一根手指滑入左側邊界的 💨 區域即可衝刺。</div>
     <div class="sec"><b>💥 難度差異</b>　<span class="hl">簡單／一般</span>有適量敵人、砲彈下墜小；<span class="hl">困難</span>敵人更多、空中威脅更強，砲彈下墜也更明顯。</div>
     <div class="sec wn"><b>⚠️ 危險</b>　霸王龍與腕龍會把坦克一腳踩扁！被攻擊時螢幕邊緣會亮<span class="wn">紅色弧光</span>指出方向，右側也會即時播報敵人方位與距離。</div>
     <button id="guideBtn" class="uiBtn">✓ 我知道了</button>
@@ -1806,8 +1809,8 @@ function updProgressAndSkills(){
   setSkillVisual(elDashSkill,score>=STAGE_SCORE[0],dashCD,STAGE_SCORE[0],'短距離衝刺');
   setSkillVisual(elLightBtn,score>=STAGE_SCORE[2],lightCD,STAGE_SCORE[2],'光速攻擊');
   elLightBtn.disabled=score<STAGE_SCORE[2]||lightCD>0;
-  elDashZone.className=score>=STAGE_SCORE[0]?'show '+(dashCD>0?'cooldown':'ready'):'';
-  elDashZone.textContent=dashCD>0?Math.ceil(dashCD):'💨';
+  elDashZone.className=score>=STAGE_SCORE[0]?'show '+(dashCD>0?'cooldown':'ready')+(dashZoneEntered&&dashCD<=0?' targeted':''):'';
+  elDashZone.textContent=dashCD>0?'💨 '+Math.ceil(dashCD):'💨 衝刺';
 }
 function updHUD(){
   elArmor.style.width=(clamp(tank.hp/tank.maxHp,0,1)*100)+'%';
@@ -2096,7 +2099,8 @@ const AIM_GX_COARSE=2.7, AIM_GY_COARSE=1.5;   // 空白滑動：左右大幅、�
 const AIM_FIRE_DEAD=14;                        // 按住開砲時的死區(px)：拇指在這範圍內微晃不算瞄準，避免準心慢慢漂走
 let moveId=null, aimId=null;            // 移動 / 砲管 觸點 id
 let moveCx=0, moveCy=0;                 // 方向盤浮動原點（按下處）
-let dashZoneEntered=false;              // 只在手指「進入」正上方衝刺圓點時觸發一次
+let moveStartX=0,moveStartY=0;          // 實際起手點（確認真的有滑動，避免邊界輕碰誤觸）
+let dashZoneEntered=false;              // 只在移動手指「進入」左側邊界衝刺區時觸發一次
 let aimLX=0,aimLY=0;                    // 砲管拖曳上一個觸點位置（用增量累積角度，可無限轉）
 let aimStartX=0,aimStartY=0;            // 砲管觸點按下處（給開砲鍵死區判斷用）
 let aimOnFire=false;                    // 此次砲管拖曳是否從開砲鍵起（用微調靈敏度）
@@ -2111,13 +2115,17 @@ function resetTouch(){
   moveId=aimId=null;aimOnFire=false;dashZoneEntered=false;clearMoveKeys();mouse.down=false;
   updMoveKnob(0,0);restStick();stickEl.classList.remove('boost');fireEl.classList.remove('active');
 }
+function inDashZone(x,y){
+  if(score<STAGE_SCORE[0])return false;
+  const r=elDashZone.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;
+}
 function applyStick(x,y){                // 依浮動原點換算方向
-  let dx=x-moveCx, dy=y-moveCy; const rawX=dx,rawY=dy,len=Math.hypot(dx,dy);
-  const inDashZone=score>=STAGE_SCORE[0]&&Math.hypot(rawX,rawY+97)<34; // 正上方圓點中心相對搖桿原點為 (0,-97)
-  if(inDashZone&&!dashZoneEntered)startDash();
-  dashZoneEntered=inDashZone;
-  if(inDashZone){                                      // 圓點只負責觸發；衝刺沿用拖入前的移動方向
-    updMoveKnob(0,-97);stickEl.classList.add('boost');return;
+  let dx=x-moveCx, dy=y-moveCy; const len=Math.hypot(dx,dy),inDash=inDashZone(x,y);
+  const draggedEnough=Math.hypot(x-moveStartX,y-moveStartY)>=18;
+  if(inDash&&!dashZoneEntered&&draggedEnough){startDash();dashZoneEntered=true;}
+  else if(!inDash)dashZoneEntered=false;
+  if(inDash){                                          // 邊界區只負責觸發；衝刺沿用滑入前的移動方向
+    stickEl.classList.toggle('boost',dashT>0);return;
   }
   if(len>STICK_R){dx*=STICK_R/len;dy*=STICK_R/len;}
   updMoveKnob(dx,dy);
@@ -2126,7 +2134,7 @@ function applyStick(x,y){                // 依浮動原點換算方向
   const dead=mag<0.18;                                // 中心小死區，避免飄
   touchMove.x=nx;touchMove.y=ny;touchMove.mag=dead?0:mag;
   touchMove.boost=false;touchMove.active=!dead;        // 圓盤內只做一般行駛，不再因推到 80% 就瞬間頂速
-  stickEl.classList.toggle('boost',inDashZone);
+  stickEl.classList.remove('boost');
 }
 function inRect(r,x,y,pad){return !!r&&x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad;}
 function isUIEl(el){return el&&el.closest&&el.closest('button,.uiBtn,#quiz,#guide,#guideLink,#allPicRow,#startTankBtn,#skillDock');}
@@ -2145,9 +2153,10 @@ addEventListener('touchstart',e=>{
     if(isUIEl(document.elementFromPoint(t.clientX,t.clientY)))continue; // 暫停鈕 / 答題鈕走自己事件
     if(t.clientX<innerWidth*0.5){                                       // 左半 → 移動（動態方向盤，圓心浮現在手指處）
       if(moveId!==null)continue;
-      moveId=t.identifier;
+      moveId=t.identifier;moveStartX=t.clientX;moveStartY=t.clientY;
       moveCx=clamp(t.clientX,80,innerWidth*0.5);
       moveCy=clamp(t.clientY,80,innerHeight-80);
+      dashZoneEntered=inDashZone(t.clientX,t.clientY); // 從衝刺區起手不算滑入，避免輕碰邊界就誤觸
       placeStick(moveCx,moveCy);updMoveKnob(0,0);clearMoveKeys();acted=true;
     }else{                                                             // 右半 → 滑動轉砲管；開砲鍵上＝按住開砲＋微調，空白處＝大幅快轉
       if(aimId!==null)continue;
