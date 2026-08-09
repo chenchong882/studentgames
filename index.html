@@ -258,7 +258,7 @@
       try { return { raw, data: JSON.parse(raw) }; } catch(e){ return { raw:null, data:null }; }
     }
     const lesson = readHashLesson();
-    const hasLesson = !!(lesson.data && Array.isArray(lesson.data.words) && lesson.data.words.length);
+    const hasLesson = !!(lesson.data && lesson.data.builtin !== true && Array.isArray(lesson.data.words) && lesson.data.words.length);
 
     const lessonBtn = document.getElementById('scope-lesson');
     const builtinBtn = document.getElementById('scope-builtin');
