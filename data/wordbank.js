@@ -3,37 +3,37 @@
    學生可選主題：window.WORD_BANK.getWords([themeId,...]) 取字；不傳則全部。 */
 (function(g){
   const THEMES = [
-    { id:"living", name:"生活物品", words:[
-      { word:"umbrella", emoji:"☂️", chinese:"雨傘", sentence:"She opened her {W} and walked out into the rain." },
-      { word:"suitcase", emoji:"🧳", chinese:"行李箱", sentence:"Dad packed clothes in the large {W} before the trip." },
-      { word:"thermometer", emoji:"🌡️", chinese:"溫度計", sentence:"Mom put the {W} under my tongue to check if I had a fever." },
-      { word:"toothbrush", emoji:"🪥", chinese:"牙刷", sentence:"I put toothpaste on my {W} and brush my teeth each morning." },
-      { word:"notebook", emoji:"📓", chinese:"筆記本", sentence:"I wrote my homework in my {W} before class." },
-      { word:"microscope", emoji:"🔬", chinese:"顯微鏡", sentence:"We looked at a tiny leaf under the {W} in science class." },
-      { word:"telescope", emoji:"🔭", chinese:"望遠鏡", sentence:"We looked through the {W} and saw the moon up close." },
-      { word:"compass", emoji:"🧭", chinese:"指南針", sentence:"The {W} points north to help us find our way." },
-      { word:"calendar", emoji:"📅", chinese:"日曆", sentence:"Mom put my birthday on the {W} on the kitchen wall." },
-      { word:"envelope", emoji:"✉️", chinese:"信封", sentence:"She wrote the address on the {W} and put the letter inside." },
-      { word:"headphones", emoji:"🎧", chinese:"耳機", sentence:"He put on his {W} and listened to music on the bus." },
-      { word:"microphone", emoji:"🎤", chinese:"麥克風", sentence:"The singer held the {W} close to her mouth and began to sing." },
-      { word:"skateboard", emoji:"🛹", chinese:"滑板", sentence:"My brother stood on his {W} and rolled down the hill to school every morning." },
-      { word:"bicycle", emoji:"🚲", chinese:"腳踏車", sentence:"She locked her {W} to the fence and walked into the store." },
-      { word:"helmet", emoji:"🪖", chinese:"安全帽", sentence:"He always puts on his {W} before he rides his bike." },
-      { word:"wallet", emoji:"👛", chinese:"錢包", sentence:"He took out his {W} to pay for lunch." },
-      { word:"watch", emoji:"⌚", chinese:"手錶", sentence:"She looked at her {W} and saw she was already late." },
-      { word:"soap", emoji:"🧼", chinese:"肥皂", sentence:"She used {W} to wash her hands clean under the water." },
-      { word:"sponge", emoji:"🧽", chinese:"海綿", sentence:"She used a wet {W} to wipe the dirty table." },
-      { word:"key", emoji:"🔑", chinese:"鑰匙", sentence:"I couldn't open the front door because I forgot my {W} at home." },
-      { word:"lamp", emoji:"💡", chinese:"檯燈", sentence:"Dad turned on the {W} next to my bed so I could read at night." },
-      { word:"battery", emoji:"🔋", chinese:"電池", sentence:"The remote control stopped working because the {W} ran out of power." },
-      { word:"magnet", emoji:"🧲", chinese:"磁鐵", sentence:"She used a {W} to stick her drawing to the fridge door." },
-      { word:"broom", emoji:"🧹", chinese:"掃把", sentence:"Grandma swept all the leaves off the floor with a {W}." },
-      { word:"bucket", emoji:"🪣", chinese:"水桶", sentence:"He filled the {W} with water and started washing the car." },
-      { word:"chair", emoji:"🪑", chinese:"椅子", sentence:"There was only one empty {W} left in the room so Tom sat down." },
-      { word:"window", emoji:"🪟", chinese:"窗戶", sentence:"She opened the {W} to let some fresh air into the room." },
-      { word:"package", emoji:"📦", chinese:"包裹", sentence:"A big {W} was left at our front door this morning." },
-      { word:"newspaper", emoji:"📰", chinese:"報紙", sentence:"Grandpa reads the {W} every morning in his chair." },
-      { word:"remote control", emoji:"🎮", chinese:"遙控器", sentence:"He looked under the sofa for the {W} to change the TV channel." },
+    { id:"living", name:"居家用品與工具", words:[
+      { word:"sofa", emoji:"🛋️", chinese:"沙發", sentence:"We sat on the {W} and watched TV together." },
+      { word:"alarm clock", emoji:"⏰", chinese:"鬧鐘", sentence:"My {W} wakes me up at seven every morning." },
+      { word:"bathtub", emoji:"🛁", chinese:"浴缸", sentence:"The baby played with a toy boat in the {W}." },
+      { word:"shower", emoji:"🚿", chinese:"淋浴設備", sentence:"Dad takes a quick {W} before breakfast." },
+      { word:"toilet", emoji:"🚽", chinese:"馬桶", sentence:"Please flush the {W} after you use it." },
+      { word:"toilet paper", emoji:"🧻", chinese:"衛生紙", sentence:"We need a new roll of {W} in the bathroom." },
+      { word:"fan", emoji:"🪭", chinese:"扇子", sentence:"She used a {W} to keep cool on the hot day." },
+      { word:"radio", emoji:"📻", chinese:"收音機", sentence:"Grandpa listens to the news on the {W}." },
+      { word:"telephone", emoji:"☎️", chinese:"電話", sentence:"The {W} rang while we were eating dinner." },
+      { word:"bell", emoji:"🔔", chinese:"鈴鐺", sentence:"She rang the {W} to call everyone inside." },
+      { word:"candle", emoji:"🕯️", chinese:"蠟燭", sentence:"Mom lit a {W} when the lights went out." },
+      { word:"trash can", emoji:"🗑️", chinese:"垃圾桶", sentence:"Please put the empty bottle in the {W}." },
+      { word:"toolbox", emoji:"🧰", chinese:"工具箱", sentence:"Dad keeps all his tools in a red {W}." },
+      { word:"hammer", emoji:"🔨", chinese:"鐵鎚", sentence:"He used a {W} to drive the nail into the wood." },
+      { word:"screwdriver", emoji:"🪛", chinese:"螺絲起子", sentence:"She tightened the loose screw with a {W}." },
+      { word:"wrench", emoji:"🔧", chinese:"扳手", sentence:"The plumber used a {W} to turn the pipe." },
+      { word:"saw", emoji:"🪚", chinese:"鋸子", sentence:"He cut the wooden board with a {W}." },
+      { word:"ladder", emoji:"🪜", chinese:"梯子", sentence:"Dad climbed the {W} to fix the roof." },
+      { word:"plunger", emoji:"🪠", chinese:"馬桶吸盤", sentence:"He used a {W} to clear the blocked toilet." },
+      { word:"razor", emoji:"🪒", chinese:"刮鬍刀", sentence:"Dad uses a {W} to shave his face." },
+      { word:"comb", emoji:"🪮", chinese:"梳子", sentence:"She used a {W} to make her hair neat." },
+      { word:"lotion", emoji:"🧴", chinese:"乳液", sentence:"She put some {W} on her dry hands." },
+      { word:"safety pin", emoji:"🧷", chinese:"安全別針", sentence:"Mom used a {W} to hold the cloth together." },
+      { word:"hook", emoji:"🪝", chinese:"掛鉤", sentence:"He hung his coat on the {W} by the door." },
+      { word:"fire extinguisher", emoji:"🧯", chinese:"滅火器", sentence:"Use the {W} to put out a small fire." },
+      { word:"electric plug", emoji:"🔌", chinese:"插頭", sentence:"He pushed the {W} into the wall socket." },
+      { word:"houseplant", emoji:"🪴", chinese:"室內盆栽", sentence:"The green {W} sits beside the sunny window." },
+      { word:"sewing needle", emoji:"🪡", chinese:"縫衣針", sentence:"Grandma used a {W} to repair the shirt." },
+      { word:"mailbox", emoji:"📫", chinese:"信箱", sentence:"The mail carrier put a letter in our {W}." },
+      { word:"lock", emoji:"🔒", chinese:"鎖", sentence:"She put a {W} on the gate to keep it closed." },
     ]},
     { id:"places", name:"地點與交通", words:[
       { word:"airport", emoji:"🛫", chinese:"機場", sentence:"We got to the {W} two hours early before our flight." },
@@ -392,11 +392,11 @@
   // 這樣老師可單獨指定這一組練習，而「全部主題」仍會依各主題保留重複字。
   const ORIGINAL_WORDS = {
     "blanket": ["🛏️","毯子","She put a warm {W} over her legs before going to sleep."],
-    "pillow": ["🖼️","枕頭","He put his head on a soft {W} and closed his eyes."],
+    "scientist": ["🧑‍🔬","科學家","The {W} did an experiment in the laboratory."],
     "mirror": ["🪞","鏡子","She looked in the {W} before she left the house."],
     "cousin": ["👨‍👩‍👦","表／堂兄弟姊妹","My {W} came to my house to play after school."],
     "puzzle": ["🧩","拼圖","We put the pieces together to finish the {W}."],
-    "eraser": ["🖼️","橡皮擦","She used an {W} to remove the wrong answer."],
+    "firefighter": ["🧑‍🚒","消防員","The {W} quickly put out the fire."],
     "mountain": ["⛰️","山","We could see the tall {W} from our window."],
     "spaghetti": ["🍝","義大利麵","Dad cooked {W} with tomato sauce for dinner."],
     "cookie": ["🍪","餅乾","I ate a chocolate chip {W} after lunch."],
@@ -409,7 +409,8 @@
     "library": ["📚","圖書館","I borrowed a book from the {W}."],
     "subway": ["🚇","捷運","We took the {W} to the city."],
     "flashlight": ["🔦","手電筒","He used a {W} to see in the dark."],
-    "towel": ["🖼️","毛巾","She dried her hands with a {W}."],
+    "notebook": ["📓","筆記本","I wrote my homework in my {W} before class."],
+    "magician": ["🧙","魔術師","The {W} pulled a rabbit out of a hat."],
     "basket": ["🧺","籃子","She put the apples in a {W}."],
     "castle": ["🏰","城堡","The king lived in a large {W}."],
     "TV": ["📺","電視","We watched a movie on the {W}."],
@@ -421,12 +422,15 @@
     "coffee": ["☕","咖啡","Dad drinks a cup of {W} every morning."],
     "music": ["🎵","音樂","We listened to {W} in class."],
     "water": ["💧","水","Please drink some {W} after you run."],
+    "umbrella": ["☂️","雨傘","She opened her {W} and walked out into the rain."],
     "moon": ["🌙","月亮","The {W} was bright in the night sky."],
     "astronaut": ["🧑‍🚀","太空人","The {W} travelled into space in a rocket."],
     "satellite": ["🛰️","人造衛星","The {W} sends pictures of Earth from space."],
     "hot": ["🥵","炎熱的","It is very {W} today, so drink plenty of water."],
     "boat": ["🚤","船","The {W} moved quickly across the lake."],
     "race car": ["🏎️","賽車","The red {W} drove around the track very fast."],
+    "bicycle": ["🚲","腳踏車","She locked her {W} to the fence and walked into the store."],
+    "skateboard": ["🛹","滑板","My brother stood on his {W} and rolled down the hill."],
     "mask": ["😷","口罩","He wore a {W} because he had a cold."],
     "running": ["🏃","跑步","She goes {W} in the park every morning."],
     "dancing": ["💃","跳舞","The children enjoyed {W} to the music."],
@@ -439,15 +443,14 @@
     return { word, emoji, chinese, sentence };
   }
   THEMES.unshift({ id:"original", name:"原始 30 字", words:[
-    "blanket", "pillow", "mirror", "cousin", "backpack", "crayons", "scissors", "puzzle", "eraser", "mountain",
+    "blanket", "scientist", "mirror", "cousin", "backpack", "crayons", "scissors", "puzzle", "firefighter", "mountain",
     "spaghetti", "cookie", "egg", "sandwich", "lemonade", "hospital", "bakery", "police station", "museum", "library",
-    "subway", "rocket", "flashlight", "notebook", "paintbrush", "towel", "basket", "ticket", "castle", "traffic light"
+    "subway", "rocket", "flashlight", "notebook", "paintbrush", "magician", "basket", "ticket", "castle", "traffic light"
   ].map(wordEntry) });
   function replaceThemeWords(themeId, replacements){
     const theme = THEMES.find(item => item.id === themeId);
     theme.words = theme.words.map(item => replacements[item.word] ? wordEntry(replacements[item.word]) : item);
   }
-  replaceThemeWords("living", { umbrella:"TV", skateboard:"door", bicycle:"clock" });
   replaceThemeWords("places", { taxi:"hotel", "cable car":"store" });
   replaceThemeWords("food", { "yogurt cup":"yogurt", "hot chocolate":"coffee" });
   replaceThemeWords("school", { "music stand":"music", "flash card":"notebook" });
