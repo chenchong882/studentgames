@@ -53,7 +53,7 @@
             gap: 12px;
         }
 
-        /* 狀態列：關卡 / 時間 / 分數 / 連擊 */
+        /* 狀態列：關卡 / 分數 / 連擊（倒數移到遊戲畫面內） */
         .stat-row {
             display: flex;
             gap: 8px;
@@ -498,7 +498,7 @@
         padding:12px 34px;cursor:pointer;margin:5px;}
     .mBtn.sec{background:rgba(255,255,255,.16);color:#fff;border:2px solid #ffd24d;}
 
-    /* ===== 底部置中：遊戲回饋提示 + 累積分數進度條（在左右移動鈕中間） ===== */
+    /* ===== 底部置中：遊戲回饋提示 + 操作提示 + 累積分數進度條（在左右移動鈕中間） ===== */
     #miner-bottom{position:fixed;left:50%;transform:translateX(-50%);
         bottom:calc(20px + env(safe-area-inset-bottom));z-index:35;
         width:min(560px,calc(100vw - 24px));display:flex;flex-direction:column;
@@ -507,6 +507,8 @@
         background:rgba(18,13,10,.88);border:2px solid #42d8ff;color:#42d8ff;
         font:800 16px/1.3 Arial,"Noto Sans TC",sans-serif;text-align:center;
         opacity:0;transition:opacity .18s ease;box-shadow:0 6px 18px rgba(0,0,0,.4);}
+    #miner-action-hint{display:none;color:rgba(255,243,207,.82);font:800 13px/1.1 Arial,"Noto Sans TC",sans-serif;
+        text-align:center;text-shadow:0 2px 5px rgba(0,0,0,.9);letter-spacing:.04em;}
     #miner-progress{position:relative;width:min(320px,calc(100vw - 290px));height:24px;
         border-radius:999px;background:rgba(12,9,7,.85);border:2px solid rgba(255,213,74,.6);
         overflow:hidden;box-shadow:0 6px 16px rgba(0,0,0,.4);}
@@ -518,6 +520,7 @@
     @media (max-width:860px){
         #miner-bottom{bottom:calc(14px + env(safe-area-inset-bottom));width:min(560px,calc(100vw - 16px));}
         #miner-toast{font-size:14.5px;padding:7px 14px;}
+        #miner-action-hint{font-size:12px;}
         #miner-progress{width:min(220px,calc(100vw - 300px));height:26px;}
     }
     #miner-rotate-warning{display:none;position:fixed;inset:0;z-index:10000;align-items:center;justify-content:center;
@@ -538,11 +541,7 @@
             <div class="stat-row">
                 <div class="panel stat">
                     <span class="stat-label">關卡</span>
-                    <span class="stat-value" id="level">1 / 3</span>
-                </div>
-                <div class="panel stat">
-                    <span class="stat-label">時間</span>
-                    <span class="stat-value" id="time-left">60</span>
+                    <span class="stat-value" id="level">1 / 6</span>
                 </div>
                 <div class="panel stat">
                     <span class="stat-label">分數</span>
@@ -585,7 +584,7 @@
             </div>
         </section>
 
-        <div class="hint">左右角方向鈕（或 ← → / A D）移動礦車，點畫面或空白鍵發射。題目用單字／中文／圖片互相出題，抓對應的金塊；分數夠高就進下一關，共三關！</div>
+        <div class="hint">左右角方向鈕（或 ← → / A D）移動礦車，點畫面或空白鍵發射。題目用單字／中文／圖片互相出題，抓對應的金塊；分數夠高就進下一關，共 6 關！</div>
     </main>
 
     <button class="corner-btn" id="move-left-btn" type="button" aria-label="礦車往左">◀</button>
@@ -593,12 +592,13 @@
     <button class="icon-btn" id="miner-settings-btn" type="button" aria-label="暫停">⏸</button>
     <div id="miner-bottom" aria-hidden="true">
         <div id="miner-toast"></div>
+        <div id="miner-action-hint">👆 點擊畫面以發射鉤索</div>
         <div id="miner-progress">
             <div id="miner-progress-fill"></div>
             <span id="miner-progress-label"></span>
         </div>
     </div>
-    <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"><span id="status"></span></div>
+    <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"><span id="status"></span><span id="time-left">3:00</span></div>
 
     <div id="miner-pause" class="mOverlay hidden">
         <div class="mCard">
@@ -618,8 +618,8 @@
                 ⬅️➡️ <b>左下／右下方向鈕</b>（或鍵盤 ←→、A／D）：移動礦車<br>
                 👆 <b>點畫面任一處</b>（或空白鍵）：放出鉤爪<br>
                 <br>
-                🏆 <b>分數夠高就進下一關，共三關</b>，每進一關加 12 秒、難度提升。<br>
-                抓對 +20 分，抓錯倒扣時間，炸彈扣分、石頭會彈開。<br>
+                🏆 遊戲從 <b>3:00</b> 開始，分數夠高就進下一關，<b>共 6 關</b>。<br>
+                抓對 +20 分，抓錯扣 5 秒，炸彈扣分、石頭會彈開。<br>
                 ⏸ 左上角按鈕可<b>暫停遊戲</b>。
             </div>
             <button class="mBtn" id="miner-guide-ok">▶ 開始遊戲</button>
@@ -644,6 +644,7 @@
     const progressEl = document.getElementById("miner-progress");
     const progressFillEl = document.getElementById("miner-progress-fill");
     const progressLabelEl = document.getElementById("miner-progress-label");
+    const actionHintEl = document.getElementById("miner-action-hint");
     const startScreenEl = document.getElementById("miner-startscreen");
     const startBtn = document.getElementById("miner-start-btn");
     const ssTitleEl = document.getElementById("ss-title");
@@ -681,8 +682,8 @@
       fadeBgm(0,500,()=>{try{bgmAudio.pause();}catch(e){}});
     }
 
-    const GAME_SECONDS = 60;
-    const MAX_TIME = 99;
+    const GAME_SECONDS = 180;
+    const MAX_TIME = GAME_SECONDS;
     const WRONG_TIME_PENALTY = 5;
     const CORRECT_POINTS = 20;
     const BOMB_PENALTY = 10;
@@ -690,18 +691,23 @@
     const CART_MIN_X = 155;
     const CART_MAX_X = canvas.width - 155;
 
-    /* ── 三關卡：達門檻(累積分)進關，每關難度遞增 ── */
+    /* ── 六關卡：達門檻(累積分)進關，每關難度漸進 ── */
     const LEVELS = [
         { goal: 120, swing: 0.018, obstacles: 4, extraBomb: 0, goldBonus: 0 },
-        { goal: 280, swing: 0.024, obstacles: 5, extraBomb: 1, goldBonus: 0 },
-        { goal: 480, swing: 0.030, obstacles: 6, extraBomb: 2, goldBonus: 1 }
+        { goal: 280, swing: 0.021, obstacles: 4, extraBomb: 1, goldBonus: 0 },
+        { goal: 480, swing: 0.024, obstacles: 5, extraBomb: 1, goldBonus: 0 },
+        { goal: 660, swing: 0.027, obstacles: 5, extraBomb: 2, goldBonus: 0 },
+        { goal: 840, swing: 0.030, obstacles: 6, extraBomb: 2, goldBonus: 1 },
+        { goal: 1020, swing: 0.033, obstacles: 6, extraBomb: 2, goldBonus: 1 }
     ];
     const LEVEL_THEMES = [
         { tint: "rgba(255, 174, 62, 0.06)", glow: "rgba(255, 194, 72, 0.22)", crystal: null },
         { tint: "rgba(0, 116, 160, 0.24)", glow: "rgba(63, 222, 255, 0.26)", crystal: "#46e7ff" },
-        { tint: "rgba(92, 18, 112, 0.3)", glow: "rgba(255, 72, 184, 0.25)", crystal: "#ff5adf", magma: true }
+        { tint: "rgba(92, 18, 112, 0.3)", glow: "rgba(255, 72, 184, 0.25)", crystal: "#ff5adf", magma: true },
+        { tint: "rgba(123, 61, 0, 0.3)", glow: "rgba(255, 174, 52, 0.3)", crystal: "#ffb43c", deep: true },
+        { tint: "rgba(0, 72, 112, 0.36)", glow: "rgba(54, 232, 255, 0.32)", crystal: "#5df2ff", deep: true },
+        { tint: "rgba(102, 0, 84, 0.42)", glow: "rgba(255, 52, 132, 0.34)", crystal: "#ff4fc8", magma: true, deep: true }
     ];
-    const LEVEL_TIME_BONUS = 12;
 
     const DEFAULT_GOLD_WORDS = [
         { word: "market", chinese: "市場", emoji: "🏪" },
@@ -739,7 +745,7 @@
         const allow = allowedModes();
         if (!allow.includes(minerMode)) minerMode = allow[0];
     }
-    /* 困難：金塊擺速與關卡門檻加壓約 +20%；簡單＝一般＝現行三關步調 */
+    /* 困難：金塊擺速與關卡門檻加壓約 +20%；簡單＝一般＝現行關卡步調 */
     function modePressure() { return minerMode === "hard" ? 1.2 : 1; }
     function levelGoal(idx) {
         const goal = LEVELS[idx]?.goal;
@@ -1041,7 +1047,7 @@
         }
         startScreenEl.classList.remove("hidden");
         if (gamePhase === "ENDED") {
-            ssTitleEl.textContent = gameWon ? "🏆 三關全破！" : "⏰ 時間到！";
+            ssTitleEl.textContent = gameWon ? `🏆 ${LEVELS.length} 關全破！` : "⏰ 時間到！";
             ssSubEl.textContent = gameWon ? `太厲害了，總分 ${score}` : `打到第 ${level} 關 · 總分 ${score}`;
             ssStatsEl.hidden = false;
             ssCorrectEl.textContent = correctCount;
@@ -1092,7 +1098,7 @@
         updateControls();
     }
 
-    /* 分數達門檻：進下一關（加時、難度提升）；通過最後一關＝全破 */
+    /* 分數達門檻：進下一關並提升難度；通過最後一關＝全破 */
     function maybeLevelUp() {
         if (gamePhase !== "PLAYING") return;
         const goal = levelGoal(level - 1);
@@ -1103,9 +1109,8 @@
         }
         level += 1;
         applyLevelCfg();
-        timeLeft = Math.min(MAX_TIME, timeLeft + LEVEL_TIME_BONUS);
         setStatus(`第 ${level} 關`);
-        setMessage(`🎉 進入第 ${level} 關！加 ${LEVEL_TIME_BONUS} 秒，難度提升`, "good", 210);
+        setMessage(`🎉 進入第 ${level} 關！難度提升`, "good", 210);
         addSparkles(canvas.width / 2, 150, "gold", 44);
         updateHud();
     }
@@ -1119,7 +1124,7 @@
         state = "IDLE";
         caughtItem = null;
         setStatus("全部過關");
-        setMessage("🏆 三關全破！太厲害了！", "good", 240);
+        setMessage(`🏆 ${LEVELS.length} 關全破！太厲害了！`, "good", 240);
         if (window.speechSynthesis?.speaking || window.speechSynthesis?.pending) window.speechSynthesis.cancel();
         updateHud();
         updateControls();
@@ -1264,8 +1269,13 @@
         }
     }
 
+    function formatTime(seconds) {
+        const total = Math.max(0, Math.ceil(seconds));
+        return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+    }
+
     function updateHud() {
-        timeLeftEl.textContent = Math.ceil(timeLeft);
+        timeLeftEl.textContent = formatTime(timeLeft);
         scoreEl.textContent = score;
         streakEl.textContent = streak;
         levelEl.textContent = `${level} / ${LEVELS.length}`;
@@ -1329,7 +1339,7 @@
                 finishGame();
                 return;
             }
-            timeLeftEl.textContent = Math.ceil(timeLeft);
+            timeLeftEl.textContent = formatTime(timeLeft);
         } else {
             return;
         }
@@ -1463,9 +1473,40 @@
         drawItems();
         drawHookSystem();
         drawParticles();
+        drawTimer();
         renderToast();
         syncCartSpeechButton();
         requestAnimationFrame(loop);
+    }
+
+    /* 畫面內倒數：放在右上、軌道下方，避免擋住移動中的礦車題目。 */
+    function drawTimer() {
+        if (gamePhase !== "PLAYING") return;
+
+        const warning = timeLeft <= 30;
+        const urgent = timeLeft <= 10;
+        const pulse = urgent ? 0.9 + Math.sin(Date.now() / 110) * 0.1 : 1;
+        const w = 154;
+        const h = 58;
+        const x = canvas.width - w - 28;
+        const y = 120;
+
+        ctx.save();
+        ctx.globalAlpha = pulse;
+        roundRect(x, y, w, h, 14);
+        ctx.fillStyle = urgent ? "rgba(80, 12, 12, 0.94)" : "rgba(18, 13, 10, 0.9)";
+        ctx.fill();
+        ctx.strokeStyle = urgent ? "#ff5b4f" : warning ? "#ffad42" : "#ffd54a";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.shadowColor = urgent ? "rgba(255, 54, 54, 0.72)" : "rgba(0, 0, 0, 0.62)";
+        ctx.shadowBlur = urgent ? 18 : 10;
+        ctx.fillStyle = urgent ? "#fff2ee" : warning ? "#ffe0a3" : "#fff7dc";
+        ctx.font = '900 30px Arial, "Noto Sans TC", sans-serif';
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(`⏱ ${formatTime(timeLeft)}`, x + w / 2, y + h / 2 + 1);
+        ctx.restore();
     }
 
     function drawBackground() {
@@ -1496,8 +1537,9 @@
         ctx.fillRect(0, canvas.height - 86, canvas.width, 86);
 
         if (theme.crystal) {
-            drawCrystalCluster(94, 566, theme.crystal, level === 3 ? 1.2 : 1);
-            drawCrystalCluster(canvas.width - 88, 422, theme.crystal, level === 3 ? 0.92 : 0.78);
+            const depthScale = theme.deep ? 1.14 : 1;
+            drawCrystalCluster(94, 566, theme.crystal, (level === 3 ? 1.2 : 1) * depthScale);
+            drawCrystalCluster(canvas.width - 88, 422, theme.crystal, (level === 3 ? 0.92 : 0.78) * depthScale);
         }
         if (theme.magma) drawMagmaFissures();
     }
@@ -2051,8 +2093,13 @@
     /* 底部置中進度條：標出「再得幾分進下一關」與累積進度 */
     function renderProgress() {
         if (!progressEl) return;
-        if (gamePhase !== "PLAYING") { progressEl.style.display = "none"; return; }
+        if (gamePhase !== "PLAYING") {
+            progressEl.style.display = "none";
+            if (actionHintEl) actionHintEl.style.display = "none";
+            return;
+        }
         progressEl.style.display = "";
+        if (actionHintEl) actionHintEl.style.display = "";
         const cfg = LEVELS[level - 1];
         if (!cfg) return;
         const goal = levelGoal(level - 1);
