@@ -37,6 +37,7 @@
         .word-card.selected { border-color:#f6a83b; color:#8a5600; background:#fff4d9; box-shadow:0 0 0 3px rgba(246,168,59,.2); }
         .word-card.found { border-color:#8addae; color:#20784b; text-decoration:line-through; background:#e6f8ee; opacity:.82; transform:scale(.97); }
         .grid-wrap { position:relative; width:min(100%, 620px); margin:0 auto; border:8px solid #f0effa; border-radius:18px; background:#f0effa; touch-action:none; }
+        .grid-wrap, .grid, .cell { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-user-drag:none; }
         .grid { position:relative; display:grid; grid-template-columns:repeat(9, 1fr); overflow:hidden; border-radius:11px; background:#fff; touch-action:none; }
         .ribbons { position:absolute; z-index:1; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
         .ribbons line { transition:stroke-opacity .3s ease; }
@@ -491,6 +492,7 @@
             const cell = event.target.closest('.cell');
             if (!cell || timerId === null) return;
             event.preventDefault();
+            window.getSelection()?.removeAllRanges();
             dragging = true;
             startCell = { row: Number(cell.dataset.row), col: Number(cell.dataset.col) };
             activeLine = addLine(RIBBON_COLORS[foundWords.size % RIBBON_COLORS.length]);
@@ -747,6 +749,8 @@
         grid.addEventListener('pointermove', onPointerMove);
         grid.addEventListener('pointerup', onPointerEnd);
         grid.addEventListener('pointercancel', onPointerCancel);
+        grid.addEventListener('touchstart', (event) => event.preventDefault(), { passive: false });
+        ['selectstart', 'dragstart', 'contextmenu'].forEach((eventName) => grid.addEventListener(eventName, (event) => event.preventDefault()));
         pauseButton.addEventListener('click', pauseGame);
         hintButton.addEventListener('click', requestHint);
         confirmHintButton.addEventListener('click', confirmHint);
