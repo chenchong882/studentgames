@@ -1721,13 +1721,14 @@ function computeGrade(game) {
   return { g:'D', col:'#FF6B6B', tip:'多練習會更好 📚' };
 }
 
-// 星星評分：給小朋友看的「這次玩得好不好」。用同一個「實得 ÷ 完美」比值換算。
-// 完關至少 2 顆星（鼓勵為主），比值夠高才給滿 3 顆；1 顆星只保留給極端狀況，
-// 正常完成一局不會出現，符合「一定會有兩顆或三顆星」的設定。
+// 五星評分：用同一個「實得 ÷ 完美」比值換算，讓每款遊戲的結算都使用 1~5 星。
 function computeStars(game) {
   const ratio = game.perfectScore > 0 ? game.score / game.perfectScore : 0;
-  if (ratio >= 0.70) return 3;   // 又快又準 → 滿星
-  return 2;                      // 完關的鼓勵底線
+  if (ratio >= 0.90) return 5;
+  if (ratio >= 0.78) return 4;
+  if (ratio >= 0.65) return 3;
+  if (ratio >= 0.45) return 2;
+  return 1;
 }
 
 // 畫一顆五角星（filled = 金色實心，否則灰色空心外框），供勝利畫面評分用。
@@ -1842,23 +1843,23 @@ function drawVictoryScreen(c, game) {
   c.fillText('全關通過！', W/2, H * 0.25);
   c.shadowBlur = 0;
 
-  // 星星評分 — 小朋友一眼看懂「這次玩得好不好」。完關至少 2 顆星，又快又準才滿 3 顆。
+  // 五星評分 — 小朋友一眼看懂「這次玩得好不好」。
   const stars   = computeStars(game);
-  const starR   = clamp(H * 0.052, 24, 44);
-  const starGap = starR * 2.6;
+  const starR   = clamp(Math.min(W / 15, H * 0.052), 20, 40);
+  const starGap = Math.min(starR * 2.35, W * 0.18);
   const starY   = H * 0.42;
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     const filled = i < stars;
-    const mid = i === 1;   // 中間那顆稍大、微微上抬，做出經典三星評分的層次
-    const cx  = W/2 + (i - 1) * starGap;
+    const mid = i === 2;
+    const cx  = W/2 + (i - 2) * starGap;
     const cy  = starY - (mid ? starR * 0.34 : 0);
     // 已拿到的星星輕輕跳動一下，增加慶祝感
     const pop = filled ? 1 + Math.max(0, Math.sin(game._victoryPhase * 0.06 - i * 0.5)) * 0.08 : 1;
     drawStarShape(c, cx, cy, (mid ? starR * 1.16 : starR) * pop, filled);
   }
   c.textAlign = 'center'; c.textBaseline = 'middle';
-  const starTip = stars >= 3 ? '太棒了！滿分三顆星 🌟'
-                             : '做得好！再快、再準一點就有三顆星 💪';
+  const starTip = stars >= 5 ? '太棒了！滿分五顆星 🌟'
+                             : `這次拿到 ${stars} / 5 顆星，再快、再準一點！`;
   c.font = `${clamp(H * 0.030, 18, 25)}px Arial`;
   c.fillStyle = 'rgba(255,255,255,0.92)';
   c.fillText(starTip, W/2, H * 0.56);
@@ -2022,7 +2023,7 @@ class Game {
     if (!lv) {
       // 無限模式：打完題庫全部關卡就重洗接著玩，不再跳結算
       if (this.endless) { this._reshuffleRound(); return this._loadLevel(); }
-      this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); this._initVictoryConfetti(); RoundReview.show('📚 炸彈英文本局學習回顧'); return;
+      this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); this._initVictoryConfetti(); RoundReview.show('📚 炸彈英文本局學習回顧',{stars:computeStars(this)}); return;
     }
     this.wordsLeft = [...lv.words];
     this.solvedCount = 0;
@@ -2146,7 +2147,7 @@ class Game {
     this.plane.invincible = 110;
     this.plane.shake();
     Audio.hit();
-    if (this.lives <= 0) { this.phase = 'gameOver'; clearInterval(this._timerInterval); Audio.stopBgm(); RoundReview.show('📚 炸彈英文本局學習回顧'); }
+    if (this.lives <= 0) { this.phase = 'gameOver'; clearInterval(this._timerInterval); Audio.stopBgm(); RoundReview.show('📚 炸彈英文本局學習回顧',{stars:computeStars(this)}); }
   }
 
   // ── Float Text ─────────────────────────

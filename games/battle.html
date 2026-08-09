@@ -103,6 +103,8 @@ button{font-family:'Outfit',sans-serif;}
 #overlay-stars .star:nth-child(1){animation-delay:.5s;}
 #overlay-stars .star:nth-child(2){animation-delay:.72s;}
 #overlay-stars .star:nth-child(3){animation-delay:.94s;}
+#overlay-stars .star:nth-child(4){animation-delay:1.16s;}
+#overlay-stars .star:nth-child(5){animation-delay:1.38s;}
 #overlay.win #overlay-title{animation:titlePop .55s cubic-bezier(.2,1.5,.4,1) both;text-shadow:0 0 24px rgba(249,199,79,.7);}
 @keyframes titlePop{0%{transform:scale(.4);opacity:0;}60%{transform:scale(1.15);}100%{transform:scale(1);opacity:1;}}
 @keyframes trophyPop{0%{transform:scale(0) rotate(-25deg);opacity:0;}70%{transform:scale(1.25) rotate(8deg);}100%{transform:scale(1) rotate(0);opacity:1;}}
@@ -2015,13 +2017,15 @@ const Confetti = (function(){
   };
 })();
 
-// 勝利星等：依存活基地血量與答題正確率評 1~3 星
+// 勝利星等：依存活基地血量與答題正確率評 1~5 星
 function winStars(){
   const hpRatio = state.maxHP ? Math.max(0, state.playerHP) / state.maxHP : 0;
   const totalQ = state.correctCount + state.wrongCount;
   const acc = totalQ ? state.correctCount / totalQ : 0;
   const score = hpRatio * 0.6 + acc * 0.4;
-  if(score >= 0.7) return 3;
+  if(score >= 0.9) return 5;
+  if(score >= 0.75) return 4;
+  if(score >= 0.6) return 3;
   if(score >= 0.4) return 2;
   return 1;
 }
@@ -2050,11 +2054,11 @@ function endGame(result, winType){
   document.getElementById('overlay-title').style.color = color;
   document.getElementById('overlay-emoji').textContent = isFinal&&isWin ? '👑' : isRout ? '🏆' : isWin ? '🗺️' : '🛡️';
 
-  // 星等：打爆基地直接 3 星，否則依存活血量＋正確率
+  // 星等：打爆基地直接 5 星，否則依存活血量＋正確率
   const starsEl = document.getElementById('overlay-stars');
   if(isWin){
-    const n = isRout ? 3 : winStars();
-    starsEl.innerHTML = [0,1,2].map(i =>
+    const n = isRout ? 5 : winStars();
+    starsEl.innerHTML = [0,1,2,3,4].map(i =>
       `<span class="star ${i < n ? 'on':'off'}">★</span>`).join('');
   } else {
     starsEl.innerHTML = '';
@@ -2092,7 +2096,7 @@ function endGame(result, winType){
   updateHUD();
 
   overlay.classList.add('show');
-  RoundReview.show('📚 攻防戰本關學習回顧');
+  RoundReview.show('📚 攻防戰本關學習回顧',isWin?{stars:isRout?5:winStars()}:undefined);
   // 音效：制霸先轟一聲再放號角；一般勝利只放號角
   if(isRout){ playSound('boom'); setTimeout(() => playSound('victory'), 180); }
   else if(isWin){ playSound('victory'); }

@@ -312,7 +312,7 @@
     <div id="win-confetti"></div>
     <h1>🏆 通關成功！</h1>
     <div class="sub">深海死神號已擊沉，海岸安全了！</div>
-    <div id="win-stars">⭐⭐⭐</div>
+    <div id="win-stars">⭐⭐⭐⭐⭐</div>
     <div id="win-score">0 分</div>
     <div id="win-stats"></div>
     <button id="winagain-btn">🌊 再戰一場</button>
@@ -895,6 +895,14 @@ function endRound() {
   updateHUD();
 }
 
+function shipStars() {
+  if (game.score >= 9000) return 5;
+  if (game.score >= 7000) return 4;
+  if (game.score >= 4500) return 3;
+  if (game.score >= 2500) return 2;
+  return 1;
+}
+
 function gameOver() {
   stopBgm();
   game.state = "over";
@@ -904,15 +912,15 @@ function gameOver() {
   $("pause-btn").classList.add("hidden");
   hud.classList.add("hidden");
   skyQ.classList.add("hidden");
-  RoundReview.show("📚 海岸防線本局學習回顧");
+  RoundReview.show("📚 海岸防線本局學習回顧", {stars:shipStars()});
 }
 
 function winGame() {
   stopBgm();
   game.state = "win";
   $("win-score").textContent = game.score + " 分";
-  const stars = game.score >= 9000 ? "⭐⭐⭐" : game.score >= 4500 ? "⭐⭐" : "⭐";
-  $("win-stars").textContent = stars;
+  const stars = shipStars();
+  $("win-stars").textContent = "⭐".repeat(stars) + "☆".repeat(5 - stars);
   $("win-stats").innerHTML =
     `❤️ 剩餘生命：${game.lives}&emsp;🔥 最大連擊：×${game.maxCombo || 1}&emsp;🏅 第 ${game.level} 關`;
   spawnWinConfetti();
@@ -921,7 +929,7 @@ function winGame() {
   $("pause-btn").classList.add("hidden");
   hud.classList.add("hidden");
   skyQ.classList.add("hidden");
-  RoundReview.show("📚 海岸防線本局學習回顧");
+  RoundReview.show("📚 海岸防線本局學習回顧", {stars});
 }
 
 function spawnWinConfetti() {

@@ -107,7 +107,7 @@
     <div class="overlay" id="overlay">
         <section class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialogTitle">
             <h2 id="dialogTitle">單字獵人</h2>
-            <div class="game-intro-line" style="color:#475569"><span id="dialogText">拖出藏在字母格裡的單字！</span><details class="game-info" id="wordHuntInfo"><summary aria-label="查看詳細玩法">!</summary><div class="game-info-panel"><h2>🔎 詳細玩法</h2>從第一個字母拖到最後一個字母，橫、直、斜線都可以。<br>點上方單字可以聽英文發音並選定提示目標；3 關合計可提示 3 次。<br>共有 <b>3 關</b>，每關都會重新計時。<br>第 1 關：2 分鐘內 3 顆星、4 分鐘內 2 顆星<br>第 2 關：3 分鐘內 3 顆星、5 分鐘內 2 顆星<br>第 3 關：4 分鐘內 3 顆星、6 分鐘內 2 顆星</div></details></div>
+            <div class="game-intro-line" style="color:#475569"><span id="dialogText">拖出藏在字母格裡的單字！</span><details class="game-info" id="wordHuntInfo"><summary aria-label="查看詳細玩法">!</summary><div class="game-info-panel"><h2>🔎 詳細玩法</h2>從第一個字母拖到最後一個字母，橫、直、斜線都可以。<br>點上方單字可以聽英文發音並選定提示目標；3 關合計可提示 3 次。<br>共有 <b>3 關</b>，每關都會重新計時並給 1～5 顆星。<br>第 1 關 2 分鐘內、第 2 關 3 分鐘內、第 3 關 4 分鐘內可拿滿 5 顆星；超過門檻會依完成時間逐級遞減。</div></details></div>
             <div class="stars" id="dialogStars" hidden></div>
             <div class="result-list" id="resultList" hidden></div>
             <div class="total" id="totalStars" hidden></div>
@@ -164,7 +164,7 @@
             ] }
         ];
 
-        // 每關 [三星門檻秒數, 二星門檻秒數]；超過二星門檻給一星。
+        // 每關 [五星門檻秒數, 三星門檻秒數]；中間內插四星，較慢則給二星或一星。
         const STAR_THRESHOLDS = [
             [120, 240],
             [180, 300],
@@ -365,14 +365,18 @@
         }
 
         function starsFor(time, index) {
-            const [threeStars, twoStars] = STAR_THRESHOLDS[index];
+            const [fiveStars, threeStars] = STAR_THRESHOLDS[index];
+            const fourStars = Math.round((fiveStars + threeStars) / 2);
+            const twoStars = Math.round(threeStars * 1.5);
+            if (time <= fiveStars) return 5;
+            if (time <= fourStars) return 4;
             if (time <= threeStars) return 3;
             if (time <= twoStars) return 2;
             return 1;
         }
 
         function starText(stars) {
-            return `${'★'.repeat(stars)}<span class="empty">${'☆'.repeat(3 - stars)}</span>`;
+            return `${'★'.repeat(stars)}<span class="empty">${'☆'.repeat(5 - stars)}</span>`;
         }
 
         function cellCenter(row, col) {
@@ -680,7 +684,7 @@
             dialogStars.hidden = true;
             resultList.innerHTML = results.map((result, index) => `<div class="result-row"><span>第 ${index + 1} 關　${result.seconds} 秒</span><span class="stars">${starText(result.stars)}</span></div>`).join('');
             resultList.hidden = false;
-            totalStars.textContent = `總共獲得 ${total} / ${gameLevels.length * 3} 顆星`;
+            totalStars.textContent = `總共獲得 ${total + 1} / ${gameLevels.length * 5 + 1} 顆星（含 1 顆全對學習星）`;
             totalStars.hidden = false;
             dialogButton.textContent = '重新開始整個遊戲';
             dialogButton.onclick = startNewRun;
