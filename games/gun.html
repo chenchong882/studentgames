@@ -138,7 +138,7 @@
     color:#222;padding:14px 26px;font-size:19px;font-weight:900;box-shadow:0 4px 0 #9c5b1c;cursor:pointer;
     min-height:48px;font-family:inherit;}
   .actionBtn:active{transform:translateY(3px);box-shadow:0 1px 0 #9c5b1c;}
-  .actionBtn:focus-visible,.choiceBtn:focus-visible,.modeBtn:focus-visible,#fireBtn:focus-visible,#reloadBtn:focus-visible,#grenadeBtn:focus-visible,#jumpBtn:focus-visible,#dashBtn:focus-visible{outline:3px solid #fff;outline-offset:3px;}
+  .actionBtn:focus-visible,.choiceBtn:focus-visible,.modeBtn:focus-visible,#fireBtn:focus-visible,#reloadBtn:focus-visible,#grenadeBtn:focus-visible,#jumpBtn:focus-visible{outline:3px solid #fff;outline-offset:3px;}
   #quiz{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:10;
     background:rgba(5,10,16,.68);color:#fff;text-align:center;padding:20px;}
   #quiz.show{display:flex;}
@@ -160,7 +160,7 @@
     display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;
     background:rgba(255,70,60,.32);border:3px solid rgba(255,95,85,.75);text-shadow:0 1px 4px #000;}
   #fireBtn.active{background:rgba(255,70,60,.6);}
-  #fireBtn,#reloadBtn,#grenadeBtn,#jumpBtn,#dashBtn{pointer-events:auto;touch-action:none;font-family:inherit;}
+  #fireBtn,#reloadBtn,#grenadeBtn,#jumpBtn{pointer-events:auto;touch-action:none;font-family:inherit;}
   #reloadBtn{position:absolute;right:48px;bottom:230px;width:68px;height:68px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;
     background:rgba(235,166,62,.34);border:3px solid rgba(255,210,115,.78);text-shadow:0 1px 4px #000;}
@@ -172,10 +172,11 @@
   #jumpBtn{position:absolute;right:150px;bottom:52px;width:70px;height:70px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;
     background:rgba(80,160,255,.28);border:3px solid rgba(120,180,255,.7);text-shadow:0 1px 4px #000;}
-  #dashBtn{position:absolute;left:clamp(205px,31vw,280px);top:clamp(142px,42vh,330px);width:64px;height:64px;border-radius:50%;
-    display:flex;align-items:center;justify-content:center;appearance:none;-webkit-appearance:none;font-size:14px;font-weight:900;color:#fff;cursor:pointer;
-    background:rgba(126,73,218,.42);border:3px solid rgba(197,163,255,.82);text-shadow:0 1px 4px #000;}
+  #dashBtn{position:absolute;left:0;bottom:190px;width:52px;height:72px;border-radius:0 18px 18px 0;
+    display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;pointer-events:none;
+    background:rgba(126,73,218,.42);border:3px solid rgba(197,163,255,.82);border-left:0;text-shadow:0 1px 4px #000;}
   #dashBtn.active{background:rgba(169,111,255,.78);box-shadow:0 0 18px rgba(190,145,255,.9);}
+  #dashBtn.targeted{background:rgba(169,111,255,.78);box-shadow:0 0 22px rgba(190,145,255,.95);}
   #dashBtn.cooldown{font-size:16px;color:rgba(255,255,255,.68);background:rgba(54,47,71,.72);border-color:rgba(190,180,210,.4);}
   #btnPause{position:static;flex:0 0 46px;width:46px;height:46px;border-radius:12px;
     font-size:20px;background:rgba(20,26,38,.6);color:#ffe9a8;
@@ -188,6 +189,7 @@
     #fireBtn{right:24px;bottom:48px;width:86px;height:86px;font-size:19px;}
     #reloadBtn{right:37px;bottom:146px;width:60px;height:60px;font-size:13px;}
     #grenadeBtn{right:115px;bottom:130px;width:60px;height:60px;font-size:13px;}
+    #dashBtn{bottom:166px;width:48px;height:64px;}
   }
   @media (max-width:1100px){
     #weaponStages{width:190px;font-size:9px;}
@@ -271,7 +273,7 @@
 <div id="hint">WASD 移動 ・ Shift 緊急衝刺 ・ 滑鼠環視 ・ 左鍵開槍 ・ V 重播單字 ・ G 手榴彈 ・ R 換彈匣 ・ 空白鍵跳躍 ・ ESC 暫停</div>
 <div id="touchUI" class="hidden">
   <div id="moveStick"><div id="moveKnob"></div></div>
-  <button id="dashBtn" type="button" aria-label="緊急衝刺">⚡ 衝刺</button>
+  <div id="dashBtn" role="status" aria-label="將移動手指滑入左側邊界即可緊急衝刺">⚡ 衝刺</div>
   <button id="fireBtn" type="button">開槍</button>
   <button id="reloadBtn" type="button">裝子彈</button>
   <button id="grenadeBtn" type="button">手榴彈</button>
@@ -291,7 +293,7 @@
         簡單／一般模式離屋後會保留佔領進度；困難模式只要進屋啟動，離開後仍會持續累積到 10 秒。<br><br>
         👑 <b>BOSS</b>：護盾存在時先佔領正確小屋；破盾後射擊 BOSS。半血時會再次開盾。簡單需答對 3＋2 次，困難需答對 4＋3 次。<br><br>
         💻 <b>電腦</b>：WASD 移動、Shift 緊急衝刺、滑鼠瞄準、左鍵開槍、G 手榴彈、R 換彈、空白鍵跳躍。<br>
-        📱 <b>手機／平板</b>：左搖桿移動，點擊血量與搖桿之間的 ⚡ 按鈕衝刺；右側滑動瞄準，使用畫面按鈕攻擊。
+        📱 <b>手機／平板</b>：左搖桿移動，將移動手指滑到左側邊界的 ⚡ 區域即可衝刺；右側滑動瞄準，使用畫面按鈕攻擊。
       </div>
     </details>
   </div>
@@ -1512,7 +1514,7 @@ function updateDashUI(force=false){
   dashBtn.classList.toggle('active',dashT>0);
   const sec=Math.ceil(dashCd);if(!force&&sec===dashUiSecond)return;dashUiSecond=sec;
   dashBtn.classList.toggle('cooldown',dashCd>0);dashBtn.textContent=dashCd>0?('⚡ '+sec):'⚡ 衝刺';
-  dashBtn.setAttribute('aria-label',dashCd>0?('緊急衝刺冷卻剩餘 '+sec+' 秒'):'緊急衝刺');
+  dashBtn.setAttribute('aria-label',dashCd>0?('緊急衝刺冷卻剩餘 '+sec+' 秒'):'將移動手指滑入左側邊界即可緊急衝刺');
 }
 function doDash(){
   if(!playing||paused||dashCd>0)return;
@@ -1682,7 +1684,7 @@ addEventListener('mouseup',e=>{if(e.button===0)fireHeld=false;});
 /* 觸控：左半螢幕虛擬搖桿、右半螢幕滑動環視 */
 if(isTouch)document.getElementById('touchUI').classList.remove('hidden');
 const stickEl=document.getElementById('moveStick'),knob=document.getElementById('moveKnob');
-let stickId=null,lookId=null,fireTouchId=null,stickVec={x:0,y:0},lookLast={x:0,y:0},fireLookLast={x:0,y:0};
+let stickId=null,lookId=null,fireTouchId=null,stickVec={x:0,y:0},dashZoneEntered=false,lookLast={x:0,y:0},fireLookLast={x:0,y:0};
 addEventListener('touchstart',e=>{
   if(!playing)return;
   for(const t of e.changedTouches){
@@ -1691,10 +1693,9 @@ addEventListener('touchstart',e=>{
     if(el&&(el.id==='reloadBtn')){reload();continue;}
     if(el&&(el.id==='grenadeBtn')){throwGrenade();continue;}
     if(el&&(el.id==='jumpBtn')){doJump();continue;}
-    if(el&&(el.id==='dashBtn')){doDash();continue;}
     if(el&&(el.id==='btnPause'))continue;
     if(t.clientX<innerWidth*0.45&&stickId===null){
-      stickId=t.identifier;updStick(t);
+      stickId=t.identifier;updStick(t,false);
     }else if(lookId===null){
       lookId=t.identifier;lookLast={x:t.clientX,y:t.clientY};
     }
@@ -1706,7 +1707,7 @@ addEventListener('touchmove',e=>{
       player.yaw-=(t.clientX-fireLookLast.x)*0.0052;
       player.pitch=clamp(player.pitch-(t.clientY-fireLookLast.y)*0.0052,-1.45,1.45);
       fireLookLast={x:t.clientX,y:t.clientY};
-    }else if(t.identifier===stickId)updStick(t);
+    }else if(t.identifier===stickId)updStick(t,true);
     else if(t.identifier===lookId){
       player.yaw-=(t.clientX-lookLast.x)*0.0052;
       player.pitch=clamp(player.pitch-(t.clientY-lookLast.y)*0.0052,-1.45,1.45);
@@ -1718,19 +1719,21 @@ addEventListener('touchmove',e=>{
 function releaseTouch(e){
   for(const t of e.changedTouches){
     if(t.identifier===fireTouchId){fireTouchId=null;fireHeld=false;document.getElementById('fireBtn').classList.remove('active');}
-    if(t.identifier===stickId){stickId=null;stickVec={x:0,y:0};knob.style.left='70px';knob.style.top='70px';}
+    if(t.identifier===stickId){stickId=null;stickVec={x:0,y:0};dashZoneEntered=false;knob.style.left='70px';knob.style.top='70px';dashBtn.classList.remove('targeted');}
     if(t.identifier===lookId)lookId=null;
   }
 }
 function resetTouchControls(){
-  stickId=null;lookId=null;fireTouchId=null;stickVec={x:0,y:0};fireHeld=false;
-  knob.style.left='70px';knob.style.top='70px';document.getElementById('fireBtn').classList.remove('active');
+  stickId=null;lookId=null;fireTouchId=null;stickVec={x:0,y:0};dashZoneEntered=false;fireHeld=false;
+  knob.style.left='70px';knob.style.top='70px';dashBtn.classList.remove('targeted');document.getElementById('fireBtn').classList.remove('active');
 }
 addEventListener('touchend',releaseTouch);
 addEventListener('touchcancel',releaseTouch);
-function updStick(t){
+function updStick(t,allowDash){
   const r=stickEl.getBoundingClientRect();
   let dx=t.clientX-(r.left+70),dy=t.clientY-(r.top+70);
+  const d=dashBtn.getBoundingClientRect(),inDashZone=allowDash&&t.clientX>=d.left&&t.clientX<=d.right&&t.clientY>=d.top&&t.clientY<=d.bottom;
+  if(inDashZone&&!dashZoneEntered)doDash();dashZoneEntered=inDashZone;dashBtn.classList.toggle('targeted',inDashZone);
   const len=Math.hypot(dx,dy),max=58;
   if(len>max){dx*=max/len;dy*=max/len;}
   stickVec={x:dx/max,y:dy/max};
@@ -1761,7 +1764,6 @@ addEventListener('keydown',e=>{if(e.code==='Escape'&&isTouch&&playing){e.prevent
 addEventListener('visibilitychange',()=>{if(document.hidden&&playing&&!paused)pauseGame();});
 document.getElementById('reloadBtn').addEventListener('click',reload);
 document.getElementById('grenadeBtn').addEventListener('click',throwGrenade);
-dashBtn.addEventListener('click',doDash);
 
 /* ============ 主迴圈 ============ */
 let lastT=performance.now();
