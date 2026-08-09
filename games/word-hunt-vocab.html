@@ -36,6 +36,7 @@
         .word-card.speaking { border-color:#8176df; color:#5048aa; background:#efedff; transform:translateY(-2px); }
         .word-card.selected { border-color:#f6a83b; color:#8a5600; background:#fff4d9; box-shadow:0 0 0 3px rgba(246,168,59,.2); }
         .word-card.found { border-color:#8addae; color:#20784b; text-decoration:line-through; background:#e6f8ee; opacity:.82; transform:scale(.97); }
+        .word-card.choose-prompt { border-color:#f6a83b; animation:choosePrompt .32s ease-in-out 2; }
         .grid-wrap { position:relative; width:min(100%, 620px); margin:0 auto; border:8px solid #f0effa; border-radius:18px; background:#f0effa; touch-action:none; }
         .grid-wrap, .grid, .cell { -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-user-drag:none; }
         .grid { position:relative; display:grid; grid-template-columns:repeat(9, 1fr); overflow:hidden; border-radius:11px; background:#fff; touch-action:none; }
@@ -71,7 +72,8 @@
         @keyframes feedbackPop { 45% { transform:scale(1.08); } }
         @keyframes successBurst { 0% { opacity:0; transform:translate(-50%, -35%) scale(.55); } 32% { opacity:1; transform:translate(-50%, -50%) scale(1.08); } 75% { opacity:1; transform:translate(-50%, -54%) scale(1); } 100% { opacity:0; transform:translate(-50%, -78%) scale(.92); } }
         @keyframes hintFlash { 0%, 26%, 52%, 78%, 100% { color:#263052; background:transparent; box-shadow:none; transform:scale(1); } 13%, 39%, 65% { color:#8a4b00; background:#ffd66b; box-shadow:0 0 0 6px rgba(246,168,59,.32); transform:scale(1.14); } }
-        @media (prefers-reduced-motion:reduce) { .cell.hint { color:#8a4b00; background:#ffd66b; box-shadow:0 0 0 4px rgba(246,168,59,.32); animation:none; } }
+        @keyframes choosePrompt { 0%, 100% { transform:translateX(0); } 25% { transform:translateX(-6px); } 75% { transform:translateX(6px); } }
+        @media (prefers-reduced-motion:reduce) { .cell.hint { color:#8a4b00; background:#ffd66b; box-shadow:0 0 0 4px rgba(246,168,59,.32); animation:none; } .word-card.choose-prompt { color:#8a5600; background:#fff4d9; animation:none; } }
         @media (max-width:520px) { body { background:#f7f7ff; } .shell { padding:15px 10px 24px; } .topbar { align-items:flex-start; } .stat { min-width:82px; padding:7px 9px; } .word-card { min-width:92px; padding:8px 10px; font-size:14px; } .card { padding:15px 10px; border-radius:18px; } .grid-wrap { border-width:5px; } }
     </style>
     <link rel="stylesheet" href="game-menu-ui.css">
@@ -217,6 +219,7 @@
         let activeSelection = null;
         let paused = false;
         let hintTimeoutId = null;
+        let choosePromptTimeoutId = null;
         let hintsRemaining = MAX_HINTS;
         let selectedHintWord = null;
         const speech = 'speechSynthesis' in window ? window.speechSynthesis : null;
@@ -312,6 +315,7 @@
                 card.append(speaker);
                 card.addEventListener('click', () => {
                     if (!foundWords.has(item.word)) {
+                        clearChoosePrompt();
                         selectedHintWord = item.word;
                         wordList.querySelectorAll('.word-card.selected').forEach((itemCard) => {
                             itemCard.classList.remove('selected');
@@ -548,6 +552,20 @@
             hintButton.disabled = hintsRemaining === 0;
         }
 
+        function clearChoosePrompt() {
+            window.clearTimeout(choosePromptTimeoutId);
+            choosePromptTimeoutId = null;
+            wordList.querySelectorAll('.word-card.choose-prompt').forEach((card) => card.classList.remove('choose-prompt'));
+        }
+
+        function promptWordSelection() {
+            clearChoosePrompt();
+            const cards = wordList.querySelectorAll('.word-card:not(.found)');
+            void wordList.offsetWidth;
+            cards.forEach((card) => card.classList.add('choose-prompt'));
+            choosePromptTimeoutId = window.setTimeout(clearChoosePrompt, 800);
+        }
+
         function requestHint() {
             if (paused || timerId === null) return;
             if (hintsRemaining === 0) {
@@ -555,6 +573,7 @@
                 return;
             }
             if (!selectedHintWord) {
+                promptWordSelection();
                 setFeedback('請先點一下想要提示的單字，再按提示。', 'bad');
                 return;
             }
@@ -621,6 +640,7 @@
             foundWords = new Set();
             selectedHintWord = null;
             clearHint();
+            clearChoosePrompt();
             levelValue.textContent = `${index + 1} / ${gameLevels.length}`;
             renderWords();
             renderBoard();
