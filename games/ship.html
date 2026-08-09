@@ -280,7 +280,7 @@
           🚀 擊沉<b>符合天空所有條件</b>的船，越遠分數越高；連續命中可提高連擊倍率。<br>
           📖 題目包含中文意思、挖空句子與圖片題。<br>
           🏁 每關擊沉 <b>2 艘</b>目標船才過關；失敗會扣命。<br>
-          💥 困難模式中，船艦約 10 秒後會反擊。<br>
+          💥 困難模式中，敵方狙擊手約 10 秒後會現身反擊。<br>
           🦑 海怪需連打 5 下，擊敗後可獲得隨機獎勵。<br>
           👑 第 4、8 關是魔王戰，擊敗最終魔王即可通關。
         </div>
@@ -979,6 +979,7 @@ function enemyCounterFire() {
   if (game.roundEnding) return;
   game.roundEnding = true;
   game.threatPhase = "fired";
+  game.threatT = 0;       // 保留短暫槍口火光，之後狙擊手立刻消失
   game.lastRoundWon = false;
   game.combo = 0;
   game.lives--;
@@ -986,7 +987,7 @@ function enemyCounterFire() {
   sfx.boom();
   const tgt = game.ships.find(s => s.isTarget && s.alive);
   dmgIndicatorAt(tgt ? shipScreenRect(tgt).x : W / 2);   // 受擊方向小圓弧
-  showToast("💥 被敵艦擊中！-1 💔", "#ff6b6b");
+  showToast("💥 被敵方狙擊手擊中！-1 💔", "#ff6b6b");
   updateHUD();
   game.fireLock = true;
   if (game.lives <= 0) setTimeout(gameOver, 1200);
@@ -1119,7 +1120,7 @@ function drawThreatTelegraph() {
   ctx.font = `900 ${fs}px sans-serif`;
   ctx.fillStyle = `rgba(255,90,90,${0.5 + prog * 0.5})`;
   ctx.textAlign = "center"; ctx.textBaseline = "bottom";
-  ctx.fillText("🎯 敵艦開火準備", cx, cy - radius - 4);
+  ctx.fillText("🎯 狙擊手開火準備", cx, cy - radius - 4);
   ctx.restore();
 }
 
@@ -1249,7 +1250,7 @@ function drawThreatWarning(now) {
   ctx.font = `900 ${fs}px sans-serif`;
   ctx.textAlign = "center"; ctx.textBaseline = "top";
   ctx.fillStyle = `rgba(255,90,90,${0.6 + pulse * 0.4})`;
-  ctx.fillText("⚠ 敵艦鎖定！快開火", W / 2, H * 0.16);
+  ctx.fillText("⚠ 敵方狙擊手鎖定！快開火", W / 2, H * 0.16);
 }
 
 /* ════════════════ 魔王關 ════════════════ */
@@ -1743,6 +1744,11 @@ function drawShip(ship, now) {
   // 困難模式的敵艦都配有大砲，讓玩家一眼看出它們會反擊
   if (game.difficulty === "hard" && ship.sinking === 0) drawDeckCannon(L, hullH, u);
 
+  // 真正發動反擊的目標船：鎖定時現身，開槍後短暫閃光便消失
+  const sniperVisible = ship.isTarget && ship.sinking === 0 &&
+    (game.threatPhase === "aim" || (game.threatPhase === "fired" && game.threatT < 0.18));
+  if (game.difficulty === "hard" && sniperVisible) drawEnemySniper(L, hullH, u, now);
+
   // ── 桅杆與旗幟 ──
   const mastTop = -hullH - 5.6 * u;
   ctx.strokeStyle = "#503a26";
@@ -1802,6 +1808,79 @@ function drawDeckCannon(L, hullH, u) {
   ctx.beginPath();
   ctx.arc(-2.25 * u, -1.4 * u, 0.32 * u, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+}
+
+function drawEnemySniper(L, hullH, u, now) {
+  const firing = game.threatPhase === "fired";
+  const appear = firing ? 1 : clamp(game.threatT / 0.28, 0, 1);
+  const sway = Math.sin(now / 150) * 0.04;
+  ctx.save();
+  ctx.globalAlpha = appear;
+  ctx.translate(-L * 0.04, -hullH - 2.15 * u + (1 - appear) * 1.4 * u);
+  ctx.rotate(sway);
+
+  // 朝玩家架起的狙擊槍
+  ctx.strokeStyle = "#11151b";
+  ctx.lineCap = "round";
+  ctx.lineWidth = Math.max(1.5, 0.38 * u);
+  ctx.beginPath();
+  ctx.moveTo(-0.15 * u, -2.35 * u);
+  ctx.lineTo(-3.45 * u, -1.65 * u);
+  ctx.stroke();
+  ctx.fillStyle = "#303945";
+  ctx.fillRect(-2.25 * u, -2.18 * u, 0.75 * u, 0.28 * u);
+
+  // 黑色披風：用深藍灰高光保留輪廓
+  ctx.fillStyle = "#080b11";
+  ctx.strokeStyle = "#394353";
+  ctx.lineWidth = Math.max(1, 0.13 * u);
+  ctx.beginPath();
+  ctx.moveTo(-0.75 * u, -2.55 * u);
+  ctx.quadraticCurveTo(-1.45 * u, -1.9 * u, -1.25 * u, 0);
+  ctx.lineTo(1.25 * u, 0);
+  ctx.quadraticCurveTo(1.35 * u, -1.9 * u, 0.7 * u, -2.55 * u);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "rgba(80,96,118,.55)";
+  ctx.beginPath();
+  ctx.moveTo(0.2 * u, -2.35 * u);
+  ctx.quadraticCurveTo(0.85 * u, -1.25 * u, 0.75 * u, -0.15 * u);
+  ctx.lineTo(1.08 * u, -0.15 * u);
+  ctx.quadraticCurveTo(1.15 * u, -1.65 * u, 0.55 * u, -2.4 * u);
+  ctx.closePath(); ctx.fill();
+
+  // 臉
+  ctx.fillStyle = "#d6a078";
+  ctx.beginPath(); ctx.arc(0, -3.25 * u, 0.72 * u, 0, Math.PI * 2); ctx.fill();
+
+  // 墨鏡
+  ctx.fillStyle = "#050608";
+  ctx.strokeStyle = "#68788d";
+  ctx.lineWidth = Math.max(1, 0.1 * u);
+  ctx.fillRect(-0.62 * u, -3.46 * u, 0.52 * u, 0.3 * u);
+  ctx.fillRect(0.1 * u, -3.46 * u, 0.52 * u, 0.3 * u);
+  ctx.beginPath(); ctx.moveTo(-0.1 * u, -3.32 * u); ctx.lineTo(0.1 * u, -3.32 * u); ctx.stroke();
+
+  // 寬邊帽
+  ctx.fillStyle = "#151a22";
+  ctx.beginPath(); ctx.ellipse(0, -3.82 * u, 1.15 * u, 0.24 * u, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillRect(-0.6 * u, -4.45 * u, 1.2 * u, 0.65 * u);
+  ctx.fillStyle = "#3e4858";
+  ctx.fillRect(-0.6 * u, -3.98 * u, 1.2 * u, 0.16 * u);
+
+  // 開槍瞬間的槍口火光；下一幀序列中角色便淡出場景
+  if (firing) {
+    ctx.fillStyle = "#fff2a6";
+    ctx.beginPath();
+    ctx.moveTo(-3.45 * u, -1.65 * u);
+    ctx.lineTo(-4.35 * u, -2.05 * u);
+    ctx.lineTo(-4.05 * u, -1.55 * u);
+    ctx.lineTo(-4.45 * u, -1.25 * u);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ff7a2f";
+    ctx.beginPath(); ctx.arc(-3.48 * u, -1.65 * u, 0.25 * u, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.restore();
 }
 
@@ -1946,6 +2025,7 @@ function update(dt) {
 
   // 回合結算中：只推進沉船／震動動畫，不再扣時間、不再重複觸發逃走
   if (game.roundEnding) {
+    if (game.threatPhase === "fired") game.threatT += dt;
     for (const s of game.ships) {
       if (s.alive && s.sinking > 0) { s.sinking += dt * 0.9; if (s.sinking >= 1) s.alive = false; }
     }
@@ -1979,7 +2059,7 @@ function update(dt) {
     const elapsed = game.roundTime - game.timer;
     if (game.threatPhase === "idle" && elapsed >= ENEMY_AGGRO) {
       game.threatPhase = "aim"; game.threatT = 0;
-      sfx.bad(); showToast("🎯 敵艦鎖定你！", "#ff6b6b");
+      sfx.bad(); showToast("🎯 敵方狙擊手鎖定你！", "#ff6b6b");
     } else if (game.threatPhase === "aim") {
       game.threatT += dt;
       if (game.threatT >= ENEMY_AIM_WARN) { enemyCounterFire(); return; }
