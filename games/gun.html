@@ -172,9 +172,9 @@
   #jumpBtn{position:absolute;right:150px;bottom:52px;width:70px;height:70px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;
     background:rgba(80,160,255,.28);border:3px solid rgba(120,180,255,.7);text-shadow:0 1px 4px #000;}
-  #dashBtn{position:absolute;left:0;bottom:190px;width:52px;height:72px;border-radius:0 18px 18px 0;
-    display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;pointer-events:none;
-    background:rgba(126,73,218,.42);border:3px solid rgba(197,163,255,.82);border-left:0;text-shadow:0 1px 4px #000;}
+  #dashBtn{position:absolute;left:0;bottom:220px;width:48px;height:48px;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:900;color:#fff;pointer-events:none;
+    background:rgba(126,73,218,.42);border:3px solid rgba(197,163,255,.82);text-shadow:0 1px 4px #000;box-sizing:border-box;}
   #dashBtn.active{background:rgba(169,111,255,.78);box-shadow:0 0 18px rgba(190,145,255,.9);}
   #dashBtn.targeted{background:rgba(169,111,255,.78);box-shadow:0 0 22px rgba(190,145,255,.95);}
   #dashBtn.cooldown{font-size:16px;color:rgba(255,255,255,.68);background:rgba(54,47,71,.72);border-color:rgba(190,180,210,.4);}
@@ -189,7 +189,7 @@
     #fireBtn{right:24px;bottom:48px;width:86px;height:86px;font-size:19px;}
     #reloadBtn{right:37px;bottom:146px;width:60px;height:60px;font-size:13px;}
     #grenadeBtn{right:115px;bottom:130px;width:60px;height:60px;font-size:13px;}
-    #dashBtn{bottom:166px;width:48px;height:64px;}
+    #dashBtn{bottom:200px;}
   }
   @media (max-width:1100px){
     #weaponStages{width:190px;font-size:9px;}
@@ -273,7 +273,7 @@
 <div id="hint">WASD 移動 ・ Shift 緊急衝刺 ・ 滑鼠環視 ・ 左鍵開槍 ・ V 重播單字 ・ G 手榴彈 ・ R 換彈匣 ・ 空白鍵跳躍 ・ ESC 暫停</div>
 <div id="touchUI" class="hidden">
   <div id="moveStick"><div id="moveKnob"></div></div>
-  <div id="dashBtn" role="status" aria-label="將移動手指滑入左側邊界即可緊急衝刺">⚡ 衝刺</div>
+  <div id="dashBtn" role="status" aria-label="將移動手指滑入左側邊界即可緊急衝刺">⚡</div>
   <button id="fireBtn" type="button">開槍</button>
   <button id="reloadBtn" type="button">裝子彈</button>
   <button id="grenadeBtn" type="button">手榴彈</button>
@@ -1513,7 +1513,7 @@ const dashBtn=document.getElementById('dashBtn');
 function updateDashUI(force=false){
   dashBtn.classList.toggle('active',dashT>0);
   const sec=Math.ceil(dashCd);if(!force&&sec===dashUiSecond)return;dashUiSecond=sec;
-  dashBtn.classList.toggle('cooldown',dashCd>0);dashBtn.textContent=dashCd>0?('⚡ '+sec):'⚡ 衝刺';
+  dashBtn.classList.toggle('cooldown',dashCd>0);dashBtn.textContent=dashCd>0?sec:'⚡';
   dashBtn.setAttribute('aria-label',dashCd>0?('緊急衝刺冷卻剩餘 '+sec+' 秒'):'將移動手指滑入左側邊界即可緊急衝刺');
 }
 function doDash(){
