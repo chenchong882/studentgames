@@ -226,7 +226,67 @@
     margin-top: 8px;
   }
   .overlay button:active { transform: scale(.95); }
+  .overlay button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
   .overlay button.mode-picked { outline:3px solid #fff; box-shadow:0 0 0 5px rgba(255,209,88,.28),0 6px 22px rgba(255,160,40,.5); }
+  .mode-section { width: min(650px, 92vw); }
+  .mode-section-label { margin-bottom: 9px; font-size: 14px; font-weight: 800; color: #ffe9c0; }
+  #mode-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .overlay .mode-option {
+    --mode-accent: #ffd158;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    min-height: 78px;
+    margin: 0;
+    padding: 12px 14px;
+    border: 2px solid rgba(255,255,255,.24);
+    border-radius: 16px;
+    background: rgba(8,22,48,.78);
+    color: #f8fafc;
+    box-shadow: 0 4px 12px rgba(0,0,0,.28);
+    text-align: left;
+    touch-action: manipulation;
+    transition: border-color .2s ease, background .2s ease, box-shadow .2s ease, transform .15s ease;
+  }
+  .overlay .mode-option:hover { border-color: rgba(255,255,255,.52); background: rgba(17,37,70,.9); }
+  .overlay .mode-option:active { transform: scale(.98); }
+  .overlay .mode-option.mode-picked {
+    outline: none;
+    border-color: var(--mode-accent);
+    background: linear-gradient(135deg, rgba(255,255,255,.16), rgba(8,22,48,.9));
+    box-shadow: 0 0 0 3px rgba(255,209,88,.24), 0 6px 18px rgba(0,0,0,.35);
+  }
+  .overlay .mode-option[hidden] { display: none !important; }
+  .mode-copy { min-width: 0; }
+  .mode-title { display: block; font-size: clamp(17px, 3.5vw, 22px); font-weight: 900; line-height: 1.2; }
+  .mode-desc { display: block; margin-top: 5px; color: #d7e3f7; font-size: clamp(11px, 2.3vw, 13px); font-weight: 700; line-height: 1.35; }
+  .mode-status {
+    min-width: 58px;
+    padding: 5px 8px;
+    border: 1px solid rgba(255,255,255,.3);
+    border-radius: 999px;
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 900;
+    text-align: center;
+  }
+  .mode-option.mode-picked .mode-status { border-color: transparent; background: var(--mode-accent); color: #10203a; }
+  #start-simple { --mode-accent: #61df7d; }
+  #start-hard { --mode-accent: #ff8b63; }
+  #start-ship-btn { min-width: min(330px, 88vw); margin-top: 4px; }
+  @media (max-width: 430px) {
+    #mode-row { gap: 8px; }
+    .overlay .mode-option { grid-template-columns: 1fr; gap: 7px; min-height: 96px; padding: 10px 11px; }
+    .mode-status { justify-self: start; min-width: 54px; padding: 4px 7px; font-size: 11px; }
+  }
+  @media (max-height: 650px) {
+    #start-screen { justify-content: flex-start; overflow-y: auto; padding-top: max(58px, calc(16px + env(safe-area-inset-top))); touch-action: pan-y; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .overlay .mode-option { transition: none; }
+    .overlay .mode-option:active { transform: none; }
+  }
   #allpic-row button { min-height:44px; padding:8px 12px; font:inherit; font-size:14px; font-weight:800; color:#fff; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25); border-radius:10px; cursor:pointer; }
   #allpic-row button.mode-picked { color:#3a1c00; background:#ffd158; }
   .hidden { display: none !important; }
@@ -289,13 +349,24 @@
     <div style="font-size:14px;font-weight:800;color:#ffe9c0">題目內容</div>
     <div id="allpic-row" style="display:none; align-items:center; gap:8px; justify-content:center; font-size:clamp(13px,3vw,16px); color:#ffe9c0;"><button type="button" id="allpic-mix">混合練習（推薦）</button><button type="button" id="allpic-only">只玩圖片題</button></div>
     <div id="mix-desc" style="display:none;font-size:13px;color:#d6e4ff;max-width:520px">混合練習：交替出現中英文字題與英文／發音選圖片；簡單圖片較多、困難文字較多。</div>
-    <div style="font-size:14px;font-weight:800;color:#ffe9c0">選擇難度</div>
-    <div id="mode-row" style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center;">
-      <button id="start-simple" style="background:linear-gradient(180deg,#7be38a,#33c45a); color:#06310f;">🌱 簡單模式</button>
-      <button id="start-normal" style="background:linear-gradient(180deg,#7fc4ff,#2f6bd6); color:#06213a;">🙂 一般模式</button>
-      <button id="start-hard" style="background:linear-gradient(180deg,#ff9d6b,#ec5a2c); color:#3a1200;">🔴 困難模式</button>
+    <div class="mode-section">
+      <div class="mode-section-label" id="mode-label">選擇難度</div>
+      <div id="mode-row" role="group" aria-labelledby="mode-label">
+        <button id="start-simple" class="mode-option" type="button">
+          <span class="mode-copy"><span class="mode-title">簡單模式</span><span class="mode-desc">圖片題較多・敵方不會反擊</span></span>
+          <span class="mode-status" aria-hidden="true">選擇</span>
+        </button>
+        <button id="start-normal" class="mode-option" type="button">
+          <span class="mode-copy"><span class="mode-title">一般模式</span><span class="mode-desc">標準題型與戰鬥節奏</span></span>
+          <span class="mode-status" aria-hidden="true">選擇</span>
+        </button>
+        <button id="start-hard" class="mode-option" type="button">
+          <span class="mode-copy"><span class="mode-title">困難模式</span><span class="mode-desc">文字題較多・敵方會反擊</span></span>
+          <span class="mode-status" aria-hidden="true">選擇</span>
+        </button>
+      </div>
     </div>
-    <button id="start-ship-btn" type="button">開始遊戲</button>
+    <button id="start-ship-btn" type="button">以困難模式開始</button>
     <button class="game-menu-return" type="button" onclick="location.href='../index.html'+location.hash" style="background:rgba(255,255,255,.16); color:#fff; font-size:clamp(15px,3.6vw,20px); padding:10px 32px;">← 返回遊戲選單</button>
     <div class="sub" id="mode-hint" style="font-size:clamp(12px,2.8vw,15px);"></div>
   </div>
@@ -1523,7 +1594,8 @@ function allowedShipModes(){ return ['simple','hard']; }
 function refreshModeUI() {
   const pics = hasPicBank(), allow = allowedShipModes();
   if (!allow.includes(selectedShipMode)) selectedShipMode = allow[0];
-  ['simple','normal','hard'].forEach(m=>{ const b=$("start-"+m), on=selectedShipMode===m; b.hidden=!allow.includes(m); b.disabled=!allow.includes(m); b.classList.toggle('mode-picked',on); b.setAttribute('aria-pressed',on?'true':'false'); });
+  ['simple','normal','hard'].forEach(m=>{ const b=$("start-"+m), on=selectedShipMode===m; b.hidden=!allow.includes(m); b.disabled=!allow.includes(m); b.classList.toggle('mode-picked',on); b.setAttribute('aria-pressed',on?'true':'false'); b.querySelector('.mode-status').textContent=on?'已選擇':'選擇'; });
+  $("start-ship-btn").textContent = `以${selectedShipMode==='hard'?'困難':'簡單'}模式開始`;
   $("mode-hint").textContent = pics
     ? "內建圖片單字：可選簡單或困難"
     : "段考單字：可選簡單或困難";
