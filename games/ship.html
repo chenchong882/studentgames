@@ -12,13 +12,13 @@
     overflow: hidden;
     background: #0a1530;
     font-family: "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif;
-    touch-action: none;
+    touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
     overscroll-behavior: none;
   }
   #game-wrap { position: fixed; inset: 0; }
-  #scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: none; }
+  #scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: none; touch-action: none; }
 
   /* ── 天空題目（海面模式才顯示） ── */
   #sky-question {
@@ -366,7 +366,7 @@
         </button>
       </div>
     </div>
-    <button id="start-ship-btn" type="button">以困難模式開始</button>
+    <button class="mobile-start-cta" id="start-ship-btn" type="button">以困難模式開始</button>
     <button class="game-menu-return" type="button" onclick="location.href='../index.html'+location.hash" style="background:rgba(255,255,255,.16); color:#fff; font-size:clamp(15px,3.6vw,20px); padding:10px 32px;">← 返回遊戲選單</button>
     <div class="sub" id="mode-hint" style="font-size:clamp(12px,2.8vw,15px);"></div>
   </div>

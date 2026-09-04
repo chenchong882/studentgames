@@ -1607,21 +1607,36 @@ function drawWordPanel(c, game) {
 // ══════════════════════════════════════════
 //  SCREEN: MAIN MENU
 // ══════════════════════════════════════════
-function menuBtnW() { return clamp(W * 0.38, 340, 640); }
-function menuBtnH() { return clamp(H * 0.075, 50, 66); }
+const _coarsePointer = matchMedia('(pointer:coarse)');
+function compactPhoneMenu() { return _coarsePointer.matches && Math.min(W, H) <= 600; }
+function menuBtnW() {
+  if (compactPhoneMenu()) return Math.max(86, Math.min(210, (W - SAFE_L - SAFE_R - 48) / 3));
+  return clamp(W * 0.38, 340, 640);
+}
+function menuBtnH() { return compactPhoneMenu() ? 48 : clamp(H * 0.075, 50, 66); }
+function menuBtnXs() {
+  if (!compactPhoneMenu()) return { simpleX:W/2, normalX:W/2, hardX:W/2 };
+  const bw = menuBtnW(), gap = 8, groupW = bw * 3 + gap * 2;
+  const first = SAFE_L + (W - SAFE_L - SAFE_R - groupW) / 2 + bw / 2;
+  return { simpleX:first, normalX:first + bw + gap, hardX:first + (bw + gap) * 2 };
+}
 // 三顆模式鈕的中心 Y：用「按鈕高＋間距」算，數學上保證不重疊（小螢幕也不會疊）
 function menuBtnYs() {
+  if (compactPhoneMenu()) {
+    const rowY = clamp(H * (hasPicBank() ? 0.60 : 0.52), 168, H - 112);
+    return { simpleY:rowY, normalY:rowY, hardY:rowY };
+  }
   const bh = menuBtnH();
   const gap = clamp(H * 0.032, 12, 22);
   const simpleY = H * 0.47;
   return { simpleY, normalY: simpleY + bh + gap, hardY: simpleY + 2 * (bh + gap) };
 }
 // 全圖檔開關（DOM checkbox）擺放位置：模式鈕上方
-function menuAllPicY() { return menuBtnYs().simpleY - menuBtnH() / 2 - clamp(H * 0.055, 30, 44); }
+function menuAllPicY() { return compactPhoneMenu() ? clamp(H * 0.38, 116, 154) : menuBtnYs().simpleY - menuBtnH() / 2 - clamp(H * 0.055, 30, 44); }
 // 平板橫向高度有限：上方三行依圖片題開關往上收合，避免與題型說明重疊。
-function menuGuideY() { return menuAllPicY() - clamp(H * 0.08, 58, 70); }
-function menuSubtitleY() { return menuGuideY() - clamp(H * 0.075, 50, 64); }
-function menuTitleY() { return Math.min(H * 0.19, menuSubtitleY() - clamp(H * 0.07, 48, 58)); }
+function menuGuideY() { return compactPhoneMenu() ? Math.max(SAFE_T + 70, H * 0.25) : menuAllPicY() - clamp(H * 0.08, 58, 70); }
+function menuSubtitleY() { return compactPhoneMenu() ? SAFE_T + 58 : menuGuideY() - clamp(H * 0.075, 50, 64); }
+function menuTitleY() { return compactPhoneMenu() ? SAFE_T + 30 : Math.min(H * 0.19, menuSubtitleY() - clamp(H * 0.07, 48, 58)); }
 
 function drawMenu(c) {
   c.fillStyle='rgba(5,10,30,0.88)'; c.fillRect(0,0,W,H);
@@ -1629,27 +1644,31 @@ function drawMenu(c) {
 
   // Title
   c.save();
-  c.font=`bold ${clamp(H * 0.082, 46, 68)}px "Arial Rounded MT Bold", Arial`;
+  const compact = compactPhoneMenu();
+  c.font=`bold ${compact ? clamp(H * 0.09, 28, 36) : clamp(H * 0.082, 46, 68)}px "Arial Rounded MT Bold", Arial`;
   c.fillStyle='#FFD700'; c.shadowColor='#FF6600'; c.shadowBlur=24;
   c.fillText('💣 炸彈英文', W/2, menuTitleY());
   c.shadowBlur=0;
-  c.font=`${clamp(H * 0.032, 18, 26)}px Arial`; c.fillStyle='rgba(255,255,255,0.75)';
-  c.fillText(`Bomb English — ${bombLessonTitle}`, W/2, menuSubtitleY());
+  if (!compact) {
+    c.font=`${clamp(H * 0.032, 18, 26)}px Arial`; c.fillStyle='rgba(255,255,255,0.75)';
+    c.fillText(`Bomb English — ${bombLessonTitle}`, W/2, menuSubtitleY());
+  }
   c.font=`bold ${clamp(H * 0.027, 16, 22)}px Arial`; c.fillStyle='rgba(255,255,255,0.92)';
   c.fillText('看題目，炸中正確單字房子！', W/2, menuGuideY());
   c.restore();
 
   // Buttons：三顆永遠都畫出來，不可選的灰化
   const ys = menuBtnYs();
+  const xs = menuBtnXs();
   const allow = allowedBombModes();
   if (!allow.includes(menuMode)) menuMode = allow[0];
   [
-    { label:'🌱 簡單模式 (Easy)',   y:ys.simpleY, col:'rgba(40,160,80,0.88)',  id:'simple' },
-    { label:'🙂 一般模式 (Normal)', y:ys.normalY, col:'rgba(50,110,210,0.88)', id:'normal' },
-    { label:'🔥 困難模式 (Hard)',   y:ys.hardY,   col:'rgba(210,50,50,0.88)',  id:'hard' },
+    { label:compact?'🌱 簡單':'🌱 簡單模式 (Easy)',   x:xs.simpleX, y:ys.simpleY, col:'rgba(40,160,80,0.88)',  id:'simple' },
+    { label:compact?'🙂 一般':'🙂 一般模式 (Normal)', x:xs.normalX, y:ys.normalY, col:'rgba(50,110,210,0.88)', id:'normal' },
+    { label:compact?'🔥 困難':'🔥 困難模式 (Hard)',   x:xs.hardX,   y:ys.hardY,   col:'rgba(210,50,50,0.88)',  id:'hard' },
   ].forEach(btn => {
     const ok = allow.includes(btn.id);
-    const bw=menuBtnW(), bh=menuBtnH(), bx=W/2-bw/2;
+    const bw=menuBtnW(), bh=menuBtnH(), bx=btn.x-bw/2;
     c.save();
     if (!ok) c.globalAlpha = 0.32;
     c.fillStyle = ok ? btn.col : 'rgba(120,120,120,0.88)';
@@ -1657,17 +1676,19 @@ function drawMenu(c) {
     const selected = btn.id === menuMode;
     c.strokeStyle=selected ? '#FFD700' : 'rgba(255,255,255,0.4)'; c.lineWidth=selected ? 5 : 2; c.stroke();
     if(selected){ c.shadowColor='#FFD700'; c.shadowBlur=18; c.stroke(); c.shadowBlur=0; }
-    c.fillStyle='white'; c.font=`bold ${clamp(H * 0.032, 19, 28)}px Arial`;
-    c.fillText(selected ? `✓ ${btn.label}　已選擇` : btn.label, W/2, btn.y);
+    c.fillStyle='white'; c.font=`bold ${compact ? clamp(bw * 0.09, 13, 18) : clamp(H * 0.032, 19, 28)}px Arial`;
+    c.fillText(selected ? (compact ? `✓ ${btn.label}` : `✓ ${btn.label}　已選擇`) : btn.label, btn.x, btn.y);
     c.restore();
   });
 
-  const hint = hasPicBank() ? '內建圖片單字：可選簡單或困難' : '段考單字：可選簡單或困難';
-  c.font='15px Arial'; c.fillStyle='rgba(255,255,255,0.55)';
-  c.fillText(hint, W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.035, 16, 26));
-  if(hasPicBank()){ c.font='13px Arial'; c.fillStyle='rgba(255,233,192,0.8)'; c.fillText('混合練習：中英文字題＋英文／發音選圖片（簡單圖片較多、困難文字較多）', W/2, menuAllPicY()-28); }
-  c.font='14px Arial'; c.fillStyle='rgba(255,255,255,0.35)';
-  c.fillText('先選擇難度，再按下方「開始遊戲」', W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.075, 36, 56));
+  if (!compact) {
+    const hint = hasPicBank() ? '內建圖片單字：可選簡單或困難' : '段考單字：可選簡單或困難';
+    c.font='15px Arial'; c.fillStyle='rgba(255,255,255,0.55)';
+    c.fillText(hint, W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.035, 16, 26));
+    if(hasPicBank()){ c.font='13px Arial'; c.fillStyle='rgba(255,233,192,0.8)'; c.fillText('混合練習：中英文字題＋英文／發音選圖片（簡單圖片較多、困難文字較多）', W/2, menuAllPicY()-28); }
+    c.font='14px Arial'; c.fillStyle='rgba(255,255,255,0.35)';
+    c.fillText('先選擇難度，再按下方「開始遊戲」', W/2, ys.hardY + menuBtnH()/2 + clamp(H*0.075, 36, 56));
+  }
 }
 
 // ══════════════════════════════════════════
@@ -2521,10 +2542,11 @@ let bombButton = new BombButton();
 let game       = new Game();
 
 function hitMenu(x, y) {
-  const bw=menuBtnW(), bh=menuBtnH(), bx=W/2-bw/2;
+  const bw=menuBtnW(), bh=menuBtnH(), xs=menuBtnXs();
   const ys = menuBtnYs();
   const allow = allowedBombModes();
-  for (const [m, yy] of [['simple', ys.simpleY], ['normal', ys.normalY], ['hard', ys.hardY]]) {
+  for (const [m, xx, yy] of [['simple', xs.simpleX, ys.simpleY], ['normal', xs.normalX, ys.normalY], ['hard', xs.hardX, ys.hardY]]) {
+    const bx=xx-bw/2;
     if (x>bx && x<bx+bw && y>yy-bh/2 && y<yy+bh/2) {
       if (allow.includes(m)) game.start(m);
       return;
@@ -2681,7 +2703,7 @@ const _speechOverlay = (() => {
   const speakBtn  = mkBtn('播放單字發音');
   const infoEl = document.getElementById('bomb-game-info');
   const startBtn = document.createElement('button');
-  startBtn.type = 'button'; startBtn.textContent = '開始遊戲';
+  startBtn.type = 'button'; startBtn.className = 'mobile-start-cta'; startBtn.textContent = '開始遊戲';
   startBtn.style.cssText = 'position:fixed;z-index:9002;display:none;min-height:44px;padding:10px 28px;border:2px solid #fff;border-radius:999px;color:#3a1c00;background:linear-gradient(#ffe36b,#ffae2e);font:bold 18px Arial,"Noto Sans TC",sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;';
   root.appendChild(startBtn);
   const menuBtn = document.createElement('button');
@@ -2717,13 +2739,13 @@ const _speechOverlay = (() => {
 
   return function sync() {
     if (game.phase === 'menu') {
-      const bw = menuBtnW(), bh = menuBtnH(), bx = W/2 - bw/2;
+      const bw = menuBtnW(), bh = menuBtnH(), xs = menuBtnXs();
       const ys = menuBtnYs();
       const allow = allowedBombModes();
       if (!allow.includes(menuMode)) menuMode = allow[0];
-      place(simpleBtn, bx, ys.simpleY - bh/2, bw, bh); simpleBtn.style.display = allow.includes('simple') ? 'block' : 'none';
-      place(normalBtn, bx, ys.normalY - bh/2, bw, bh); normalBtn.style.display = allow.includes('normal') ? 'block' : 'none';
-      place(hardBtn,   bx, ys.hardY   - bh/2, bw, bh); hardBtn.style.display   = 'block';
+      place(simpleBtn, xs.simpleX-bw/2, ys.simpleY - bh/2, bw, bh); simpleBtn.style.display = allow.includes('simple') ? 'block' : 'none';
+      place(normalBtn, xs.normalX-bw/2, ys.normalY - bh/2, bw, bh); normalBtn.style.display = allow.includes('normal') ? 'block' : 'none';
+      place(hardBtn,   xs.hardX-bw/2,   ys.hardY   - bh/2, bw, bh); hardBtn.style.display   = 'block';
       startBtn.textContent = `開始遊戲（${menuMode==='simple'?'簡單':menuMode==='normal'?'一般':'困難'}）`;
       startBtn.style.left = (W/2 - 98) + 'px'; startBtn.style.top = (ys.hardY + bh/2 + clamp(H*0.10,75,114)) + 'px'; startBtn.style.display = 'block';
       menuBtn.style.display = 'block';

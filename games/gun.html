@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>殭屍堡壘 3D Zombie Fort</title>
 <style>
-  html,body{margin:0;height:100%;overflow:hidden;background:#000;touch-action:none;
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;touch-action:manipulation;
     font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;}
-  canvas{display:block;}
+  canvas{display:block;touch-action:none;}
   #cross{position:fixed;left:50%;top:50%;width:26px;height:26px;transform:translate(-50%,-50%);
     pointer-events:none;z-index:6;}
   #ammo{position:fixed;right:22px;bottom:18px;text-align:right;color:#fff;z-index:5;
@@ -309,7 +309,7 @@
   </div>
   <div id="modeHint"></div>
   <p class="go" id="goText">開始會解鎖音效與英文發音</p>
-  <button class="actionBtn" id="startBtn" type="button">▶ 開始守城</button>
+  <button class="actionBtn mobile-start-cta" id="startBtn" type="button">▶ 開始守城</button>
   <button class="actionBtn secondary game-menu-return" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
 </div>
 <div id="pauseOverlay" class="hidden">
