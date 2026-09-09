@@ -44,11 +44,30 @@ button{font-family:'Outfit',sans-serif;}
 #battle-pause-btn{position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));z-index:110;
   width:44px;height:44px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35);background:rgba(15,23,42,.78);
   color:#fff;font-size:19px;cursor:pointer;display:none;}
-#topbar{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;}
+#topbar{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:8px;}
 .stat{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:6px 8px;font-size:.84rem;text-align:center;white-space:nowrap;}
 .stat span{font-weight:900;color:#f9c74f;}
-.stage-stat{background:linear-gradient(135deg,rgba(76,201,240,.16),rgba(199,125,255,.16));border-color:rgba(125,211,252,.45);}
+.stage-stat{grid-column:1/-1;background:linear-gradient(135deg,rgba(76,201,240,.16),rgba(199,125,255,.16));border-color:rgba(125,211,252,.45);padding:8px 12px;}
+.stage-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px;}
+#stage-display{font-size:1rem;color:#fff;}
+.stage-heading .stage-total{color:#cbd5e1;font-size:.75rem;font-weight:800;}
+.stage-progress{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.stage-step{position:relative;padding:4px 6px;border-radius:999px;background:rgba(15,23,42,.55);color:#94a3b8!important;font-size:.72rem;font-weight:900;}
+.stage-step::before{content:'○';margin-right:4px;}
+.stage-step.done{color:#86efac!important;background:rgba(34,197,94,.13);}
+.stage-step.done::before{content:'✓';}
+.stage-step.current{color:#1f2937!important;background:#f9c74f;box-shadow:0 0 14px rgba(249,199,79,.32);}
+.stage-step.current::before{content:'●';}
+.resource-stat{grid-column:span 2;}
+.score-correct{color:#4cc864!important;}
+.score-wrong{color:#ff6b6b!important;}
+.score-slash{color:#94a3b8!important;margin:0 4px;}
+.battlefield{position:relative;}
 #canvas{border-radius:14px;border:2px solid rgba(255,255,255,.15);display:block;width:100%;height:auto;background:#111827;}
+#battle-timer{position:absolute;top:10px;right:10px;z-index:2;min-width:92px;padding:6px 11px;border:1.5px solid rgba(255,255,255,.42);border-radius:999px;background:rgba(15,23,42,.82);box-shadow:0 4px 14px rgba(0,0,0,.28);font-size:clamp(.78rem,2.4vw,1.05rem);font-weight:900;text-align:center;color:#fff;pointer-events:none;}
+#battle-timer.warning{color:#ffd166;border-color:#f59e0b;background:rgba(120,53,15,.88);}
+#battle-timer.danger{color:#fff;border-color:#ff6b6b;background:rgba(153,27,27,.9);animation:timerPulse .75s ease-in-out infinite;}
+@keyframes timerPulse{50%{transform:scale(1.07);box-shadow:0 0 18px rgba(255,80,80,.55);}}
 #panels{display:flex;gap:10px;margin-top:10px;}
 #deploy{display:flex;flex-direction:column;gap:8px;min-width:210px;}
 .section-title{font-size:.9rem;color:#aaa;margin-bottom:2px;font-weight:900;}
@@ -140,8 +159,12 @@ button{font-family:'Outfit',sans-serif;}
   .rules{grid-template-columns:1fr;}
   .difficulty-grid{grid-template-columns:1fr;}
   .unit-grid{grid-template-columns:1fr;}
-  #topbar{grid-template-columns:1fr 1fr;gap:6px;}
+  #topbar{gap:6px;}
   .stat{font-size:.78rem;}
+  .stage-stat{padding:7px 8px;}
+  #stage-display{font-size:.9rem;}
+  .stage-step{padding:4px 2px;font-size:.66rem;}
+  #battle-timer{top:7px;right:7px;min-width:78px;padding:4px 8px;}
   #panels{flex-direction:column;}
   #deploy{min-width:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
   #deploy .section-title{grid-column:1/-1;}
@@ -215,16 +238,23 @@ button{font-family:'Outfit',sans-serif;}
 
   <section id="game-screen">
     <div id="topbar">
-      <div class="stat stage-stat">戰役 <span id="stage-display">1 / 3</span></div>
-      <div class="stat">金幣 <span id="gold-display">30</span></div>
-      <div class="stat" id="stat-power">強化值 <span id="power-display">0</span></div>
-      <div class="stat" id="stat-level">等級 <span id="level-display">Lv1</span></div>
-      <div class="stat">時間 <span id="time-display">2:30</span></div>
-      <div class="stat">答題 <span id="score-display">0 / 0</span></div>
-      <div class="stat">派兵 <span id="deployed-display">0</span></div>
+      <div class="stat stage-stat">
+        <div class="stage-heading"><span id="stage-display">第一關：草原前線</span><span class="stage-total">共 3 關</span></div>
+        <div class="stage-progress" id="stage-progress" aria-label="戰役進度">
+          <span class="stage-step current" data-stage="0">第一關</span>
+          <span class="stage-step" data-stage="1">第二關</span>
+          <span class="stage-step" data-stage="2">第三關</span>
+        </div>
+      </div>
+      <div class="stat resource-stat">金幣 <span id="gold-display">30</span></div>
+      <div class="stat resource-stat" id="stat-power">強化值 <span id="power-display">0</span></div>
+      <div class="stat resource-stat">答題 <span id="correct-display" class="score-correct">0</span><span class="score-slash">/</span><span id="wrong-display" class="score-wrong">0</span></div>
     </div>
     <div id="boss-banner" style="display:none;margin:6px 0;padding:8px 12px;border-radius:10px;background:rgba(255,80,80,.2);border:1.5px solid #ff5050;color:#ffd166;font-weight:700;"></div>
-    <canvas id="canvas" width="900" height="360"></canvas>
+    <div class="battlefield">
+      <canvas id="canvas" width="900" height="360"></canvas>
+      <div id="battle-timer" aria-label="剩餘時間">⏱ 2:00</div>
+    </div>
     <div id="panels">
       <div id="deploy" class="panel">
         <div class="section-title">派兵／兵種進化</div>
@@ -1063,16 +1093,16 @@ function startStage(stageIndex){
   applyBattleRules();
   startBgm();
   spawnEnemy('sword', 'opening');
-  // 無升級機制時隱藏強化值／等級
+  // 無升級機制時隱藏強化值
   const showLevel = state.allowLevelUp;
-  ['stat-power','stat-level'].forEach(id => {
+  ['stat-power'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = showLevel ? '' : 'none';
   });
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('game-screen').style.display = 'block';
   document.getElementById('battle-pause-btn').style.display = 'block';
-  document.getElementById('stage-display').textContent = `${stageIndex+1} / ${STAGES.length}・${state.stage.name}`;
+  document.getElementById('stage-display').textContent = `第${['一','二','三'][stageIndex] || stageIndex+1}關：${state.stage.name}`;
   Confetti.stop();
   document.getElementById('overlay').classList.remove('show','win','rout');
   document.getElementById('intermission-upgrades').classList.remove('show');
@@ -1681,14 +1711,21 @@ document.getElementById('battle-guide-ok').addEventListener('click', () => {
 });
 
 function updateHUD(){
-  document.getElementById('stage-display').textContent = `${state.stageIndex+1} / ${STAGES.length}・${state.stage.name}`;
+  const stageLabel = ['一','二','三'][state.stageIndex] || state.stageIndex+1;
+  document.getElementById('stage-display').textContent = `第${stageLabel}關：${state.stage.name}`;
+  document.querySelectorAll('.stage-step').forEach((step, index) => {
+    step.classList.toggle('current', index === state.stageIndex);
+    step.classList.toggle('done', index < state.stageIndex);
+  });
   document.getElementById('gold-display').textContent = state.gold;
-  document.getElementById('time-display').textContent = `${Math.floor(state.timeLeft/60)}:${String(state.timeLeft%60).padStart(2,'0')}`;
-  document.getElementById('score-display').textContent = `${state.correctCount} / ${state.wrongCount}`;
-  document.getElementById('deployed-display').textContent = state.deployCount;
+  const timeText = `${Math.floor(state.timeLeft/60)}:${String(state.timeLeft%60).padStart(2,'0')}`;
+  const timer = document.getElementById('battle-timer');
+  timer.textContent = `⏱ ${timeText}`;
+  timer.classList.toggle('warning', state.timeLeft <= 30 && state.timeLeft > 10);
+  timer.classList.toggle('danger', state.timeLeft <= 10);
+  document.getElementById('correct-display').textContent = state.correctCount;
+  document.getElementById('wrong-display').textContent = state.wrongCount;
   document.getElementById('power-display').textContent = state.power;
-  document.getElementById('level-display').textContent =
-    `⚔️${state.levels.sword} 🏹${state.levels.archer} 🔮${state.levels.mage}`;
   for(const [key, def] of Object.entries(UNIT_DEF)){
     const btn = document.getElementById('btn-' + key);
     const lv = state.levels[key];
