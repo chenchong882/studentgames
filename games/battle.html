@@ -56,7 +56,10 @@ button{font-family:'Outfit',sans-serif;}
 .unit-btn:hover{background:rgba(249,199,79,.15);border-color:#f9c74f;}
 .unit-btn:active{border-bottom-width:1.5px;transform:translateY(3px);}
 .unit-btn.disabled{opacity:.38;cursor:not-allowed;border-color:rgba(255,80,80,.35);}
-.unit-btn.ready{box-shadow:0 0 0 2px rgba(249,199,79,.2),0 0 18px rgba(249,199,79,.18);}
+.unit-btn.ready{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.25);}
+.unit-btn.upgrade-ready{background:linear-gradient(135deg,#ffe48a,#f9c74f);border-color:#fff0a8;border-bottom-color:#a16207;color:#211700;box-shadow:0 0 0 2px rgba(249,199,79,.3),0 0 22px rgba(249,199,79,.42);}
+.unit-btn.upgrade-ready:hover{background:linear-gradient(135deg,#fff0ad,#ffd45f);border-color:#fff7cf;}
+.unit-btn.upgrade-ready .cost{color:#6b3f00;}
 .unit-btn.active{background:rgba(76,201,240,.2);border-color:#4cc9f0;box-shadow:0 0 0 2px rgba(76,201,240,.3);}
 .unit-btn .icon{font-size:1.45rem;}
 .unit-btn .info{display:flex;flex-direction:column;}
@@ -224,34 +227,19 @@ button{font-family:'Outfit',sans-serif;}
     <canvas id="canvas" width="900" height="360"></canvas>
     <div id="panels">
       <div id="deploy" class="panel">
-        <div class="section-title">派兵（單字題賺金幣）</div>
-        <button class="unit-btn" id="btn-sword" onclick="deployUnit('sword')">
+        <div class="section-title">派兵／兵種進化</div>
+        <button class="unit-btn" id="btn-sword" onclick="handleUnitAction('sword')">
           <span class="icon">⚔️</span>
-          <span class="info"><span class="name">劍士</span><span class="cost">30 金</span></span>
+          <span class="info"><span class="name">劍士 Lv1</span><span class="cost">派兵 30 金</span></span>
         </button>
-        <button class="unit-btn" id="btn-archer" onclick="deployUnit('archer')">
+        <button class="unit-btn" id="btn-archer" onclick="handleUnitAction('archer')">
           <span class="icon">🏹</span>
-          <span class="info"><span class="name">弓箭手</span><span class="cost">55 金</span></span>
+          <span class="info"><span class="name">弓箭手 Lv1</span><span class="cost">派兵 55 金</span></span>
         </button>
-        <button class="unit-btn" id="btn-mage" onclick="deployUnit('mage')">
+        <button class="unit-btn" id="btn-mage" onclick="handleUnitAction('mage')">
           <span class="icon">🔮</span>
-          <span class="info"><span class="name">法師</span><span class="cost">85 金</span></span>
+          <span class="info"><span class="name">法師 Lv1</span><span class="cost">派兵 85 金</span></span>
         </button>
-        <div id="upgrade-section">
-          <div class="section-title">兵種進化（強化值升級）</div>
-          <button class="unit-btn" id="up-sword" onclick="upgradeUnit('sword')">
-            <span class="icon">⚔️</span>
-            <span class="info"><span class="name">劍士進化</span><span class="cost">升 Lv2・2 強化值</span></span>
-          </button>
-          <button class="unit-btn" id="up-archer" onclick="upgradeUnit('archer')">
-            <span class="icon">🏹</span>
-            <span class="info"><span class="name">弓箭手進化</span><span class="cost">升 Lv2・2 強化值</span></span>
-          </button>
-          <button class="unit-btn" id="up-mage" onclick="upgradeUnit('mage')">
-            <span class="icon">🔮</span>
-            <span class="info"><span class="name">法師進化</span><span class="cost">升 Lv2・2 強化值</span></span>
-          </button>
-        </div>
       </div>
       <div id="quiz-panel" class="panel">
         <div id="quiz-type">準備中</div>
@@ -304,7 +292,7 @@ button{font-family:'Outfit',sans-serif;}
     <div class="r">
       這是一場<b>答題攻防戰</b>：畫面下方出單字／填空文法題，<b>點選正確答案</b>。<br>
       ✅ 答對單字題（中英互選、看圖選答）→ 獲得金幣、派我方士兵攻向敵方基地。<br>
-      📘 答對填空／文法題 → 累積強化值，可將兵種一路進化到 <b>Lv5</b>。<br>
+      📘 答對填空／文法題 → 累積強化值；足夠時派兵卡會變成金色，點一下先進化，再繼續派兵。<br>
       🔥 任何題型<b>連續答對達標</b>（簡單 5 題、其他 8 題）→ 再 +1 強化值，答錯歸零重數。<br>
       🗺️ 戰役共有<b>三關</b>，勝利後兵種等級與強化值會帶到下一關。<br>
       ⏳ 限時內把<b>敵方基地血量打到 0</b> 就獲勝；小心敵軍與 BOSS 反推你的基地！<br>
@@ -1075,9 +1063,9 @@ function startStage(stageIndex){
   applyBattleRules();
   startBgm();
   spawnEnemy('sword', 'opening');
-  // 無升級機制時隱藏強化值／等級與兵種進化
+  // 無升級機制時隱藏強化值／等級
   const showLevel = state.allowLevelUp;
-  ['stat-power','stat-level','upgrade-section'].forEach(id => {
+  ['stat-power','stat-level'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = showLevel ? '' : 'none';
   });
@@ -1703,26 +1691,24 @@ function updateHUD(){
     `⚔️${state.levels.sword} 🏹${state.levels.archer} 🔮${state.levels.mage}`;
   for(const [key, def] of Object.entries(UNIT_DEF)){
     const btn = document.getElementById('btn-' + key);
-    const cost = Math.round(def.cost);
-    btn.classList.toggle('disabled', state.gold < cost);
-    btn.classList.toggle('ready', state.gold >= cost);
-  }
-  for(const key of Object.keys(UNIT_DEF)){
-    const upBtn = document.getElementById('up-' + key);
-    if(!upBtn) continue;
-    const costEl = upBtn.querySelector('.cost');
-    const nameEl = upBtn.querySelector('.name');
     const lv = state.levels[key];
-    if(nameEl) nameEl.textContent = `${UNIT_DEF[key].label}｜${EVOLUTION_NAMES[key][lv-1]}`;
-    if(lv >= 5){
-      upBtn.classList.add('disabled'); upBtn.classList.remove('ready');
-      if(costEl) costEl.textContent = '已滿級 Lv5';
+    const deployCost = Math.round(def.cost);
+    const canUpgrade = unitCanUpgrade(key);
+    const nameEl = btn.querySelector('.name');
+    const costEl = btn.querySelector('.cost');
+    btn.disabled = !canUpgrade && state.gold < deployCost;
+    btn.classList.toggle('disabled', !canUpgrade && state.gold < deployCost);
+    btn.classList.toggle('ready', !canUpgrade && state.gold >= deployCost);
+    btn.classList.toggle('upgrade-ready', canUpgrade);
+    if(canUpgrade){
+      const upgradeCost = CONFIG.levelCost[lv+1];
+      if(nameEl) nameEl.textContent = `⬆ ${def.label}進化`;
+      if(costEl) costEl.textContent = `升 Lv${lv+1}・${upgradeCost} 強化值`;
+      btn.setAttribute('aria-label', `${def.label}可進化，點擊升到等級 ${lv+1}`);
     } else {
-      const cost = CONFIG.levelCost[lv+1];
-      const perk=EVOLUTION_PERKS[key][lv+1];
-      if(costEl) costEl.textContent = `升 Lv${lv+1}・${cost} 強化值${perk?'｜'+perk:''}`;
-      upBtn.classList.toggle('disabled', state.power < cost);
-      upBtn.classList.toggle('ready', state.power >= cost);
+      if(nameEl) nameEl.textContent = `${def.label} Lv${lv}`;
+      if(costEl) costEl.textContent = `派兵 ${deployCost} 金`;
+      btn.setAttribute('aria-label', `派出${def.label}，需要 ${deployCost} 金`);
     }
     const mini=document.getElementById('intermission-'+key);
     if(mini){
@@ -1751,6 +1737,17 @@ function updateHUD(){
       banner.style.display = 'none';
     }
   }
+}
+
+function unitCanUpgrade(type){
+  if(!state || !state.allowLevelUp || !UNIT_DEF[type]) return false;
+  const lv = state.levels[type];
+  return lv < 5 && state.power >= CONFIG.levelCost[lv+1];
+}
+
+function handleUnitAction(type){
+  if(unitCanUpgrade(type)) upgradeUnit(type);
+  else deployUnit(type);
 }
 
 function deployUnit(type){
