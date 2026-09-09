@@ -238,17 +238,26 @@
           <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h5v5H4zM15 4h5v5h-5zM5 15h5v5H5zM15 15h5v5h-5zM9 7h6m-8 3v5m3 2h5m3-8v6"/></svg></span><span class="game-tag">拼字 × 解謎</span></div>
           <h3>單字獵人</h3><p class="game-desc">拖曳連起英文字母，破解三道單字關卡。</p><span class="card-cta">開始獵字 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
         </a>
-        <a class="game-card foundation" data-tone="green" href="https://english-memory-game.pages.dev" target="_blank" rel="noopener">
+        <a class="game-card foundation" id="memory-game-card" data-tone="green" href="https://english-memory-game.pages.dev" target="_blank" rel="noopener">
           <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="7" height="7" rx="1"/><rect x="14" y="4" width="7" height="7" rx="1"/><rect x="3" y="15" width="7" height="7" rx="1"/><path d="M17.5 15v7m-3.5-3.5h7"/></svg></span><span class="game-tag">基礎練習</span></div>
-          <h3>記憶翻牌 <span class="badge">建議先玩</span></h3><p class="game-desc">配對單字與圖卡，先把基礎記熟再挑戰其他遊戲。</p><span class="card-cta">另開遊戲 <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
+          <h3>記憶翻牌 <span class="badge">建議先玩</span></h3><p class="game-desc">配對單字與圖卡，先把基礎記熟再挑戰其他遊戲。</p><span class="card-cta"><span id="memory-game-cta">另開遊戲</span> <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
         </a>
       </div>
     </section>
-    <p class="note">選「系統主題單字」可複選練習主題；選「本次段考單字」則需由學生教材頁進入。記憶翻牌使用獨立題庫，會在新分頁開啟。</p>
+    <p class="note">選「系統主題單字」可複選練習主題；選「本次段考單字」則需由學生教材頁進入。記憶翻牌使用獨立題庫，<span id="memory-game-note">會在新分頁開啟</span>。</p>
   </main>
   <script src="./data/wordbank.js"></script>
   <script>
   (function(){
+    // 從學生教材的內嵌畫面進入時，不另開 iOS 系統瀏覽器。
+    if(window.self !== window.top){
+      const memoryCard = document.getElementById('memory-game-card');
+      memoryCard.target = '_self';
+      memoryCard.removeAttribute('rel');
+      document.getElementById('memory-game-cta').textContent = '進入遊戲';
+      document.getElementById('memory-game-note').textContent = '會在目前畫面開啟';
+    }
+
     // 從網址 hash 讀學生頁帶進來的段考單字
     function readHashLesson(){
       const h = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
