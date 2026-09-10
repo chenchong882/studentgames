@@ -249,6 +249,14 @@
   <script src="./data/wordbank.js"></script>
   <script>
   (function(){
+    function reportCentralView(view){
+      if(window.self === window.top) return;
+      try { window.parent.postMessage({ type:'CENTRAL_GAMES_VIEW', view }, '*'); } catch(e){}
+    }
+
+    // 讓教材外框只在遊戲選單顯示「返回教材」列。
+    reportCentralView('menu');
+
     // 從學生教材的內嵌畫面進入時，不另開 iOS 系統瀏覽器。
     if(window.self !== window.top){
       const memoryCard = document.getElementById('memory-game-card');
@@ -426,12 +434,16 @@
     document.querySelectorAll('.game-card').forEach(card => {
       card.addEventListener('click', e => {
         const base = card.getAttribute('data-href');
-        if(!base) return; // 外部連結（如記憶翻牌）走原本 href，不攔截、不帶段考單字
+        if(!base){
+          reportCentralView('game');
+          return; // 外部連結（如記憶翻牌）走原本 href，不攔截、不帶段考單字
+        }
         e.preventDefault();
         let raw = null;
         if(scope === 'lesson' && lesson.raw) raw = lesson.raw;
         else if(scope === 'builtin') raw = builtinRaw();
         const url = raw ? base + '#lessonData=' + encodeURIComponent(raw) : base;
+        reportCentralView('game');
         location.href = url;
       });
     });
