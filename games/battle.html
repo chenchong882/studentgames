@@ -767,9 +767,18 @@ function buildVocabByMode(){
 
 function buildGrammarPool(payload){
   const source = Array.isArray(payload.grammarQuiz) ? payload.grammarQuiz : [];
-  const fromPayload = source.filter(q => q && q.question && Array.isArray(q.options) && q.answer).map(q => {
-    const opts = uniqueTexts(q.options);
-    const answer = String(q.answer);
+  const fromPayload = source.filter(q => q && q.question && Array.isArray(q.options)).map(q => {
+    const originalOpts = q.options.map(x => String(x).trim());
+    const opts = uniqueTexts(originalOpts);
+    const rawAnswer = q.answer == null ? '' : String(q.answer).trim();
+    let answer = rawAnswer;
+    if(!opts.includes(answer)){
+      if(Number.isInteger(q.answer_index) && q.answer_index >= 0 && q.answer_index < originalOpts.length){
+        answer = originalOpts[q.answer_index];
+      } else if(/^[A-Z]$/i.test(rawAnswer)){
+        answer = originalOpts[rawAnswer.toUpperCase().charCodeAt(0) - 65];
+      }
+    }
     return { type:'文法選擇題', prompt:q.question, opts, ans:opts.indexOf(answer), audio:null };
   }).filter(q => q.ans >= 0 && q.opts.length >= 2);
   return fromPayload;
