@@ -500,13 +500,6 @@ const BOSS_TYPES = [
   { emoji:'👿', name:'惡魔',   kind:'demon',    color:'#c084fc', aura:'rgba(192,132,252,.22)'},
 ];
 
-const DEFAULT_GRAMMAR = [
-  { question:'The book ________ I borrowed from the library was interesting.', options:['whom','whose','what','which'], answer:'which', hint:'文法選擇題' },
-  { question:'It was ________ a cold night ________ we stayed at home.', options:['such...that','so...that','too...to','very...that'], answer:'such...that', hint:'文法選擇題' },
-  { question:'The song ________ she wrote became very popular.', options:['who','that','whom','where'], answer:'that', hint:'文法選擇題' },
-  { question:'Tom was ________ tired ________ he fell asleep right away.', options:['such','so','too','very'], answer:'so', hint:'文法選擇題' },
-];
-
 const FALLBACK_WORDS = [
   { id:'fallback-1', word:'market', chinese:'市場', emoji:'🛒', sentence:'My mom buys fresh fruit at the {W} every weekend.' },
   { id:'fallback-2', word:'travel', chinese:'旅行', emoji:'✈️', sentence:'They love to {W} to new countries during summer vacation.' },
@@ -518,7 +511,7 @@ const BATTLE_EXCLUDED_WORDS = new Set(['pillow', 'eraser', 'towel']);
 
 let uid = 0;
 let state = null;
-let battleData = { unitTitle:'示範題庫', builtin:true, words:FALLBACK_WORDS, grammarQuiz:DEFAULT_GRAMMAR };
+let battleData = { unitTitle:'示範題庫', builtin:true, words:FALLBACK_WORDS, grammarQuiz:[] };
 let wordPool = FALLBACK_WORDS;
 let picPool = [];              // wordPool 中帶 emoji 的字（圖片題用）
 let vocabQuestions = [];
@@ -719,13 +712,6 @@ function makeQuestion(type, prompt, answer, choices, audio){
   return { type, prompt, opts, ans: opts.indexOf(answer), audio };
 }
 
-function buildDefaultGrammar(){
-  return DEFAULT_GRAMMAR.map(q => {
-    const opts = uniqueTexts(q.options);
-    return { type:'文法選擇題', prompt:q.question, opts, ans:opts.indexOf(q.answer), audio:null };
-  });
-}
-
 function buildQuestionPools(payload){
   const isBuiltin = !!payload.builtin;
   const words = (payload.words || []).filter(w =>
@@ -737,7 +723,7 @@ function buildQuestionPools(payload){
   clampMode();
   buildVocabByMode();
 
-  // ── 強化值題（打 BOSS / 升級用）：內建單字才出「英文填空題」；文法選擇題兩種來源都有，穿插使用 ──
+  // ── 強化值題（打 BOSS / 升級用）：內建單字才出「英文填空題」；文法選擇題僅使用傳入題庫，不補示範題 ──
   fillQuestions = [];
   if(isBuiltin){
     wordPool.forEach(target => {
@@ -780,12 +766,13 @@ function buildVocabByMode(){
 }
 
 function buildGrammarPool(payload){
-  const fromPayload = (payload.grammarQuiz || []).filter(q => q && q.question && q.options && q.answer).map(q => {
+  const source = Array.isArray(payload.grammarQuiz) ? payload.grammarQuiz : [];
+  const fromPayload = source.filter(q => q && q.question && Array.isArray(q.options) && q.answer).map(q => {
     const opts = uniqueTexts(q.options);
     const answer = String(q.answer);
     return { type:'文法選擇題', prompt:q.question, opts, ans:opts.indexOf(answer), audio:null };
   }).filter(q => q.ans >= 0 && q.opts.length >= 2);
-  return fromPayload.length ? fromPayload : buildDefaultGrammar();
+  return fromPayload;
 }
 
 function makeQueue(len){ return { order: shuffle([...Array(len).keys()]), pos:0 }; }
@@ -861,7 +848,7 @@ window.addEventListener('message', (event) => {
     unitTitle: event.data.payload?.unitTitle || '目前單元',
     builtin: !!event.data.payload?.builtin,
     words: event.data.payload?.words || FALLBACK_WORDS,
-    grammarQuiz: event.data.payload?.grammarQuiz || DEFAULT_GRAMMAR,
+    grammarQuiz: event.data.payload?.grammarQuiz || [],
   };
   buildQuestionPools(battleData);
 });
@@ -1066,12 +1053,12 @@ function startGame(){
 
 function applyBattleRules(){
   // ── 依「內建單字 / 段考」與難度決定本局規則 ──
-  // 段考（builtin=false）：無視難度，永遠單字＋文法題、可升級、BOSS 走文法。
+  // 段考（builtin=false）：只用教材提供的文法；沒有文法時，BOSS 改用單字、連對仍可升級。
   // 內建：依難度設定——簡單不穿插填空/文法（powerQuiz=false）、BOSS 走單字；普通/困難照舊。
   const isBuiltin = !!battleData.builtin;
   if(!isBuiltin){
-    state.allowLevelUp = true; state.bossMode = 'grammar';     state.useFill = false;
-    state.powerQuiz = true;    state.streakNeed = 8;
+    state.allowLevelUp = true; state.bossMode = grammarQuestions.length ? 'grammar' : 'vocab'; state.useFill = false;
+    state.powerQuiz = grammarQuestions.length > 0; state.streakNeed = 8;
   } else {
     state.allowLevelUp = true;             state.bossMode = CONFIG.bossMode;
     state.useFill = (CONFIG.useFill !== false);
@@ -1082,6 +1069,10 @@ function applyBattleRules(){
       state.useFill = false;
       state.powerQuiz = false;              // 不再穿插填空／文法，確保全程只有圖片答案
     }
+  }
+  if(!fillAvailable() && !grammarQuestions.length){
+    state.bossMode = 'vocab';
+    state.powerQuiz = false;
   }
 }
 
@@ -2148,7 +2139,7 @@ function endGame(result, winType){
       unitTitle: d.unitTitle || '目前單元',
       builtin: !!d.builtin,
       words: d.words || FALLBACK_WORDS,
-      grammarQuiz: d.grammarQuiz || DEFAULT_GRAMMAR,
+      grammarQuiz: d.grammarQuiz || [],
     };
   } catch(e){}
 })();
