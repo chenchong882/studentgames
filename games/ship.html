@@ -1377,7 +1377,8 @@ function startBossRound(lv) {
   game.boss = {
     lv, name: cfg.name, icon: cfg.icon, color: cfg.color,
     hp: cfg.hp, maxHp: cfg.hp, final: cfg.final, score: cfg.score,
-    z: SPAWN_Z, speed: cfg.speed, bobPhase: rand(0, Math.PI * 2),
+    // 簡單模式多留讀題與瞄準時間，魔王前進速度降低 40%。
+    z: SPAWN_Z, speed: cfg.speed * (game.difficulty === "simple" ? 0.6 : 1), bobPhase: rand(0, Math.PI * 2),
     sinking: 0, landed: false, clue: null,
   };
   game.conditions = ["word"];
