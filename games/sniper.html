@@ -107,8 +107,27 @@
   #toast { position: fixed; top: 38%; left: 50%; transform: translateX(-50%); z-index: 15;
     font-size: clamp(22px, 5vw, 40px); font-weight: bold; text-shadow: 0 2px 12px rgba(0,0,0,0.8);
     opacity: 0; transition: opacity .2s ease; pointer-events: none; text-align: center; }
+
+  #intel-speak { min-width:44px; min-height:44px; }
+  #intel-text { overflow-wrap:anywhere; }
+  .overlay { overflow-y:auto; justify-content:safe center; }
+  .overlay > * { flex-shrink:0; }
+  @media(max-width:600px) and (orientation:portrait) {
+    #hud-top { padding:calc(58px + env(safe-area-inset-top)) 10px 8px; flex-direction:column; gap:6px; }
+    #stats { order:-1; width:100%; flex-direction:row; flex-wrap:wrap; gap:4px 10px; align-items:center; font-size:12px; }
+    #stats .row { gap:4px; }
+    #stats b { font-size:14px; }
+    #timerbar { width:64px; }
+    #intel { width:100%; padding:6px 10px; }
+    #intel .label { font-size:11px; letter-spacing:1px; }
+    #intel .sentence { font-size:16px; line-height:1.4; }
+    #controls { padding-bottom:calc(12px + env(safe-area-inset-bottom)); }
+    body.scoped #intel .label { display:none; }
+  }
+
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
+<script src="lesson-data.js"></script>
 </head>
 <body>
 <div id="stage"><canvas id="cv"></canvas></div>
@@ -265,6 +284,7 @@ function readLesson(){
   try { return JSON.parse(LESSON_RAW || ''); } catch(e){ return null; }
 }
 function normalizeWords(arr){
+  arr = GameData.prepare({words:arr}).words;
   const out = [];
   (arr||[]).forEach(w=>{
     const word = String((w && w.word) || '').trim();
@@ -276,13 +296,16 @@ function normalizeWords(arr){
     if(!word || !meaning) return;
     out.push({ word: word.toUpperCase(), meaning, pos: pos || '單字', example, emoji, avoidWith });
   });
-  return out;
+  return GameData.uniqueWords(out);
 }
 let selectedThemes = []; // 空陣列＝全部主題
 function buildWordBank(){
   const lesson = readLesson();
   const lessonWords = lesson ? normalizeWords(lesson.words) : [];
-  if(lessonWords.length >= 5) return { bank: lessonWords, source:lesson.builtin===true?'builtin':'lesson' };
+  if(lesson){
+    GameData.report(GameData.prepare(lesson), lessonWords, 5, '#start-overlay', '需有英文與中文；圖片題至少需要 5 個不同圖案。');
+    return { bank:lessonWords, source:lesson.builtin===true?'builtin':'lesson' };
+  }
   // 共用題庫（data/wordbank.js）：依學生選的主題取字
   if(window.WORD_BANK){
     const picked = normalizeWords(window.WORD_BANK.getWords(selectedThemes));
@@ -576,7 +599,7 @@ function startRound(){
     chosen = shuffle([answer, ...clozeChoices(answer, WB.bank, FLOORS-1)]);
     if(!answer.example) roundType = 'cn2en';   // 保險：完全沒例句時退回中→英
   } else {
-    const pool = roundType==='en2pic' ? WB.bank.filter(w=>w.emoji) : WB.bank;
+    const pool = roundType==='en2pic' ? GameData.picturePool(WB.bank) : WB.bank;
     chosen = shuffle(pool).slice(0, FLOORS);
     answer = chosen[randi(0, FLOORS-1)];
   }
@@ -618,6 +641,7 @@ function startRound(){
   // 準星置中、相機回到大樓中央、收鏡
   aim.x = 0; aim.y = 0;
   cam.x = 0; cam.y = 0;
+  document.body.classList.remove('scoped');
   scoped = false; scopeBlend = 0; targetZoom = ZOOM_OUT; zoom = ZOOM_OUT;
   particles = []; bulletHoles = [];
   // 重置慢動作 / killcam / 反擊
@@ -1716,6 +1740,7 @@ function setScope(on){
   audio(); // 解鎖音訊
   if(scoped === on) return;
   scoped = on;
+  document.body.classList.toggle('scoped', on);
   targetZoom = on ? ZOOM_IN : ZOOM_OUT;
   const btn = document.getElementById('scope-btn');
   btn.classList.toggle('on', on);
@@ -1753,14 +1778,15 @@ document.getElementById('set-hand').addEventListener('click', ()=>{ SETTINGS.lef
 
 /* ---------- 流程控制 ---------- */
 function startGame(m){
+  WB = buildWordBank();
+  if (!GameData.ready()) return;
   unlockSpeech();   // 真實按鈕點擊：解鎖 iOS 發音
   RoundReview.reset();
   startBgm();
   mode = (m==='simple'||m==='hard') ? m : 'normal';
   difficulty = (mode === 'hard') ? 'hard' : 'easy';   // 玩法檔：簡單＝一般＝easy、困難＝hard（被發現機制）
   try{ localStorage.setItem('sniperMode3', mode); }catch(e){}
-  WB = buildWordBank();
-  WB.hasPic = WB.source==='builtin' && WB.bank.filter(w=>w.emoji).length >= 4;
+  WB.hasPic = WB.source==='builtin' && GameData.picturePool(WB.bank).length >= 5;
   roundNo = 0; score = 0; money = 0; combo = 0; lives = MAX_LIVES;
   apUpgrade = false; extraAmmo = 0; extraTime = 0; shoppedAt = {};
   roofRaid = null; roofRaidAt = 0; noWindShots = 0; tempAPShots = 0; nextFireAt = 0;
@@ -1890,7 +1916,7 @@ function renderShop(){
 function bankStats(){
   const wb = buildWordBank(), bank = wb.bank;
   return {
-    pics: wb.source==='builtin' && bank.filter(w=>w.emoji).length >= 4,
+    pics: wb.source==='builtin' && GameData.picturePool(bank).length >= 5,
     sentences: bank.filter(w=>w.example).length >= 5, // 例句夠多才開句子題
   };
 }
@@ -1979,6 +2005,7 @@ function returnToMainMenu(){
   stopBgm();
   state = 'menu';
   roofRaid = null; roofRaidAt = 0;
+  document.body.classList.remove('scoped');
   scoped = false; scopeBlend = 0; targetZoom = ZOOM_OUT;
   document.getElementById('pause-overlay').classList.add('hide');
   document.getElementById('shop-overlay').classList.add('hide');

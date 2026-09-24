@@ -34,9 +34,21 @@ function resizeCanvas() {
   // 幀率掉一半。上限壓到 2 倍：畫面幾乎看不出差別，但手機效能省一大截。
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const rect = canvas.getBoundingClientRect();
+  const oldW = W, oldH = H;
   W = Math.max(1, Math.round(rect.width || window.innerWidth));
   H = Math.max(1, Math.round(rect.height || window.innerHeight));
   readSafeAreaInsets();
+  if (oldW && oldH && (oldW !== W || oldH !== H) && typeof game !== 'undefined') {
+    const sx = W / oldW, sy = H / oldH;
+    for (const h of game.houses) { h.x *= sx; h.groundY = H * CFG.GROUND_RATIO; h.y = h.groundY - h.height; }
+    for (const tree of game.trees) { tree.x *= sx; tree.groundY = H * CFG.GROUND_RATIO; }
+    for (const item of [game.plane, game.crate, ...game.bombs, ...game.missiles, ...game.shells, ...game.floats]) {
+      if (!item) continue;
+      item.x *= sx; item.y *= sy;
+    }
+    game.exps = []; game.plane.trail = [];
+    if (game.phase === 'playing' || game.phase === 'levelClear') game.togglePause();
+  }
   
   canvas.width = W * dpr;
   canvas.height = H * dpr;
@@ -244,15 +256,15 @@ let bombBuiltinSource = true;
 // 只有主機標記為內建、且至少 4 個字有圖，才開放圖片題。
 function hasPicBank() {
   const words = bombWordPool || DEFAULT_LEVELS.flatMap(l => l.words);
-  return bombBuiltinSource && words.filter(w => emojiForWord(w)).length >= 4;
+  return bombBuiltinSource && GameData.picturePool(words.map(word => ({word,emoji:emojiForWord(word)}))).length >= 4;
 }
 function allowedBombModes() { return ['simple', 'hard']; }
 // 全圖檔開關（所有遊戲共用 sgAllPic 鑰匙）
 let allPic = (() => { try { return localStorage.getItem('sgAllPic') === '1'; } catch (e) { return false; } })();
 let menuMode = (() => { try { return localStorage.getItem('bombMode3') || 'normal'; } catch (e) { return 'normal'; } })();
 function buildLessonLevels() {
-  // 每關固定需要 5 個單字／5 間房子；最後不足 5 個的尾數不另開新關。
-  LEVELS = chunkWords(shuffleWords(bombWordPool), 5).filter(chunk => chunk.length === 5).map((chunk, index) => ({
+  // 每關最多 5 個單字；少量題庫與尾數也各自成關。
+  LEVELS = chunkWords(shuffleWords(bombWordPool), 5).map((chunk, index) => ({
     id: index + 1,
     themeEN: bombLessonTitle,
     themeZH: `💣 ${bombLessonTitle} ${index + 1}`,
@@ -262,7 +274,9 @@ function buildLessonLevels() {
 }
 
 function applyBombData(payload) {
+  payload = GameData.prepare(payload);
   const words = normalizeBombWords(payload?.words);
+  if (!GameData.report(payload, words, 1, '#bomb-receipt', '每關最多 5 字，尾數也會成關。')) return false;
   if (words.length === 0) {
     bombBuiltinSource = true;
     bombWordPool = null;
@@ -1913,10 +1927,14 @@ function drawVictoryScreen(c, game) {
 
 // 勝利畫面三顆按鈕的座標（draw 與點擊判定共用，避免兩邊不同步）
 function victoryBtnRects() {
-  const bh = 54, gap = 16;
+  const bh = H < 480 ? 44 : 54, gap = H < 480 ? 8 : 16;
+  if (H < 480) {
+    const w = Math.min(220, (W - 48) / 3), x = (W - w * 3 - gap * 2) / 2, y = H - bh - 10;
+    return {cont:{x,y,w,h:bh},retry:{x:x+w+gap,y,w,h:bh},menu:{x:x+(w+gap)*2,y,w,h:bh}};
+  }
   const topW = clamp(W * 0.42, 220, 360);
   const botW = clamp(W * 0.34, 180, 270);
-  const by1 = H * 0.74;
+  const by1 = Math.min(H * 0.74, H - bh * 2 - gap - 12);
   const by2 = by1 + bh + gap;
   return {
     cont:  { x: W/2 - topW/2,        y: by1, w: topW, h: bh },
@@ -1948,6 +1966,7 @@ class Game {
     this.streak      = 0;  // 連續答對數（答錯歸零），用於連擊加分
     this.totalCorrect= 0;  // 整局答對總題數（給結算等級基準用）
     this.perfectScore= 0;  // 完美基準分：每題滿分＋完美連擊＋過關獎勵的理論上限
+    this.questionFrames = 0; this.nextTargetFrames = 0;
     this.qStartT     = 0;  // 本題開始計時的時間戳（performance.now）
     this.endless     = false; // 按過「繼續」後 = true，之後打完不再跳結算
     this.levelClearT = 0;  // countdown before moving to next level
@@ -1971,6 +1990,7 @@ class Game {
 
   // ── Start ──────────────────────────────
   start(mode) {
+  if (!GameData.ready()) return;
     RoundReview.reset();
     if (bombWordPool) buildLessonLevels();   // 每次開新局重洗，關卡單字組合都不同
     const allow = allowedBombModes();
@@ -1997,12 +2017,14 @@ class Game {
 
   // ── Pause / Resume ─────────────────────
   togglePause() {
-    if (this.phase === 'playing') {
-      this._prevPhase = 'playing';
+    if (this.phase === 'playing' || this.phase === 'levelClear') {
+      this._prevPhase = this.phase;
       this.phase = 'paused';
+      joystick.reset(); for (const key in keys) keys[key] = false;
       Audio.stopBgm();
     } else if (this.phase === 'paused') {
-      this.phase = 'playing';
+      if (window.matchMedia('(orientation: portrait)').matches) return;
+      this.phase = this._prevPhase;
       Audio.startBgm();
     }
   }
@@ -2016,7 +2038,7 @@ class Game {
   _startTimer() {
     clearInterval(this._timerInterval);
     this._timerInterval = setInterval(() => {
-      if (this.phase === 'playing') this.timer++;
+      if (this.phase === 'playing' && !matchMedia('(orientation:portrait)').matches) this.timer++;
     }, 1000);
   }
 
@@ -2046,6 +2068,7 @@ class Game {
       if (this.endless) { this._reshuffleRound(); return this._loadLevel(); }
       this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); this._initVictoryConfetti(); RoundReview.show('📚 炸彈英文本局學習回顧',{stars:computeStars(this)}); return;
     }
+    this.nextTargetFrames = 0;
     this.wordsLeft = [...lv.words];
     this.solvedCount = 0;
     // 留最後兩間不打：5 間打掉 3 間就通關，避免剩兩間時答案太好猜。
@@ -2087,7 +2110,8 @@ class Game {
   // 本題題型依模式與全圖檔開關（每題重抽，穿插比例約 1/3）。
   // 鐵則：圖片題一律「英文＋發音→炸圖片房子」；絕不看圖選字、絕不圖↔中。
   _pickQType() {
-    const em = !!emojiForWord(this.targetWord);
+    const visible = this.houses.filter(h => !h.destroyed).map(h => ({word:h.word,emoji:emojiForWord(h.word)}));
+    const em = bombBuiltinSource && !!emojiForWord(this.targetWord) && GameData.picturePool(visible).length === visible.length;
     const zh = !!chineseForWord(this.targetWord);
     const textType = () => Math.random() < 0.5 ? 'cn2en' : 'en2cn';
     if (em && (this.mode === 'simple' || this.mode === 'hard')) {
@@ -2106,6 +2130,7 @@ class Game {
     this.qType = this._pickQType();
     RoundReview.begin({prompt:this.qType==='cn2en'?chineseForWord(this.targetWord):this.targetWord,answer:this.targetWord,meaning:chineseForWord(this.targetWord)});
     this.wrongAtt = 0;
+    this.questionFrames = 0;
     this.qStartT = performance.now();   // 本題開始計時：答得越快速度分越高
     if (this.qType !== 'cn2en') {
       Audio.speak(this.targetWord);   // 中→英不唸（唸英文會洩題）
@@ -2119,7 +2144,7 @@ class Game {
 
   // ── Drop Bomb ──────────────────────────
   dropBomb() {
-    if (this.phase !== 'playing') return;
+    if (this.phase !== 'playing' || this.nextTargetFrames > 0) return;
     if (this.plane.hidden || this.planeRespawnT > 0) return;
     if (this.bombsLeft <= 0) {
       this._float(this.plane.x, this.plane.y - 40, '💣 No bombs!', '#FF8800', 20);
@@ -2178,6 +2203,7 @@ class Game {
   //  UPDATE
   // ══════════════════════════════════════
   update() {
+    if (window.matchMedia('(orientation: portrait)').matches && (this.phase === 'playing' || this.phase === 'levelClear')) this.togglePause();
     if (this.phase === 'paused') return;
     if (this.phase === 'victory') { this._updateVictoryConfetti(); return; }
     if (this.phase === 'levelClear') {
@@ -2193,6 +2219,15 @@ class Game {
       return;
     }
     if (this.phase !== 'playing') return;
+    if (this.nextTargetFrames > 0) {
+      this.nextTargetFrames--;
+      if (!this.nextTargetFrames) {
+        this.bombs = [];
+        if (this.solvedCount >= this.clearGoal) this._levelClear(); else this._nextTarget();
+      }
+      return;
+    }
+    this.questionFrames++;
 
     let planeEvent = null;
     if (this.planeRespawnT > 0) {
@@ -2234,7 +2269,7 @@ class Game {
       // House collision
       let hit = false;
       for (const h of this.houses) {
-        if (h.destroyed || !h.checkHit(b)) continue;
+        if (this.nextTargetFrames > 0 || h.destroyed || !h.checkHit(b)) continue;
         // Hit a house!
         b.active = false;
         this.exps.push(new Explosion(b.x, h.y + h.height/2, true));
@@ -2245,7 +2280,7 @@ class Game {
           RoundReview.correct();
           h.destroyed = true;
           // 單題速度分：2 秒內答對 = 滿分 100，之後每秒 −12，最低 10
-          const qSec = (performance.now() - this.qStartT) / 1000;
+          const qSec = this.questionFrames / 60;
           const speedPts = clamp(Math.round(100 - Math.max(0, qSec - 2) * 12), 10, 100);
           // 連擊加分：連續答對第 2 題起額外加分，每題 +5 遞增，上限 +25；答錯歸零
           this.streak++;
@@ -2260,11 +2295,7 @@ class Game {
           Audio.success();
           this.wordsLeft = this.wordsLeft.filter(w => w !== h.word);
           this.solvedCount++;
-          if (this.solvedCount >= this.clearGoal) {
-            setTimeout(() => { if (this.phase==='playing') this._levelClear(); }, 900);
-          } else {
-            setTimeout(() => { if (this.phase==='playing') this._nextTarget(); }, 900);
-          }
+          this.nextTargetFrames = 54;
         } else {
           // ❌ WRONG
           RoundReview.wrong({chosen:h.word});
@@ -2479,6 +2510,8 @@ class Game {
   //  DRAW
   // ══════════════════════════════════════
   draw(c) {
+    const receipt = document.getElementById("lesson-load-receipt");
+    if (receipt) receipt.hidden = this.phase !== "menu";
     c.clearRect(0,0,W,H);
 
     if (this.phase === 'menu') { drawBackground(c, LEVELS[0]); drawMenu(c); return; }

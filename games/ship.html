@@ -297,8 +297,24 @@
   #win-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: inherit; }
   .cf { position: absolute; border-radius: 2px; animation: cfFall linear forwards; }
   @keyframes cfFall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(105vh) rotate(800deg); opacity: 0; } }
+
+  #sky-question { top:calc(60px + env(safe-area-inset-top)); }
+  #sky-title { margin-bottom:4px; font-size:16px; animation:none; }
+  #sky-chips { gap:4px; padding:0 12px; }
+  #sky-chips .bigchip { font-size:18px; padding:4px 10px; max-width:100%; overflow-wrap:anywhere; }
+  #toast { max-width:calc(100vw - 24px); white-space:normal; overflow-wrap:anywhere; }
+  @media(orientation:landscape) and (max-height:500px) {
+    #sky-question { top:8px; left:62px; right:125px; }
+    #sky-title { display:none; }
+    #sky-chips .bigchip { font-size:16px; padding:3px 8px; }
+    #sky-chips .bigchip.special { display:none; }
+    #hud { padding-top:2px; padding-bottom:max(4px,env(safe-area-inset-bottom)); }
+    #conditions { display:none; }
+    #btn-row { margin-top:3px; }
+  }
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
+<script src="lesson-data.js"></script>
 </head>
 <body>
 <div id="game-wrap">
@@ -447,7 +463,6 @@ const MONSTER_WINDUP = 1.2;  // 海怪不打掉時，襲擊前的預警秒數
 const MONSTER_HP = 5;        // 海怪要連續打幾下才會死（死了給隨機大獎）
 const MONSTER_SPAWN = 45;    // 海怪平均多久出現一隻（秒）
 const AMMO_BY_MODE = { simple: 6, normal: 6, hard: 6 };  // 每回合 6 發：足夠擊敗 5 HP 海怪並保留 1 發
-const AMMO_MAX        = 6;   // 一般回合彈藥上限（魔王戰另依 HP 配給）
 const BASE_HIT_SCORE  = 200; // 擊沉目標的基礎分數
 const WRONG_HIT_SPEEDUP = 1.25; // 簡單／一般：打錯船時目標船加速倍率
 function usesAmmo(){ return AMMO_BY_MODE[game.difficulty] != null; }
@@ -635,7 +650,7 @@ function unlockSpeech(){
 /* ════════════════ 三模式共用判定 ════════════════ */
 let builtinSource = true;
 // 只有主機標記為內建、且至少 4 個字有圖，才開放圖片題。
-function hasPicBank(){ return builtinSource && wordBank.filter(w => w.emoji).length >= 4; }
+function hasPicBank(){ return builtinSource && GameData.picturePool(wordBank).length >= 4; }
 let allPic = (function(){ try{ return localStorage.getItem('sgAllPic') === '1'; }catch(e){ return false; } })();
 let selectedShipMode = (function(){ try{return localStorage.getItem('shipMode3')||'normal';}catch(e){return 'normal';} })();
 
@@ -659,9 +674,25 @@ function conditionKeysForLevel(lv) {
   return ["word"];
 }
 
+// 玩法排程只由 playing 的模擬時間推進，暫停不會丟失換題／結算。
+let gameActions = [];
+function afterGameTime(callback, ms) { gameActions.push({ callback, remaining:ms / 1000 }); }
+function advanceGameActions(dt) {
+  const batch = gameActions.slice();
+  for (const task of batch) {
+    if (game.state !== "playing" || !gameActions.includes(task)) break;
+    task.remaining -= dt;
+    if (task.remaining <= 0) {
+      gameActions.splice(gameActions.indexOf(task), 1);
+      task.callback();
+    }
+  }
+}
 function startRoundCommon() {
+  gameActions = [];
+  game.ammoPending = false;
   // 補充本回合彈藥（限彈模式皆為 6 發；特殊不限彈）
-  game.ammo = Math.min(AMMO_MAX, ammoPerRound() + game.nextAmmoBonus);
+  game.ammo = ammoPerRound() + game.nextAmmoBonus;
   game.nextAmmoBonus = 0;
   game.shotsThisRound = 0;
   game.timer = game.roundTime;
@@ -685,7 +716,7 @@ function newRound() {
   const d = game.difficulty;
   const wantPic = hasPicBank() && (d === "simple" || d === "hard") &&
     (allPic || (d === "simple" ? Math.random() >= 1/3 : Math.random() < 1/3));
-  const wordPool = wantPic ? wordBank.filter(w => w.emoji) : wordBank;
+  const wordPool = wantPic ? GameData.picturePool(wordBank) : wordBank;
   const target = {
     word:  pick(wordPool),
     color: pick(shipColors),
@@ -698,13 +729,14 @@ function newRound() {
     : (Math.random() < 0.5 ? "cn2en" : "en2cn");   // 一般／困難：意思題＋英→中＋句子題輪替
   RoundReview.begin({prompt:game.qType==="sentence"?target.word.example.replace("{W}","＿＿＿"):(game.qType==="cn2en"?target.word.meaning:target.word.word),answer:target.word.word,meaning:target.word.meaning});
 
-  const count = clamp(2 + lv, 3, 5);
+  let count = clamp(2 + lv, 3, 5);
   // 干擾船：單字必不同；圖片回合的干擾 emoji 也必須與目標不同
   const otherWordCandidates = wantPic
-    ? wordBank.filter(w => w.word !== target.word.word && w.emoji && w.emoji !== target.word.emoji)
+    ? GameData.picturePool(wordBank).filter(w => w.word !== target.word.word)
     : wordBank.filter(w => w.word !== target.word.word);
   const sentenceChoices = game.qType === "sentence" ? otherWordCandidates.filter(w => !wordsConflict(target.word, w)) : otherWordCandidates;
-  const otherWords = sentenceChoices.length ? sentenceChoices : otherWordCandidates;
+  const otherWords = shuffle((sentenceChoices.length ? sentenceChoices : otherWordCandidates).slice());
+  count = Math.min(count, otherWords.length + 1);
   const ships = [];
 
   for (let i = 0; i < count; i++) {
@@ -715,7 +747,7 @@ function newRound() {
     } else {
       // 干擾船：單字一定不同（單字永遠是條件之一，保證不會全中）
       attrs = {
-        word:  pick(otherWords),
+        word:  otherWords[i - 1],
         color: pick(shipColors),
         flag:  pick(flags),
       };
@@ -774,7 +806,7 @@ function updateQuestionUI() {
     chips = [`🔊 ${t.word.word}`];
     speakWord(t.word.word);
     const questionType = game.qType;
-    setTimeout(() => {
+    afterGameTime(() => {
       if (game.state === "playing" && !game.boss && !game.roundEnding && game.target === t && game.qType === questionType) speakWord(t.word.word);
     }, 3000);
   } else if (game.qType === "en2cn") {
@@ -782,7 +814,7 @@ function updateQuestionUI() {
     chips = [`🔊 ${t.word.word}（${t.word.pos}）`];
     speakWord(t.word.word);
     const questionType = game.qType;
-    setTimeout(() => {
+    afterGameTime(() => {
       if (game.state === "playing" && !game.boss && !game.roundEnding && game.target === t && game.qType === questionType) speakWord(t.word.word);
     }, 3000);
   } else {
@@ -855,9 +887,12 @@ function fire() {
 
 // 限彈模式彈藥耗盡：視同目標逃走（沿用逃走懲罰）。回傳 true 表示回合已結束。
 function checkAmmoOut() {
+  if (game.ammoPending) return true;
+  if (game.rockets.length) return false;
   if (usesAmmo() && game.ammo <= 0) {
+    game.ammoPending = true;
     game.fireLock = true;
-    setTimeout(() => targetEscaped("🔫 彈藥用盡，目標逃走了！"), 700);
+    afterGameTime(() => targetEscaped("🔫 彈藥用盡，目標逃走了！"), 700);
     return true;
   }
   return false;
@@ -882,7 +917,8 @@ function resolveImpact(x, y, fxX, fxY, fromBurst) {
     if (!s.alive || s.sinking > 0) continue;
     const r = shipScreenRect(s);
     const pad = r.u * 1.2;
-    if (x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad) {
+    if (labelHit(s, x, y) || (x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad)) {
+      if (labelHit(s, x, y)) { hit = s; break; }
       if (!hit || s.z < hit.z) hit = s;
     }
   }
@@ -914,13 +950,13 @@ function resolveImpact(x, y, fxX, fxY, fromBurst) {
     if (comboMult > 1) comboText += `  🔥x${comboMult}`;
     // 困難模式：一發命中，下回合 +1 發子彈
     if (game.difficulty === "hard" && game.shotsThisRound === 1) {
-      game.nextAmmoBonus = 1; comboText += "  一發入魂+1彈";
+      game.nextAmmoBonus += 1; comboText += "  一發入魂+1彈";
     }
     sfx.good();
     showToast(`命中 +${gained}${comboText}`, "#ffe082");
     game.lastRoundWon = true;
     game.roundEnding = true;   // 命中後到換回合前，避免 timer 歸零又誤觸發逃走
-    setTimeout(endRound, 1400);
+    afterGameTime(endRound, 1400);
   } else if (fromBurst) {
     // 三連發掃到的非目標船：不罰分，只當作附帶擊沉
     sfx.splash();
@@ -947,13 +983,13 @@ function targetEscaped(reason) {
   RoundReview.unanswered();
   game.lastRoundWon = false;
   game.score = Math.max(0, game.score - 50);
-  game.lives--;
+  game.lives = Math.max(0, game.lives - 1);
   game.combo = 0;
   sfx.bad();
   showToast(reason + " -50 💔", "#ff8a80");
   updateHUD();
-  if (game.lives <= 0) { setTimeout(gameOver, 1200); }
-  else setTimeout(endRound, 1400);
+  if (game.lives <= 0) { afterGameTime(gameOver, 1200); }
+  else afterGameTime(endRound, 1400);
   game.fireLock = true;   // 等待換回合，避免連按
 }
 
@@ -975,6 +1011,7 @@ function shipStars() {
 }
 
 function gameOver() {
+  gameActions = [];
   stopBgm();
   game.state = "over";
   $("final-score").textContent = game.score + " 分";
@@ -987,6 +1024,7 @@ function gameOver() {
 }
 
 function winGame() {
+  gameActions = [];
   stopBgm();
   game.state = "win";
   $("win-score").textContent = game.score + " 分";
@@ -1030,6 +1068,7 @@ function togglePause() {
   }
 }
 function backToMenu() {
+  gameActions = [];
   stopBgm();
   game.state = "menu";
   $("pause-screen").classList.add("hidden");
@@ -1061,7 +1100,7 @@ function enemyCounterFire() {
   game.threatT = 0;       // 保留短暫槍口火光，之後狙擊手立刻消失
   game.lastRoundWon = false;
   game.combo = 0;
-  game.lives--;
+  game.lives = Math.max(0, game.lives - 1);
   game.shakeT = 0.6;
   sfx.boom();
   const tgt = game.ships.find(s => s.isTarget && s.alive);
@@ -1069,8 +1108,8 @@ function enemyCounterFire() {
   showToast("💥 被敵方狙擊手擊中！-1 💔", "#ff6b6b");
   updateHUD();
   game.fireLock = true;
-  if (game.lives <= 0) setTimeout(gameOver, 1200);
-  else setTimeout(endRound, 1400);
+  if (game.lives <= 0) afterGameTime(gameOver, 1200);
+  else afterGameTime(endRound, 1400);
 }
 
 // ── 海怪：稀有出沒的獎勵目標。不打掉它會襲擊你；累積擊沉 5 隻換一次隨機大獎 ──
@@ -1106,13 +1145,13 @@ function updateMonster(dt) {
 function monsterAttack(m) {
   m.dead = true; m.t = 0;
   game.combo = 0;
-  game.lives--;
+  game.lives = Math.max(0, game.lives - 1);
   game.shakeT = 0.6;
   sfx.boom();
   dmgIndicatorAt(project(m.x, m.z).sx);   // 受擊方向小圓弧
   showToast("🦑 被海怪襲擊！-1 💔", "#ff6b6b");
   updateHUD();
-  if (game.lives <= 0) { game.fireLock = true; setTimeout(gameOver, 1000); }
+  if (game.lives <= 0) { game.roundEnding = true; game.fireLock = true; afterGameTime(gameOver, 1000); }
 }
 function monsterScreen(m) {
   const p = project(m.x, m.z);
@@ -1149,7 +1188,7 @@ function grantMonsterReward() {
     case "burst": game.burst += 3; msg = "🚀 三連發砲彈 ×3！"; break;
     case "time":  game.timer += 8; msg = "⏱️ 時間 +8 秒！"; break;
     case "life":  game.lives++;    msg = "❤️ 回復 1 命！"; break;
-    case "ammo":  game.nextAmmoBonus += 2; game.ammo = Math.min(AMMO_MAX, game.ammo + 3); msg = "🎯 子彈補給 +3！"; break;
+    case "ammo":  game.nextAmmoBonus += 2; game.ammo += 3; msg = "🎯 子彈補給 +3！"; break;
     default:      game.score += 1500; msg = "💯 海怪寶藏 +1500 分！";
   }
   sfx.good();
@@ -1355,8 +1394,9 @@ function startBossRound(lv) {
 // 產生一波護衛艦並出題（HP 每扣 1 換新一波）
 function spawnBossWave() {
   const b = game.boss;
+  b.waveEnding = false;
   const count = 4;
-  const bossWordPool = game.qType === "en2pic" ? wordBank.filter(w => w.emoji) : wordBank;
+  const bossWordPool = game.qType === "en2pic" ? GameData.picturePool(wordBank) : wordBank;
   const targetWord = pick(bossWordPool);
   b.clue = targetWord;
   RoundReview.begin({prompt:game.qType==="en2pic"?targetWord.word:targetWord.meaning,answer:targetWord.word,meaning:targetWord.meaning});
@@ -1389,7 +1429,7 @@ function spawnBossWave() {
     { text: "🛡️ 魔王本體打不壞", cls: "special" },
   ], false);
   speakWord(targetWord.word);
-  setTimeout(() => {
+  afterGameTime(() => {
     if (game.state === "playing" && game.boss === b && b.clue === targetWord && !game.roundEnding) speakWord(targetWord.word);
   }, 3000);
   skyQ.classList.remove("hidden");
@@ -1406,12 +1446,14 @@ function bossBodyHit(b, x, y) {
 
 function resolveBossImpact(x, y, fxX, fxY) {
   const b = game.boss;
+  if (!b || b.waveEnding || b.landed || b.sinking > 0 || game.ammoPending) return;
   let hit = null;
   for (const s of game.ships) {
     if (!s.alive || s.sinking > 0) continue;
     const r = shipScreenRect(s);
     const pad = r.u * 1.2;
-    if (x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad) {
+    if (labelHit(s, x, y) || (x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad)) {
+      if (labelHit(s, x, y)) { hit = s; break; }
       if (!hit || s.z < hit.z) hit = s;
     }
   }
@@ -1422,7 +1464,7 @@ function resolveBossImpact(x, y, fxX, fxY) {
     spawnExplosion(fxX ?? x, fxY ?? y, false);
     game.shakeT = 0.2;
     showToast("🛡️ 攻擊無效！魔王本體打不壞，擊沉答對的護衛艦！", "#ffd54f");
-    if (usesAmmo()) { game.ammo++; updateHUD(); }   // 退還這發（魔王戰彈藥可超過 AMMO_MAX，不套上限）
+    if (usesAmmo()) { game.ammo++; updateHUD(); }   // 退還這發
     game.fireLock = false;
     return;
   }
@@ -1440,9 +1482,11 @@ function resolveBossImpact(x, y, fxX, fxY) {
 
   if (hit.isTarget) {
     RoundReview.correct();
+    b.waveEnding = true;
     b.hp--;
     game.score += 150;
     game.combo++;
+    game.maxCombo = Math.max(game.maxCombo, game.combo);
     sfx.good();
     updateHUD();
     if (b.hp <= 0) {
@@ -1452,8 +1496,8 @@ function resolveBossImpact(x, y, fxX, fxY) {
       game.bossesDone[b.lv] = true;
       game.fireLock = true;
       spawnExplosion(W / 2, H * 0.4, true);
-      if (b.final) setTimeout(winGame, 1800);
-      else setTimeout(() => {
+      if (b.final) afterGameTime(winGame, 1800);
+      else afterGameTime(() => {
         game.boss = null;
         game.clearProgress = 0;
         game.level = Math.min(MAX_LEVEL, game.level + 1);
@@ -1463,7 +1507,7 @@ function resolveBossImpact(x, y, fxX, fxY) {
     } else {
       showToast("🎯 命中！魔王 HP -1", "#ffe082");
       game.fireLock = true;
-      setTimeout(() => { if (game.boss && !game.boss.landed) { spawnBossWave(); game.fireLock = false; } }, 900);
+      afterGameTime(() => { if (game.boss && !game.boss.landed) { if (usesAmmo() && game.ammo <= 0) { game.ammo = ammoPerRound(); showToast("🎯 答對補給！彈藥已補滿", "#ffe082"); } spawnBossWave(); game.fireLock = false; updateHUD(); } }, 900);
     }
   } else {
     RoundReview.wrong({chosen:hit.word.word});
@@ -1479,15 +1523,17 @@ function resolveBossImpact(x, y, fxX, fxY) {
 
 // 魔王戰彈藥耗盡（限彈模式）：扣 1 命並補給，撐不住則 game over
 function checkBossAmmoOut() {
-  if (!usesAmmo() || game.ammo > 0) return false;
-  game.lives--;
+  if (game.ammoPending) return true;
+  if (!usesAmmo() || game.ammo > 0 || game.rockets.length) return false;
+  game.ammoPending = true;
+  game.lives = Math.max(0, game.lives - 1);
   game.combo = 0;
   sfx.bad();
   updateHUD();
   game.fireLock = true;
-  if (game.lives <= 0) { setTimeout(gameOver, 900); return true; }
+  if (game.lives <= 0) { afterGameTime(gameOver, 900); return true; }
   showToast("🔫 彈藥用盡 -1命，緊急補給！", "#ff8a80");
-  setTimeout(() => { game.ammo = ammoPerRound(); game.fireLock = false; updateHUD(); }, 900);
+  afterGameTime(() => { game.ammo = ammoPerRound(); game.ammoPending = false; game.fireLock = false; updateHUD(); }, 900);
   return true;
 }
 
@@ -1506,7 +1552,7 @@ function updateBoss(dt) {
       sfx.bad();
       showToast("🚢 魔王突破防線！", "#ff8a80");
       game.fireLock = true;
-      setTimeout(gameOver, 1300);
+      afterGameTime(gameOver, 1300);
     }
   }
   if (game.shakeT > 0) game.shakeT -= dt;
@@ -1562,6 +1608,8 @@ function drawBoss(now) {
 }
 
 function startGame(difficulty) {
+  if (!GameData.ready()) return;
+  gameActions = [];
   unlockSpeech();   // 真實按鈕點擊：解鎖 iOS 發音
   RoundReview.reset();
   audio();
@@ -1658,7 +1706,7 @@ window.addEventListener("mousemove", e => {
   const overUI = e.target !== canvas;     // 滑鼠在按鈕等 UI 上時不要移動準星
   if (!overUI) {
     game.aimX = clamp(e.clientX, 0, W);
-    game.aimY = clamp(e.clientY, horizonY - H * 0.1, H);
+    game.aimY = clamp(e.clientY, 0, H);
   }
 });
 canvas.addEventListener("mousedown", e => {
@@ -1671,7 +1719,7 @@ window.addEventListener("keydown", e => {
 
 function moveAim(dx, dy) {
   game.aimX = clamp(game.aimX + dx, 0, W);
-  game.aimY = clamp(game.aimY + dy, horizonY - H * 0.1, H);
+  game.aimY = clamp(game.aimY + dy, 0, H);
 }
 
 /* ════════════════ 特效 ════════════════ */
@@ -1847,22 +1895,50 @@ function drawShip(ship, now) {
   ctx.fillText(ship.flag.emoji, 0.1 * u, 0);
   ctx.restore();
 
-  // ── 船身標籤：en2pic 掛 emoji、en2cn 掛中文、其餘掛英文單字 ──
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  if (game.qType === "en2pic") {
-    ctx.font = `${3.4 * u}px sans-serif`;
-    ctx.fillText(ship.word.emoji || "❓", 0, -hullH * 0.6);
-  } else {
-    const label = (game.qType === "en2cn" && !ship.isEscort) ? ship.word.meaning : ship.word.word;
-    ctx.font = `900 ${2.3 * u}px Arial, "Noto Sans TC", sans-serif`;
-    ctx.fillStyle = "rgba(255,255,255,.98)";
-    ctx.strokeStyle = "rgba(0,0,0,.55)";
-    ctx.lineWidth = Math.max(1, 0.3 * u);
-    ctx.strokeText(label, 0, -hullH * 0.45);
-    ctx.fillText(label, 0, -hullH * 0.45);
-  }
 
+  ctx.restore();
+}
+
+function labelHit(ship, x, y) {
+  const r = ship.labelRect;
+  return r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+}
+function drawShipLabels() {
+  for (const ship of game.ships) ship.labelRect = null;
+  if (game.state !== "playing" && game.state !== "paused") return;
+  const ships = game.ships.filter(s => s.alive && !s.sinking).sort((a,b) => a.lane - b.lane);
+  if (!ships.length) return;
+  const gap = 8, cols = Math.min(ships.length, Math.max(2, Math.floor((W - 24) / 150)));
+  const width = Math.min(190, (W - 24 - gap * (cols - 1)) / cols);
+  const left = (W - (cols * width + (cols - 1) * gap)) / 2;
+  let y = Math.max(12, skyQ.getBoundingClientRect().bottom + 8);
+  ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (let row = 0; row * cols < ships.length; row++) {
+    const items = ships.slice(row * cols, (row + 1) * cols).map(ship => {
+      const picture = game.qType === "en2pic";
+      const text = picture ? ship.word.emoji : (game.qType === "en2cn" && !ship.isEscort ? ship.word.meaning : ship.word.word);
+      ctx.font = picture ? '28px sans-serif' : '700 16px Arial, "Noto Sans TC", sans-serif';
+      const lines = []; let line = '';
+      for (const ch of String(text)) {
+        if (line && ctx.measureText(line + ch).width > width - 16) { lines.push(line); line = ''; }
+        line += ch;
+      }
+      lines.push(line);
+      return { ship, picture, lines, height:Math.max(44, lines.length * (picture ? 30 : 20) + 12) };
+    });
+    const height = Math.max(...items.map(item => item.height));
+    items.forEach(({ship,picture,lines}, col) => {
+      const x = left + col * (width + gap), r = shipScreenRect(ship);
+      ship.labelRect = { x, y, w:width, h:height };
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x + width/2, y + height); ctx.lineTo((r.left+r.right)/2, r.top); ctx.stroke();
+      ctx.fillStyle = 'rgba(8,24,43,.94)'; ctx.fillRect(x,y,width,height);
+      ctx.strokeStyle = '#a8d7ec'; ctx.strokeRect(x,y,width,height);
+      ctx.font = picture ? '28px sans-serif' : '700 16px Arial, "Noto Sans TC", sans-serif'; ctx.fillStyle = '#fff';
+      lines.forEach((line,i) => ctx.fillText(line,x+width/2,y+height/2+(i-(lines.length-1)/2)*(picture?30:20)));
+    });
+    y += height + gap;
+  }
   ctx.restore();
 }
 
@@ -2018,7 +2094,7 @@ function drawRockets(dt) {
   const landed = [];
   for (const r of game.rockets) {
     r.t += dt / 0.45;
-    if (r.t >= 1) { landed.push(r); continue; }
+    if (r.t >= 1 && game.state === "playing") { landed.push(r); continue; }
     const k = r.t;
     // 弧線彈道
     const x = lerp(r.x0, r.x1, k);
@@ -2047,8 +2123,10 @@ function drawRockets(dt) {
     ctx.restore();
   }
   if (landed.length) {
-    game.rockets = game.rockets.filter(r => !landed.includes(r));
-    for (const r of landed) resolveImpact(r.sceneX, r.sceneY, r.x1, r.y1, r.burst);
+    for (const r of landed) {
+      game.rockets = game.rockets.filter(other => other !== r);
+      resolveImpact(r.sceneX, r.sceneY, r.x1, r.y1, r.burst);
+    }
   }
 }
 
@@ -2095,7 +2173,10 @@ function tick(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
 
-  if (game.state === "playing") update(dt);
+  if (game.state === "playing") {
+    advanceGameActions(dt);
+    if (game.state === "playing") update(dt);
+  }
 
   render(now, dt);
 }
@@ -2180,8 +2261,9 @@ function render(now, dt) {
     const sh = game.shakeT * 10;
     ctx.translate(rand(-sh, sh), rand(-sh, sh));
   }
-  drawParticles(dt);
-  drawRockets(dt);
+  drawShipLabels();
+  drawParticles(game.state === "playing" ? dt : 0);
+  drawRockets(game.state === "playing" ? dt : 0);
   if (game.state === "playing") {
     drawLauncher();
     drawCrosshair();
@@ -2218,9 +2300,11 @@ function wordsConflict(a,b){
   return (a&&a.avoidWith||[]).includes(bk) || (b&&b.avoidWith||[]).includes(ak);
 }
 function applyShipData(payload){
+  payload = GameData.prepare(payload);
   const next=normalizeShipWords(payload&&payload.words);
+  if (!GameData.report(payload, next, 4, '#start-screen', '需有英文與中文。')) return false;
   builtinSource = payload&&payload.builtin===true;
-  wordBank = next.length>=4 ? next : DEFAULT_SHIP_WORDBANK;
+  wordBank = next;
   if(typeof refreshModeUI==='function') refreshModeUI();   // 依來源更新模式灰化與全圖檔開關
 }
 function readShipHash(){

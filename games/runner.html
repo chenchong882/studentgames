@@ -340,6 +340,7 @@
   }
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
+<script src="lesson-data.js"></script>
 </head>
 <body>
 <div id="app" data-theme="city">
@@ -1243,6 +1244,7 @@ window.addEventListener('blur', () => { if (slideHeld) endSlideHold(); });
 
 /* ================= 開始 / 結束 ================= */
 function startGame(){
+  if (!GameData.ready()) return;
   unlockSpeech();   // iOS：趁真實按鈕點擊解鎖語音
   RoundReview.reset();
   obstacles.forEach(o => { stopGateSpeech(o); o.el.remove(); });
@@ -1365,14 +1367,14 @@ function makeRunnerBank(pool, mainTypes, sideTypes){
   }
   function distractEmoji(self){
     const out=[], seen=new Set([self.emoji]);
-    for(const w of _shuf(pool)){ if(w.emoji&&!seen.has(w.emoji)){ seen.add(w.emoji); out.push(w.emoji); } if(out.length===3) break; }
+    for(const w of _shuf(GameData.picturePool(pool))){ if(w.emoji&&!seen.has(w.emoji)){ seen.add(w.emoji); out.push(w.emoji); } if(out.length===3) break; }
     return out;
   }
   const gen = {
     cn2en: w=>{ const d=distract(w.word,'word'); return d.length<3?null:{ q:'「'+w.chinese+'」的英文是？', opts:[w.word,...d], a:0, say:w.word }; },
     en2cn: w=>{ const d=distract(w.chinese,'chinese'); return d.length<3?null:{ q:'「'+w.word+'」的中文是？', opts:[w.chinese,...d], a:0, say:w.word }; },
-    en2pic: w=>{ if(!w.emoji) return null; const d=distractEmoji(w); return d.length<3?null:{ q:'🔊 <b>'+w.word+'</b>　選出正確的圖片', opts:[w.emoji,...d], a:0, say:w.word, bigOpts:true }; },
-    say2pic: w=>{ if(!w.emoji) return null; const d=distractEmoji(w); return d.length<3?null:{ q:'🔊 聽聽看，選出正確的圖片', opts:[w.emoji,...d], a:0, say:w.word, bigOpts:true }; },
+    en2pic: w=>{ if(!GameData.picturePool(pool).includes(w)) return null; const d=distractEmoji(w); return d.length<3?null:{ q:'🔊 <b>'+w.word+'</b>　選出正確的圖片', opts:[w.emoji,...d], a:0, say:w.word, bigOpts:true }; },
+    say2pic: w=>{ if(!GameData.picturePool(pool).includes(w)) return null; const d=distractEmoji(w); return d.length<3?null:{ q:'🔊 聽聽看，選出正確的圖片', opts:[w.emoji,...d], a:0, say:w.word, bigOpts:true }; },
   };
   const build = types=>{ let out=[]; (types||[]).forEach(t=>{ if(gen[t]) out=out.concat(pool.map(gen[t]).filter(Boolean)); }); return out; };
   const main=_shuf(build(mainTypes));
@@ -1402,10 +1404,12 @@ function rebuildRunnerBank(){
   decks = {};
 }
 function applyRunnerData(payload){
+  payload = GameData.prepare(payload);
   const pool = normalizeRunnerWords(payload&&payload.words);
+  if (!GameData.report(payload, pool, 4, '#startScreen', '需有英文與中文。')) return false;
   if(pool.length>=4){
     runnerPool = pool;
-    hasPicBank = payload&&payload.builtin===true&&pool.filter(w=>w.emoji).length>=4;
+    hasPicBank = payload&&payload.builtin===true&&GameData.picturePool(pool).length>=4;
   } else {
     runnerPool = null; hasPicBank = false;
   }

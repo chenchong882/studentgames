@@ -75,8 +75,32 @@
         @keyframes choosePrompt { 0%, 100% { transform:translateX(0); } 25% { transform:translateX(-6px); } 75% { transform:translateX(6px); } }
         @media (prefers-reduced-motion:reduce) { .cell.hint { color:#8a4b00; background:#ffd66b; box-shadow:0 0 0 4px rgba(246,168,59,.32); animation:none; } .word-card.choose-prompt { color:#8a5600; background:#fff4d9; animation:none; } }
         @media (max-width:520px) { body { background:#f7f7ff; } .shell { padding:15px 10px 24px; } .topbar { align-items:flex-start; } .stat { min-width:82px; padding:7px 9px; } .word-card { min-width:92px; padding:8px 10px; font-size:14px; } .card { padding:15px 10px; border-radius:18px; } .grid-wrap { border-width:5px; } }
-    </style>
+
+        .topbar { flex-wrap:wrap; }
+        .topbar > div:first-child { flex:1 1 260px; min-width:0; }
+        .dialog { max-height:calc(100dvh - 32px); overflow-y:auto; }
+        @media(max-width:600px) {
+            .shell { padding:10px 8px 18px; }
+            .topbar { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+            .topbar > div:first-child { grid-column:1/-1; }
+            h1 { font-size:26px; white-space:nowrap; }
+            .subtitle { font-size:12px; }
+            .topbar-actions { grid-column:1/-1; justify-content:flex-end; }
+            .topbar-actions:has(button[hidden]):not(:has(button:not([hidden]))) { display:none; }
+            .topbar-actions button { min-height:44px; }
+            .stat { min-width:0; display:flex; justify-content:center; align-items:center; gap:8px; padding:5px; }
+            .stat-value { font-size:17px; margin:0; }
+            .instruction { font-size:13px; margin-bottom:8px; }
+            .word-list { gap:6px; margin-bottom:10px; }
+            button.word-card { min-width:0; padding:7px 8px; font-size:14px; }
+            .word-card .icon { font-size:16px; }
+            .card { padding:10px 6px; }
+            .feedback { font-size:13px; margin-top:8px; }
+        }
+
+</style>
     <link rel="stylesheet" href="game-menu-ui.css">
+<script src="lesson-data.js"></script>
 </head>
 <body>
     <main class="shell">
@@ -262,7 +286,7 @@
             return String.fromCharCode(65 + Math.floor(Math.random() * 26));
         }
 
-        function makeBoard(words) {
+        function tryMakeBoard(words) {
             const letters = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(''));
             const newPlacements = [];
             words.forEach((item) => {
@@ -284,9 +308,33 @@
                     newPlacements.push({ ...item, word, start: { row, col }, end: { row: endRow, col: endCol } });
                     placed = true;
                 }
-                if (!placed) throw new Error(`無法放入單字：${word}`);
+                if (!placed) return;
             });
             letters.forEach((row) => row.forEach((letter, col) => { if (!letter) row[col] = randomLetter(); }));
+            return newPlacements.length === words.length ? { letters, newPlacements } : null;
+        }
+
+        function makeBoard(words) {
+            const sorted = words.slice().sort((a, b) => b.word.length - a.word.length);
+            for (let attempt = 0; attempt < 24; attempt++) {
+                const board = tryMakeBoard(sorted);
+                if (board) return board;
+            }
+            // 每關最多 5 字、每字不超過 9 格：分配獨立橫列必定可放入。
+            const rows = Array.from({ length: GRID_SIZE }, (_, i) => i);
+            for (let i = rows.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [rows[i], rows[j]] = [rows[j], rows[i]];
+            }
+            const letters = Array.from({ length: GRID_SIZE }, () => Array.from({ length: GRID_SIZE }, randomLetter));
+            const newPlacements = sorted.map((item, i) => {
+                const word = item.word.toUpperCase(), row = rows[i];
+                const reverse = Math.random() < .5, direction = reverse ? -1 : 1;
+                const offset = Math.floor(Math.random() * (GRID_SIZE - word.length + 1));
+                const col = reverse ? offset + word.length - 1 : offset;
+                [...word].forEach((letter, j) => { letters[row][col + direction * j] = letter; });
+                return { ...item, word, start: { row, col }, end: { row, col: col + direction * (word.length - 1) } };
+            });
             return { letters, newPlacements };
         }
 
@@ -727,7 +775,9 @@
         }
 
         function applyWordHuntData(data) {
+            data = GameData.prepare(data);
             const words = normalizeWordHuntVocab(data);
+            if (!GameData.report(data, words, 1, '#dialog', '只接受 2–9 個英文字母，片語與標點不納入棋盤。')) return false;
             if (!words.length) return false;
             stopTimer();
             clearHint();
@@ -751,7 +801,7 @@
             hintButton.hidden = true;
             updateHintButton();
             dialogTitle.textContent = '單字獵人';
-            dialogText.textContent = `找出這次的 ${words.length} 個單字！`;
+            dialogText.textContent = `題庫 ${words.length} 字，本局最多抽 ${Math.min(12, words.length)} 個不同單字，分 3 關練習。`;
             wordHuntInfo.hidden = false;
             dialogStars.hidden = true;
             resultList.hidden = true;
@@ -783,7 +833,7 @@
         menuButton.addEventListener('click', returnToMenu);
         pauseMenuButton.addEventListener('click', returnToMenu);
         window.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && timerId !== null) {
+            if (event.key === 'Escape' && (paused || timerId !== null)) {
                 event.preventDefault();
                 paused ? resumeGame() : pauseGame();
             }
@@ -808,7 +858,8 @@
             speech.addEventListener('voiceschanged', cacheEnglishVoice);
         }
         dialogButton.onclick = startNewRun;
-        applyWordHuntData(readHashData());
+        const initialData = readHashData();
+        if (initialData) applyWordHuntData(initialData);
     </script>
 </body>
 </html>

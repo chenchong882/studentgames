@@ -224,6 +224,7 @@
   .hidden{display:none !important;}
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
+<script src="lesson-data.js"></script>
 </head>
 <body>
 <div id="gunRotateWarning" role="status"><div><div class="rotateIcon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div></div>
@@ -342,14 +343,16 @@ let allPic=(()=>{try{return localStorage.getItem('sgAllPic')==='1';}catch(e){ret
 let builtinSource=true;
 function normalizeGunVocab(list){
   if(!Array.isArray(list))return[];
-  return list.map(o=>{
+  return GameData.uniqueWords(list.map(o=>{
     if(!o)return null;
     const w=o.word||o.en, c=o.chinese||o.zh||o.meaning;
     return (w&&c)?{word:String(w),chinese:String(c),emoji:o.emoji?String(o.emoji):''}:null;
-  }).filter(Boolean);
+  }).filter(Boolean));
 }
 function applyGunData(payload){
+  payload = GameData.prepare(payload);
   const ws=normalizeGunVocab(payload&&payload.words);
+  if (!GameData.report(payload, ws, 1, '#overlay', '需有英文與中文。')) return false;
   if(ws.length){builtinSource=payload&&payload.builtin===true;VOCAB=ws;}
 }
 let LESSON_RAW=(()=>{const h=location.hash.startsWith('#')?location.hash.slice(1):location.hash;return h?(new URLSearchParams(h).get('lessonData')||''):'';})();
@@ -1006,6 +1009,15 @@ function updateArcher(z,u,dx,dz,d,pace,dt){
     if(u.attackT<=0&&los&&d<25){u.windup=.8;if(u.warn)u.warn.visible=true;}
   }
 }
+function settleZombieDamage(g){
+  const u=g.userData;
+  if(g===boss){
+    if(!u.secondShield&&u.hp<=u.maxHp*.5){triggerBossSecondShield(g);return true;}
+    updateBossHud(g);
+  }
+  if(u.hp<=0){finishZombie(g);return true;}
+  return false;
+}
 function hitZombie(g,part,hitPoint){
   const u=g.userData;if(!u.alive)return;
   if(g===boss&&u.bossShield>0){
@@ -1023,11 +1035,7 @@ function hitZombie(g,part,hitPoint){
   if(fireOn)for(const o of zombies){if(o!==g&&o.userData.alive&&Math.hypot(o.position.x-g.position.x,o.position.z-g.position.z)<2.8){blastZombie(o,1,g.position.x,g.position.z);igniteZombie(o,2.5);}}
   hitmarkShow();
   popAt(hitPoint,(fireOn?'🔥 ':(iceOn?'❄️ ':''))+(part==='head'?'爆頭 ':'-')+dmg,fireOn?'#ff9a45':(iceOn?'#9cecff':(part==='head'?'#ffd34d':'#fff')));
-  if(g===boss){
-    if(!u.secondShield&&u.hp<=u.maxHp*.5){triggerBossSecondShield(g);return;}
-    updateBossHud(g);
-  }
-  if(u.hp<=0)finishZombie(g);else part==='head'?sndHead():sndHit();
+  if(!settleZombieDamage(g))part==='head'?sndHead():sndHit();
 }
 function finishZombie(g){
   const u=g.userData;if(!u.alive)return;u.alive=false;u.deadT=0;if(u.warn)u.warn.visible=false;kills++;
@@ -1038,8 +1046,7 @@ function finishZombie(g){
 function blastZombie(g,amount,x,z){
   const u=g.userData;if(!u.alive||(g===boss&&u.bossShield>0))return;
   u.hp-=amount;u.flash=.18;const dx=g.position.x-x,dz=g.position.z-z,d=Math.hypot(dx,dz)||1;
-  u.kx=dx/d*7;u.kz=dz/d*7;if(g===boss){if(!u.secondShield&&u.hp<=u.maxHp*.5){triggerBossSecondShield(g);return;}updateBossHud(g);}
-  if(u.hp<=0)finishZombie(g);
+  u.kx=dx/d*7;u.kz=dz/d*7;settleZombieDamage(g);
 }
 
 /* ============ 命中特效：粒子 / 飄字 / hitmarker ============ */
@@ -1079,7 +1086,7 @@ const WEAPON=[{name:'手槍',cap:7,rate:.28,damage:1,head:3,color:0x181a1f,scale
 const WEAPON_STAGE=[{score:0,correct:0,kills:0},{score:30,correct:3,kills:15},{score:70,correct:7,kills:40}];
 let wave=0,targetWord=null,roundKind='word',roundUsesPic=false,combo=0,weaponLevel=0,weaponScore=0,weaponCorrect=0,slowT=0,
   recovering=false,recoverLevel=0,recoveryStreak=0,
-  gateReady=false,gateOpen=false,gameWon=false,survivalStart=0,exitGate=null;
+  gateReady=false,gateOpen=false,gameWon=false,survivalSeconds=0,exitGate=null;
 const CAPTURE_SECONDS=10,QUESTION_SECONDS=38;
 let captureHouse=null,captureT=0,questionT=QUESTION_SECONDS,captureActive=false,captureCooldown=0,roundTransition=false,transitionT=0;
 const captureHudEl=document.getElementById('captureHud'),captureTextEl=document.getElementById('captureText'),captureTrackEl=document.getElementById('captureTrack'),captureFillEl=document.getElementById('captureFill'),houseWordEl=document.getElementById('houseWord');
@@ -1141,7 +1148,7 @@ function registerWrong(){
   }
   updateWeaponUI();
 }
-function questionWords(){const list=roundUsesPic?VOCAB.filter(w=>w.emoji):VOCAB;return list.length?list:VOCAB;}
+function questionWords(){const list=roundUsesPic?GameData.picturePool(VOCAB):VOCAB;return list.length?list:VOCAB;}
 function wordKey(w){return w?String(w.word).trim().toLowerCase():'';}
 function answerKey(w){return roundUsesPic&&w&&w.emoji?'pic:'+w.emoji:'word:'+wordKey(w);}
 function assignHouseAnswers(){
@@ -1349,7 +1356,7 @@ function openGateQuiz(){
 function winGame(){
   gameWon=true;playing=false;clearEnemyArrows();stopBgm();waveEl.textContent='🎉 成功逃生！';
   document.getElementById('btnPause').classList.add('hidden');
-  const sec=Math.max(1,Math.round((performance.now()-survivalStart)/1000));
+  const sec=Math.max(1,Math.round(survivalSeconds));
   overlay.innerHTML='<h1>🏆 成功逃生！</h1><div class="sub">T O W N &nbsp; C L E A R</div><p>擊殺 '+kills+' 隻 ・ 武器分數 '+weaponScore+' ・ 存活 '+sec+' 秒</p><p class="go">找對小屋、守住佔領區，就能帶著補給活下去！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再守一輪</button>';
   overlay.classList.remove('hidden');
   RoundReview.show('📚 守城本局學習回顧');
@@ -1627,7 +1634,7 @@ function fire(){
 
 /* 滑鼠：pointer lock 環視 */
 const overlay=document.getElementById('overlay');
-function hasImageVocab(){return builtinSource&&VOCAB.filter(w=>w.emoji).length>=4;}
+function hasImageVocab(){return builtinSource&&GameData.picturePool(VOCAB).length>=4;}
 function modeAllowed(mode){return mode==='simple'||mode==='hard';}
 function refreshModeUI(){
   let saved='';try{saved=localStorage.getItem('gunMode3')||'';}catch(e){}
@@ -1652,6 +1659,7 @@ function setAllPic(on){if(playing)return;allPic=on;try{localStorage.setItem('sgA
 document.getElementById('allPicMix').addEventListener('click',()=>setAllPic(false));
 document.getElementById('allPicOnly').addEventListener('click',()=>setAllPic(true));
 function startGame(){
+  if (!GameData.ready()) return;
   ensureAudio();
   RoundReview.reset();
   try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}
@@ -1660,7 +1668,7 @@ function startGame(){
     document.getElementById('modePanel').classList.add('hidden');document.getElementById('modeHint').classList.add('hidden');
     document.getElementById('banner').classList.add('hidden');
     reserve=gameMode==='hard'?60:30;
-    playing=true;survivalStart=performance.now();setupFixedAmmo();setWeaponLevel(0);updateWeaponUI();updAmmo();updGrenades();startBgm();beginWave();
+    playing=true;survivalSeconds=0;setupFixedAmmo();setWeaponLevel(0);updateWeaponUI();updAmmo();updGrenades();startBgm();beginWave();
   }
   paused=false;
   document.getElementById('pauseOverlay').classList.add('hidden');
@@ -1746,7 +1754,7 @@ function pauseGame(){
   if(document.pointerLockElement===renderer.domElement)document.exitPointerLock();
 }
 function resumeGame(){
-  if(!playing||!paused)return;
+  if(!playing||!paused||matchMedia('(orientation:portrait)').matches)return;
   paused=false;pauseOverlay.classList.add('hidden');startBgm();lastT=performance.now();
   if(!isTouch)renderer.domElement.requestPointerLock();
 }
@@ -1770,7 +1778,9 @@ let lastT=performance.now();
 function loop(now){
   requestAnimationFrame(loop);
   const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
+  if(playing&&!paused&&matchMedia('(orientation:portrait)').matches)pauseGame();
   if(playing&&!paused){
+    survivalSeconds+=dt;
     fireCd=Math.max(0,fireCd-dt);grenadeCd=Math.max(0,grenadeCd-dt);dashCd=Math.max(0,dashCd-dt);dashT=Math.max(0,dashT-dt);updateDashUI();if(fireHeld)fire();slowT=Math.max(0,slowT-dt);updateCapture(dt);updateRoadsideSupply(dt);updateSurpriseSupply(dt);updateSupplyAlert(dt);updatePowerups(dt);
     if(roundTransition&&(transitionT-=dt)<=0)beginWave();
     /* 移動輸入（鍵盤＋搖桿） */
@@ -1845,7 +1855,7 @@ function loop(now){
         if(u.freezeT)u.freezeT=Math.max(0,u.freezeT-dt);
         if(u.burnT){
           u.burnT=Math.max(0,u.burnT-dt);u.burnTick-=dt;
-          if(u.burnTick<=0){u.burnTick+=.62;u.hp--;u.flash=.08;sparks(z.position.clone().setY(1.25),0xff672d,3);if(u.hp<=0){finishZombie(z);continue;}}
+          if(u.burnTick<=0){u.burnTick+=.62;u.hp--;u.flash=.08;sparks(z.position.clone().setY(1.25),0xff672d,3);if(settleZombieDamage(z))continue;}
         }
         updateZombieStatusVisual(z,u,now);updateBossShieldVisual(u,now,dt);
         const pace=u.speed*((u.enrage||u.bossRage)?ENRAGED_SPEED_MULT:ZOMBIE_SPEED_MULT)*(slowT>.01?.35:1)*(u.freezeT>0?.48:1);

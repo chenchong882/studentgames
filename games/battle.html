@@ -184,8 +184,52 @@ button{font-family:'Outfit',sans-serif;}
   .intermission{padding:10px;}
   .intermission-grid button{min-height:46px;}
 }
+
+@media(max-width:1024px), (max-height:650px) {
+body.battle-active { height:100dvh; min-height:0; overflow:hidden; padding:calc(6px + env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left)); }
+body.battle-active .wrap { height:100%; width:min(1200px,100%); }
+body.battle-active .wrap > h1, body.battle-active .unit-title { display:none; }
+body.battle-active #game-screen { height:100%; display:grid!important; grid-template-rows:auto minmax(100px,1fr) auto; gap:6px; }
+body.battle-active #topbar { padding:0 48px; gap:4px; margin:0; }
+body.battle-active .stat { min-width:0; padding:3px; font-size:12px; }
+body.battle-active .stage-stat { padding:3px 6px; }
+body.battle-active .stage-heading { margin:0; }
+body.battle-active .stage-progress { display:none; }
+body.battle-active .battlefield { min-height:0; display:flex; align-items:center; justify-content:center; }
+body.battle-active #canvas { max-width:100%; max-height:100%; width:auto; height:auto; aspect-ratio:5/2; }
+body.battle-active #panels { margin:0; min-height:0; gap:6px; flex-direction:column; }
+body.battle-active #deploy { min-width:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+body.battle-active #deploy .section-title { display:none; }
+body.battle-active .unit-btn { padding:5px; min-height:48px; gap:4px; flex-direction:row; justify-content:center; }
+body.battle-active .unit-btn .name { font-size:12px; }
+body.battle-active .unit-btn .cost { font-size:12px; }
+body.battle-active #quiz-panel { min-height:0; padding:8px; overflow-y:auto; }
+body.battle-active #quiz-type { padding:3px 6px; margin-bottom:4px; font-size:12px; }
+body.battle-active #question { font-size:16px; line-height:1.35; padding:6px 8px; margin-bottom:6px; overflow-wrap:anywhere; }
+body.battle-active #options { grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+body.battle-active .opt-btn { min-height:44px; padding:6px; font-size:14px; overflow-wrap:anywhere; }
+body.battle-active #feedback { min-height:16px; font-size:12px; margin-top:4px; }
+body.battle-active #deploy { padding:6px; }
+body.battle-active #boss-banner { position:absolute; left:4px; right:4px; bottom:4px; margin:0!important; padding:4px!important; z-index:3; }
+body.battle-active #boss-banner > div { gap:4px!important; flex-wrap:wrap; }
+body.battle-active #boss-banner span { font-size:12px!important; }
+body.battle-active #boss-banner > div > div { min-width:40px; }
+}
+@media(orientation:landscape) and (max-height:650px) {
+    body.battle-active #game-screen { grid-template-columns:minmax(0,1fr) minmax(290px,42%); grid-template-rows:auto minmax(0,1fr); }
+    body.battle-active #topbar { grid-column:1; padding-right:0; }
+    body.battle-active .battlefield { grid-column:1; grid-row:2; }
+    body.battle-active #panels { grid-column:2; grid-row:1/3; padding-top:44px; }
+    body.battle-active #quiz-panel { flex:1; }
+    body.battle-active .stage-total { display:none; }
+}
+@media(orientation:portrait) {
+    body.battle-active #panels { max-height:65dvh; }
+}
+
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
+<script src="lesson-data.js"></script>
 </head>
 <body>
 <button id="battle-pause-btn" type="button" aria-label="暫停">⏸</button>
@@ -250,8 +294,8 @@ button{font-family:'Outfit',sans-serif;}
       <div class="stat resource-stat" id="stat-power">強化值 <span id="power-display">0</span></div>
       <div class="stat resource-stat">答題 <span id="correct-display" class="score-correct">0</span><span class="score-slash">/</span><span id="wrong-display" class="score-wrong">0</span></div>
     </div>
-    <div id="boss-banner" style="display:none;margin:6px 0;padding:8px 12px;border-radius:10px;background:rgba(255,80,80,.2);border:1.5px solid #ff5050;color:#ffd166;font-weight:700;"></div>
     <div class="battlefield">
+      <div id="boss-banner" style="display:none;margin:6px 0;padding:8px 12px;border-radius:10px;background:rgba(255,80,80,.2);border:1.5px solid #ff5050;color:#ffd166;font-weight:700;"></div>
       <canvas id="canvas" width="900" height="360"></canvas>
       <div id="battle-timer" aria-label="剩餘時間">⏱ 2:00</div>
     </div>
@@ -713,12 +757,14 @@ function makeQuestion(type, prompt, answer, choices, audio){
 }
 
 function buildQuestionPools(payload){
+  payload = GameData.prepare(payload);
   const isBuiltin = !!payload.builtin;
-  const words = (payload.words || []).filter(w =>
+  const words = GameData.uniqueWords(payload.words.filter(w =>
     w && w.word && w.chinese && !BATTLE_EXCLUDED_WORDS.has(String(w.word).trim().toLowerCase())
-  );
-  wordPool = words.length >= 4 ? words : FALLBACK_WORDS;
-  picPool = wordPool.filter(w => w.emoji);     // 圖片題用：自己與干擾選項都要有 emoji
+  ));
+  if (!GameData.report(payload, words, 4, '#start-screen', '需有英文與中文。')) return;
+  wordPool = words;
+  picPool = GameData.picturePool(wordPool);     // 圖片題用：自己與干擾選項都要有 emoji
 
   clampMode();
   buildVocabByMode();
@@ -748,7 +794,7 @@ function buildVocabByMode(){
     const others = shuffle(wordPool.filter(w => w.word !== target.word));
     textQ.push(makeQuestion('英文選中文', target.word, target.chinese, others.map(w => w.chinese), target.word));
     textQ.push(makeQuestion('中文選英文', target.chinese, target.word, others.map(w => w.word), target.word));
-    if(target.emoji && picPool.length >= 4){
+    if(hasPicBank() && picPool.includes(target)){
       const others2 = shuffle(picPool.filter(w => w.word !== target.word));
       const q = makeQuestion('看字選圖片', target.word, target.emoji, others2.map(w => w.emoji), target.word);
       q.bigOpts = true; picQ.push(q);
@@ -856,7 +902,7 @@ window.addEventListener('message', (event) => {
   battleData = {
     unitTitle: event.data.payload?.unitTitle || '目前單元',
     builtin: !!event.data.payload?.builtin,
-    words: event.data.payload?.words || FALLBACK_WORDS,
+    words: event.data.payload?.words,
     grammarQuiz: event.data.payload?.grammarQuiz || [],
   };
   buildQuestionPools(battleData);
@@ -1046,6 +1092,7 @@ function applyEliteAbility(attacker, target, now){
 }
 
 function startGame(){
+  if (!GameData.ready()) return;
   unlockSpeech();   // iOS：趁真實按鈕點擊解鎖語音
   getAudioCtx();
   clampMode();
@@ -1100,6 +1147,7 @@ function startStage(stageIndex){
     if(el) el.style.display = showLevel ? '' : 'none';
   });
   document.getElementById('start-screen').style.display = 'none';
+  document.body.classList.add('battle-active');
   document.getElementById('game-screen').style.display = 'block';
   document.getElementById('battle-pause-btn').style.display = 'block';
   document.getElementById('stage-display').textContent = `第${['一','二','三'][stageIndex] || stageIndex+1}關：${state.stage.name}`;
@@ -1596,6 +1644,7 @@ function showStartScreen(){
   stopBgm();
   Confetti.stop();
   document.getElementById('start-screen').style.display = 'flex';
+  document.body.classList.remove('battle-active');
   document.getElementById('game-screen').style.display = 'none';
   document.getElementById('overlay').classList.remove('show','win','rout');
   document.getElementById('battle-pause').classList.remove('show');
@@ -1638,6 +1687,7 @@ function loop(ts){
     }
     if(u.side === 'enemy' && u.x <= 60){
       state.playerHP -= u.atk; u.hp = 0;
+      if(u === state.boss){ state.boss = null; state.grammarStreak = 0; }
       playSound('baseHit', 180);
       state.cameraShake = Math.max(state.cameraShake,120);
       state.effects.push({ kind:'slash', x:60, y:248, side:'enemy', color:'#fb7185', life:260, born:now });
@@ -2147,7 +2197,7 @@ function endGame(result, winType){
     if(d) battleData = {
       unitTitle: d.unitTitle || '目前單元',
       builtin: !!d.builtin,
-      words: d.words || FALLBACK_WORDS,
+      words: d.words,
       grammarQuiz: d.grammarQuiz || [],
     };
   } catch(e){}

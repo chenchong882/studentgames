@@ -145,6 +145,16 @@
   }
 }
 
+/* 暫停／商店／結算也要能在短橫式捲到操作按鈕。 */
+@media(max-height:600px) {
+  #pauseOverlay, #pause-screen, #pause-overlay, #shop-overlay,
+  #over-screen, #win-screen, #end-overlay, .battle-ov {
+    overflow-y:auto; justify-content:flex-start; padding-top:24px; padding-bottom:24px;
+  }
+  #pauseOverlay > *, #pause-screen > *, #pause-overlay > *, #shop-overlay > *,
+  #over-screen > *, #win-screen > *, #end-overlay > *, .battle-ov > * { flex-shrink:0; }
+}
+
 /* 手機開始畫面共通規格：標題在上、選項可捲動、主要開始鈕永遠留在安全區。 */
 @media (pointer: coarse) and (max-width: 600px), (pointer: coarse) and (max-height: 600px) {
   #overlay,

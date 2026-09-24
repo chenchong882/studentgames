@@ -189,6 +189,7 @@
   .hidden{display:none !important;}
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
+<script src="lesson-data.js"></script>
 </head>
 <body>
 <div id="tankRotateWarning" role="status"><div><div class="rotateIcon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div></div>
@@ -836,6 +837,7 @@ function resetGame(){
   tankG.traverse(o=>{if(o.isMesh&&o.material.emissive)o.material.emissive.setHex(0);});
 }
 function startGame(){
+  if (!GameData.ready()) return;
   const allow=allowedTankModes();
   if(!allow.includes(mode))mode=allow[0];   // 依題庫來源 clamp 模式
   resetGame();state='play';paused=false;
@@ -1168,7 +1170,7 @@ function startRound(){
   }
   if(picked.length<3)return false;
   const rtype=pickRoundType();
-  const pool=rtype==='en2pic'?VOCAB.filter(w=>w.emoji):VOCAB;   // 圖片回合只從有 emoji 的字抽
+  const pool=rtype==='en2pic'?GameData.picturePool(VOCAB):VOCAB;   // 圖片回合只從有 emoji 的字抽
   const entry=nextRoundEntry(pool);
   const wrongs=otherWords(entry,picked.length-1,pool);
   const ci=(Math.random()*picked.length)|0;
@@ -1982,6 +1984,7 @@ function stopBgm(){
 /* ============ 暫停 ============ */
 function togglePause(){
   if(state!=='play')return;
+  if(paused&&matchMedia('(orientation:portrait)').matches)return;
   paused=!paused;
   document.getElementById('pauseOverlay').classList.toggle('hidden',!paused);
   if(paused){mouse.down=false;for(const k in keys)keys[k]=false;stopBgm();setThreatGlow(null,0);
@@ -2248,6 +2251,7 @@ window.DBG_SIGNS=()=>round?JSON.stringify(round.items.map(it=>{
 })):'null';
 let last=performance.now();
 function loop(now){
+  if(state==='play'&&!paused&&matchMedia('(orientation:portrait)').matches)togglePause();
   const dt=Math.min(0.033,(now-last)/1000);last=now;
   if(!paused){
     update(dt);
@@ -2274,10 +2278,12 @@ function normalizeTankVocab(words){
   return out;
 }
 function applyTankData(payload){
+  payload = GameData.prepare(payload);
   const next=normalizeTankVocab(payload&&payload.words);
-  VOCAB = next.length>=4 ? next : DEFAULT_TANK_VOCAB;
+  if (!GameData.report(payload, next, 4, '#overlay', '需有英文與中文。')) return false;
+  VOCAB = next;
   wordQueue=[]; missedList=[]; lastRoundEntry=null;
-  hasEmoji = payload&&payload.builtin===true&&VOCAB.filter(w=>w.emoji).length>=4;
+  hasEmoji = payload&&payload.builtin===true&&GameData.picturePool(VOCAB).length>=4;
   if(typeof setMode==='function')setMode(mode);    // 依來源 clamp 模式並更新灰化
 }
 function readLessonDataFromHash(){

@@ -274,7 +274,17 @@
       if(!raw) return { raw:null, data:null };
       try { return { raw, data: JSON.parse(raw) }; } catch(e){ return { raw:null, data:null }; }
     }
-    const lesson = readHashLesson();
+    let lesson = readHashLesson();
+    try {
+      if(lesson.data && lesson.data.builtin !== true && Array.isArray(lesson.data.words) && lesson.data.words.length){
+        sessionStorage.setItem('sg_original_lesson', lesson.raw);
+      } else if(!lesson.data || lesson.data.builtin === true){
+        const raw = sessionStorage.getItem('sg_original_lesson');
+        const data = raw ? JSON.parse(raw) : null;
+        if(data && data.builtin !== true && Array.isArray(data.words) && data.words.length) lesson = {raw,data};
+      }
+    } catch(e){}
+
     const hasLesson = !!(lesson.data && lesson.data.builtin !== true && Array.isArray(lesson.data.words) && lesson.data.words.length);
 
     const lessonBtn = document.getElementById('scope-lesson');
