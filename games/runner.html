@@ -341,6 +341,7 @@
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
+<script src="game-setup.js"></script>
 </head>
 <body>
 <div id="app" data-theme="city">
@@ -1387,18 +1388,13 @@ function makeRunnerBank(pool, mainTypes, sideTypes){
 let runnerPool=null, hasPicBank=false;   // 有圖題庫＝pool 帶 emoji 的字 ≥ 4
 let runnerMode=(function(){ try{ return localStorage.getItem('runnerMode3'); }catch(e){ return null; } })()||'normal';
 let allPic=(function(){ try{ return localStorage.getItem('sgAllPic')==='1'; }catch(e){ return false; } })();
-// 兩種來源都只顯示簡單／困難；只有內建來源會出圖片題。
+// 兩種來源都支援簡單／困難；圖片題依實際題庫能力開放。
 function allowedModes(){ return ['simple','hard']; }
 function clampMode(){ const a=allowedModes(); if(!a.includes(runnerMode)) runnerMode=a[0]; }
 function rebuildRunnerBank(){
-  let main=['en2cn','cn2en'], side=null;   // 一般（或無圖困難）：中英雙向
-  if(hasPicBank && runnerMode==='simple'){
-    if(allPic){ main=['en2pic']; }
-    else { main=['en2pic','say2pic']; side=['en2cn','cn2en']; }
-  } else if(hasPicBank && runnerMode==='hard'){
-    if(allPic){ main=['en2pic']; }
-    else { main=['en2cn','cn2en']; side=['en2pic','say2pic']; }
-  }
+  const type=GameSetup.kind(hasPicBank);
+  const main=type==='picture'?['en2pic']:type==='mixed'?['en2cn','cn2en','en2pic','say2pic']:['en2cn','cn2en'];
+  const side=null;
   const gen = runnerPool && makeRunnerBank(runnerPool, main, side);
   BANK = gen || DEFAULT_RUNNER_BANK;
   decks = {};
@@ -1409,7 +1405,7 @@ function applyRunnerData(payload){
   if (!GameData.report(payload, pool, 4, '#startScreen', '需有英文與中文。')) return false;
   if(pool.length>=4){
     runnerPool = pool;
-    hasPicBank = payload&&payload.builtin===true&&GameData.picturePool(pool).length>=4;
+    hasPicBank = GameData.picturePool(pool).length>=4;
   } else {
     runnerPool = null; hasPicBank = false;
   }
@@ -1484,6 +1480,14 @@ window.addEventListener('message',e=>{
 window.__dbg = () => ({
   state, lane, lives, score, gateNum, passed,
   obstacles: obstacles.map(o => ({ type:o.type, dist:Math.round(o.dist), resolved:o.resolved, answerDir:o.answerDir, choice:o.choice })),
+});
+
+GameSetup.register({
+  id:'runner', shell:'#startScreen', start:'#startBtn', legacy:'#modePanel', pause:'#pauseBtn',
+  hasPictures:()=>hasPicBank, count:()=>runnerPool?.length, getDifficulty:()=>runnerMode,
+  setDifficulty:m=>{runnerMode=m;try{localStorage.setItem('runnerMode3',m);}catch(e){}rebuildRunnerBank();renderModePanel();},
+  onTypeChange:rebuildRunnerBank,
+  hints:{simple:'起跑較慢，加速較緩。',hard:'起跑較快，每 5 題的加速幅度較大。'}
 });
 </script>
 </body>

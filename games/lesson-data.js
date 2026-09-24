@@ -1,6 +1,6 @@
 /* Shared lesson boundary: aliases, explicit load receipt, and readable picture answers. */
 window.GameData = (() => {
-  let blocked = false;
+  let blocked = false, current = null, receiptKey = "";
   const text = value => typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
   function prepare(payload) {
     if (!payload || typeof payload !== 'object') return { words:[], _rawCount:0 };
@@ -39,6 +39,12 @@ window.GameData = (() => {
       if (!host) receipt.className = 'lesson-floating-receipt';
     }
     const pictures = picturePool(words).length;
+    current = { payload, count, pictures };
+    const key = JSON.stringify([payload, count, pictures]);
+    if (key !== receiptKey) {
+      receiptKey = key;
+      queueMicrotask(() => document.dispatchEvent(new Event('game-data-ready')));
+    }
     receipt.textContent = `題庫：原始 ${raw}／可用 ${count}／排除 ${Math.max(0,raw-count)} 字。${hint}`;
     if (words.some(w => w.emoji)) receipt.textContent += ` 可辨識圖片 ${pictures} 個；無圖或重複圖案的單字僅文字題可練習。`;
     document.getElementById('lesson-load-error')?.remove();
@@ -66,5 +72,5 @@ window.GameData = (() => {
     } catch(e) {}
     report(prepare(null), [], 1, '#lesson-data-missing', '題庫格式無法讀取。');
   });
-  return { prepare, uniqueWords, picturePool, report, ready:() => !blocked };
+  return { prepare, uniqueWords, picturePool, report, current:() => current, ready:() => !blocked };
 })();

@@ -549,6 +549,7 @@
 </style>
     <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
+<script src="game-setup.js"></script>
 </head>
 <body>
     <div id="miner-rotate-warning" role="status">
@@ -760,8 +761,8 @@
     /* ── 三模式（簡單／一般／困難）＋全圖檔開關 ── */
     let minerMode = (function () { try { return localStorage.getItem("minerMode3"); } catch (e) { return null; } })() || "normal";
     let allPic = (function () { try { return localStorage.getItem("sgAllPic") === "1"; } catch (e) { return false; } })();
-    /* 只有主機標記為內建、且至少 4 個字有圖，才開放圖片題。 */
-    function hasPicBank() { return builtinSource && GameData.picturePool(vocabulary).length >= 4; }
+    /* 至少 4 個單字有可辨識圖案，才開放圖片題。 */
+    function hasPicBank() { return GameData.picturePool(vocabulary).length >= 4; }
     function allowedModes() { return ["simple", "hard"]; }
     function clampMode() {
         const allow = allowedModes();
@@ -996,14 +997,7 @@
         const hasChinese = vocabulary.some(entry => getEntryChinese(entry));
         const textPairs = hasChinese ? [{ q: "word", a: "chinese" }, { q: "chinese", a: "word" }] : [];
         const picPair = { q: "word", a: "image" };
-        let pool = textPairs;
-        if (hasPicBank() && minerMode === "simple") {
-            /* 簡單：開＝純圖英；關＝圖英為主＋約 1/3 中英 */
-            pool = allPic || !textPairs.length ? [picPair] : [picPair, picPair, textPairs[Math.floor(Math.random() * textPairs.length)]];
-        } else if (hasPicBank() && minerMode === "hard") {
-            /* 困難：開＝純圖英；關＝中英雙向＋約 1/3 圖英 */
-            pool = allPic || !textPairs.length ? [picPair] : [...textPairs, picPair];
-        }
+        const pool = GameSetup.usePicture(hasPicBank()) ? [picPair] : textPairs;
         if (pool.length === 0) return { q: "word", a: "word" };
         return pool[Math.floor(Math.random() * pool.length)];
     }
@@ -1055,6 +1049,7 @@
 
     function updateControls() {
         const playing = gamePhase === "PLAYING";
+        document.getElementById("miner-settings-btn").hidden = !playing;
         moveLeftBtn.style.display = playing ? "" : "none";
         moveRightBtn.style.display = playing ? "" : "none";
         moveLeftBtn.disabled = !playing;
@@ -2330,6 +2325,13 @@
       addEventListener('keydown',e=>{if(layer.style.display==='flex'&&e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}},true);
       window.openGameExitConfirm=open;
     })();
+
+GameSetup.register({
+  id:'miner', shell:'#miner-startscreen', start:'#miner-start-btn', legacy:'.ss-modes', pause:'#miner-settings-btn',
+  hasPictures:hasPicBank, count:()=>vocabulary.length, getDifficulty:()=>minerMode,
+  setDifficulty:m=>document.querySelector(`.ss-mode-btn[data-mode="${m}"]`).click(),
+  hints:{simple:'標準礦車與鉤索節奏。',hard:'鉤索擺速與過關分數門檻提高 20%。'}
+});
 </script>
 </body>
 </html>

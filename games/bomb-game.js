@@ -253,10 +253,10 @@ function chineseForWord(word) {
   return lessonChinese[String(word).toLowerCase()] || '';
 }
 let bombBuiltinSource = true;
-// 只有主機標記為內建、且至少 4 個字有圖，才開放圖片題。
+// 至少 4 個單字有可辨識圖案，才開放圖片題。
 function hasPicBank() {
   const words = bombWordPool || DEFAULT_LEVELS.flatMap(l => l.words);
-  return bombBuiltinSource && GameData.picturePool(words.map(word => ({word,emoji:emojiForWord(word)}))).length >= 4;
+  return GameData.picturePool(words.map(word => ({word,emoji:emojiForWord(word)}))).length >= 4;
 }
 function allowedBombModes() { return ['simple', 'hard']; }
 // 全圖檔開關（所有遊戲共用 sgAllPic 鑰匙）
@@ -1509,15 +1509,8 @@ function drawHUD(c, game) {
   // ── Top bar background ──
   c.fillStyle='rgba(0,0,0,0.40)'; c.fillRect(0,0,W,50+SAFE_T);
 
-  // ── LEFT: Pause button ──
-  const pbtnX=pauseBtnLeft()+14, pbtnY=9, pbtnW=34, pbtnH=34;
-  c.fillStyle='rgba(255,255,255,0.15)';
-  roundRect(c,pbtnX,pbtnY,pbtnW,pbtnH,8); c.fill();
-  c.fillStyle='white'; c.font='bold 16px Arial'; c.textBaseline='middle'; c.textAlign='center';
-  c.fillText('❚❚', pbtnX+pbtnW/2, pbtnY+pbtnH/2+1);
-
-  // ── LEFT: Score / Lives ──
-  const infoX = pbtnX + pbtnW + 16;
+  // 右上角由真實 DOM 暫停按鈕接管；左側保留成績。
+  const infoX = SAFE_L + 14;
   c.font='bold 18px Arial'; c.textAlign='left'; c.fillStyle='#FFD700'; c.textBaseline='middle';
   c.fillText(`⭐ ${game.score}`, infoX, 27);
 
@@ -1571,7 +1564,7 @@ function drawHUD(c, game) {
   }
 
   // ── RIGHT: Bomb count — 固定在右上框格，剩 1～2 顆時閃紅提示 ──
-  const bombW=126, bombH=38, bombX=W-SAFE_R-bombW-10, bombY=6;
+  const bombW=126, bombH=38, bombX=W-SAFE_R-bombW-68, bombY=6;
   const bombLow=game.bombsLeft>=1&&game.bombsLeft<=2;
   const bombEmpty=game.bombsLeft===0;
   const bombPulse=bombLow?(Math.sin(performance.now()/120)+1)/2:0;
@@ -1992,7 +1985,7 @@ class Game {
   start(mode) {
   if (!GameData.ready()) return;
     RoundReview.reset();
-    if (bombWordPool) buildLessonLevels();   // 每次開新局重洗，關卡單字組合都不同
+    this._reshuffleRound();   // 套用題型後重洗本局單字。
     const allow = allowedBombModes();
     if (!allow.includes(mode)) mode = allow[0];   // 依題庫來源 clamp
     this.mode = mode;
@@ -2047,6 +2040,11 @@ class Game {
   _reshuffleRound() {
     if (bombWordPool) buildLessonLevels();
     else LEVELS = DEFAULT_LEVELS.map(l => ({ ...l, words: [...l.words] }));
+    if (GameSetup.kind(hasPicBank()) === 'picture') {
+      const source = bombWordPool || DEFAULT_LEVELS.flatMap(l => l.words);
+      const readable = new Set(GameData.picturePool(source.map(word => ({word, emoji:emojiForWord(word)}))).map(w=>w.word));
+      LEVELS = LEVELS.map(l => ({...l, words:l.words.filter(w=>readable.has(w))})).filter(l=>l.words.length);
+    }
     this.lvIdx = 0;
   }
 
@@ -2111,16 +2109,12 @@ class Game {
   // 鐵則：圖片題一律「英文＋發音→炸圖片房子」；絕不看圖選字、絕不圖↔中。
   _pickQType() {
     const visible = this.houses.filter(h => !h.destroyed).map(h => ({word:h.word,emoji:emojiForWord(h.word)}));
-    const em = bombBuiltinSource && !!emojiForWord(this.targetWord) && GameData.picturePool(visible).length === visible.length;
+    const em = !!emojiForWord(this.targetWord) && GameData.picturePool(visible).length === visible.length;
     const zh = !!chineseForWord(this.targetWord);
     const textType = () => Math.random() < 0.5 ? 'cn2en' : 'en2cn';
-    if (em && (this.mode === 'simple' || this.mode === 'hard')) {
-      if (allPic || !zh) return 'en2pic';                              // 全圖檔開（或沒中文）：純英→圖
-      if (this.mode === 'simple') return Math.random() < 1/3 ? textType() : 'en2pic';  // 簡單：圖英為主＋約 1/3 中英
-      return Math.random() < 1/3 ? 'en2pic' : textType();                              // 困難：中英為主＋約 1/3 圖英
-    }
+    if (GameSetup.usePicture(hasPicBank() && em)) return 'en2pic';
     if (zh) return textType();       // 一般（或無圖）：中英雙向
-    return em ? 'en2pic' : 'match';  // 沒中文也沒圖：沿用現行「聽音找相同單字」
+    return 'match';  // 沒中文也沒圖：沿用現行「聽音找相同單字」
   }
 
   _nextTarget() {
@@ -2514,7 +2508,7 @@ class Game {
     if (receipt) receipt.hidden = this.phase !== "menu";
     c.clearRect(0,0,W,H);
 
-    if (this.phase === 'menu') { drawBackground(c, LEVELS[0]); drawMenu(c); return; }
+    if (this.phase === 'menu') { drawBackground(c, LEVELS[0]); return; }
 
     const lv = LEVELS[Math.min(this.lvIdx, LEVELS.length-1)];
     drawBackground(c, lv);
@@ -2560,7 +2554,7 @@ class Game {
     drawWordPanel(c, this);
 
     // Overlays
-    if (this.phase === 'paused')     drawPauseScreen(c, this);
+    // 暫停選單由共用 DOM 介面呈現。
     if (this.phase === 'levelClear') drawLevelClear(c, this.score);
     if (this.phase === 'gameOver')   drawEndScreen(c, this, false);
     if (this.phase === 'victory')    drawVictoryScreen(c, this);
@@ -2625,9 +2619,7 @@ function hitWordPanel(x, y) {
 }
 
 function hitPauseBtn(x, y) {
-  // Pause button: 左上角，多給一點觸控容錯
-  const px = pauseBtnLeft() + 14;
-  if (x>px-6 && x<px+40 && y>5 && y<47) game.togglePause();
+  // 暫停只由右上角 DOM 按鈕觸發，避免舊左上熱區誤觸。
 }
 
 function handleStart(touches) {
@@ -2715,97 +2707,37 @@ canvas.addEventListener('contextmenu', e => e.preventDefault());
 //    ・🔊     → 真實 click：重播目前目標單字
 // ══════════════════════════════════════════
 const _speechOverlay = (() => {
-  const root = document.body || document.documentElement;
-  function mkBtn(label) {
-    const el = document.createElement('button');
-    el.type = 'button';
-    el.setAttribute('aria-label', label);
-    el.style.cssText = 'position:fixed;z-index:9000;margin:0;padding:0;border:none;'
-      + 'background:transparent;color:transparent;font:inherit;cursor:pointer;'
-      + 'display:none;-webkit-tap-highlight-color:transparent;';
-    root.appendChild(el);
-    return el;
-  }
-  function place(el, x, y, w, h) {
-    el.style.left = x + 'px'; el.style.top = y + 'px';
-    el.style.width = w + 'px'; el.style.height = h + 'px';
-  }
-  const simpleBtn = mkBtn('選擇簡單模式');
-  const normalBtn = mkBtn('選擇一般模式');
-  const hardBtn   = mkBtn('選擇困難模式');
-  const speakBtn  = mkBtn('播放單字發音');
-  const infoEl = document.getElementById('bomb-game-info');
-  const startBtn = document.createElement('button');
-  startBtn.type = 'button'; startBtn.className = 'mobile-start-cta'; startBtn.textContent = '開始遊戲';
-  startBtn.style.cssText = 'position:fixed;z-index:9002;display:none;min-height:44px;padding:10px 28px;border:2px solid #fff;border-radius:999px;color:#3a1c00;background:linear-gradient(#ffe36b,#ffae2e);font:bold 18px Arial,"Noto Sans TC",sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;';
-  root.appendChild(startBtn);
-  const menuBtn = document.createElement('button');
-  menuBtn.type = 'button'; menuBtn.className = 'game-menu-return'; menuBtn.textContent = '← 返回遊戲選單';
-  menuBtn.style.cssText = 'position:fixed;z-index:9002;top:calc(12px + env(safe-area-inset-top));right:calc(14px + env(safe-area-inset-right));display:none;min-height:40px;padding:8px 14px;border:1px solid rgba(255,255,255,.8);border-radius:999px;color:#fff;background:rgba(8,35,84,.76);font:bold 14px Arial,"Noto Sans TC",sans-serif;box-shadow:0 3px 10px rgba(0,0,0,.3);cursor:pointer;';
-  root.appendChild(menuBtn);
-  const pickMode = m => {
-    if (!allowedBombModes().includes(m)) return;
-    menuMode = m; try { localStorage.setItem('bombMode3', m); } catch (e) {}
-    startBtn.textContent = `開始遊戲（${m==='simple'?'簡單':m==='normal'?'一般':'困難'}）`;
-    startBtn.disabled = false;
-  };
-  simpleBtn.addEventListener('click', () => pickMode('simple'));
-  normalBtn.addEventListener('click', () => pickMode('normal'));
-  hardBtn.addEventListener('click',   () => pickMode('hard'));
-  startBtn.addEventListener('click', () => { Audio.unlockSpeech(); if (game.phase === 'menu') game.start(menuMode); });
-  menuBtn.addEventListener('click', () => { location.href = '../index.html' + location.hash; });
-  speakBtn.addEventListener('click', () => { Audio.unlockSpeech(); if (game.phase === 'playing' && game.targetWord && game.qType !== 'cn2en') Audio.speak(game.targetWord); });
-
-  // 題目內容：兩顆真實 DOM 按鈕，跨遊戲共用 sgAllPic。
-  const allPicRow = document.createElement('div');
-  allPicRow.id = 'allpic-row';
-  allPicRow.style.cssText = 'position:fixed;z-index:9001;display:none;align-items:center;gap:8px;'
-    + 'justify-content:center;color:#ffe9c0;font:bold 15px Arial,"Noto Sans TC",sans-serif;'
-    + '-webkit-tap-highlight-color:transparent;';
-  const allPicMix = document.createElement('button'), allPicOnly = document.createElement('button');
-  allPicMix.type='button'; allPicOnly.type='button'; allPicMix.textContent='混合練習（推薦）'; allPicOnly.textContent='只玩圖片題';
-  [allPicMix,allPicOnly].forEach(b=>b.style.cssText='min-height:40px;padding:7px 10px;color:#fff;background:rgba(15,23,42,.76);border:1px solid rgba(255,255,255,.4);border-radius:9px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;');
-  function setAllPic(on){ allPic=on; try{localStorage.setItem('sgAllPic',on?'1':'0');}catch(e){} allPicMix.style.background=on?'rgba(15,23,42,.76)':'#FFD700'; allPicMix.style.color=on?'#fff':'#3a1c00'; allPicOnly.style.background=on?'#FFD700':'rgba(15,23,42,.76)'; allPicOnly.style.color=on?'#3a1c00':'#fff'; }
-  allPicMix.addEventListener('click',()=>setAllPic(false)); allPicOnly.addEventListener('click',()=>setAllPic(true)); setAllPic(allPic);
-  allPicRow.append(allPicMix,allPicOnly);
-  root.appendChild(allPicRow);
-
-  return function sync() {
-    if (game.phase === 'menu') {
-      const bw = menuBtnW(), bh = menuBtnH(), xs = menuBtnXs();
-      const ys = menuBtnYs();
-      const allow = allowedBombModes();
-      if (!allow.includes(menuMode)) menuMode = allow[0];
-      place(simpleBtn, xs.simpleX-bw/2, ys.simpleY - bh/2, bw, bh); simpleBtn.style.display = allow.includes('simple') ? 'block' : 'none';
-      place(normalBtn, xs.normalX-bw/2, ys.normalY - bh/2, bw, bh); normalBtn.style.display = allow.includes('normal') ? 'block' : 'none';
-      place(hardBtn,   xs.hardX-bw/2,   ys.hardY   - bh/2, bw, bh); hardBtn.style.display   = 'block';
-      startBtn.textContent = `開始遊戲（${menuMode==='simple'?'簡單':menuMode==='normal'?'一般':'困難'}）`;
-      startBtn.style.left = (W/2 - 98) + 'px'; startBtn.style.top = (ys.hardY + bh/2 + clamp(H*0.10,75,114)) + 'px'; startBtn.style.display = 'block';
-      menuBtn.style.display = 'block';
-      infoEl.hidden = false;
-      infoEl.style.left = Math.min(W - 54, W/2 + clamp(W * .22, 145, 220)) + 'px';
-      infoEl.style.top = (menuGuideY() - 19) + 'px';
-      if (hasPicBank()) {
-        const rw = Math.min(W * 0.9, 440);
-        allPicRow.style.left = (W/2 - rw/2) + 'px';
-        allPicRow.style.top = (menuAllPicY() - 14) + 'px';
-        allPicRow.style.width = rw + 'px';
-        allPicRow.style.display = 'flex';
-      } else {
-        allPicRow.style.display = 'none';
-      }
-    } else {
-      infoEl.open = false;
-      infoEl.hidden = true;
-      simpleBtn.style.display = 'none'; normalBtn.style.display = 'none'; hardBtn.style.display = 'none'; startBtn.style.display = 'none'; menuBtn.style.display = 'none';
-      allPicRow.style.display = 'none';
-    }
-    if (game.phase === 'playing' && game.targetWord && game.qType !== 'cn2en') {
-      const pw = 210, ph = 42, px = W/2 - pw/2, py = 55;
-      place(speakBtn, px, py, pw, ph); speakBtn.style.display = 'block';
-    } else {
-      speakBtn.style.display = 'none';
-    }
+  const root=document.body;
+  const menu=document.createElement('section'); menu.id='bomb-start'; menu.className='sg-bomb-screen';
+  menu.innerHTML='<h1>💣 炸彈英文</h1><div class="game-intro-line"><span>看題目，炸掉正確單字房子！</span></div><button id="bomb-start-button" class="mobile-start-cta" type="button">開始遊戲</button><button class="game-menu-return" type="button">← 返回遊戲選單</button>';
+  root.append(menu);
+  const info=document.getElementById('bomb-game-info'); info.classList.remove('game-info-canvas'); info.hidden=false;
+  menu.querySelector('.game-intro-line').append(info);
+  menu.querySelector('.game-menu-return').onclick=()=>{location.href='../index.html'+location.hash;};
+  document.getElementById('bomb-start-button').onclick=()=>{Audio.unlockSpeech();if(game.phase==='menu')game.start(menuMode);};
+  const pause=document.createElement('button'); pause.id='bomb-pause-button'; pause.type='button'; pause.textContent='⏸'; pause.hidden=true;
+  pause.onclick=()=>game.togglePause(); root.append(pause);
+  const paused=document.createElement('section'); paused.id='bomb-pause'; paused.className='sg-bomb-screen'; paused.hidden=true;
+  paused.innerHTML='<h1>已暫停</h1><div class="game-pause-actions"><button type="button">繼續遊戲</button><button type="button">返回遊戲選單</button></div>';
+  const actions=paused.querySelectorAll('button'); actions[0].onclick=()=>game.togglePause(); actions[1].onclick=()=>window.openGameExitConfirm(); root.append(paused);
+  const speak=document.createElement('button'); speak.type='button'; speak.setAttribute('aria-label','播放單字發音');
+  speak.style.cssText='position:fixed;z-index:9000;left:calc(50% - 105px);top:55px;width:210px;height:42px;background:transparent;border:0;display:none';
+  speak.onclick=()=>{Audio.unlockSpeech();if(game.phase==='playing'&&game.targetWord&&game.qType!=='cn2en')Audio.speak(game.targetWord);}; root.append(speak);
+  GameSetup.register({
+    id:'bomb', shell:'#bomb-start', start:'#bomb-start-button', pause:'#bomb-pause-button', pauseActions:'#bomb-pause .game-pause-actions',
+    textNote:()=> '中英互選；缺少中文的單字改練聽音找英文。',
+    hasPictures:hasPicBank, count:()=> (bombWordPool || DEFAULT_LEVELS.flatMap(l=>l.words)).length,
+    getDifficulty:()=>menuMode, setDifficulty:m=>{menuMode=m;try{localStorage.setItem('bombMode3',m);}catch(e){}},
+    hints:{simple:'沒有防空砲，炸錯不立即扣愛心。',hard:'加入防空砲與定時追蹤飛彈。'}
+  });
+  return function sync(){
+    const showMenu=game.phase==='menu', showPause=game.phase==='paused';
+    if(menu.hidden===showMenu)menu.hidden=!showMenu;
+    if(paused.hidden===showPause)paused.hidden=!showPause;
+    const showButton=game.phase==='playing'||game.phase==='levelClear';
+    if(pause.hidden===showButton)pause.hidden=!showButton;
+    if(!showMenu)info.open=false;
+    speak.style.display=game.phase==='playing'&&game.targetWord&&game.qType!=='cn2en'?'block':'none';
   };
 })();
 

@@ -101,6 +101,7 @@
 </style>
     <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
+<script src="game-setup.js"></script>
 </head>
 <body>
     <main class="shell">
@@ -685,6 +686,7 @@
         }
 
         function beginLevel(index) {
+            const setup=document.querySelector(".sg-setup"); if(setup)setup.hidden=true;
             levelIndex = index;
             paused = false;
             pauseOverlay.hidden = true;
@@ -775,6 +777,7 @@
         }
 
         function applyWordHuntData(data) {
+            const setup=document.querySelector(".sg-setup"); if(setup)setup.hidden=false;
             data = GameData.prepare(data);
             const words = normalizeWordHuntVocab(data);
             if (!GameData.report(data, words, 1, '#dialog', '只接受 2–9 個英文字母，片語與標點不納入棋盤。')) return false;
@@ -860,6 +863,11 @@
         dialogButton.onclick = startNewRun;
         const initialData = readHashData();
         if (initialData) applyWordHuntData(initialData);
-    </script>
+
+GameSetup.register({
+  id:'wordhunt', shell:'#overlay', start:'#dialogButton', host:'#dialog', before:'.dialog-actions', pause:'#pauseButton', count:()=>wordPool.length,
+  fixedType:'單字搜尋：共 3 關，拖出字母格中的單字；本遊戲沒有圖片選答或難度設定。'
+});
+</script>
 </body>
 </html>

@@ -298,3 +298,65 @@
   #start-overlay #theme-pick > div:first-child { margin-bottom: 5px !important; }
   .overlay .mode-option { min-height: 44px !important; }
 }
+
+/* Shared start / pause controls. Scene art and gameplay controls remain game-specific. */
+body [data-sg-legacy="true"] { display:none !important; }
+body .sg-setup { box-sizing:border-box; flex:0 0 auto; width:min(560px,100%); max-width:100%; margin:12px auto; padding:16px; border:1px solid #526784; border-radius:16px; background:#132238; color:#f8fafc; text-align:left; font:600 15px/1.5 Arial,"Noto Sans TC",sans-serif; }
+body .sg-setup * { box-sizing:border-box; }
+body .sg-setup fieldset { min-width:0; margin:14px 0 0; padding:0; border:0; }
+body .sg-setup legend { padding:0; margin:0 0 8px; color:#fff; font:800 16px/1.4 Arial,"Noto Sans TC",sans-serif; }
+body .sg-setup .sg-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+body .sg-setup .sg-two-options { grid-template-columns:repeat(2,minmax(0,1fr)); }
+body .sg-setup .sg-options button { appearance:none; min-width:0; min-height:48px; width:100%; margin:0; padding:10px 6px; border:2px solid #8da2bd; border-radius:10px; background:#243850; color:#fff; font:700 15px/1.3 Arial,"Noto Sans TC",sans-serif; white-space:normal; cursor:pointer; box-shadow:none; transform:none; touch-action:manipulation; }
+body .sg-setup .sg-options button[aria-pressed="true"] { background:#ffe18a; color:#172033; border-color:#ffe18a; box-shadow:inset 0 -3px #d6a638; }
+body .sg-setup .sg-options button[aria-pressed="true"]::before { content:'✓ '; }
+body .sg-setup .sg-options button:disabled { color:#b8c1cf; background:#273140; border-color:#586579; cursor:not-allowed; opacity:.65; }
+body .sg-setup button:focus-visible, body .sg-pause-button:focus-visible, body .sg-pause-actions button:focus-visible, body .sg-start-button:focus-visible { outline:3px solid #38bdf8; outline-offset:3px; }
+body .sg-setup .sg-note { min-height:1.5em; margin:8px 0 0; color:#d0deef; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+body .sg-setup .sg-course { margin:0 0 8px; color:#ffe18a; font:700 14px/1.6 Arial,"Noto Sans TC",sans-serif; overflow-wrap:anywhere; }
+body .sg-setup details { margin-top:12px; font-size:13px; }
+body .sg-setup summary { min-height:44px; padding:10px 0; color:#e2e8f0; cursor:pointer; }
+body .sg-setup .sg-advanced label { display:flex; align-items:center; gap:10px; min-height:44px; }
+body .sg-setup .sg-advanced input { width:20px; height:20px; flex-shrink:0; }
+body .sg-start-screen { overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; }
+body .sg-start-screen > * { flex-shrink:0; }
+body .sg-start-button { min-height:48px !important; min-width:180px; padding:12px 24px !important; border:2px solid #ffe18a !important; border-radius:12px !important; background:#ffe18a !important; color:#172033 !important; font:800 17px/1.3 Arial,"Noto Sans TC",sans-serif !important; cursor:pointer; touch-action:manipulation; }
+body .sg-pause-button { position:fixed !important; top:calc(10px + env(safe-area-inset-top,0px)) !important; right:calc(10px + env(safe-area-inset-right,0px)) !important; left:auto !important; bottom:auto !important; z-index:120; width:48px !important; height:48px !important; min-width:48px !important; min-height:48px !important; margin:0 !important; padding:0 !important; border:2px solid #b9c8dc !important; border-radius:12px !important; background:#17273f !important; color:#fff !important; font:800 22px/1 Arial,sans-serif !important; box-shadow:0 3px 12px #0005; touch-action:manipulation; }
+body .sg-pause-button[hidden], body .sg-pause-button.sg-suppressed { display:none !important; }
+body .sg-pause-actions { display:flex !important; gap:12px !important; flex-wrap:wrap; justify-content:center; max-width:600px; margin:16px auto; }
+body .sg-pause-actions > button { min-width:140px !important; min-height:48px !important; margin:0 !important; padding:12px 18px !important; border:2px solid #8da2bd !important; border-radius:12px !important; background:#243850 !important; color:#fff !important; font:700 16px/1.4 Arial,"Noto Sans TC",sans-serif !important; cursor:pointer; touch-action:manipulation; }
+body .sg-pause-actions > button:first-child { background:#ffe18a !important; color:#172033 !important; border-color:#ffe18a !important; }
+body .game-menu-return, body .game-info-button, body .game-info > summary { min-height:44px !important; }
+body .game-info-button, body .game-info > summary { min-width:44px !important; }
+.sg-bomb-screen { position:fixed; inset:0; z-index:9100; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:70px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px)); background:#081c32ed; color:#fff; overflow-y:auto; font-family:Arial,"Noto Sans TC",sans-serif; }
+.sg-bomb-screen[hidden] { display:none !important; }
+.sg-bomb-screen h1 { font-size:clamp(24px,5vw,38px); margin:8px 0; }
+body[data-sg-game="bomb"] #bomb-pause-button { z-index:9101; }
+/* Reserve the same upper-right touch target in each HUD. */
+body[data-sg-game="runner"] #topbar { padding-right:70px; }
+body[data-sg-game="sniper"] #hud-top { padding-right:70px; }
+body[data-sg-game="gun"] #topActions { right:calc(72px + env(safe-area-inset-right,0px)); }
+body[data-sg-game="battle"].battle-active #topbar { padding-right:64px; }
+body[data-sg-game="tank"] #threatHud { right:72px; }
+body[data-sg-game="wordhunt"] .topbar { padding-right:58px; }
+@media (max-width:480px) {
+  body .sg-setup { padding:12px; }
+  body .sg-setup .sg-options { gap:6px; }
+  body .sg-pause-actions { flex-direction:column; width:min(300px,100%); }
+}
+@media (max-height:650px) {
+  body .sg-start-screen, .sg-bomb-screen { justify-content:flex-start !important; }
+  body .sg-setup { margin:8px auto; padding:12px; }
+  body .sg-setup fieldset { margin-top:10px; }
+  body .sg-setup .sg-options button { min-height:44px; }
+  body .sg-pause-actions { flex-direction:row; }
+  body .sg-start-screen { padding-top:calc(64px + env(safe-area-inset-top,0px)) !important; padding-bottom:calc(88px + env(safe-area-inset-bottom,0px)) !important; }
+}
+@media (max-width:600px) and (orientation:portrait) {
+  body[data-sg-game="sniper"] #hud-top { padding-right:10px; }
+}
+/* 摺疊區與載入資訊不擠掉主選項；短橫式可垂直捲動。 */
+body .sg-setup [hidden] { display:none !important; }
+body .sg-start-screen { touch-action:pan-y; }
+body .sg-setup .sg-advanced button { min-height:44px; }
+body[data-sg-game="runner"] #combo { right:72px; }

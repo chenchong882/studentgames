@@ -230,6 +230,7 @@ body.battle-active #boss-banner > div > div { min-width:40px; }
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
+<script src="game-setup.js"></script>
 </head>
 <body>
 <button id="battle-pause-btn" type="button" aria-label="暫停">⏸</button>
@@ -255,7 +256,7 @@ body.battle-active #boss-banner > div > div { min-width:40px; }
         </div>
       </details>
     </div>
-    <div class="panel">
+    <div class="panel" id="battle-legacy-settings">
       <div class="section-title">題目內容</div>
       <div id="allpic-row"><button type="button" id="allpic-mix">混合練習（推薦）</button><button type="button" id="allpic-only">只玩圖片題</button></div>
       <div class="mix-desc" id="mix-desc">混合練習：中英文字題＋英文／發音選圖片；簡單圖片較多、困難文字較多。</div>
@@ -276,6 +277,7 @@ body.battle-active #boss-banner > div > div { min-width:40px; }
       </div>
       <div id="mode-hint"></div>
     </div>
+    <details id="battle-advanced" class="sg-advanced"><summary>進階設定</summary><label><input type="checkbox" id="battle-grammar">加入文法與填空練習（含 BOSS）</label><p class="sg-note" id="battle-grammar-note">選圖片題時不加入文法與填空。</p></details>
     <button class="primary-btn mobile-start-cta" id="start-battle-btn" onclick="startGame()">開始戰鬥</button>
     <button class="secondary-btn game-menu-return" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
   </section>
@@ -437,7 +439,7 @@ const DIFFICULTY_CONFIG = {
     allowLevelUp: true,              // 簡單：可升級（強化值靠連對賺）
     powerQuiz: false,                // 簡單：不穿插填空/文法題
     streakNeed: 5,                   // 連對 5 題 +1 強化值
-    summary: '簡單：30 金開局，每 5 秒 +8 金；敵人 11 / 9 / 7 秒出兵，答錯只讓敵方出兵倒數提前、不生兵。題型以圖片題為主，不出填空；連對 5 題 +1 強化值可升級。BOSS：答對單字擊退，答錯不回血。'
+    summary: '簡單：30 金開局，每 5 秒 +8 金；敵人 11 / 9 / 7 秒出兵，答錯只讓敵方出兵倒數提前、不生兵。題型依練習設定；連對 5 題 +1 強化值可升級。BOSS：答對單字擊退，答錯不回血。'
   },
   normal: {
     label: '一般',
@@ -454,7 +456,7 @@ const DIFFICULTY_CONFIG = {
     allowLevelUp: true,
     powerQuiz: true,                 // 穿插填空/文法題賺強化值
     streakNeed: 8,                   // 連對 8 題額外 +1 強化值
-    summary: '一般：30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士。有填空題可升級，連對 8 題再 +1 強化值。BOSS：需連續答對刷新紀錄才扣血。'
+    summary: '一般：30 金開局，每 5 秒 +8 金；敵人 9 / 7 / 5 秒出兵，答錯增援 1 名劍士。連對 8 題 +1 強化值可升級。BOSS：需連續答對刷新紀錄才扣血。'
   },
   hard: {
     label: '困難',
@@ -470,7 +472,7 @@ const DIFFICULTY_CONFIG = {
     allowLevelUp: true,
     powerQuiz: true,                 // 穿插填空/文法題賺強化值
     streakNeed: 8,                   // 連對 8 題額外 +1 強化值
-    summary: '困難：20 金開局，每 6 秒 +5 金；敵人 7 / 5 / 4.5 秒出兵，連錯會追加弓箭手。有填空題可升級，連對 8 題再 +1 強化值。BOSS：答錯回滿血，須連續答對。'
+    summary: '困難：20 金開局，每 6 秒 +5 金；敵人 7 / 5 / 4.5 秒出兵，連錯會追加弓箭手。連對 8 題 +1 強化值可升級。BOSS：答錯回滿血，須連續答對。'
   }
 };
 
@@ -489,8 +491,8 @@ function applyDifficultyConfig(){
   };
 }
 
-// 只有主機標記為內建、且至少 4 個字有圖，才開放圖片題。
-function hasPicBank(){ return !!battleData.builtin && picPool.length >= 4; }
+// 至少 4 個單字有可辨識圖案，才開放圖片題。
+function hasPicBank(){ return picPool.length >= 4; }
 function allowedModes(){ return ['easy','hard']; }
 function clampMode(){
   const a = allowedModes();
@@ -525,7 +527,7 @@ function updateDifficultyUI(){
   document.getElementById('allpic-only').classList.toggle('sel', allPic);
   const summary = document.getElementById('difficulty-summary');
   if(summary) summary.innerHTML = `<strong>敵方壓力</strong><br>${CONFIG.summary}` +
-    (allPic && hasPicBank() ? '<br><strong>題目內容</strong><br>只玩圖片題：全程英文／發音選圖片，包含 BOSS。' : '');
+    '<br>題型依開始畫面的練習設定；文法與填空可從進階設定加入。';
   document.getElementById('gold-display').textContent = CONFIG.startGold;
 }
 
@@ -800,15 +802,8 @@ function buildVocabByMode(){
       q.bigOpts = true; picQ.push(q);
     }
   });
-  if(picQ.length && selectedDifficulty === 'easy'){
-    // 簡單：全圖檔開＝純圖英；關＝圖英為主＋約 1/3 中英
-    vocabQuestions = allPic ? picQ : picQ.concat(shuffle(textQ).slice(0, Math.ceil(picQ.length / 2)));
-  } else if(picQ.length && selectedDifficulty === 'hard'){
-    // 困難：全圖檔開＝純圖英；關＝中英為主＋約 1/3 圖英
-    vocabQuestions = allPic ? picQ : textQ.concat(shuffle(picQ).slice(0, Math.ceil(textQ.length / 2)));
-  } else {
-    vocabQuestions = textQ;   // 一般（或無圖題庫）：中英雙向
-  }
+  const type=GameSetup.kind(hasPicBank());
+  vocabQuestions = type==='picture' ? picQ : type==='mixed' ? textQ.concat(picQ) : textQ;
 }
 
 function buildGrammarPool(payload){
@@ -847,7 +842,7 @@ function nextFromPool(pool, name){
   return pool[q.order[q.pos++]];
 }
 
-// 本局是否使用填空題（內建＋普通/困難才有；簡單與段考皆無）
+// 本局是否從進階設定加入填空題。
 function fillAvailable(){ return state && state.useFill && fillQuestions.length > 0; }
 
 // 強化值題：填空、填空、填空、文法 這樣輪（缺哪邊就只出另一邊）
@@ -1108,27 +1103,14 @@ function startGame(){
 }
 
 function applyBattleRules(){
-  // ── 依「內建單字 / 段考」與難度決定本局規則 ──
-  // 段考（builtin=false）：只用教材提供的文法；沒有文法時，BOSS 改用單字、連對仍可升級。
-  // 內建：依難度設定——簡單不穿插填空/文法（powerQuiz=false）、BOSS 走單字；普通/困難照舊。
-  const isBuiltin = !!battleData.builtin;
-  if(!isBuiltin){
-    state.allowLevelUp = true; state.bossMode = grammarQuestions.length ? 'grammar' : 'vocab'; state.useFill = false;
-    state.powerQuiz = grammarQuestions.length > 0; state.streakNeed = 8;
-  } else {
-    state.allowLevelUp = true;             state.bossMode = CONFIG.bossMode;
-    state.useFill = (CONFIG.useFill !== false);
-    state.powerQuiz = (CONFIG.powerQuiz !== false);
-    state.streakNeed = CONFIG.streakNeed || 8;
-    if(allPic && hasPicBank()){
-      state.bossMode = 'vocab';            // 只玩圖片題：BOSS 也沿用圖片單字題
-      state.useFill = false;
-      state.powerQuiz = false;              // 不再穿插填空／文法，確保全程只有圖片答案
-    }
-  }
-  if(!fillAvailable() && !grammarQuestions.length){
-    state.bossMode = 'vocab';
-    state.powerQuiz = false;
+  // 題型選擇適用一般關卡與 BOSS；操作難度只決定敵方壓力。
+  state.allowLevelUp = true;
+  state.bossMode = 'vocab';
+  state.useFill = false;
+  state.powerQuiz = false;
+  state.streakNeed = CONFIG.streakNeed || 8;
+  if (document.getElementById('battle-grammar').checked && GameSetup.kind(hasPicBank()) !== 'picture' && (fillQuestions.length || grammarQuestions.length)) {
+    state.useFill = fillQuestions.length > 0; state.powerQuiz = true; state.bossMode = 'grammar';
   }
 }
 
@@ -2232,6 +2214,21 @@ addEventListener('visibilitychange',()=>{
   addEventListener('keydown',e=>{if(layer.style.display==='flex'&&e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}},true);
   window.openGameExitConfirm=open;
 })();
+
+try{document.getElementById('battle-grammar').checked=localStorage.getItem('sgBattleGrammar')==='1';}catch(e){}
+document.getElementById('battle-grammar').addEventListener('change',e=>{try{localStorage.setItem('sgBattleGrammar',e.target.checked?'1':'0');}catch(e){}});
+GameSetup.register({
+  id:'battle', shell:'#start-screen', start:'#start-battle-btn', legacy:'#battle-legacy-settings', pause:'#battle-pause-btn',
+  advanced:['#battle-advanced'],
+  syncExtra:type=>{
+    const grammar=document.getElementById('battle-grammar');
+    grammar.disabled=type==='picture'||!(fillQuestions.length||grammarQuestions.length);
+    document.getElementById('battle-grammar-note').textContent=grammar.disabled?'圖片題或沒有文法／例句的題庫不加入此練習。':'勾選後，一般關卡與 BOSS 可出文法／填空題，與遊戲難度分開設定。';
+  },
+  hasPictures:hasPicBank, count:()=>wordPool.length, getDifficulty:()=>selectedDifficulty==='hard'?'hard':'simple',
+  setDifficulty:m=>selectDifficulty(m==='hard'?'hard':'easy'), onTypeChange:buildVocabByMode,
+  hints:{simple:'30 金開局，敵方出兵較慢，BOSS 答錯不回血。',hard:'20 金開局，敵方出兵更快，BOSS 答錯回滿血。'}
+});
 </script>
 </body>
 </html>

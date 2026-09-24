@@ -225,6 +225,7 @@
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
+<script src="game-setup.js"></script>
 </head>
 <body>
 <div id="gunRotateWarning" role="status"><div><div class="rotateIcon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div></div>
@@ -310,6 +311,7 @@
   </div>
   <div id="modeHint"></div>
   <p class="go" id="goText">開始會解鎖音效與英文發音</p>
+  <details id="gun-advanced" class="sg-advanced"><summary>進階設定</summary><label><input id="gun-listening" type="checkbox">文字題只聽發音，不顯示中文提示</label></details>
   <button class="actionBtn mobile-start-cta" id="startBtn" type="button">▶ 開始守城</button>
   <button class="actionBtn secondary game-menu-return" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
 </div>
@@ -1207,13 +1209,11 @@ function spawnWaveThreats(){
   for(let i=0;i<answerCount;i++){const kind=i%7===4?'fast':(wave>3&&i%9===6?'tank':'normal');if(kind!=='normal')spawnZombie(kind);}
 }
 function pickRoundUsesPic(){
-  if(!hasImageVocab()||gameMode==='normal')return false;
-  if(allPic)return true;
-  return Math.random()<(gameMode==='simple'?2/3:1/3);
+  return GameSetup.usePicture(hasImageVocab());
 }
 function beginWave(){
   if(gameWon||gateReady)return;roundTransition=false;
-  wave++;roundKind=wave===7?'boss':(gameMode==='hard'&&wave%3===0?'listen':(gameMode==='simple'?'image':'word'));
+  wave++;roundKind=wave===7?'boss':(document.getElementById('gun-listening').checked?'listen':'word');
   roundUsesPic=pickRoundUsesPic();
   waveEl.textContent='🌊 第 '+wave+' 波';
   setNight(wave>=5);setQuestion(true);sndWave();spawnWaveThreats();
@@ -1634,7 +1634,7 @@ function fire(){
 
 /* 滑鼠：pointer lock 環視 */
 const overlay=document.getElementById('overlay');
-function hasImageVocab(){return builtinSource&&GameData.picturePool(VOCAB).length>=4;}
+function hasImageVocab(){return GameData.picturePool(VOCAB).length>=4;}
 function modeAllowed(mode){return mode==='simple'||mode==='hard';}
 function refreshModeUI(){
   let saved='';try{saved=localStorage.getItem('gunMode3')||'';}catch(e){}
@@ -1968,6 +1968,17 @@ requestAnimationFrame(loop);
 addEventListener('resize',()=>{
   camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
+});
+
+try{document.getElementById('gun-listening').checked=localStorage.getItem('sgGunListening')==='1';}catch(e){}
+document.getElementById('gun-listening').addEventListener('change',e=>{try{localStorage.setItem('sgGunListening',e.target.checked?'1':'0');}catch(e){}});
+GameSetup.register({
+  id:'gun', shell:'#overlay', start:'#startBtn', legacy:'#allPicRow,#mixDesc,#modePanel,#modeHint,#goText', pause:'#btnPause',
+  advanced:['#gun-advanced'], textNote:()=> '看中文找英文；可點題目重聽發音。',
+  syncExtra:type=>{document.getElementById('gun-listening').disabled=type==='picture';},
+  hasPictures:hasImageVocab, count:()=>VOCAB.length, getDifficulty:()=>gameMode,
+  setDifficulty:m=>document.querySelector(`.modeBtn[data-mode="${m}"]`).click(),
+  hints:{simple:'敵人較少，BOSS 護盾較少。',hard:'敵人較多，加入弓箭手與殭屍狗等威脅。'}
 });
 </script>
 </body>

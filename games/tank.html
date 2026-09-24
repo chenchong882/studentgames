@@ -190,6 +190,7 @@
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
+<script src="game-setup.js"></script>
 </head>
 <body>
 <div id="tankRotateWarning" role="status"><div><div class="rotateIcon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div></div>
@@ -1141,13 +1142,7 @@ function speakWord(t){
 // 本回合題型：cn2en(中→英，樹掛英文牌) / en2cn(英→中＋發音，樹掛中文牌) / en2pic(英→圖＋發音，樹掛 emoji)
 // 鐵則：圖片題一律「上面英文＋發音、樹上掛圖」，絕不出看圖選字；也絕不出圖↔中
 function pickRoundType(){
-  const textType=()=>Math.random()<0.5?'cn2en':'en2cn';
-  if(hasEmoji&&(mode==='simple'||mode==='hard')){
-    if(allPic)return 'en2pic';                       // 全圖檔開：純英→圖
-    if(isSimple())return Math.random()<1/3?textType():'en2pic';   // 簡單：圖英為主＋約 1/3 中英
-    return Math.random()<1/3?'en2pic':textType();                 // 困難：中英為主＋約 1/3 圖英
-  }
-  return textType();                                 // 一般（或無圖題庫）：中英雙向輪替
+  return GameSetup.usePicture(hasEmoji) ? 'en2pic' : (Math.random()<0.5?'cn2en':'en2cn');
 }
 function startRound(){
   // 挑 3~4 棵距離適中、方向分散的樹掛單字牌
@@ -2283,7 +2278,7 @@ function applyTankData(payload){
   if (!GameData.report(payload, next, 4, '#overlay', '需有英文與中文。')) return false;
   VOCAB = next;
   wordQueue=[]; missedList=[]; lastRoundEntry=null;
-  hasEmoji = payload&&payload.builtin===true&&GameData.picturePool(VOCAB).length>=4;
+  hasEmoji = GameData.picturePool(VOCAB).length>=4;
   if(typeof setMode==='function')setMode(mode);    // 依來源 clamp 模式並更新灰化
 }
 function readLessonDataFromHash(){
@@ -2317,6 +2312,12 @@ window.addEventListener('message',e=>{
   addEventListener('keydown',e=>{if(layer.style.display==='flex'&&e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}},true);
   window.openGameExitConfirm=open;
 })();
+
+GameSetup.register({
+  id:'tank', shell:'#overlay', start:'#startTankBtn', legacy:'#allPicRow,#mixDesc,#modeSel,#modeHint', pause:'#btnPause',
+  hasPictures:()=>hasEmoji, count:()=>VOCAB.length, getDifficulty:()=>mode, setDifficulty:setMode, advanced:['#advancedSettings'],
+  hints:{simple:'敵人較少，砲彈下墜較小。',hard:'敵人較密集，砲彈下墜較大。'}
+});
 </script>
 </body>
 </html>
