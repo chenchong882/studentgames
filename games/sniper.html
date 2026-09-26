@@ -112,17 +112,34 @@
   #intel-text { overflow-wrap:anywhere; }
   .overlay { overflow-y:auto; justify-content:safe center; }
   .overlay > * { flex-shrink:0; }
-  @media(max-width:600px) and (orientation:portrait) {
-    #hud-top { padding:calc(58px + env(safe-area-inset-top)) 10px 8px; flex-direction:column; gap:6px; }
-    #stats { order:-1; width:100%; flex-direction:row; flex-wrap:wrap; gap:4px 10px; align-items:center; font-size:12px; }
+  .phone-only { display:none; }
+  #pause-stats { margin:8px 0 20px; color:#fbbf24; }
+  #controls button:focus-visible, #intel-speak:focus-visible { outline:3px solid #fff; outline-offset:3px; }
+  @media(max-width:600px), (pointer:coarse) and (max-height:600px) {
+    .desktop-detail, #stats .secondary-stat { display:none; }
+    .phone-only { display:inline; }
+    #hud-top { padding:calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) 10px calc(10px + env(safe-area-inset-left)); flex-direction:column; gap:6px; }
+    #stats { order:-1; width:calc(100% - 60px); min-height:48px; flex-direction:row; justify-content:space-between; gap:8px; align-items:center; font-size:12px; }
     #stats .row { gap:4px; }
     #stats b { font-size:14px; }
-    #timerbar { width:64px; }
-    #intel { width:100%; padding:6px 10px; }
-    #intel .label { font-size:11px; letter-spacing:1px; }
-    #intel .sentence { font-size:16px; line-height:1.4; }
-    #controls { padding-bottom:calc(12px + env(safe-area-inset-bottom)); }
-    body.scoped #intel .label { display:none; }
+    #ammo { font-size:12px; letter-spacing:0; }
+    #timerbar { width:100%; height:3px; }
+    #stats .timer-row { position:absolute; bottom:0; left:calc(10px + env(safe-area-inset-left)); right:calc(10px + env(safe-area-inset-right)); }
+    #intel { width:100%; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; padding:6px 10px; border-color:rgba(250,204,21,.2); background:rgba(15,23,42,.88); }
+    #intel .label { display:contents !important; }
+    #intel-speak { grid-column:2; grid-row:1; width:44px; height:44px; }
+    #intel .sentence { grid-column:1; grid-row:1; font-size:16px; line-height:1.4; margin:0; }
+    #intel .sentence .blank { padding:0 2px; border-bottom:0; }
+    .phone-prompt { color:#cbd5e1; font-size:12px; margin-right:6px; }
+    #controls { padding:10px calc(14px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left)); }
+    body #controls .pad-btn { width:64px; height:64px; font-size:12px; opacity:1; box-shadow:0 3px 12px #0006; }
+    body #controls .pad-btn .ico { font-size:22px; }
+    #toast { top:auto; bottom:calc(90px + env(safe-area-inset-bottom)); width:max-content; max-width:calc(100% - 32px); padding:8px 12px; border-radius:10px; background:rgba(3,7,18,.9); font-size:16px; line-height:1.4; }
+  }
+  @media(pointer:coarse) and (max-height:600px) and (orientation:landscape) {
+    #hud-top { gap:2px; }
+    #stats { justify-content:flex-start; gap:20px; }
+    #intel { width:calc(100% - 60px); }
   }
 
 </style>
@@ -137,16 +154,16 @@
 
 <div id="hud-top">
   <div id="intel">
-    <div class="label" style="display:flex;align-items:center;gap:8px">暗殺情報 / INTEL <button id="intel-speak" type="button" aria-label="重聽發音">🔊</button></div>
+    <div class="label" style="display:flex;align-items:center;gap:8px"><span class="desktop-detail">暗殺情報 / INTEL</span> <button id="intel-speak" type="button" aria-label="重聽發音">🔊</button></div>
     <div class="sentence" id="intel-text">—</div>
   </div>
   <div id="stats">
     <div class="row">關卡 <b id="round">1</b></div>
-    <div class="row" id="lives-row" style="display:none">機會 <span id="lives">❤️❤️❤️</span></div>
-    <div class="row">分數 <b id="score">0</b></div>
-    <div class="row">資金 $<b id="money">0</b></div>
-    <div class="row" id="ammo">🔸🔸🔸</div>
-    <div class="row"><div id="timerbar"><div id="timerfill"></div></div></div>
+    <div class="row" id="lives-row" style="display:none">機會 <span class="desktop-detail" id="lives">❤️❤️❤️</span><b class="phone-only" id="phone-lives">3</b></div>
+    <div class="row secondary-stat">分數 <b id="score">0</b></div>
+    <div class="row secondary-stat">資金 $<b id="money">0</b></div>
+    <div class="row" id="ammo"><span class="desktop-detail" id="ammo-icons">🔸🔸🔸</span><span class="phone-only">彈 <b id="phone-ammo">3/3</b><span id="phone-perks"></span></span></div>
+    <div class="row timer-row"><div id="timerbar" role="progressbar" aria-label="剩餘時間" aria-valuemin="0" aria-valuemax="100"><div id="timerfill"></div></div></div>
   </div>
 </div>
 
@@ -234,6 +251,7 @@
 
 <div class="overlay hide" id="pause-overlay">
   <h1>⏸ 暫停</h1>
+  <p id="pause-stats"></p>
   <div class="game-pause-actions">
     <button class="btn" id="resume-btn">繼續遊戲</button>
     <button class="btn pick-btn" id="pause-menu-btn">← 返回遊戲選單</button>
@@ -662,17 +680,17 @@ function renderIntel(){
   if(sb) sb.style.display = (intelMode==='en2cn' || intelMode==='en2pic') ? 'inline-flex' : 'none';
   if(intelMode === 'cloze'){
     const html = answer.example.replace('{W}', '<span class="blank">______</span>');
-    el.innerHTML = html + ` <span style="color:#94a3b8">（填入空格的字＝你的目標）</span>`;
+    el.innerHTML = html + ` <span class="desktop-detail" style="color:#94a3b8">（填入空格的字＝你的目標）</span>`;
   } else if(intelMode === 'en2cn'){
-    el.innerHTML = `Target: <span class="blank">${answer.word}</span> 🔊` +
-      ` <span style="color:#94a3b8">— 狙殺這個單字「中文意思」所在樓層的目標</span>`;
+    el.innerHTML = `<span class="desktop-detail">Target: </span><span class="phone-only phone-prompt">找中文</span><span class="blank">${answer.word}</span>` +
+      ` <span class="desktop-detail" style="color:#94a3b8">— 狙殺這個單字「中文意思」所在樓層的目標</span>`;
   } else if(intelMode === 'en2pic'){
-    el.innerHTML = `Target: <span class="blank">${answer.word}</span> 🔊` +
-      ` <span style="color:#94a3b8">— 狙殺對應「圖片」所在樓層的目標</span>`;
+    el.innerHTML = `<span class="desktop-detail">Target: </span><span class="phone-only phone-prompt">找圖片</span><span class="blank">${answer.word}</span>` +
+      ` <span class="desktop-detail" style="color:#94a3b8">— 狙殺對應「圖片」所在樓層的目標</span>`;
   } else {
-    el.innerHTML = `Target: the word meaning <span class="blank">「${answer.meaning}」</span>` +
-      (answer.pos ? ` <span style="color:#94a3b8">(${answer.pos})</span>` : '') +
-      ` <span style="color:#94a3b8">— 狙殺該英文單字所在樓層的目標</span>`;
+    el.innerHTML = `<span class="desktop-detail">Target: the word meaning </span><span class="phone-only phone-prompt">找英文</span><span class="blank">「${answer.meaning}」</span>` +
+      (answer.pos ? ` <span class="desktop-detail" style="color:#94a3b8">(${answer.pos})</span>` : '') +
+      ` <span class="desktop-detail" style="color:#94a3b8">— 狙殺該英文單字所在樓層的目標</span>`;
   }
 }
 
@@ -858,14 +876,18 @@ function updateHUD(){
   for(let i=0;i<ammoMax;i++) a += i<ammo ? '🔸' : '▫️';
   if(noWindShots>0) a += '　🧭';
   if(tempAPShots>0) a += '　🛡️';
-  document.getElementById('ammo').textContent = a;
+  document.getElementById('ammo-icons').textContent = a;
+  document.getElementById('phone-ammo').textContent = `${ammo}/${ammoMax}`;
+  document.getElementById('phone-perks').textContent = (noWindShots>0 ? ' 🧭' : '') + (tempAPShots>0 ? ' 🛡️' : '');
   const lr = document.getElementById('lives-row');   // 兩模式共用 3 次機會池, 都顯示
   lr.style.display = 'flex';
   document.getElementById('lives').textContent = '❤️'.repeat(Math.max(0,lives)) + '🖤'.repeat(Math.max(0,MAX_LIVES-lives));
+  document.getElementById('phone-lives').textContent = Math.max(0,lives);
   const pct = clamp(timeLeft/timeMax, 0, 1)*100;
   const fill = document.getElementById('timerfill');
   fill.style.width = pct + '%';
   fill.style.background = pct>40 ? '#34d399' : (pct>18 ? '#fbbf24' : '#f87171');
+  document.getElementById('timerbar').setAttribute('aria-valuenow', Math.round(pct));
 }
 
 /* ---------- 主迴圈 ---------- */
@@ -1477,12 +1499,14 @@ function drawScopeOverlay(){
   if(state === 'killcam') return;
   const sb = clamp(scopeBlend, 0, 1);
   if(sb < 0.02){
+    // 手機只在第一關顯示一行提示，後續把畫面留給目標。
+    if(DEVICE==='phone' && roundNo!==1) return;
     // 蹲在掩體後: 操作提示
     ctx.save();
     ctx.fillStyle = 'rgba(226,232,240,0.85)';
     ctx.font = '600 15px "Noto Sans TC", sans-serif'; ctx.textAlign='center';
     const ty = VH*0.66 + 30;   // 收進掩體牆面內(牆頂之下), 手機上不再遮到大樓/單字
-    if(DEVICE==='phone'){ ctx.fillText('🔭 開鏡＝探頭瞄準', VW/2, ty); ctx.fillText('收鏡＝縮回掩體躲避', VW/2, ty+22); }
+    if(DEVICE==='phone') ctx.fillText('拖曳瞄準 · 開鏡後射擊', VW/2, ty);
     else ctx.fillText('🔭 開鏡＝探頭瞄準　·　收鏡＝縮回掩體躲避', VW/2, ty);
     ctx.restore();
     return;
@@ -1979,6 +2003,7 @@ function pauseGame(){
   pausedFrom = state;
   pauseStarted = performance.now();
   state = 'paused';
+  document.getElementById('pause-stats').textContent = `關卡 ${Math.min(roundNo,MAX_ROUNDS)} · 分數 ${score} · 資金 $${money}`;
   stopBgm();
   document.getElementById('pause-btn').style.display = 'none';
   document.getElementById('pause-overlay').classList.remove('hide');
