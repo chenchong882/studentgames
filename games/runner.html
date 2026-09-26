@@ -744,7 +744,10 @@ addPart(char, 16, 0, 32, 32, 32, SKIN, {
 // 路旁裝飾（emoji 看板，循環利用）
 // 觸控裝置與低核心數裝置少放幾個大型彩色 emoji，降低 CSS 3D 合成負擔。
 const LOW_DETAIL = matchMedia('(pointer:coarse)').matches || (!!navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
-const DECO_COUNT = COMPACT_TOUCH ? 4 : LOW_DETAIL ? 6 : 10, DECO_SPACING = 480;
+const DECO_COUNT = COMPACT_TOUCH ? 4 : LOW_DETAIL ? 6 : 10;
+// 降低裝飾數量只改密度，重生點仍留在遠方霧內，避免手機上在半路突然冒出。
+const DECO_SPAN = SPAWN_Z - KILL_Z + 240;
+function decoStartDist(i){ return KILL_Z + (i + 0.5) * DECO_SPAN / DECO_COUNT; }
 const decos = [];
 for (let i = 0; i < DECO_COUNT; i++) {
   const el = document.createElement('div');
@@ -756,7 +759,7 @@ for (let i = 0; i < DECO_COUNT; i++) {
   el.style.textAlign = 'center';
   el.style.willChange = 'transform';
   world.appendChild(el);
-  decos.push({ el, dist: 200 + i * DECO_SPACING * 0.5 + (i % 2) * 120 });
+  decos.push({ el, dist: decoStartDist(i) });
 }
 function decoEmoji(){
   const set = THEMES[themeIdx].deco;
@@ -767,6 +770,7 @@ function decoEmoji(){
 let state = 'idle';   // idle | play | crash | over
 let score, lives, combo, passed, gateNum, gateCorrect, wrongAnswers;
 let lane, jumpStart, slideStart, speed, roadY, surviveTimer, slowUntil, themeIdx;
+let timeScale = 1, runTime = 0;
 let obstacles = [], decks = {}, sinceGate, reflexTarget, nextIn, shownHints, hudGate;
 let slideHeld = false;   // 是否正按住「下」持續滑行
 
@@ -1055,7 +1059,7 @@ function resolveObstacle(o){
 
 function crash(o){
   state = 'crash';
-  slowUntil = 0;
+  slowUntil = 0; timeScale = 1;
   slideHeld = false;
   char.classList.remove('jump','slide','slideHold');
   void char.offsetWidth;
@@ -1099,8 +1103,12 @@ function loop(now){
   last = now;
 
   if (state === 'play') {
-    const ts = now < slowUntil ? 0.2 : 1;
-    const dt = rawDt * ts;
+    runTime += rawDt * 1000;
+    const targetScale = runTime < slowUntil ? 0.2 : 1;
+    // 約 0.2 秒漸變，避免答題前後瞬間急煞／暴衝；只用遊戲時間，暫停不吃掉思考時間。
+    const previousScale = timeScale;
+    timeScale += (targetScale - timeScale) * (1 - Math.exp(-rawDt / 0.07));
+    const dt = rawDt * (previousScale + timeScale) / 2;
     const move = speed * dt;
 
     // 路面捲動：位移取 130px 週期循環，transform 走合成器、不逐幀重繪整條路
@@ -1116,8 +1124,8 @@ function loop(now){
     // 路旁裝飾
     decos.forEach(d => {
       d.dist -= move;
-      if (d.dist < KILL_Z) d.dist += DECO_COUNT * DECO_SPACING * 0.5;
-      d.el.style.transform = 'translate3d(0,0,' + Math.round(-d.dist) + 'px)';
+      if (d.dist < KILL_Z) d.dist += DECO_SPAN;
+      d.el.style.transform = 'translate3d(0,0,' + (-d.dist).toFixed(2) + 'px)';
     });
 
     // 生成
@@ -1128,7 +1136,7 @@ function loop(now){
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const o = obstacles[i];
       o.dist -= move;
-      o.el.style.transform = 'translate3d(0,0,' + Math.round(-o.dist) + 'px)';
+      o.el.style.transform = 'translate3d(0,0,' + (-o.dist).toFixed(2) + 'px)';
 
       if (o.type === 'gate' && !o.resolved) {
         // 接近到剩約 3 秒時：開始反覆唸出單字
@@ -1136,7 +1144,7 @@ function loop(now){
         // 接近時觸發慢動作思考時間
         if (!o.slowed && o.dist < speed * 1.05) {
           o.slowed = true;
-          slowUntil = now + thinkBuffer();
+          slowUntil = runTime + thinkBuffer();
           $('qhud').classList.add('urgent');
           sndTick();
         }
@@ -1252,12 +1260,12 @@ function startGame(){
   obstacles = [];
   score = 0; lives = 3; combo = 0; passed = 0;
   gateNum = 0; gateCorrect = 0; wrongAnswers = [];
-  speed = runSpeed(); roadY = 0; surviveTimer = 0; slowUntil = 0;
+  speed = runSpeed(); roadY = 0; surviveTimer = 0; slowUntil = 0; timeScale = 1; runTime = 0;
   sinceGate = 0; reflexTarget = 3; nextIn = 500;
   if (runnerPool) rebuildRunnerBank();   // 套用本局選的模式與全圖檔開關
   decks = {}; shownHints = new Set(); themeIdx = -1;
   applyTheme();
-  decos.forEach((d, i) => { d.dist = 200 + i * DECO_SPACING * 0.5 + (i % 2) * 120; d.el.textContent = decoEmoji(); });
+  decos.forEach((d, i) => { d.dist = decoStartDist(i); d.el.textContent = decoEmoji(); });
   $('score').textContent = '0';
   $('levelTag').textContent = '第 1 題';
   renderLives(); renderCombo(); hideHud();

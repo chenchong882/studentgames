@@ -354,6 +354,7 @@
         <div class="game-info-panel">
           <h2>🌊 詳細玩法</h2>
           🖱️ <b>滑鼠移動準星</b>，左鍵或空白鍵發射；手機單指拖曳瞄準，另一指可按「發射」鈕開火。<br>
+          🔢 字卡和船上<b>相同編號</b>是一組，也可以直接瞄準字卡發射；配對線的顏色只用來認船。<br>
           🚀 擊沉<b>符合天空所有條件</b>的船，越遠分數越高；連續命中可提高連擊倍率。<br>
           📖 題目包含中文意思、挖空句子與圖片題。<br>
           🏁 每關擊沉 <b>2 艘</b>目標船才過關；失敗會扣命。<br>
@@ -725,7 +726,7 @@ function newRound() {
   game.qType = wantPic ? "en2pic" : withSentence ? "sentence" : (Math.random() < 0.5 ? "cn2en" : "en2cn");
   RoundReview.begin({prompt:game.qType==="sentence"?target.word.example.replace("{W}","＿＿＿"):(game.qType==="cn2en"?target.word.meaning:target.word.word),answer:target.word.word,meaning:target.word.meaning});
 
-  let count = clamp(2 + lv, 3, 5);
+  let count = clamp(2 + lv, 3, compactShipView() ? 3 : 5);
   // 干擾船：單字必不同；圖片回合的干擾 emoji 也必須與目標不同
   const otherWordCandidates = wantPic
     ? GameData.picturePool(wordBank).filter(w => w.word !== target.word.word)
@@ -759,6 +760,7 @@ function newRound() {
     [ships[i].spawnX, ships[j].spawnX] = [ships[j].spawnX, ships[i].spawnX];
     [ships[i].shoreX, ships[j].shoreX] = [ships[j].shoreX, ships[i].shoreX];
   }
+  assignShipMarkers(ships);
   game.ships = ships;
   updateQuestionUI();
 }
@@ -1392,19 +1394,19 @@ function startBossRound(lv) {
 function spawnBossWave() {
   const b = game.boss;
   b.waveEnding = false;
-  const count = 4;
   const bossWordPool = game.qType === "en2pic" ? GameData.picturePool(wordBank) : wordBank;
   const targetWord = pick(bossWordPool);
   b.clue = targetWord;
   RoundReview.begin({prompt:game.qType==="en2pic"?targetWord.word:targetWord.meaning,answer:targetWord.word,meaning:targetWord.meaning});
   const others = shuffle(bossWordPool.filter(w => w.word !== targetWord.word &&
     (game.qType !== "en2pic" || w.emoji !== targetWord.emoji)));
-  const words = shuffle([targetWord, others[0], others[1], others[2]]);
+  const words = shuffle([targetWord, ...others.slice(0, compactShipView() ? 2 : 3)]);
+  const count = words.length;
 
   const bossSpread = Math.min(95, (W / 2) * 0.82 * 150 / focal);
   const ships = [];
   for (let i = 0; i < count; i++) {
-    const lane = (i / (count - 1) - 0.5) * 2;
+    const lane = count === 1 ? 0 : (i / (count - 1) - 0.5) * 2;
     const isTarget = words[i].word === targetWord.word;
     ships.push({
       word: words[i],
@@ -1420,6 +1422,7 @@ function spawnBossWave() {
       alive: true, sinking: 0,
     });
   }
+  assignShipMarkers(ships);
   game.ships = ships;
   renderSkyChips(game.qType === "en2pic" ? "聽發音，擊落掛著正確圖片的護衛艦" : "擊落符合意思的護衛艦", [
     game.qType === "en2pic" ? `🔊 ${targetWord.word}` : `📖 意思：${targetWord.meaning}（${targetWord.pos}）`,
@@ -1900,15 +1903,23 @@ function labelHit(ship, x, y) {
   const r = ship.labelRect;
   return r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 }
+// 配對色只用來認船，不代表船身顏色條件或正確答案；同時附編號，避免只靠顏色。
+const SHIP_MARK_COLORS = ['#70e5ff', '#ffc86a', '#f9a8e8', '#b7ed83', '#c4b5fd'];
+function compactShipView() { return W < 600 || H < 500; }
+function assignShipMarkers(ships) {
+  ships.slice().sort((a,b) => a.lane - b.lane).forEach((ship,i) => { ship.marker = i + 1; });
+}
 function drawShipLabels() {
   for (const ship of game.ships) ship.labelRect = null;
   if (game.state !== "playing" && game.state !== "paused") return;
-  const ships = game.ships.filter(s => s.alive && !s.sinking).sort((a,b) => a.lane - b.lane);
+  // 擊沉後保留原字卡位置，避免其他選項移位；每回合編號固定。
+  const ships = game.ships.slice().sort((a,b) => a.marker - b.marker);
   if (!ships.length) return;
-  const gap = 8, cols = Math.min(ships.length, Math.max(2, Math.floor((W - 24) / 150)));
+  const gap = 8, cols = Math.min(ships.length, compactShipView() ? 3 : Math.max(2, Math.floor((W - 24) / 150)));
   const width = Math.min(190, (W - 24 - gap * (cols - 1)) / cols);
   const left = (W - (cols * width + (cols - 1) * gap)) / 2;
   let y = Math.max(12, skyQ.getBoundingClientRect().bottom + 8);
+  const cards = [];
   ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
   for (let row = 0; row * cols < ships.length; row++) {
     const items = ships.slice(row * cols, (row + 1) * cols).map(ship => {
@@ -1921,20 +1932,41 @@ function drawShipLabels() {
         line += ch;
       }
       lines.push(line);
-      return { ship, picture, lines, height:Math.max(44, lines.length * (picture ? 30 : 20) + 12) };
+      return { ship, picture, lines, height:Math.max(66, lines.length * (picture ? 30 : 20) + 36) };
     });
     const height = Math.max(...items.map(item => item.height));
-    items.forEach(({ship,picture,lines}, col) => {
-      const x = left + col * (width + gap), r = shipScreenRect(ship);
-      ship.labelRect = { x, y, w:width, h:height };
-      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x + width/2, y + height); ctx.lineTo((r.left+r.right)/2, r.top); ctx.stroke();
-      ctx.fillStyle = 'rgba(8,24,43,.94)'; ctx.fillRect(x,y,width,height);
-      ctx.strokeStyle = '#a8d7ec'; ctx.strokeRect(x,y,width,height);
-      ctx.font = picture ? '28px sans-serif' : '700 16px Arial, "Noto Sans TC", sans-serif'; ctx.fillStyle = '#fff';
-      lines.forEach((line,i) => ctx.fillText(line,x+width/2,y+height/2+(i-(lines.length-1)/2)*(picture?30:20)));
+    items.forEach((item, col) => {
+      const {ship} = item, x = left + col * (width + gap), r = shipScreenRect(ship);
+      const active = ship.alive && !ship.sinking;
+      if (active) ship.labelRect = { x, y, w:width, h:height };
+      const selected = active && (labelHit(ship, game.aimX, game.aimY) ||
+        (game.aimX >= r.left && game.aimX <= r.right && game.aimY >= r.top && game.aimY <= r.bottom));
+      cards.push({...item, x, y, height, r, active, selected, color:SHIP_MARK_COLORS[(ship.marker - 1) % SHIP_MARK_COLORS.length]});
     });
     y += height + gap;
+  }
+  // 先畫所有連線、再畫字卡，交叉線不會蓋住文字；深色外框確保海面上也清楚。
+  ctx.lineCap = 'round';
+  for (const card of cards) {
+    if (!card.active) continue;
+    const {x,y,height,r,color,selected} = card;
+    ctx.beginPath(); ctx.moveTo(x + width/2, y + height); ctx.lineTo(r.x, r.top - 12);
+    ctx.strokeStyle = '#071829'; ctx.lineWidth = selected ? 8 : 6; ctx.stroke();
+    ctx.strokeStyle = color; ctx.lineWidth = selected ? 4 : 2.5; ctx.stroke();
+  }
+  for (const {ship,x,y,height,r,color,active,selected,picture,lines} of cards) {
+    ctx.globalAlpha = active ? 1 : 0.45;
+    ctx.fillStyle = selected ? '#203e58' : '#08182b'; ctx.fillRect(x,y,width,height);
+    ctx.strokeStyle = color; ctx.lineWidth = selected ? 3 : 2; ctx.strokeRect(x,y,width,height);
+    ctx.fillStyle = color; ctx.font = '800 13px Arial, "Noto Sans TC", sans-serif';
+    ctx.fillText(active ? ship.marker + ' 號船' : ship.marker + ' 號已離場', x+width/2, y+15);
+    ctx.font = picture ? '28px sans-serif' : '700 16px Arial, "Noto Sans TC", sans-serif'; ctx.fillStyle = '#fff';
+    lines.forEach((line,i) => ctx.fillText(line,x+width/2,y+30+(height-30)/2+(i-(lines.length-1)/2)*(picture?30:20)));
+    if (active) {
+      ctx.beginPath(); ctx.arc(r.x,r.top-12,12,0,Math.PI*2);
+      ctx.fillStyle = '#08182b'; ctx.fill(); ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = '#fff'; ctx.font = '800 15px Arial'; ctx.fillText(ship.marker,r.x,r.top-12);
+    }
   }
   ctx.restore();
 }
@@ -2252,13 +2284,15 @@ function render(now, dt) {
 
   ctx.restore();
 
+  // 字卡固定在螢幕上，避免震動時與點擊範圍錯位。
+  drawShipLabels();
+
   // ── 螢幕空間圖層 ──
   ctx.save();
   if (game.shakeT > 0) {
     const sh = game.shakeT * 10;
     ctx.translate(rand(-sh, sh), rand(-sh, sh));
   }
-  drawShipLabels();
   drawParticles(game.state === "playing" ? dt : 0);
   drawRockets(game.state === "playing" ? dt : 0);
   if (game.state === "playing") {
