@@ -223,8 +223,19 @@ body.battle-active #boss-banner > div > div { min-width:40px; }
     body.battle-active #quiz-panel { flex:1; }
     body.battle-active .stage-total { display:none; }
 }
-@media(orientation:portrait) {
-    body.battle-active #panels { max-height:65dvh; }
+@media(orientation:portrait) and (max-width:1024px) {
+    body.battle-active { overflow-y:auto; }
+    body.battle-active .wrap { min-height:600px; }
+    body.battle-active #game-screen { grid-template-rows:auto minmax(300px,1fr) auto; }
+    body.battle-active #topbar { padding-right:0; }
+    body.battle-active .stage-total { display:none; }
+    body.battle-active #canvas { position:absolute; inset:0; width:100%; height:100%; aspect-ratio:auto; }
+    body.battle-active #panels { max-height:44dvh; }
+    body.battle-active #deploy { flex-shrink:0; gap:8px; }
+    body.battle-active #quiz-panel { flex:1 1 auto; }
+    body.battle-active #options { gap:8px; }
+    body.battle-active #boss-banner { position:relative; inset:auto; flex-shrink:0; }
+    body.battle-active #boss-banner span { white-space:normal!important; }
 }
 
 </style>
@@ -572,6 +583,72 @@ let campaign = null;
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
+const portraitBattle = window.matchMedia('(orientation:portrait) and (max-width:1024px)');
+let battleView = { portrait:false, width:900, height:360 };
+
+// 只轉換繪圖座標；移動、射程、碰撞與傷害仍使用原本的 900 × 360 戰場。
+function syncBattleView(){
+  const portrait = portraitBattle.matches;
+  if(portrait !== battleView.portrait){
+    const banner=document.getElementById('boss-banner');
+    if(portrait) document.getElementById('panels').prepend(banner);
+    else canvas.parentNode.insertBefore(banner,canvas);
+  }
+  const width = portrait ? 420 : 900;
+  const height = portrait ? Math.round(width * Math.max(1,canvas.clientHeight) / Math.max(1,canvas.clientWidth)) : 360;
+  const density = portrait ? Math.min(window.devicePixelRatio || 1,2) : 1;
+  const pixelWidth = Math.round(width*density), pixelHeight = Math.round(height*density);
+  if(canvas.width !== pixelWidth || canvas.height !== pixelHeight){
+    canvas.width = pixelWidth; canvas.height = pixelHeight;
+  }
+  battleView = { portrait, width, height };
+  ctx.setTransform(density,0,0,density,0,0);
+}
+
+function battlePoint(x,y,lane=261){
+  if(!battleView.portrait) return {x,y};
+  return {x:238+(lane-261)*4+(x-450)*.045, y:105+(840-x)/780*(battleView.height-160)+(y-lane)*.85};
+}
+
+function drawPortraitBg(){
+  const {width:w,height:h} = battleView, scene = state.stage.scene;
+  const ground = ctx.createLinearGradient(0,0,w,h);
+  ground.addColorStop(0,scene==='plains'?'#507a36':scene==='forest'?'#30402d':'#4b4439');
+  ground.addColorStop(1,scene==='plains'?'#263f24':scene==='forest'?'#18231d':'#24231f');
+  ctx.fillStyle=ground;ctx.fillRect(0,0,w,h);
+  ctx.fillStyle=scene==='plains'?'#8b7148':scene==='forest'?'#665445':'#716257';
+  ctx.beginPath();ctx.moveTo(182,0);ctx.lineTo(338,0);ctx.lineTo(304,h);ctx.lineTo(146,h);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.09)';ctx.lineWidth=2;
+  for(let y=25;y<h;y+=45){ctx.beginPath();ctx.ellipse(195+(y*7%95),y,7,3,.2,0,Math.PI*2);ctx.stroke();}
+  ctx.fillStyle=scene==='castle'?'#292138':'#193d2b';
+  for(let y=20;y<h;y+=58){
+    for(const x of [24,390]){
+      if(scene==='castle'){ctx.fillRect(x-12,y,24,30);}
+      else {ctx.beginPath();ctx.arc(x,y,16+Math.sin(y)*4,0,Math.PI*2);ctx.fill();}
+    }
+  }
+  const front=battlePoint(450,261).y;
+  ctx.strokeStyle='rgba(255,255,255,.16)';ctx.setLineDash([5,7]);
+  ctx.beginPath();ctx.moveTo(155,front);ctx.lineTo(325,front);ctx.stroke();ctx.setLineDash([]);
+}
+
+function drawBattleBase(x,label,hp,maxHP,isPlayer){
+  if(!battleView.portrait){ drawBase(x,label,hp,maxHP,isPlayer); return; }
+  const p=battlePoint(x,261);
+  ctx.save();ctx.translate(88,p.y-8);ctx.scale(.82,.82);ctx.translate(-x,-290);
+  drawBase(x,'',hp,maxHP,isPlayer);
+  ctx.restore();
+  ctx.fillStyle=isPlayer?'#7dd3fc':'#fda4af';ctx.font='bold 15px Outfit';ctx.textAlign='center';
+  ctx.fillText(label,88,p.y+12);
+}
+
+function drawBattleUnit(u,now){
+  if(!battleView.portrait){ drawUnit(u,now); return; }
+  const p=battlePoint(u.x,u.y,u.y);
+  ctx.save();ctx.translate(p.x,p.y);ctx.scale(.85,.85);ctx.translate(-u.x,-u.y);
+  drawUnit(u,now);
+  ctx.restore();
+}
 
 /* ── 背景音樂（Siege at Dawn.mp3） ── */
 let bgmAudio=null,bgmFade=null;
@@ -955,7 +1032,7 @@ class Unit{
         this.attackFlash = now;
         addAttackEffect(this, target, now);
         applyEliteAbility(this, target, now);
-        state.floats.push({ x:target.x, y:target.y-20, text:'-'+this.atk, color:'#ff6b6b', life:760, born:now });
+        state.floats.push({ x:target.x, y:target.y-20, lane:target.y, text:'-'+this.atk, color:'#ff6b6b', life:760, born:now });
       }
       return;
     }
@@ -970,7 +1047,7 @@ class Unit{
     if(foot !== this.lastFoot){
       this.lastFoot = foot;
       const dustCount = state.effects.filter(e => e.kind === 'dust').length;
-      if(dustCount < 22) state.effects.push({ kind:'dust', x:this.x-dir*7, y:this.y+11, side:this.side, life:360, born:now });
+      if(dustCount < 22) state.effects.push({ kind:'dust', x:this.x-dir*7, y:this.y+11, lane:this.y, side:this.side, life:360, born:now });
     }
   }
 }
@@ -1029,6 +1106,7 @@ function addAttackEffect(attacker, target, now){
       kind:'slash',
       x:target.x,
       y:target.y-2,
+      lane:target.y,
       side:attacker.side,
       color:attacker.side === 'player' ? '#7dd3fc' : '#fb7185',
       life:260,
@@ -1042,8 +1120,10 @@ function addAttackEffect(attacker, target, now){
       kind:'arrow',
       fromX:attacker.x + (attacker.side === 'player' ? 14 : -14),
       fromY:attacker.y - 10,
+      fromLane:attacker.y,
       toX:target.x,
       toY:target.y - 10,
+      toLane:target.y,
       side:attacker.side,
       life:340,
       born:now,
@@ -1055,8 +1135,10 @@ function addAttackEffect(attacker, target, now){
     kind:'orb',
     fromX:attacker.x + (attacker.side === 'player' ? 12 : -12),
     fromY:attacker.y - 20,
+    fromLane:attacker.y,
     toX:target.x,
     toY:target.y - 12,
+    toLane:target.y,
     color:attacker.side === 'player' ? '#c084fc' : '#f472b6',
     side:attacker.side,
     life:420,
@@ -1080,9 +1162,9 @@ function applyEliteAbility(attacker, target, now){
   const dmg = Math.max(1, Math.round(attacker.atk * ratio));
   extras.forEach(u => {
     u.hp -= dmg;
-    state.floats.push({ x:u.x, y:u.y-30, text:'-'+dmg, color:attacker.type === 'mage' ? '#e9d5ff' : '#fde68a', life:650, born:now });
+    state.floats.push({ x:u.x, y:u.y-30, lane:u.y, text:'-'+dmg, color:attacker.type === 'mage' ? '#e9d5ff' : '#fde68a', life:650, born:now });
   });
-  state.effects.push({ kind:attacker.type === 'mage' ? 'burst' : 'eliteSlash', x:target.x, y:target.y-10, side:attacker.side, color:attacker.color, life:360, born:now });
+  state.effects.push({ kind:attacker.type === 'mage' ? 'burst' : 'eliteSlash', x:target.x, y:target.y-10, lane:target.y, side:attacker.side, color:attacker.color, life:360, born:now });
   if(attacker.type==='mage'&&attacker.level>=5) state.cameraShake=Math.max(state.cameraShake,70);
 }
 
@@ -1502,6 +1584,17 @@ function drawEffects(now){
   state.effects = state.effects.filter(e => {
     const age = now - e.born;
     if(age > e.life) return false;
+    // 使用繪圖副本，旋轉手機後仍可還原同一枚飛行中的箭矢。
+    if(battleView.portrait){
+      if(e.fromX !== undefined){
+        const from=battlePoint(e.fromX,e.fromY,e.fromLane), to=battlePoint(e.toX,e.toY,e.toLane);
+        e={...e,fromX:from.x,fromY:from.y,toX:to.x,toY:to.y};
+      } else {
+        const p=battlePoint(e.x,e.y,e.lane);
+        if(e.baseHit){p.x=88;p.y=battlePoint(e.x,261).y-35;}
+        e={...e,x:p.x,y:p.y};
+      }
+    }
     const t = Math.min(1, age / e.life);
     ctx.save();
     ctx.globalAlpha = 1 - Math.max(0, t - .65) / .35;
@@ -1567,8 +1660,11 @@ function drawFloats(now){
     const age = now - f.born;
     if(age > f.life) return false;
     ctx.save(); ctx.globalAlpha = 1 - age / f.life;
-    ctx.fillStyle = f.color; ctx.font = 'bold 13px Outfit'; ctx.textAlign = 'center';
-    ctx.fillText(f.text, f.x, f.y - age * .04);
+    ctx.fillStyle = f.color; ctx.font = battleView.portrait ? 'bold 15px Outfit' : 'bold 13px Outfit'; ctx.textAlign = 'center';
+    const p = battleView.portrait && f.y < 190
+      ? {x:210,y:battleView.height*.4+(f.y-100)*.6}
+      : battlePoint(f.x,f.y,f.lane);
+    ctx.fillText(f.text, p.x, p.y - age * .04, battleView.portrait ? 390 : 900);
     ctx.restore();
     return true;
   });
@@ -1665,14 +1761,14 @@ function loop(ts){
       state.enemyHP -= u.atk; u.hp = 0;
       playSound('baseHit', 180);
       state.cameraShake = Math.max(state.cameraShake,120);
-      state.effects.push({ kind:'slash', x:840, y:248, side:'player', color:'#7dd3fc', life:260, born:now });
+      state.effects.push({ kind:'slash', x:840, y:248, baseHit:true, side:'player', color:'#7dd3fc', life:260, born:now });
     }
     if(u.side === 'enemy' && u.x <= 60){
       state.playerHP -= u.atk; u.hp = 0;
       if(u === state.boss){ state.boss = null; state.grammarStreak = 0; }
       playSound('baseHit', 180);
       state.cameraShake = Math.max(state.cameraShake,120);
-      state.effects.push({ kind:'slash', x:60, y:248, side:'enemy', color:'#fb7185', life:260, born:now });
+      state.effects.push({ kind:'slash', x:60, y:248, baseHit:true, side:'enemy', color:'#fb7185', life:260, born:now });
     }
   }
   state.units = state.units.filter(u => u.hp > 0);
@@ -1687,15 +1783,16 @@ function loop(ts){
     playSound('win');
   }
 
-  ctx.clearRect(0,0,900,360);
+  syncBattleView();
+  ctx.clearRect(0,0,battleView.width,battleView.height);
   ctx.save();
   if(state.cameraShake>0){const strength=Math.min(3,state.cameraShake/55);ctx.translate((Math.random()-.5)*strength,(Math.random()-.5)*strength);}
-  drawBg(now);
-  drawBase(60,'我方基地',state.playerHP,state.maxHP,true);
-  drawBase(840,'敵方基地',state.enemyHP,state.enemyMaxHP,false);
-  state.units
-    .sort((a,b) => a.y - b.y)
-    .forEach(u => drawUnit(u, now));
+  if(battleView.portrait) drawPortraitBg(); else drawBg(now);
+  drawBattleBase(60,'我方基地',state.playerHP,state.maxHP,true);
+  drawBattleBase(840,'敵方基地',state.enemyHP,state.enemyMaxHP,false);
+  state.units.sort((a,b) => a.y-b.y);
+  const visibleUnits = battleView.portrait ? [...state.units].sort((a,b) => b.x-a.x || a.y-b.y) : state.units;
+  visibleUnits.forEach(u => drawBattleUnit(u, now));
   drawEffects(now);
   drawFloats(now);
   ctx.restore();
@@ -1926,7 +2023,7 @@ function chipBossOnCorrect(){
   const label = vocabBoss ? '連對重擊' : '文法重擊';
   if(boss.hp <= 0) return '擊退 BOSS！';
   if(hit){
-    state.floats.push({ x:boss.x, y:boss.y-34, text:`${label} ${bossProgress(boss)}/${boss.need}`, color:'#ffd166', life:900, born:Date.now() });
+    state.floats.push({ x:boss.x, y:boss.y-34, lane:boss.y, text:`${label} ${bossProgress(boss)}/${boss.need}`, color:'#ffd166', life:900, born:Date.now() });
     return `${label}！${bossProgress(boss)}/${boss.need}`;
   }
   return `連對 ${boss.streak} 題（要超過紀錄 ${boss.peak} 才再扣血）`;
@@ -1938,7 +2035,7 @@ function bossOnWrong(){
   boss.streak = 0; state.grammarStreak = 0;
   if(CONFIG.bossWrong === 'full'){
     boss.hp = boss.maxHp; boss.peak = 0;
-    state.floats.push({ x:boss.x, y:boss.y-34, text:'連續中斷，BOSS 回滿血！', color:'#ff5050', life:1000, born:Date.now() });
+    state.floats.push({ x:boss.x, y:boss.y-34, lane:boss.y, text:'連續中斷，BOSS 回滿血！', color:'#ff5050', life:1000, born:Date.now() });
   }
 }
 
