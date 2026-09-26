@@ -262,9 +262,18 @@ function allowedBombModes() { return ['simple', 'hard']; }
 // 全圖檔開關（所有遊戲共用 sgAllPic 鑰匙）
 let allPic = (() => { try { return localStorage.getItem('sgAllPic') === '1'; } catch (e) { return false; } })();
 let menuMode = (() => { try { return localStorage.getItem('bombMode3') || 'normal'; } catch (e) { return 'normal'; } })();
-function buildLessonLevels() {
-  // 每關最多 5 個單字；少量題庫與尾數也各自成關。
-  LEVELS = chunkWords(shuffleWords(bombWordPool), 5).map((chunk, index) => ({
+function buildLessonLevels(words = bombWordPool) {
+  // 尾關從同課其他字補齊；整池不到 5 字就照實際數量，同關不重複。
+  const pool = shuffleWords(words);
+  const chunks = chunkWords(pool, 5);
+  const last = chunks[chunks.length - 1];
+  const size = Math.min(5, pool.length);
+  if (last && last.length < size) {
+    const used = new Set(last.map(word => word.toLowerCase()));
+    const extras = shuffleWords(pool.filter(word => !used.has(word.toLowerCase())));
+    chunks[chunks.length - 1] = shuffleWords([...last, ...extras.slice(0, size - last.length)]);
+  }
+  LEVELS = chunks.map((chunk, index) => ({
     id: index + 1,
     themeEN: bombLessonTitle,
     themeZH: `💣 ${bombLessonTitle} ${index + 1}`,
@@ -276,7 +285,7 @@ function buildLessonLevels() {
 function applyBombData(payload) {
   payload = GameData.prepare(payload);
   const words = normalizeBombWords(payload?.words);
-  if (!GameData.report(payload, words, 1, '#bomb-receipt', '每關最多 5 字，尾數也會成關。')) return false;
+  if (!GameData.report(payload, words, 1, '#bomb-receipt', '尾關以同課單字補滿 5 字，同關不重複；可用單字不足 5 字時依實際數量。')) return false;
   if (words.length === 0) {
     bombBuiltinSource = true;
     bombWordPool = null;
@@ -307,7 +316,7 @@ function applyBombData(payload) {
   }
 
   const statusEl = document.getElementById('bomb-data-status');
-  if (statusEl) statusEl.textContent = `${bombLessonTitle}:${LEVELS.reduce((sum, level) => sum + level.words.length, 0)}`;
+  if (statusEl) statusEl.textContent = `${bombLessonTitle}:${words.length}`;
 }
 
 function readLessonDataFromHash() {
@@ -2038,12 +2047,17 @@ class Game {
   // ── Load Level ─────────────────────────
   // 重洗下一輪全部關卡（自選/課程題庫重新打散，預設題庫重置）
   _reshuffleRound() {
-    if (bombWordPool) buildLessonLevels();
-    else LEVELS = DEFAULT_LEVELS.map(l => ({ ...l, words: [...l.words] }));
+    let readable = null;
     if (GameSetup.kind(hasPicBank()) === 'picture') {
       const source = bombWordPool || DEFAULT_LEVELS.flatMap(l => l.words);
-      const readable = new Set(GameData.picturePool(source.map(word => ({word, emoji:emojiForWord(word)}))).map(w=>w.word));
-      LEVELS = LEVELS.map(l => ({...l, words:l.words.filter(w=>readable.has(w))})).filter(l=>l.words.length);
+      readable = new Set(GameData.picturePool(source.map(word => ({word, emoji:emojiForWord(word)}))).map(w=>w.word));
+    }
+    if (bombWordPool) {
+      // 圖片題先篩可辨識的字，再分關補齊，避免補完又被篩成零星房子。
+      buildLessonLevels(readable ? bombWordPool.filter(word => readable.has(word)) : bombWordPool);
+    } else {
+      LEVELS = DEFAULT_LEVELS.map(l => ({ ...l, words: [...l.words] }));
+      if (readable) LEVELS = LEVELS.map(l => ({...l, words:l.words.filter(w=>readable.has(w))})).filter(l=>l.words.length);
     }
     this.lvIdx = 0;
   }
