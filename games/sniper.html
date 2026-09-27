@@ -355,7 +355,9 @@ function clozeChoices(target,pool,count){
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 let VW = 0, VH = 0, DPR = 1;
+let overviewDirty = true, overviewFrame = null;
 function resize(){
+  overviewDirty = true;
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   VW = window.innerWidth; VH = window.innerHeight;
   cv.width = Math.floor(VW*DPR); cv.height = Math.floor(VH*DPR);
@@ -403,6 +405,20 @@ let zoom = 1;                   // 目前縮放
 let targetZoom = 1;             // 目標縮放(開鏡=ZOOM_IN)
 const ZOOM_OUT = 0.46, ZOOM_IN = 1.6;
 const COVER_CAM_Y = 80;        // 未開鏡(蹲掩體)時相機下移, 把大樓推到畫面上半, 下方留給我方掩體牆
+// 收鏡時把整棟樓（含屋頂）放進 HUD 與掩體之間，窄螢幕不裁切左右。
+function getOverviewFrame(){
+  if(!overviewDirty && overviewFrame) return overviewFrame;
+  const hud = document.getElementById('hud-top').getBoundingClientRect();
+  const top = hud.bottom + 12, bottom = Math.max(top + 1, VH*0.66 - 12);
+  const worldTop = BY - 80, worldBottom = BY + BH;
+  const z = Math.max(0.001, Math.min(ZOOM_OUT, (VW - 32)/BW, (bottom - top)/(worldBottom - worldTop)));
+  const minY = worldBottom - (bottom - VH/2)/z;
+  const maxY = worldTop - (top - VH/2)/z;
+  overviewFrame = { zoom:z, y:Math.max(minY, Math.min(COVER_CAM_Y, maxY)) };
+  overviewDirty = false;
+  return overviewFrame;
+}
+
 let scoped = false;
 let scopeBlend = 0;            // 0=蹲在牆後(第三人稱) .. 1=探頭進鏡; 用來淡入鏡框、淡出前景
 let recoil = 0;                 // 後座抖動量
@@ -669,12 +685,15 @@ function startRound(){
 
   renderIntel();
   updateHUD();
+  const overview = getOverviewFrame();
+  cam.y = overview.y; zoom = overview.zoom;
   document.getElementById('fire-btn').disabled = true;
   state = 'playing';
   if(roundType==='en2cn' || roundType==='en2pic') speakWord(answer.word);   // 英文題自動唸一次
 }
 
 function renderIntel(){
+  overviewDirty = true;
   const el = document.getElementById('intel-text');
   const sb = document.getElementById('intel-speak');
   if(sb) sb.style.display = (intelMode==='en2cn' || intelMode==='en2pic') ? 'inline-flex' : 'none';
@@ -869,6 +888,7 @@ function enterKillcam(f, success){
 
 /* ---------- 計時/輸入更新 ---------- */
 function updateHUD(){
+  overviewDirty = true;
   document.getElementById('round').textContent = Math.min(roundNo, MAX_ROUNDS);
   document.getElementById('score').textContent = score;
   document.getElementById('money').textContent = money;
@@ -953,7 +973,8 @@ function loop(t){
       else { state = 'feedback'; feedbackUntil = performance.now() + 150; }
     }
   } else {
-    cx = scoped ? aim.x : 0; cy = scoped ? aim.y : COVER_CAM_Y; cz = targetZoom;
+    const overview = getOverviewFrame();
+    cx = scoped ? aim.x : 0; cy = scoped ? aim.y : overview.y; cz = scoped ? targetZoom : overview.zoom;
     follow = scoped ? 30 : 16;   // 開鏡時相機緊貼準星(畫面跟著滑鼠/手指速度走, 不拖)
     cinematic += (0 - cinematic) * Math.min(1, rawdt*6);
   }
@@ -1370,7 +1391,7 @@ function drawFloorWord(i){
   ctx.globalAlpha = 0.35 + 0.65*legible;
   ctx.shadowColor = col; ctx.shadowBlur = (8 + 14*legible);
   ctx.fillStyle = col;
-  ctx.fillText(f.display || f.word.word, wp.x, wp.y);
+  ctx.fillText(f.display || f.word.word, wp.x, wp.y, (BW - 72)*zoom);
   ctx.restore();
 }
 
