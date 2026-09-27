@@ -570,16 +570,33 @@
     #miner-progress { width:min(360px,100%); height:20px; flex-shrink:0; }
     #miner-progress-label { font-size:12px; }
     #miner-startscreen { position:fixed; border-radius:0; }
-    @media (max-height:500px) {
-        .shell { grid-template-rows:44px minmax(0,1fr) 64px; gap:4px; }
-        .hud { grid-template-columns:minmax(0,1fr) 44px; }
+    /* 橫向把資訊與操作移到兩側，讓礦坑使用整個螢幕高度。 */
+    @media (orientation:landscape) {
+        .shell { width:100%; grid-template-columns:clamp(112px,14vw,160px) minmax(0,1fr) clamp(112px,14vw,160px);
+            grid-template-rows:minmax(0,1fr); gap:6px; }
+        .hud { display:flex; flex-direction:column; justify-content:center; gap:8px; }
+        .stat-row { display:grid; grid-template-columns:1fr; gap:6px; }
+        .stat { min-height:44px; padding:5px; }
+        #miner-settings-btn { flex-shrink:0; }
+        .miner-controls { grid-template-columns:repeat(2,minmax(0,1fr));
+            grid-template-rows:minmax(0,1fr) 60px; gap:8px 4px; padding-bottom:6px; }
+        #miner-bottom { grid-column:1 / -1; grid-row:1; align-self:center; gap:10px; }
+        #move-left-btn { grid-column:1; grid-row:2; }
+        #move-right-btn { grid-column:2; grid-row:2; }
+        .miner-controls .corner-btn { width:52px; height:52px; font-size:24px; }
+        #miner-toast { font-size:13px; padding:8px 5px; white-space:normal; overflow-wrap:anywhere;
+            line-height:1.5; border-radius:12px; }
+        #miner-action-hint { font-size:12px; letter-spacing:0; }
+        #miner-progress { height:22px; }
+        #miner-progress-label { font-size:12px; }
+    }
+    @media (orientation:landscape) and (max-height:350px) {
+        .hud, .stat-row { gap:4px; }
+        .stat { min-height:38px; padding:3px; }
         .stat-label { font-size:10px; }
         .stat-value { font-size:16px; }
-        .miner-controls { grid-template-columns:56px minmax(0,1fr) 56px; gap:8px; }
-        .miner-controls .corner-btn { width:52px; height:52px; font-size:24px; }
-        #miner-bottom { gap:2px; }
-        #miner-toast { font-size:12px; padding:2px 8px; }
-        #miner-progress { height:18px; }
+        #miner-bottom { gap:5px; }
+        #miner-toast { font-size:12px; padding:4px; }
     }
 
 </style>
@@ -2148,7 +2165,7 @@
         const ratio = Math.max(0, Math.min(1, (score - prev) / span));
         const remain = Math.max(0, goal - score);
         const isLast = level >= LEVELS.length;
-        const compact = isCompactLayout();
+        const compact = progressEl.clientWidth < 280;
         progressFillEl.style.width = (ratio * 100).toFixed(1) + "%";
         progressLabelEl.textContent = remain > 0
             ? (compact ? `差 ${remain} 分` : (isLast ? `再得 ${remain} 分 → 🏆 全破` : `再得 ${remain} 分 → 第 ${level + 1} 關`))
