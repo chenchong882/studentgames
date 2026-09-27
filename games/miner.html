@@ -546,6 +546,29 @@
         .hint { display:none; }
     }
 
+    /* 礦區與回饋列各自保留空間，橫式小螢幕不遮住底排。 */
+    @media (orientation:landscape) {
+        body { height:100vh; height:100dvh; min-height:0; padding:6px max(8px,env(safe-area-inset-right)) calc(104px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left)); overflow:hidden; }
+        .shell { height:100%; min-height:0; grid-template-rows:44px minmax(0,1fr); gap:6px; }
+        .stat { min-height:0; padding:4px; }
+        .game-wrap { min-height:0; padding:0; border:0; background:none; box-shadow:none; }
+        canvas { width:min(100%,calc((100vh - 166px - env(safe-area-inset-bottom)) * 1.6)); width:min(100%,calc((100dvh - 166px - env(safe-area-inset-bottom)) * 1.6)); height:auto; max-height:100%; }
+        .hint { display:none; }
+        .corner-btn { width:72px; height:72px; font-size:32px; }
+        #miner-bottom { width:min(680px,calc(100vw - 200px)); gap:4px; bottom:calc(8px + env(safe-area-inset-bottom)); }
+        #miner-toast { padding:4px 10px; border-radius:10px; font-size:13px; line-height:1.25; }
+        #miner-progress { width:min(320px,100%); height:20px; }
+        #miner-action-hint { font-size:12px; line-height:1.3; }
+    }
+    #miner-question { position:absolute; top:0; left:50%; transform:translateX(-50%); width:min(680px,90%); text-align:center; font:800 18px/1.3 Arial,sans-serif; color:var(--cream); background:rgba(18,13,10,.92); border-radius:6px; padding:3px 8px; pointer-events:none; overflow-wrap:anywhere; z-index:2; }
+    #miner-question:empty { display:none; }
+    #miner-startscreen { position:fixed; inset:0; overflow-y:auto; }
+    .mCard { max-height:90vh; overflow-y:auto; }
+    #miner-tools .tool-options { display:flex; gap:12px; }
+    #miner-tools button { flex:1; padding:14px 8px; font-size:17px; line-height:1.4; }
+    #miner-tools small { display:block; font-size:13px; font-weight:600; margin-top:6px; }
+    #miner-tools p { font-size:14px; line-height:1.5; }
+    button:focus-visible { outline:3px solid var(--cyan); outline-offset:4px; }
 </style>
     <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
@@ -563,7 +586,7 @@
                     <span class="stat-value" id="level">1 / 6</span>
                 </div>
                 <div class="panel stat time-stat">
-                    <span class="stat-label">時間</span>
+                    <span class="stat-label">全場共用時間</span>
                     <span class="stat-value" id="time-left">3:00</span>
                 </div>
                 <div class="panel stat">
@@ -578,6 +601,7 @@
         </section>
 
         <section class="game-wrap">
+            <div id="miner-question" aria-live="polite"></div>
             <canvas id="gameCanvas" width="1080" height="675"></canvas>
             <button id="miner-cart-speech-btn" type="button" aria-label="點礦車重聽英文發音"></button>
             <div id="miner-startscreen" class="startscreen hidden">
@@ -623,6 +647,17 @@
     </div>
     <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"><span id="status"></span></div>
 
+    <div id="miner-tools" class="mOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="miner-tools-title">
+        <div class="mCard">
+            <h2 id="miner-tools-title">連對 3 題！選下一鉤的工具</h2>
+            <p>選擇時不扣時間。工具自動套用下一鉤，落空也會消耗。</p>
+            <div class="tool-options">
+                <button type="button" data-tool="fast">1 · 快回鉤<small>回收速度 ×2<br>適合拉重金塊</small></button>
+                <button type="button" data-tool="pierce">2 · 穿石<small>穿過路上所有石頭<br>仍須避開炸彈</small></button>
+                <button type="button" data-tool="slow">3 · 慢動作<small>出鉤前擺速減半<br>好好瞄準再射</small></button>
+            </div>
+        </div>
+    </div>
     <div id="miner-pause" class="mOverlay hidden">
         <div class="mCard">
             <h2>⏸ 暫停</h2>
@@ -641,11 +676,14 @@
                 ⬅️➡️ <b>左下／右下方向鈕</b>（或鍵盤 ←→、A／D）：移動礦車<br>
                 👆 <b>點畫面任一處</b>（或空白鍵）：放出鉤爪<br>
                 <br>
-                🏆 遊戲從 <b>3:00</b> 開始，分數夠高就進下一關，<b>共 6 關</b>。<br>
-                抓對 +20 分，抓錯扣 5 秒，炸彈扣分、石頭會彈開。<br>
+                🏆 <b>6 關共用 180 秒</b>，累積分數達標就進下一關。<br>
+                同一答案有<b>輕、重兩塊</b>：輕塊快收 +20；重塊慢收 +30。<br>
+                連擊另加 0／3／6／9／12 分（最高 +12）；<b>每連對 3 題選一次工具</b>。<br>
+                抓錯扣 5 秒、連擊歸零；炸彈扣 10 分、連擊歸零；石頭彈回。<br>
+                優先練新字，錯字隔 3 題再複習（小題庫會縮短間隔）。<br>
                 ⏸ 左上角按鈕可<b>暫停遊戲</b>。
             </div>
-            <button class="mBtn" id="miner-guide-ok">▶ 開始遊戲</button>
+            <button class="mBtn" id="miner-guide-ok">知道了</button>
         </div>
     </div>
 
@@ -801,6 +839,14 @@
     let pendingNextRoundTimer = null; // 剩餘模擬秒數
     let items = [];
     let targetWordObj = null;
+    const wordPractice = new Map();
+    let previousTarget = "";
+    let toolChoiceOpen = false;
+    let toolRewardPending = false;
+    let equippedTool = null;
+    let shotTool = null;
+    const TOOL_NAMES = { fast: "快回鉤", pierce: "穿石", slow: "慢動作" };
+    const toolDialog = document.getElementById("miner-tools");
     let currentQ = "word";
     let currentA = "chinese";
     let message = { text: "看題目，抓正確的金塊", tone: "info", timer: 180 };
@@ -889,7 +935,7 @@
     }
 
     function isCompactLayout() {
-        return window.matchMedia("(max-width: 860px)").matches;
+        return window.matchMedia("(max-width: 860px), (max-height: 600px)").matches;
     }
 
     function makeGoldItem(entry, index = 0, answerRep = "chinese") {
@@ -1002,58 +1048,82 @@
         return pool[Math.floor(Math.random() * pool.length)];
     }
 
+    function practiceKey(entry) { return getEntryWord(entry).toLowerCase(); }
+
+    function choosePracticeWord(candidates) {
+        const choices = shuffle(candidates);
+        const eligible = choices.filter(entry => practiceKey(entry) !== previousTarget);
+        const pool = eligible.length ? eligible : choices;
+        const due = pool.filter(entry => {
+            const record = wordPractice.get(practiceKey(entry));
+            return record?.due != null && record.due <= round;
+        }).sort((a, b) => wordPractice.get(practiceKey(a)).due - wordPractice.get(practiceKey(b)).due);
+        const fresh = pool.find(entry => !wordPractice.has(practiceKey(entry)));
+        const cooled = pool.filter(entry => wordPractice.get(practiceKey(entry))?.due == null);
+        const oldest = (cooled.length ? cooled : pool).sort((a, b) =>
+            (wordPractice.get(practiceKey(a))?.last || 0) - (wordPractice.get(practiceKey(b))?.last || 0));
+        const picked = due[0] || fresh || oldest[0];
+        const key = practiceKey(picked);
+        const record = wordPractice.get(key) || {};
+        wordPractice.set(key, { ...record, last: round });
+        previousTarget = key;
+        return picked;
+    }
+
     function buildRoundGolds(q, a) {
         const source = (a === "image" ? GameData.picturePool(vocabulary) : vocabulary).filter(entry => hasRep(entry, q) && hasRep(entry, a));
-        const candidates = source.length > 0 ? source : vocabulary;
-        const seenLabels = new Set();
-        const golds = [];
-        const cap = (isCompactLayout() ? 4 : 5) + (LEVELS[level - 1]?.goldBonus || 0);
-
-        shuffle(candidates).forEach((entry) => {
-            if (golds.length >= cap) return;
-            const item = makeGoldItem(entry, golds.length, a);
-            const labelKey = String(item.label).toLowerCase();
-            if (!item.word || !item.label || seenLabels.has(labelKey)) return;
-            seenLabels.add(labelKey);
-            golds.push(item);
+        const candidates = source.length ? source : vocabulary;
+        const target = choosePracticeWord(candidates);
+        const cap = 3;
+        const entries = [target];
+        const labels = new Set([repText(target, a).toLowerCase()]);
+        shuffle(candidates).forEach(entry => {
+            const label = repText(entry, a).toLowerCase();
+            if (entries.length >= cap || labels.has(label) || practiceKey(entry) === practiceKey(target)) return;
+            labels.add(label);
+            entries.push(entry);
         });
+        // 每個選項都有輕／重兩塊，不能靠重複標籤猜答案。
+        const golds = entries.flatMap(entry => [weightedGold(entry, a, "light"), weightedGold(entry, a, "heavy")]);
+        targetWordObj = golds[0];
+        return golds;
+    }
 
-        return golds.length > 0 ? golds : DEFAULT_GOLD_WORDS.map((entry, index) => makeGoldItem(entry, index, "chinese"));
+    function weightedGold(entry, rep, weight) {
+        const item = makeGoldItem(entry, 0, rep);
+        return { ...item, weight, radius: weight === "heavy" ? (isCompactLayout() ? 76 : 60) : (isCompactLayout() ? 58 : 44),
+            valueBonus: weight === "heavy" ? 10 : 0, pullSpeed: weight === "heavy" ? 0.42 : 0.85 };
     }
 
     function buildItemSlots() {
-        if (isCompactLayout()) {
-            const compactSlots = [
-                { x: 178, y: 252 }, { x: 540, y: 250 }, { x: 902, y: 252 },
-                { x: 222, y: 382 }, { x: 540, y: 394 }, { x: 858, y: 382 },
-                { x: 178, y: 514 }, { x: 540, y: 520 }, { x: 902, y: 514 }
-            ];
-
-            return shuffle(compactSlots).map(slot => ({
-                x: slot.x + rand(-18, 18),
-                y: slot.y + rand(-14, 14)
-            }));
-        }
-
-        const slots = [
-            { x: 145, y: 245 }, { x: 335, y: 248 }, { x: 535, y: 260 }, { x: 745, y: 248 }, { x: 935, y: 272 },
-            { x: 205, y: 345 }, { x: 430, y: 360 }, { x: 650, y: 345 }, { x: 850, y: 370 },
-            { x: 180, y: 465 }, { x: 390, y: 510 }, { x: 610, y: 480 }, { x: 830, y: 515 }
-        ];
-
-        return shuffle(slots).map(slot => ({
-            x: slot.x + rand(-34, 34),
-            y: slot.y + rand(-26, 26)
-        }));
+        // 固定間隔，避免雙重隨機偏移讓金塊／字牌互相重疊。
+        return shuffle([
+            { x: 180, y: 255 }, { x: 540, y: 255 }, { x: 900, y: 255 },
+            { x: 180, y: 420 }, { x: 540, y: 420 }, { x: 900, y: 420 },
+            { x: 180, y: 585 }, { x: 540, y: 585 }, { x: 900, y: 585 }
+        ]);
     }
+
+    function chooseTool(tool) {
+        if (!toolChoiceOpen || paused || !TOOL_NAMES[tool]) return;
+        equippedTool = tool;
+        toolChoiceOpen = false;
+        toolDialog.classList.add("hidden");
+        initLevel(true);
+        setMessage(`下一鉤：${TOOL_NAMES[tool]}｜落空也會消耗`, "good", 160);
+        settingsBtn.focus();
+    }
+    toolDialog.querySelectorAll("[data-tool]").forEach(button => {
+        button.addEventListener("click", () => chooseTool(button.dataset.tool));
+    });
 
     function updateControls() {
         const playing = gamePhase === "PLAYING";
+        document.getElementById("miner-question").textContent = playing && targetWordObj ? `${questionText(targetWordObj, currentQ)} → 找${REP_ANS[currentA]}` : "";
         document.getElementById("miner-settings-btn").hidden = !playing;
         moveLeftBtn.style.display = playing ? "" : "none";
         moveRightBtn.style.display = playing ? "" : "none";
-        moveLeftBtn.disabled = !playing;
-        moveRightBtn.disabled = !playing;
+        moveLeftBtn.disabled = moveRightBtn.disabled = !playing || state !== "IDLE" || paused || toolChoiceOpen;
         syncCartSpeechButton();
     }
 
@@ -1089,6 +1159,11 @@
 
     function resetStats() {
         score = 0;
+        wordPractice.clear();
+        previousTarget = "";
+        equippedTool = shotTool = null;
+        toolRewardPending = toolChoiceOpen = false;
+        toolDialog.classList.add("hidden");
         streak = 0;
         bestStreak = 0;
         round = 0;
@@ -1219,7 +1294,7 @@
     }
 
     function syncCartSpeechButton() {
-        const canSpeak = gamePhase === "PLAYING" && currentQ === "word" && targetWordObj;
+        const canSpeak = gamePhase === "PLAYING" && !toolChoiceOpen && !paused && currentQ === "word" && targetWordObj;
         if (!canSpeak) {
             cartSpeechBtn.style.display = "none";
             return;
@@ -1249,9 +1324,9 @@
         currentQ = mode.q;
         currentA = mode.a;
         const golds = buildRoundGolds(currentQ, currentA);
-        targetWordObj = golds[Math.floor(Math.random() * golds.length)];
+        // buildRoundGolds 已選出本題單字，保留輕／重兩種正答。
         RoundReview.begin({prompt:questionText(targetWordObj,currentQ),answer:targetWordObj.word,meaning:targetWordObj.chinese});
-        const slotCount = isCompactLayout() ? 9 : 13;
+        const slotCount = 9;
         const maxObs = Math.max(2, slotCount - golds.length - 1);
         const obsCount = Math.min(LEVELS[level - 1]?.obstacles || 4, maxObs);
         const obstacles = shuffle(OBSTACLES).slice(0, obsCount);
@@ -1262,8 +1337,8 @@
             const slot = slots[index % slots.length];
             items.push({
                 ...item,
-                x: slot.x + rand(-28, 28),
-                y: slot.y + rand(-22, 22),
+                x: slot.x,
+                y: slot.y,
                 active: true,
                 bump: 0,
                 bumpAngle: 0,
@@ -1274,7 +1349,7 @@
 
         const taskText = `${REP_VERB[currentQ]}，抓${REP_ANS[currentA]}`;
         setStatus(gamePhase === "PLAYING" ? `第 ${level} 關 · 第 ${round} 題` : "準備中");
-        setMessage(gamePhase === "PLAYING" ? `${taskText}｜答對 +${CORRECT_POINTS} 分，答錯 −${WRONG_TIME_PENALTY} 秒` : "點一下螢幕開始挑戰", "info", 200);
+        setMessage(gamePhase === "PLAYING" ? `${taskText}｜輕 +20・重 +30｜答錯 −${WRONG_TIME_PENALTY} 秒` : "點一下螢幕開始挑戰", "info", 200);
         updateHud();
 
         if (autoSpeak && gamePhase === "PLAYING" && currentQ === "word") {
@@ -1305,7 +1380,10 @@
     }
 
     function shoot() {
-        if (gamePhase === "PLAYING" && state === "IDLE") {
+        if (gamePhase === "PLAYING" && state === "IDLE" && !paused && !toolChoiceOpen && !guideOpen) {
+            shotTool = equippedTool;
+            equippedTool = null;
+            input.left = input.right = false;
             state = "SHOOTING";
             setStatus("鉤子發射");
             updateControls();
@@ -1340,14 +1418,26 @@
 
     function update() {
         if (gamePhase === "PLAYING" && !paused && matchMedia("(orientation:portrait)").matches) openSettings();
-        if (paused) { lastFrameTime = performance.now(); return; }
+        if (paused || guideOpen || toolChoiceOpen) { lastFrameTime = performance.now(); return; }
         const now = performance.now();
         const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
         lastFrameTime = now;
         const timeScale = dt * 60;
         if (pendingNextRoundTimer !== null && gamePhase === "PLAYING") {
             pendingNextRoundTimer -= dt;
-            if (pendingNextRoundTimer <= 0) { pendingNextRoundTimer = null; initLevel(true); }
+            if (pendingNextRoundTimer <= 0) {
+                pendingNextRoundTimer = null;
+                if (toolRewardPending) {
+                    toolRewardPending = false;
+                    toolChoiceOpen = true;
+                    input.left = input.right = false;
+                    toolDialog.classList.remove("hidden");
+                    toolDialog.querySelector("button").focus();
+                    updateControls();
+                    return;
+                }
+                initLevel(true);
+            }
         }
 
         updateParticles(timeScale);
@@ -1372,7 +1462,7 @@
         updateCartPosition(dt);
 
         if (state === "IDLE") {
-            angle += angleSpeed * angleDir * timeScale;
+            angle += angleSpeed * angleDir * timeScale * (equippedTool === "slow" ? 0.5 : 1);
             if (angle > Math.PI / 2.65 || angle < -Math.PI / 2.65) {
                 angleDir *= -1;
             }
@@ -1390,7 +1480,7 @@
             }
 
             for (const item of items) {
-                if (!item.active) continue;
+                if (!item.active || (item.type === "rock" && shotTool === "pierce")) continue;
                 const dist = Math.hypot(tip.x - item.x, tip.y - item.y);
                 if (dist <= item.radius + 18) {
                     if (item.type === "rock") {
@@ -1417,14 +1507,15 @@
         if (state === "RETRACTING") {
             let speed = hookSpeed * 1.05;
             if (caughtItem) {
-                if (caughtItem.type === "gold") speed = hookSpeed * 0.52;
+                if (caughtItem.type === "gold") speed = hookSpeed * caughtItem.pullSpeed;
                 if (caughtItem.type === "bomb") speed = hookSpeed * 0.75;
             }
 
-            hookLength -= speed * timeScale;
+            hookLength -= speed * timeScale * (shotTool === "fast" ? 2 : 1);
 
             if (hookLength <= defaultHookLength) {
                 hookLength = defaultHookLength;
+                shotTool = null;
                 if (caughtItem) {
                     handleCaughtItem(caughtItem);
                 } else {
@@ -1449,15 +1540,22 @@
         } else if (isCorrect) {
             RoundReview.correct();
             correctCount += 1;
-            score += CORRECT_POINTS + Math.min(streak * 3, 12);
+            const comboBonus = Math.min(streak * 3, 12);
+            score += CORRECT_POINTS + item.valueBonus + comboBonus;
+            const record = wordPractice.get(practiceKey(targetWordObj));
+            // 本題曾抓錯仍保留稍後複習；隔題重新答對才清除排程。
+            if (record?.due != null && record.failedRound !== round) delete record.due;
             streak += 1;
             bestStreak = Math.max(bestStreak, streak);
             shouldAdvanceRound = true;
-            setMessage(`答對了！${displayAnswer(item)} 加分`, "good", 170);
+            toolRewardPending = streak % 3 === 0;
+            setMessage(`本題答對 +20／連擊 +${comboBonus}${item.valueBonus ? "／重金塊 +10" : ""}`, "good", 170);
             addSparkles(origin.x, origin.y + 58, "gold", 36);
         } else {
             RoundReview.wrong({chosen:displayAnswer(item)});
             wrongCount += 1;
+            const record = wordPractice.get(practiceKey(targetWordObj));
+            if (record) { record.due = round + Math.min(4, Math.max(1, vocabulary.length)); record.failedRound = round; }
             streak = 0;
             setMessage(`你抓到的是 ${displayAnswer(item)}，答案是 ${displayAnswer(targetWordObj)}，扣 ${WRONG_TIME_PENALTY} 秒`, "bad", 210);
             addTime(-WRONG_TIME_PENALTY);
@@ -1467,12 +1565,17 @@
         updateHud();
         caughtItem = null;
 
-        if (isCorrect) maybeLevelUp();
+        if (isCorrect) {
+            const feedback = { ...message };
+            maybeLevelUp();
+            if (gamePhase === "PLAYING") message = feedback;
+        }
 
         if (gamePhase !== "PLAYING") return;
 
         if (shouldAdvanceRound) {
-            pendingNextRoundTimer = 1.05;
+            state = "FEEDBACK";
+            pendingNextRoundTimer = 1.6;
         } else {
             state = "IDLE";
             setStatus(`第 ${round} 題`);
@@ -1496,6 +1599,7 @@
         drawHookSystem();
         drawParticles();
         renderToast();
+        renderProgress();
         syncCartSpeechButton();
         requestAnimationFrame(loop);
     }
@@ -1721,6 +1825,17 @@
     function drawHookSystem() {
         const tip = getHookTip();
 
+        if (state === "IDLE" && gamePhase === "PLAYING") {
+            ctx.save();
+            ctx.strokeStyle = "#7deaff";
+            ctx.lineWidth = 4;
+            ctx.setLineDash([9, 8]);
+            ctx.beginPath();
+            ctx.moveTo(tip.x, tip.y);
+            ctx.lineTo(tip.x + Math.sin(angle) * 90, tip.y + Math.cos(angle) * 90);
+            ctx.stroke();
+            ctx.restore();
+        }
         ctx.save();
         ctx.strokeStyle = "#2a170d";
         ctx.lineWidth = 9;
@@ -1815,6 +1930,16 @@
 
         if (item.answerType === "image") drawEmojiLabel(item.label, item.radius);
         else drawLabel(item.label, item.radius);
+        ctx.font = `800 ${isCompactLayout() ? 34 : 20}px Arial, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "#1b130d";
+        ctx.fillStyle = "#fff3cf";
+        const tag = item.weight === "heavy" ? "重 · +30" : "輕 · +20";
+        const tagY = item.radius * 0.72 + 12;
+        ctx.strokeText(tag, 0, tagY);
+        ctx.fillText(tag, 0, tagY);
         ctx.restore();
     }
 
@@ -2090,7 +2215,15 @@
             return;
         }
         progressEl.style.display = "";
-        if (actionHintEl) actionHintEl.style.display = "";
+        if (actionHintEl) {
+            actionHintEl.style.display = "";
+            const tool = equippedTool || shotTool;
+            const status = state === "IDLE" ? "移車瞄準 · 點礦區／空白鍵出鉤"
+                : state === "SHOOTING" ? "出鉤中 · 暫時不能移車"
+                : state === "FEEDBACK" ? (toolRewardPending ? "連對 3 題！即將選工具" : "答對！準備下一題")
+                : `收回中${caughtItem?.type === "gold" ? (caughtItem.weight === "heavy" ? " · 重金塊慢收" : " · 輕金塊快收") : ""} · 暫時不能移車`;
+            actionHintEl.textContent = `${tool ? TOOL_NAMES[tool] + "｜" : ""}${status}`;
+        }
         const cfg = LEVELS[level - 1];
         if (!cfg) return;
         const goal = levelGoal(level - 1);
@@ -2189,6 +2322,7 @@
     const pauseEl = document.getElementById("miner-pause");
     function openSettings() {
         if (paused) return;
+        input.left = input.right = false;
         paused = true;
         pauseEl.classList.remove("hidden");
         stopBgm();
@@ -2198,6 +2332,8 @@
         paused = false;
         pauseEl.classList.add("hidden");
         if (gamePhase === "PLAYING") startBgm();
+        if (toolChoiceOpen) toolDialog.querySelector("button").focus();
+        updateControls();
     }
     function togglePause() {
         if (paused) closeSettings();
@@ -2205,6 +2341,9 @@
     }
     function returnToMainMenu() {
         pendingNextRoundTimer = null;
+        toolChoiceOpen = toolRewardPending = false;
+        equippedTool = shotTool = null;
+        toolDialog.classList.add("hidden");
         paused = false;
         pauseEl.classList.add("hidden");
         stopBgm();
@@ -2246,6 +2385,18 @@
     bindMoveButton(moveRightBtn, "right");
 
     window.addEventListener("keydown", (event) => {
+        if (toolChoiceOpen && !paused) {
+            if (["Digit1", "Digit2", "Digit3"].includes(event.code)) {
+                event.preventDefault();
+                chooseTool(["fast", "pierce", "slow"][Number(event.code.slice(-1)) - 1]);
+            } else if (event.code === "Tab") {
+                const buttons = [...toolDialog.querySelectorAll("button")];
+                const i = buttons.indexOf(document.activeElement);
+                event.preventDefault();
+                buttons[(i + (event.shiftKey ? 2 : 1)) % 3].focus();
+            } else if (!["Space", "Enter"].includes(event.code)) event.preventDefault();
+            return;
+        }
         if (guideOpen) {
             if (event.code === "Space" || event.code === "Enter" || event.code === "Escape") closeGuide();
             event.preventDefault(); return;
