@@ -678,12 +678,57 @@ function drawPortraitBg(){
 
 function drawBattleBase(x,label,hp,maxHP,isPlayer){
   if(!battleView.portrait){ drawBase(x,label,hp,maxHP,isPlayer); return; }
-  const p=battlePoint(x,261);
-  ctx.save();ctx.translate(88,p.y-8);ctx.scale(.82,.82);ctx.translate(-x,-290);
-  drawBase(x,'',hp,maxHP,isPlayer);
+  const p=battlePoint(x,261), w=battleView.width;
+  const left=24, right=w-24, bottom=p.y+(isPlayer?22:-8), top=bottom-32;
+  const ratio=Math.max(0,Math.min(1,hp/maxHP));
+  const accent=isPlayer?'#7dd3fc':'#fda4af';
+  const stone=isPlayer?'#456482':'#815052', dark=isPlayer?'#253c53':'#4d2c35';
+  const hit=state.effects.some(e=>e.baseHit && e.x===x && Date.now()-e.born<e.life);
+  ctx.save();
+  // 橫向防線貼齊原本基地位置，城門對準士兵行進的道路。
+  ctx.fillStyle='rgba(0,0,0,.3)';ctx.fillRect(left-4,bottom-2,right-left+8,8);
+  ctx.fillStyle=hit?'#ae414b':stone;ctx.fillRect(left,top,right-left,32);
+  ctx.strokeStyle=dark;ctx.lineWidth=1;
+  for(let row=0;row<3;row++){
+    const y=top+row*11;
+    ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();
+    for(let bx=left+(row%2?18:0);bx<right;bx+=36){
+      ctx.beginPath();ctx.moveTo(bx,y);ctx.lineTo(bx,Math.min(bottom,y+11));ctx.stroke();
+    }
+  }
+  ctx.fillStyle=hit?'#fb7185':accent;ctx.fillRect(left,top,right-left,3);
+  ctx.fillStyle=hit?'#ae414b':stone;
+  for(let bx=left;bx<right;bx+=24) ctx.fillRect(bx,top-7,14,7);
+  // 低矮塔樓保留城堡輪廓，不遮住中央戰場。
+  for(const tx of [left,right-30]){
+    ctx.fillStyle=dark;ctx.fillRect(tx-2,top-8,34,42);
+    ctx.fillStyle=hit?'#ae414b':stone;ctx.fillRect(tx,top-8,30,40);
+    ctx.fillStyle=accent;ctx.fillRect(tx,top-8,30,3);
+    for(let bx=tx;bx<tx+30;bx+=12){ctx.fillStyle=stone;ctx.fillRect(bx,top-15,6,7);}
+    ctx.fillStyle='#17202e';ctx.fillRect(tx+12,top+4,6,12);
+  }
+  const gate=p.x, gateTop=top+4;
+  ctx.fillStyle=dark;
+  ctx.beginPath();ctx.moveTo(gate-24,bottom);ctx.lineTo(gate-24,gateTop+12);
+  ctx.quadraticCurveTo(gate,gateTop-12,gate+24,gateTop+12);ctx.lineTo(gate+24,bottom);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#322a27';
+  ctx.beginPath();ctx.moveTo(gate-18,bottom);ctx.lineTo(gate-18,gateTop+13);
+  ctx.quadraticCurveTo(gate,gateTop-3,gate+18,gateTop+13);ctx.lineTo(gate+18,bottom);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#927455';ctx.lineWidth=2;
+  for(const dx of [-10,0,10]){ctx.beginPath();ctx.moveTo(gate+dx,gateTop+12);ctx.lineTo(gate+dx,bottom);ctx.stroke();}
+  ctx.fillStyle='#b69c6e';ctx.fillRect(gate-17,bottom-9,34,3);
+  if(ratio<=.5){
+    ctx.strokeStyle='#1c2430';ctx.lineWidth=2;
+    for(const bx of [left+74,right-70]){
+      ctx.beginPath();ctx.moveTo(bx,top+3);ctx.lineTo(bx-5,top+12);ctx.lineTo(bx+3,top+19);ctx.lineTo(bx-3,bottom);ctx.stroke();
+    }
+  }
+  const barX=left+44, barW=right-left-88, barY=isPlayer?bottom+6:top-20;
+  ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(barX-2,barY-2,barW+4,11);
+  ctx.fillStyle=ratio>.5?'#4cc864':ratio>.25?'#f9c74f':'#ff5050';ctx.fillRect(barX,barY,barW*ratio,7);
+  ctx.fillStyle=accent;ctx.font='bold 14px Outfit';ctx.textAlign='center';ctx.textBaseline='alphabetic';
+  ctx.fillText(`${label}  ${Math.max(0,Math.ceil(hp))} / ${maxHP}`,w/2,isPlayer?barY+23:barY-7,w-40);
   ctx.restore();
-  ctx.fillStyle=isPlayer?'#7dd3fc':'#fda4af';ctx.font='bold 15px Outfit';ctx.textAlign='center';
-  ctx.fillText(label,88,p.y+12);
 }
 
 function drawBattleUnit(u,now){
@@ -1648,7 +1693,7 @@ function drawEffects(now){
         e={...e,fromX:from.x,fromY:from.y,toX:to.x,toY:to.y};
       } else {
         const p=battlePoint(e.x,e.y,e.lane);
-        if(e.baseHit){p.x=88;p.y=battlePoint(e.x,261).y-35;}
+        if(e.baseHit){const base=battlePoint(e.x,261);p.x=base.x;p.y=base.y+(e.side==='enemy'?22:-8);}
         e={...e,x:p.x,y:p.y};
       }
     }
