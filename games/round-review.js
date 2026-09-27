@@ -61,6 +61,8 @@
     return {word:rec.answer||rec.prompt,meaning:rec.meaning||rec.prompt||'再看一次正確答案'};
   }
   function show(title,options){
+    options=options||{};
+    const host=options.mount;
     if(active)add('unanswered',{},false);
     document.getElementById('sg-review-modal')?.remove();ensureStyle();
     const info=summary();
@@ -69,8 +71,12 @@
     const cards=info.missed.map(cardData);
     const modal=document.createElement('div');modal.id='sg-review-modal';modal.className='sg-review-backdrop';modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','sg-review-title');
     const card=document.createElement('div');card.className='sg-review-card';modal.appendChild(card);
-    const h=document.createElement('h2');h.id='sg-review-title';h.textContent=title||'本局學習結算';card.appendChild(h);
-    const lead=document.createElement('p');lead.className='sg-review-lead';lead.textContent='先看看本局評分，再把學習星一起收下！';card.appendChild(lead);
+    if(host){modal.className='sg-review-embedded';modal.removeAttribute('role');modal.removeAttribute('aria-modal');}
+    let completed=false;
+    const finish=()=>{if(completed)return;completed=true;modal.remove();if(options.onComplete)options.onComplete();};
+    const attach=()=>{if(host)host.replaceChildren(modal);else document.body.appendChild(modal);};
+    const h=document.createElement('h2');h.id='sg-review-title';h.textContent=title||'本局學習結算';card.appendChild(h);if(host){h.hidden=true;modal.removeAttribute('aria-labelledby');}
+    const lead=document.createElement('p');lead.className='sg-review-lead';lead.textContent=options.lead||'先看看本局評分，再把學習星一起收下！';card.appendChild(lead);
     const rating=document.createElement('section');rating.className='sg-review-rating';
     const ratingLabel=document.createElement('div');ratingLabel.className='sg-review-rating-label';ratingLabel.textContent='本局收集到的星星';rating.appendChild(ratingLabel);
     const starDisplay=makeStars(stars,!cards.length);rating.appendChild(starDisplay.box);
@@ -78,8 +84,8 @@
     const total=document.createElement('p');total.className='sg-review-total';total.setAttribute('aria-live','polite');total.textContent='目前收集 '+(stars+(cards.length?0:1))+' 顆星';card.appendChild(total);
     if(!cards.length){
       const perfect=document.createElement('div');perfect.className='sg-review-perfect';perfect.textContent=info.items.length?'🎉 這局沒有答錯或漏答，直接獲得全對學習星！':'這局結束前沒有出現單字題，學習星直接收下！';card.appendChild(perfect);
-      const done=document.createElement('button');done.type='button';done.className='sg-review-action';done.textContent='收下學習星，查看成績';done.onclick=()=>modal.remove();card.appendChild(done);
-      document.body.appendChild(modal);done.focus();return;
+      const done=document.createElement('button');done.type='button';done.className='sg-review-action';done.textContent=options.completeLabel||'收下學習星，查看成績';done.onclick=finish;card.appendChild(done);
+      attach();done.focus();return;
     }
     const progress=document.createElement('div');progress.className='sg-review-progress';card.appendChild(progress);
     const deck=document.createElement('div');deck.className='sg-review-deck';card.appendChild(deck);
@@ -118,10 +124,10 @@
       requestAnimationFrame(()=>flying.classList.add('go'));
       window.setTimeout(()=>{
         flying.remove();starDisplay.learning.classList.add('earned');starDisplay.learning.textContent='★';starDisplay.box.setAttribute('aria-label','學習星已收集。本局評分 '+stars+' 顆星，滿分 5 顆');ratingText.innerHTML='<span class="learning-state">橘色學習星已收集</span>　｜　本局評分 '+stars+' / 5';total.textContent='本局共收集 '+(stars+1)+' 顆星';progress.textContent='✅ '+cards.length+' 張單字卡已全部收下！';
-        action.disabled=false;action.textContent='看完成績，繼續';action.onclick=()=>modal.remove();action.focus();
+        action.disabled=false;action.textContent=options.completeLabel||'看完成績，繼續';action.onclick=finish;action.focus();
       },window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:400);
     };
-    renderCard();document.body.appendChild(modal);flip.focus();
+    renderCard();attach();flip.focus();
   }
   window.RoundReview={
     reset(){records.length=0;active=null;document.getElementById('sg-review-modal')?.remove();},

@@ -148,6 +148,33 @@ button{font-family:'Outfit',sans-serif;}
 @keyframes routTitle{0%{transform:scale(.2) rotate(-6deg);opacity:0;}45%{transform:scale(1.3) rotate(4deg);}70%{transform:scale(.92) rotate(-2deg);}100%{transform:scale(1) rotate(0);opacity:1;}}
 #overlay.rout{animation:routZoom .6s ease-out both;}
 @keyframes routZoom{0%{transform:scale(1.06);}100%{transform:scale(1);}}
+/* 結算、複習、整備共用同一面板。 */
+#overlay{padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));}
+.battle-result-card{position:relative;z-index:2;width:min(680px,100%);max-height:100%;overflow-y:auto;overscroll-behavior:contain;padding:24px;border:1px solid #64748b;border-radius:20px;background:linear-gradient(150deg,#172554,#111827);}
+#overlay .battle-result-card h2{font-size:clamp(24px,5vw,36px);animation:none;}
+#overlay #overlay-emoji,#overlay #overlay-stars{display:none;}
+#overlay.rout{animation:none;}
+#overlay .win-ring,#overlay #win-flash{display:none;}
+#battle-result-step{color:#7dd3fc;font-weight:800;margin-bottom:8px;}
+#battle-review .sg-review-card{width:100%;max-height:none;overflow:visible;padding:0;border:0;background:none;box-shadow:none;}
+#battle-review .sg-review-deck{width:min(360px,calc(100% - 28px));}
+#battle-review .sg-review-lead{line-height:1.6;}
+#battle-result-summary[hidden],#battle-review[hidden],#battle-transition[hidden]{display:none;}
+#battle-result-summary{margin-top:16px;animation:resultEnter .22s ease-out;}
+#battle-result-summary details{margin:14px 0;border:1px solid #475569;border-radius:10px;}
+#battle-result-summary summary{padding:12px;min-height:44px;cursor:pointer;color:#cbd5e1;}
+#overlay .stats{padding:0 10px 12px;font-size:.9rem;}
+#overlay .note{line-height:1.6;color:#cbd5e1;margin-bottom:14px;}
+#overlay .intermission{width:100%;margin-bottom:16px;}
+#intermission-power{color:#fde68a;margin-bottom:10px;font-weight:900;}
+#overlay .overlay-actions button{min-height:48px;touch-action:manipulation;}
+#overlay-next{width:100%;}
+#overlay :focus-visible{outline:3px solid #67e8f9;outline-offset:3px;}
+#battle-transition{padding:36px 0;color:#cbd5e1;line-height:1.8;}
+#battle-transition strong{display:block;color:#fde68a;font-size:1.4rem;}
+@keyframes resultEnter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:520px){.battle-result-card{padding:18px 12px;}.intermission-grid{grid-template-columns:1fr;}.intermission-grid button{min-height:58px;}}
+@media(prefers-reduced-motion:reduce){#battle-result-summary{animation:none;}#overlay #confetti{display:none;}}
 .battle-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);align-items:center;justify-content:center;flex-direction:column;z-index:120;padding:20px;text-align:center;}
 .battle-ov.show{display:flex;}
 .battle-ov .card{max-width:560px;width:90%;background:#15182b;border:1px solid rgba(249,199,79,.4);border-radius:16px;padding:24px 28px;color:#fff;}
@@ -345,18 +372,23 @@ body.battle-active #boss-banner > div > div { min-width:40px; }
   </section>
 </div>
 
-<div id="overlay">
+<div id="overlay" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
   <canvas id="confetti"></canvas>
   <div id="win-flash"></div>
   <div id="win-ring" class="win-ring"></div>
   <div id="win-ring2" class="win-ring"></div>
+  <div class="battle-result-card">
+  <div id="battle-result-step"></div>
   <div id="overlay-emoji">🏆</div>
   <h2 id="overlay-title"></h2>
   <div id="overlay-stars"></div>
-  <div class="stats" id="overlay-stats"></div>
+  <div id="battle-review"></div>
+  <div id="battle-result-summary" tabindex="-1" hidden>
+  <details id="battle-result-details"><summary>查看本關戰績</summary><div class="stats" id="overlay-stats"></div></details>
   <div class="note" id="overlay-note"></div>
   <div class="intermission" id="intermission-upgrades">
-    <div class="intermission-title">戰後整備｜可先使用強化值再前往下一關</div>
+    <div class="intermission-title">戰後整備｜選擇兵種進化</div>
+    <div id="intermission-power" role="status"></div>
     <div class="intermission-grid">
       <button type="button" id="intermission-sword" onclick="upgradeUnit('sword')">⚔️ 劍士<small></small></button>
       <button type="button" id="intermission-archer" onclick="upgradeUnit('archer')">🏹 弓箭手<small></small></button>
@@ -368,6 +400,9 @@ body.battle-active #boss-banner > div > div { min-width:40px; }
     <button class="primary-btn" id="overlay-retry" onclick="retryStage()">重試本關</button>
     <button class="primary-btn" id="overlay-restart" onclick="startGame()">重新開始戰役</button>
     <button class="secondary-btn" onclick="showStartScreen()">回難度選擇</button>
+  </div>
+  </div>
+  <div id="battle-transition" role="status" tabindex="-1" hidden></div>
   </div>
 </div>
 
@@ -1205,13 +1240,13 @@ function applyBattleRules(){
   }
 }
 
-function startStage(stageIndex){
+function startStage(stageIndex, audioStarted=false){
   if(!campaign || !STAGES[stageIndex]) return;
   RoundReview.reset();
   campaign.stageIndex = stageIndex;
   state = initState(stageIndex, campaign);
   applyBattleRules();
-  startBgm();
+  if(!audioStarted) startBgm();
   spawnEnemy('sword', 'opening');
   // 無升級機制時隱藏強化值
   const showLevel = state.allowLevelUp;
@@ -1231,6 +1266,7 @@ function startStage(stageIndex){
   state.floats.push({ x:450, y:86, text:`第 ${stageIndex+1} 關｜${state.stage.name}`, color:'#fde68a', life:1800, born:Date.now() });
   state.floats.push({ x:450, y:108, text:state.stage.intro, color:'#e2e8f0', life:1800, born:Date.now() });
   loadQuestion();
+  document.getElementById('battle-pause-btn').focus();
   lastTime = performance.now();
   requestAnimationFrame(loop);
 }
@@ -1248,9 +1284,21 @@ function commitStageProgress(){
 }
 
 function nextStage(){
-  if(!state || state.stageResult !== 'win' || state.stageIndex >= STAGES.length-1) return;
+  if(!state || state.phase !== 'intermission' || state.stageResult !== 'win' || state.stageIndex >= STAGES.length-1) return;
+  const previous=state, next=state.stageIndex+1;
   commitStageProgress();
-  startStage(state.stageIndex + 1);
+  state.phase='transition';
+  startBgm(); // 仍在真實按鈕 click 內啟動，避免手機擋下延遲播放。
+  Confetti.stop();
+  document.getElementById('battle-result-summary').hidden=true;
+  document.getElementById('battle-result-step').textContent='準備出發';
+  document.getElementById('overlay-title').textContent=`第 ${next+1} 關｜${STAGES[next].name}`;
+  const transition=document.getElementById('battle-transition');
+  transition.replaceChildren();
+  const name=document.createElement('strong');name.textContent=STAGES[next].intro;
+  transition.append(name,document.createTextNode('兵種等級與剩餘強化值已保留，即將開戰…'));
+  transition.hidden=false;transition.focus();
+  window.setTimeout(()=>{if(state===previous && state.phase==='transition') startStage(next,true);},1000);
 }
 
 function retryStage(){
@@ -1841,6 +1889,14 @@ function togglePause(){ paused ? resumeGame() : pauseGame(); }
 document.addEventListener('keydown', e => {
   if(e.key === 'Escape' && state && state.phase === 'playing'){ e.preventDefault(); togglePause(); }
 });
+document.getElementById('overlay').addEventListener('keydown', e => {
+  if(e.key !== 'Tab') return;
+  const focusable=[...e.currentTarget.querySelectorAll('button:not(:disabled),summary')].filter(el=>el.getClientRects().length);
+  if(!focusable.length){e.preventDefault();return;}
+  const first=focusable[0],last=focusable[focusable.length-1];
+  if(e.shiftKey && (document.activeElement===first || !focusable.includes(document.activeElement))){e.preventDefault();last.focus();}
+  else if(!e.shiftKey && document.activeElement===last){e.preventDefault();first.focus();}
+});
 document.getElementById('battle-resume').addEventListener('click', resumeGame);
 document.getElementById('battle-menu').addEventListener('click', () => window.openGameExitConfirm());
 document.getElementById('battle-pause-btn').addEventListener('click', togglePause);
@@ -1864,6 +1920,7 @@ function updateHUD(){
   document.getElementById('correct-display').textContent = state.correctCount;
   document.getElementById('wrong-display').textContent = state.wrongCount;
   document.getElementById('power-display').textContent = state.power;
+  document.getElementById('intermission-power').textContent = `剩餘強化值：${state.power} 點`;
   for(const [key, def] of Object.entries(UNIT_DEF)){
     const btn = document.getElementById('btn-' + key);
     const lv = state.levels[key];
@@ -2267,8 +2324,31 @@ function endGame(result, winType){
   document.getElementById('overlay-restart').style.display=isFinal&&isWin?'':'none';
   updateHUD();
 
+  const finishedState=state;
+  const review=document.getElementById('battle-review');
+  review.hidden=false;
+  document.getElementById('battle-result-summary').hidden=true;
+  document.getElementById('battle-transition').hidden=true;
+  document.getElementById('battle-result-details').open=false;
+  document.getElementById('battle-result-step').textContent=`第 ${state.stageIndex+1} / ${STAGES.length} 關 · 學習回顧`;
+  document.getElementById('overlay-next').textContent=isWin&&!isFinal?`前往第 ${state.stageIndex+2} 關｜${STAGES[state.stageIndex+1].name}`:'前往下一關';
   overlay.classList.add('show');
-  RoundReview.show('📚 攻防戰本關學習回顧',isWin?{stars:isRout?5:winStars()}:undefined);
+  RoundReview.show('📚 攻防戰本關學習回顧',{
+    ...(isWin?{stars:isRout?5:winStars()}:{}),
+    mount:review,
+    lead:isWin&&!isFinal?'收下本關星星，複習後就能整備出發。':'收下本關星星，看看這次學會了哪些題目。',
+    completeLabel:isWin&&!isFinal?'收下星星，前往整備':'收下星星，查看戰績',
+    onComplete(){
+      if(state!==finishedState) return;
+      review.hidden=true;
+      document.getElementById('battle-result-summary').hidden=false;
+      document.getElementById('battle-result-step').textContent=isWin&&!isFinal?'戰後整備 · 升級後即可出發':'本次戰績';
+      document.getElementById('overlay-note').textContent=isWin&&!isFinal?`兵種等級與剩餘強化值會保留。下一關：${STAGES[state.stageIndex+1].name}。`:note;
+      document.getElementById('battle-result-details').open=!(isWin&&!isFinal);
+      document.getElementById('battle-result-summary').focus();
+      document.querySelector('.battle-result-card').scrollTop=0;
+    },
+  });
   // 音效：制霸先轟一聲再放號角；一般勝利只放號角
   if(isRout){ playSound('boom'); setTimeout(() => playSound('victory'), 180); }
   else if(isWin){ playSound('victory'); }
