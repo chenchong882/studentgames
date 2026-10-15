@@ -161,11 +161,11 @@
     background:rgba(255,70,60,.32);border:3px solid rgba(255,95,85,.75);text-shadow:0 1px 4px #000;}
   #fireBtn.active{background:rgba(255,70,60,.6);}
   #fireBtn,#reloadBtn,#grenadeBtn,#jumpBtn{pointer-events:auto;touch-action:none;font-family:inherit;}
-  #reloadBtn{position:absolute;right:48px;bottom:230px;width:68px;height:68px;border-radius:50%;
+  #reloadBtn{position:absolute;right:36px;bottom:236px;width:68px;height:68px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;
     background:rgba(235,166,62,.34);border:3px solid rgba(255,210,115,.78);text-shadow:0 1px 4px #000;}
   #reloadBtn:active{background:rgba(235,166,62,.65);}
-  #grenadeBtn{position:absolute;right:134px;bottom:184px;width:72px;height:72px;border-radius:50%;
+  #grenadeBtn{position:absolute;right:150px;bottom:232px;width:72px;height:72px;border-radius:50%;
     display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;
     background:rgba(78,125,50,.45);border:3px solid rgba(177,233,105,.8);text-shadow:0 1px 4px #000;}
   #grenadeBtn:active{background:rgba(78,125,50,.78);}
@@ -187,8 +187,8 @@
   #pauseOverlay .secondary{color:#fff;background:rgba(255,255,255,.14);box-shadow:none;border:1px solid rgba(255,255,255,.3);}
   @media (max-height:420px){
     #fireBtn{right:24px;bottom:48px;width:86px;height:86px;font-size:19px;}
-    #reloadBtn{right:37px;bottom:146px;width:60px;height:60px;font-size:13px;}
-    #grenadeBtn{right:115px;bottom:130px;width:60px;height:60px;font-size:13px;}
+    #reloadBtn{right:25px;bottom:152px;width:60px;height:60px;font-size:13px;}
+    #grenadeBtn{right:125px;bottom:150px;width:60px;height:60px;font-size:13px;}
     #dashBtn{bottom:200px;}
   }
   @media (max-width:1100px){
@@ -257,8 +257,8 @@
     #dashBtn{left:env(safe-area-inset-left);bottom:calc(134px + env(safe-area-inset-bottom));width:44px;height:44px;font-size:18px;border-width:2px;}
     #fireBtn{right:calc(12px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom));width:76px;height:76px;font-size:18px;border-width:2px;}
     #reloadBtn,#grenadeBtn,#jumpBtn{right:calc(100px + env(safe-area-inset-right));width:48px;height:48px;font-size:13px;border-width:2px;padding:0;}
-    #reloadBtn{bottom:calc(128px + env(safe-area-inset-bottom));}
-    #grenadeBtn{bottom:calc(72px + env(safe-area-inset-bottom));font-size:12px;}
+    #reloadBtn{right:calc(14px + env(safe-area-inset-right));bottom:calc(124px + env(safe-area-inset-bottom));}
+    #grenadeBtn{right:calc(98px + env(safe-area-inset-right));bottom:calc(102px + env(safe-area-inset-bottom));font-size:12px;}
     #jumpBtn{bottom:calc(16px + env(safe-area-inset-bottom));}
     #pauseOverlay #pauseStats{display:block;width:min(480px,calc(100% - 40px));padding:10px 14px;box-sizing:border-box;border:1px solid rgba(185,235,255,.3);border-radius:10px;background:rgba(8,28,40,.75);font-size:14px;line-height:1.6;}
     #pauseStats p{margin:3px 0;}
@@ -812,11 +812,27 @@ function wordSprite(text,color='#173443'){
   const m=new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false});const s=new THREE.Sprite(m);s.scale.set(2.85,.59,1);return s;
 }
 function houseSprite(text,large=false){
-  const c=document.createElement('canvas');c.width=512;c.height=large?220:120;const g=c.getContext('2d');
-  g.fillStyle='rgba(12,26,33,.94)';g.fillRect(5,5,502,c.height-10);g.strokeStyle=large?'#5de8ff':'#ffe08a';g.lineWidth=8;g.strokeRect(5,5,502,c.height-10);
-  g.fillStyle='#fff';g.font=large?'900 164px "Apple Color Emoji","Segoe UI Emoji",Arial,sans-serif':'900 76px Arial,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(text||'?',256,c.height/2,470);
+  const c=document.createElement('canvas'),g=c.getContext('2d'),font=large?'900 164px "Apple Color Emoji","Segoe UI Emoji",Arial,sans-serif':'900 76px Arial,sans-serif';
+  g.font=font;c.width=large?512:Math.max(256,Math.ceil(g.measureText(text||'?').width)+48);c.height=large?220:120;
+  g.fillStyle='rgba(12,26,33,.97)';g.fillRect(5,5,c.width-10,c.height-10);g.strokeStyle=large?'#5de8ff':'#ffe08a';g.lineWidth=8;g.strokeRect(5,5,c.width-10,c.height-10);
+  g.fillStyle='#fff';g.font=font;g.textAlign='center';g.textBaseline='middle';g.fillText(text||'?',c.width/2,c.height/2,c.width-42);
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
-  const m=new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false});const s=new THREE.Sprite(m);s.scale.set(large?7.4:4.7,large?3.18:1.1,1);s.userData.noHit=true;return s;
+  const m=new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,depthWrite:false});const s=new THREE.Sprite(m);
+  s.userData={noHit:true,labelAspect:c.width/c.height,labelHeight:large?3.18:1.5,labelMinPx:large?64:42,labelMaxPx:large?96:64};
+  s.center.set(.5,0);s.scale.set(s.userData.labelHeight*s.userData.labelAspect,s.userData.labelHeight,1);return s;
+}
+const houseLabelView=new THREE.Vector3();
+function updateHouseLabelSizes(){
+  /* 以 CSS 像素保住遠處字級；靠近時限制大小，字牌底部固定在屋頂上方。 */
+  camera.updateMatrixWorld();
+  const projection=innerHeight*camera.projectionMatrix.elements[5]/2,maxWidth=Math.min(320,innerWidth*.42);
+  for(const h of HOUSES){
+    if(!h.label)continue;
+    const s=h.label,u=s.userData,depth=-houseLabelView.copy(s.position).applyMatrix4(camera.matrixWorldInverse).z;
+    if(depth<=camera.near)continue;
+    const pixels=Math.min(clamp(u.labelHeight*projection/depth,u.labelMinPx,u.labelMaxPx),maxWidth/u.labelAspect),height=pixels*depth/projection;
+    s.scale.set(height*u.labelAspect,height,1);
+  }
 }
 function clearHouseLabel(h){
   if(!h.label)return;scene.remove(h.label);h.label.material.map.dispose();h.label.material.dispose();h.label=null;
@@ -2008,6 +2024,7 @@ function loop(now){
     /* 雲漂移 */
     for(const c of clouds){c.position.x+=dt*1.2;if(c.position.x>150)c.position.x=-150;}
   }
+  updateHouseLabelSizes();
   renderer.render(scene,camera);
 }
 camera.position.set(player.x,EYE,player.z);
