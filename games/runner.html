@@ -73,17 +73,8 @@
   .cube { position:absolute; left:0; top:0; }
 
   /* ===== 角色動作 ===== */
-  #char { transform-origin:50% 100%; }
-  #char.jump  { animation:jump3d .68s cubic-bezier(.3,.5,.4,1); }
-  @keyframes jump3d {
-    0%{transform:translateY(0);} 42%{transform:translateY(-118px);}
-    58%{transform:translateY(-114px);} 100%{transform:translateY(0);}
-  }
-  #char.slide { animation:slide3d .72s ease-in-out; }
-  @keyframes slide3d {
-    0%{transform:scale(1);} 22%{transform:scale(1.12,.52);}
-    78%{transform:scale(1.12,.52);} 100%{transform:scale(1);}
-  }
+  #char { transform-origin:50% 100%; will-change:transform; }
+  /* 跳躍／滑行由遊戲時間推進 Web Animation，掉幀時不會先播完而失去判定。 */
   /* 持續滑行：低姿勢不用 rotateX，避免 iOS Safari 將角色與路面交疊時畫出綠色殘影。 */
   #char.slideHold { transform:scale(1.12,.52); transition:transform .15s ease-out; }
   #char.crashed { animation:crash3d .8s ease-out forwards; }
@@ -172,9 +163,8 @@
 
   /* ===== 回饋 ===== */
   #flash { position:absolute; inset:0; z-index:30; pointer-events:none; opacity:0; }
-  #flash.green { background:rgba(46,204,113,.4); animation:flashA .45s; }
-  #flash.red   { background:rgba(231,76,60,.5);  animation:flashA .5s; }
-  @keyframes flashA { 0%{opacity:1;} 100%{opacity:0;} }
+  #flash.green { background:rgba(46,204,113,.4); }
+  #flash.red   { background:rgba(231,76,60,.5); }
 
   #toast {
     position:absolute; left:50%; top:46%; transform:translateX(-50%); z-index:31;
@@ -774,42 +764,74 @@ let timeScale = 1, runTime = 0;
 let obstacles = [], decks = {}, sinceGate, reflexTarget, nextIn, shownHints, hudGate;
 let slideHeld = false;   // 是否正按住「下」持續滑行
 
-function isJumping(){
-  const t = performance.now() - jumpStart;
+function isJumping(at = runTime){
+  const t = at - jumpStart;
   return t > 60 && t < JUMP_MS - 60;
 }
-function isSliding(){
+function isSliding(at = runTime){
   if (slideHeld) return true;   // 按住期間一律視為滑行中
-  const t = performance.now() - slideStart;
+  const t = at - slideStart;
   return t > 40 && t < SLIDE_MS - 40;
 }
 
 /* ================= 角色動作 ================= */
+let actionAnimation = null, actionStart = 0, actionDuration = 0;
+const ACTION_FRAMES = {
+  jump: [
+    {offset:0, transform:'translateY(0)', easing:'cubic-bezier(.3,.5,.4,1)'},
+    {offset:.42, transform:'translateY(-118px)', easing:'cubic-bezier(.3,.5,.4,1)'},
+    {offset:.58, transform:'translateY(-114px)', easing:'cubic-bezier(.3,.5,.4,1)'},
+    {offset:1, transform:'translateY(0)'}
+  ],
+  slide: [
+    {offset:0, transform:'scale(1)', easing:'ease-in-out'},
+    {offset:.22, transform:'scale(1.12,.52)', easing:'ease-in-out'},
+    {offset:.78, transform:'scale(1.12,.52)', easing:'ease-in-out'},
+    {offset:1, transform:'scale(1)'}
+  ]
+};
+function clearAction(){
+  if (actionAnimation) actionAnimation.cancel();
+  actionAnimation = null;
+  char.classList.remove('jump','slide','slideHold');
+}
+function actionBusy(){
+  return slideHeld || (actionAnimation && runTime - actionStart < actionDuration);
+}
 function retrigger(cls, ms){
-  char.classList.remove('jump','slide');
-  void char.offsetWidth;
+  clearAction();
   char.classList.add(cls);
-  setTimeout(() => char.classList.remove(cls), ms);
+  actionStart = runTime; actionDuration = ms;
+  actionAnimation = char.animate(ACTION_FRAMES[cls], {duration:ms, fill:'both'});
+  actionAnimation.pause();
+  actionAnimation.currentTime = 0;
+}
+function updateAction(){
+  if (actionAnimation) {
+    const elapsed = runTime - actionStart;
+    if (elapsed >= actionDuration) clearAction();
+    else actionAnimation.currentTime = elapsed;
+  }
+  if (!slideHeld && runTime - slideStart >= SLIDE_MS) char.classList.remove('slideHold');
 }
 function jump(){
-  if (state !== 'play' || isJumping() || isSliding()) return;
-  jumpStart = performance.now();
+  if (state !== 'play' || actionBusy() || isSliding()) return;
+  jumpStart = runTime; slideStart = -9999;
   retrigger('jump', JUMP_MS);
   sndJump();
 }
 function slide(){
-  if (state !== 'play' || isJumping() || isSliding()) return;
-  slideStart = performance.now();
+  if (state !== 'play' || actionBusy() || isJumping()) return;
+  slideStart = runTime; jumpStart = -9999;
   retrigger('slide', SLIDE_MS);
   sndSlide();
 }
 // 持續滑行：按住「下」時進入並維持低姿勢，跳躍中不可滑
 function startSlideHold(){
-  if (state !== 'play' || isJumping() || slideHeld) return;
+  if (state !== 'play' || isJumping() || (actionAnimation && runTime - jumpStart < JUMP_MS) || slideHeld) return;
+  clearAction();
   slideHeld = true;
-  slideStart = performance.now();
-  char.classList.remove('jump','slide');
-  void char.offsetWidth;
+  slideStart = runTime; jumpStart = -9999;
   char.classList.add('slideHold');
   sndSlide();
 }
@@ -817,9 +839,7 @@ function startSlideHold(){
 function endSlideHold(){
   if (!slideHeld) return;
   slideHeld = false;
-  const remain = SLIDE_MS - (performance.now() - slideStart);
-  if (remain > 80) setTimeout(() => { if (!slideHeld) char.classList.remove('slideHold'); }, remain);
-  else char.classList.remove('slideHold');
+  if (runTime - slideStart >= SLIDE_MS - 80) char.classList.remove('slideHold');
 }
 let leanTimer = null;
 function moveLane(dir){
@@ -835,6 +855,7 @@ function moveLane(dir){
   }, 220);
 }
 function resetPlayer(){
+  clearAction();
   lane = 1;
   jumpStart = -9999; slideStart = -9999; slideHeld = false;
   char.className = 'part';
@@ -997,11 +1018,12 @@ function showToast(msg, ms){
   clearTimeout(t._timer);
   t._timer = setTimeout(() => t.classList.remove('show'), ms || 1500);
 }
+let flashAnimation = null;
 function flash(ok){
   const f = $('flash');
-  f.className = '';
-  void f.offsetWidth;
+  if (flashAnimation) flashAnimation.cancel();
   f.className = ok ? 'green' : 'red';
+  flashAnimation = f.animate([{opacity:1},{opacity:0}], {duration:ok ? 450 : 500, easing:'ease'});
 }
 function applyTheme(){
   const idx = Math.floor(gateNum / 10) % THEMES.length;
@@ -1013,15 +1035,15 @@ function applyTheme(){
 }
 
 /* ================= 判定 ================= */
-function resolveObstacle(o){
+function resolveObstacle(o, hitTime = runTime){
   o.resolved = true;
   let pass, gateChoice = null;
-  if (o.type === 'wall')  pass = isJumping();
-  else if (o.type === 'beam')  pass = isSliding();
+  if (o.type === 'wall')  pass = isJumping(hitTime);
+  else if (o.type === 'beam')  pass = isSliding(hitTime);
   else if (o.type === 'block') pass = (lane === o.openLane);   // 在空跑道就算過，跳起來也不該撞（上面沒東西）
   else { // gate：優先採計鎖定的答案，沒滑就看當下動作/位置
     gateChoice = o.choice ||
-      (isJumping() ? 'up' : isSliding() ? 'down' : lane === 0 ? 'left' : lane === 2 ? 'right' : null);
+      (isJumping(hitTime) ? 'up' : isSliding(hitTime) ? 'down' : lane === 0 ? 'left' : lane === 2 ? 'right' : null);
     // 往上跳／下滑只有在「中間跑道」才算數，否則改以實際所在跑道判定
     if ((gateChoice === 'up' || gateChoice === 'down') && lane !== 1) {
       gateChoice = lane === 0 ? 'left' : lane === 2 ? 'right' : null;
@@ -1061,8 +1083,7 @@ function crash(o){
   state = 'crash';
   slowUntil = 0; timeScale = 1;
   slideHeld = false;
-  char.classList.remove('jump','slide','slideHold');
-  void char.offsetWidth;
+  clearAction();
   char.classList.add('crashed');
   flash(false);
   sndBad();
@@ -1103,6 +1124,8 @@ function loop(now){
   last = now;
 
   if (state === 'play') {
+    const frameStart = runTime;
+    // 動作與障礙共用夾住掉幀後的時間；20% 思考減速仍只作用在跑道移動。
     runTime += rawDt * 1000;
     const targetScale = runTime < slowUntil ? 0.2 : 1;
     // 約 0.2 秒漸變，避免答題前後瞬間急煞／暴衝；只用遊戲時間，暫停不吃掉思考時間。
@@ -1135,6 +1158,7 @@ function loop(now){
     // 障礙物推進與判定
     for (let i = obstacles.length - 1; i >= 0; i--) {
       const o = obstacles[i];
+      const previousDist = o.dist;
       o.dist -= move;
       o.el.style.transform = 'translate3d(0,0,' + (-o.dist).toFixed(2) + 'px)';
 
@@ -1157,11 +1181,14 @@ function loop(now){
       }
 
       if (!o.resolved && o.dist <= 0) {
-        resolveObstacle(o);
+        // 採用這幀跨過碰撞線的時刻，避免掉幀後用幀尾判定，把有效動作算成過期。
+        const hitFraction = move > 0 ? Math.max(0, Math.min(1, previousDist / move)) : 1;
+        resolveObstacle(o, frameStart + rawDt * 1000 * hitFraction);
         if (state !== 'play') break;   // 撞到了，本幀停止
       }
       if (o.dist < OB_KILL_Z) { o.el.remove(); obstacles.splice(i, 1); }
     }
+    updateAction();
   }
   requestAnimationFrame(loop);
 }
@@ -1173,7 +1200,7 @@ function nearestGateInLockRange(){
   return (best && best.type === 'gate' && best.dist < 1400) ? best : null;
 }
 function onSwipe(dir){
-  if (state !== 'play') return;
+  if (state !== 'play' || paused || guideOpen) return;
   const g = nearestGateInLockRange();
   if (g) {
     // 題目門答題：滑動／鍵盤方向＝鎖定答案，動作會在正確時機自動執行
@@ -1196,8 +1223,9 @@ function onSwipe(dir){
 const SWIPE_MIN = 40;
 function handleSwipe(dx, dy){
   const ax = Math.abs(dx), ay = Math.abs(dy);
-  if (Math.max(ax, ay) < SWIPE_MIN) return;
+  if (Math.max(ax, ay) < SWIPE_MIN) return false;
   onSwipe(ax > ay ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  return true;
 }
 let sx = 0, sy = 0, tracking = false;
 document.addEventListener('touchstart', e => {
@@ -1207,6 +1235,11 @@ document.addEventListener('touchstart', e => {
 }, { passive: false });
 document.addEventListener('touchmove', e => {
   if (state === 'play' || state === 'crash') e.preventDefault();
+  // 滑過門檻就動作，不必等學生放開手指；同一趟滑動只觸發一次。
+  if (tracking && e.touches[0]) {
+    const t = e.touches[0];
+    if (handleSwipe(t.clientX - sx, t.clientY - sy)) tracking = false;
+  }
 }, { passive: false });
 document.addEventListener('touchend', e => {
   if (!tracking) return;
