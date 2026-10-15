@@ -821,24 +821,53 @@ function houseSprite(text,large=false){
   s.userData={noHit:true,labelAspect:c.width/c.height,labelHeight:large?3.18:1.5,labelMinPx:large?64:42,labelMaxPx:large?96:64};
   s.center.set(.5,0);s.scale.set(s.userData.labelHeight*s.userData.labelAspect,s.userData.labelHeight,1);return s;
 }
-const houseLabelView=new THREE.Vector3();
+const houseLabelView=new THREE.Vector3(),houseLabelUp=new THREE.Vector3();
+function placeHouseLabel(box,placed,minY,maxY){
+  const gap=8,overlaps=(a,b)=>a.left<b.right+gap&&a.right>b.left-gap&&a.top<b.bottom+gap&&a.bottom>b.top-gap;
+  const candidates=[box.top,minY,maxY-box.height];
+  for(const other of placed)candidates.push(other.top-gap-box.height,other.bottom+gap);
+  candidates.sort((a,b)=>Math.abs(a-box.top)-Math.abs(b-box.top));
+  for(const top of candidates){
+    const candidate={...box,top,bottom:top+box.height};
+    if(top>=minY&&candidate.bottom<=maxY&&!placed.some(other=>overlaps(candidate,other)))return candidate;
+  }
+  return box;
+}
 function updateHouseLabelSizes(){
   /* 以 CSS 像素保住遠處字級；靠近時限制大小，字牌底部固定在屋頂上方。 */
   camera.updateMatrixWorld();
-  const projection=innerHeight*camera.projectionMatrix.elements[5]/2,maxWidth=Math.min(320,innerWidth*.42);
+  houseLabelUp.set(0,1,0).applyQuaternion(camera.quaternion);
+  const projection=innerHeight*camera.projectionMatrix.elements[5]/2,maxWidth=Math.min(320,innerWidth*.42),labels=[],placed=[];
   for(const h of HOUSES){
     if(!h.label)continue;
-    const s=h.label,u=s.userData,depth=-houseLabelView.copy(s.position).applyMatrix4(camera.matrixWorldInverse).z;
+    const s=h.label,u=s.userData,depth=-houseLabelView.copy(s.position).applyMatrix4(camera.matrixWorldInverse).z;s.center.y=0;h.labelLeader.visible=false;
     if(depth<=camera.near)continue;
     const pixels=Math.min(clamp(u.labelHeight*projection/depth,u.labelMinPx,u.labelMaxPx),maxWidth/u.labelAspect),height=pixels*depth/projection;
     s.scale.set(height*u.labelAspect,height,1);
+    const x=innerWidth/2+houseLabelView.x*projection/depth,y=innerHeight/2-houseLabelView.y*projection/depth,width=pixels*u.labelAspect;
+    if(x+width/2<0||x-width/2>innerWidth||y<0||y-pixels>innerHeight)continue;
+    labels.push({h,depth,height:pixels,left:x-width/2,right:x+width/2,top:y-pixels,bottom:y});
+  }
+  /* 先保留近處字牌；重疊的遠處字牌上下錯開，連線仍指向原本房屋。 */
+  labels.sort((a,b)=>a.depth-b.depth);
+  for(const box of labels){
+    const placedBox=placeHouseLabel(box,placed,Math.min(100,innerHeight*.25),innerHeight-12),offset=placedBox.top-box.top,h=box.h;
+    placed.push(placedBox);h.label.center.y=offset/box.height;
+    if(Math.abs(offset)<1)continue;
+    const endPixels=offset>0?offset-box.height:offset,positions=h.labelLeader.geometry.attributes.position;
+    h.labelLeader.position.copy(h.label.position);positions.setXYZ(1,houseLabelUp.x*-endPixels*box.depth/projection,houseLabelUp.y*-endPixels*box.depth/projection,houseLabelUp.z*-endPixels*box.depth/projection);
+    positions.needsUpdate=true;h.labelLeader.visible=true;
   }
 }
 function clearHouseLabel(h){
   if(!h.label)return;scene.remove(h.label);h.label.material.map.dispose();h.label.material.dispose();h.label=null;
+  if(h.labelLeader){scene.remove(h.labelLeader);h.labelLeader.geometry.dispose();h.labelLeader.material.dispose();h.labelLeader=null;}
 }
 function setHouseLabel(h,text,large=false){
   clearHouseLabel(h);h.label=houseSprite(text,large);h.label.position.set(h.cx,(h.labelY||h.h+3.05)+(large?1.05:0),h.cz);scene.add(h.label);
+  const geometry=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
+  h.labelLeader=new THREE.Line(geometry,new THREE.LineBasicMaterial({color:0xffe08a,transparent:true,opacity:.7,depthTest:false,depthWrite:false}));
+  h.labelLeader.userData.noHit=true;h.labelLeader.frustumCulled=false;h.labelLeader.visible=false;scene.add(h.labelLeader);
 }
 function setZombieLabel(g,text,color){
   if(g.userData.label){g.remove(g.userData.label);g.userData.label.material.map.dispose();g.userData.label.material.dispose();}
