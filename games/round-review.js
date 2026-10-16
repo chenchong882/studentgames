@@ -1,136 +1,343 @@
 (function(){
   'use strict';
   const records=[];
-  let active=null;
-  const esc=v=>String(v==null?'':v);
+  let active=null,disposeReview=null;
+  const text=v=>String(v==null?'':v).trim();
+  const html=v=>text(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const norm=v=>text(v).toLocaleLowerCase();
+  const styleURL=new URL('round-review.css',document.currentScript.src).href;
+  function ensureStyle(){
+    if(document.getElementById('sg-review-style'))return;
+    const link=document.createElement('link');link.id='sg-review-style';link.rel='stylesheet';link.href=styleURL;document.head.appendChild(link);
+  }
+  ensureStyle();
   function clean(item){
     item=item||{};
-    return {
-      prompt:esc(item.prompt||item.question||''),
-      answer:esc(item.answer||item.word||''),
-      meaning:esc(item.meaning||item.chinese||''),
-      chosen:esc(item.chosen||''),
-      status:item.status||'correct'
-    };
+    const meaning=text(item.meaning||item.chinese);
+    return {prompt:text(item.prompt||item.question),answer:text(item.answer||item.word),meaning,chosen:text(item.chosen),kind:item.kind||(meaning?'word':'question'),status:item.status||'correct'};
   }
-  function keyOf(rec){return (rec.answer||rec.prompt).trim().toLocaleLowerCase()+'\u0000'+(rec.meaning||rec.prompt).trim().toLocaleLowerCase();}
+  function keyOf(rec){return rec.kind==='word'?'word:'+norm(rec.answer):'question:'+norm(rec.prompt)+'\u0000'+norm(rec.answer);}
   function summary(){
     const grouped=new Map();
     records.forEach(rec=>{
-      const key=keyOf(rec);if(!key.trim())return;
-      if(!grouped.has(key))grouped.set(key,{rec,missed:false});
-      if(rec.status!=='correct')grouped.get(key).missed=true;
+      if(!rec.answer&&!rec.prompt)return;
+      const key=keyOf(rec);
+      if(!grouped.has(key))grouped.set(key,{key,rec,missed:false,missCount:0});
+      const item=grouped.get(key);
+      if(rec.status!=='correct'){item.rec=rec;item.missed=true;item.missCount++;}
     });
-    const items=[...grouped.values()];
-    const missed=items.filter(item=>item.missed);
-    const correct=items.length-missed.length;
+    const items=[...grouped.values()],missed=items.filter(item=>item.missed),correct=items.length-missed.length;
     const ratio=items.length?correct/items.length:0;
-    const stars=ratio>=1?5:ratio>=.85?4:ratio>=.7?3:ratio>=.5?2:1;
-    return {items,missed,correct,stars};
-  }
-  function ensureStyle(){
-    if(document.getElementById('sg-review-style'))return;
-    const style=document.createElement('style');style.id='sg-review-style';style.textContent=`
-      .sg-review-backdrop{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:max(18px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));background:rgba(3,8,20,.88);backdrop-filter:blur(8px);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#f8fafc;overscroll-behavior:contain}
-      .sg-review-card{width:min(720px,96vw);max-height:min(92vh,850px);max-height:min(92dvh,850px);overflow:auto;border:2px solid rgba(255,255,255,.2);border-radius:24px;background:linear-gradient(160deg,#172554,#0f172a 48%,#111827);box-shadow:0 25px 80px rgba(0,0,0,.65),0 0 45px rgba(59,130,246,.2);padding:clamp(18px,4vw,30px)}
-      .sg-review-card h2{margin:0;text-align:center;font-size:clamp(25px,5.5vw,40px);line-height:1.15;color:#fff}.sg-review-lead{text-align:center;color:#cbd5e1;margin:8px 0 16px;font-weight:750}
-      .sg-review-rating{border:2px solid rgba(250,204,21,.42);border-radius:20px;padding:15px 12px;background:rgba(120,53,15,.22);text-align:center}.sg-review-rating-label{font-weight:900;color:#fde68a}.sg-review-stars{display:flex;justify-content:center;align-items:center;gap:clamp(5px,2vw,12px);margin:7px 0 5px;font-size:clamp(32px,8.5vw,52px);line-height:1}.sg-review-star{color:#475569;text-shadow:none}.sg-review-star.on{color:#facc15;text-shadow:0 0 15px rgba(250,204,21,.72)}.sg-review-star.learning{position:relative;margin-right:clamp(7px,2vw,13px);color:#9a3412;text-shadow:0 0 10px rgba(251,146,60,.14)}.sg-review-star.learning:after{content:"";position:absolute;top:5%;right:calc(clamp(7px,2vw,13px) * -1);width:2px;height:90%;border-radius:2px;background:rgba(255,255,255,.2)}.sg-review-star.learning.earned{color:#fb923c;text-shadow:0 0 18px rgba(251,146,60,.95);animation:sgStarBurst .4s cubic-bezier(.2,1.55,.4,1)}.sg-review-rating-text{font-weight:900;color:#fff}.sg-review-rating-text .learning-state{color:#fdba74}
-      .sg-review-progress{text-align:center;margin:18px 0 10px;font-weight:900;color:#e2e8f0}.sg-review-progress b{color:#fde047}.sg-review-deck{position:relative;width:min(360px,88vw);height:220px;margin:0 auto;perspective:1000px;transition:transform .38s ease-in,opacity .38s ease-in}.sg-review-deck:before,.sg-review-deck:after{content:"";position:absolute;inset:7px -7px -7px 7px;border-radius:20px;background:#334155;border:2px solid rgba(255,255,255,.18);z-index:-1}.sg-review-deck:after{inset:14px -14px -14px 14px;background:#1e293b;z-index:-2}
-      .sg-review-flip{display:block;width:100%;height:100%;padding:0;border:0;border-radius:20px;background:transparent;color:inherit;font:inherit;cursor:pointer;touch-action:manipulation;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;transition:transform .4s cubic-bezier(.2,.75,.25,1),filter .1s ease;box-shadow:0 16px 42px rgba(0,0,0,.42)}.sg-review-flip:active{filter:brightness(.9)}.sg-review-flip:focus-visible{outline:4px solid #67e8f9;outline-offset:5px}.sg-review-flip.flipped{transform:rotateY(180deg);-webkit-transform:rotateY(180deg)}
-      .sg-review-face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;border-radius:20px;backface-visibility:hidden;-webkit-backface-visibility:hidden;border:3px solid}.sg-review-front{background:linear-gradient(145deg,#1d4ed8,#312e81);border-color:#93c5fd}.sg-review-back{transform:rotateY(180deg);-webkit-transform:rotateY(180deg);background:linear-gradient(145deg,#065f46,#064e3b);border-color:#6ee7b7}.sg-review-kicker{font-size:14px;font-weight:900;letter-spacing:.04em;color:#bfdbfe}.sg-review-back .sg-review-kicker{color:#a7f3d0}.sg-review-word{max-width:100%;margin:12px 0;font-size:clamp(28px,8vw,46px);line-height:1.05;font-weight:950;overflow-wrap:anywhere;color:#fff}.sg-review-meaning{font-size:clamp(22px,6vw,34px);line-height:1.15;font-weight:950;color:#fff;overflow-wrap:anywhere}.sg-review-hint{font-size:15px;font-weight:850;color:#dbeafe}.sg-review-confirmed{margin-top:12px;color:#a7f3d0;font-weight:900}
-      .sg-review-deck.collecting{transform:scale(.15) rotate(15deg);opacity:0}.sg-review-flying-star{position:fixed;z-index:100002;left:0;top:0;color:#fb923c;font-size:52px;line-height:1;pointer-events:none;text-shadow:0 0 20px rgba(251,146,60,.95);transform:translate(-50%,-50%) scale(.55) rotate(-25deg);transition:transform .4s ease-in}.sg-review-flying-star.go{transform:translate(calc(-50% + var(--sg-fly-x)),calc(-50% + var(--sg-fly-y))) scale(1) rotate(0)}.sg-review-perfect{margin:18px 0 0;padding:18px;border:2px solid #22c55e;border-radius:18px;text-align:center;background:rgba(20,83,45,.38);font-size:clamp(18px,4vw,23px);font-weight:900;color:#bbf7d0}.sg-review-total{text-align:center;margin:13px 0 0;color:#fde68a;font-weight:900}.sg-review-action{display:block;width:min(390px,100%);min-height:52px;margin:18px auto 0;padding:13px 20px;border:0;border-radius:999px;background:linear-gradient(#fde047,#f59e0b);color:#422006;font:900 18px system-ui;cursor:pointer;box-shadow:0 8px 24px rgba(245,158,11,.28);touch-action:manipulation;transition:filter .1s ease}.sg-review-action:active{filter:brightness(.9)}.sg-review-action:disabled{cursor:wait;filter:saturate(.65);opacity:.8}.sg-review-action:focus-visible{outline:4px solid #67e8f9;outline-offset:4px}
-      @keyframes sgStarBurst{0%{transform:scale(0) rotate(-40deg)}70%{transform:scale(1.35) rotate(8deg)}100%{transform:scale(1) rotate(0)}}
-      @media(max-width:520px){.sg-review-backdrop{padding:max(7px,env(safe-area-inset-top)) max(7px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left))}.sg-review-card{max-height:96vh;max-height:96dvh;border-radius:18px;padding:15px 11px}.sg-review-deck{height:205px}.sg-review-stars{gap:2px}.sg-review-rating{padding:12px 6px}}
-      @media(prefers-reduced-motion:reduce){.sg-review-flip,.sg-review-deck{transition:none}.sg-review-star.learning.earned{animation:none}.sg-review-deck.collecting,.sg-review-flying-star{display:none}}
-    `;document.head.appendChild(style);
+    return {items,missed,correct,stars:ratio>=1?5:ratio>=.85?4:ratio>=.7?3:ratio>=.5?2:1};
   }
   function add(status,item,keepActive){
-    const rec=clean({...active,...item,status});
-    if(!rec.prompt&&!rec.answer)return;
-    records.push(rec);
-    if(!keepActive)active=null;
+    const rec=clean({...active,...item,status});if(!rec.prompt&&!rec.answer)return;
+    records.push(rec);if(!keepActive)active=null;
   }
-  function makeStars(count,learned){
-    const box=document.createElement('div');box.className='sg-review-stars';box.setAttribute('aria-label',(learned?'學習星已收集。':'學習星尚未收集。')+'本局評分 '+count+' 顆星，滿分 5 顆');
-    const learning=document.createElement('span');learning.className='sg-review-star learning'+(learned?' earned':'');learning.textContent=learned?'★':'☆';learning.setAttribute('aria-hidden','true');box.appendChild(learning);
-    for(let i=0;i<5;i++){const star=document.createElement('span');star.className='sg-review-star'+(i<count?' on':'');star.textContent='★';star.setAttribute('aria-hidden','true');box.appendChild(star);}
-    return {box,learning};
+  function shuffle(items){
+    const out=items.slice();
+    for(let i=out.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[out[i],out[j]]=[out[j],out[i]];}
+    return out;
   }
-  function cardData(item){
-    const rec=item.rec;
-    return {word:rec.answer||rec.prompt,meaning:rec.meaning||rec.prompt||'再看一次正確答案'};
+  function reshuffle(items){
+    for(let i=0;i<20;i++){const out=shuffle(items);if(out.every((v,n)=>v!==items[n]))return out;}
+    return items.slice(1).concat(items[0]);
+  }
+  function planReview(info){
+    // 先打散同次數的字，再優先挑本局錯得最多的；每局最多 6 個不同英文單字。
+    const words=shuffle(info.missed.filter(item=>item.rec.kind==='word'&&item.rec.answer&&item.rec.meaning))
+      .sort((a,b)=>b.missCount-a.missCount).slice(0,6)
+      .map(item=>({key:item.key,word:item.rec.answer,meaning:item.rec.meaning}));
+    if(!words.length)return [];
+    if(words.length===1)return [{kind:'courier',words}];
+    if(words.length<=3)return [{kind:Math.random()<.5?'memory':'courier',words}];
+    const mixed=shuffle(words),cut=Math.ceil(mixed.length/2),kinds=shuffle(['memory','courier']);
+    return [{kind:kinds[0],words:mixed.slice(0,cut)},{kind:kinds[1],words:mixed.slice(cut)}];
+  }
+  const paths={
+    leaf:'M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 2 17 2c1.1 2 2 5.3 2 8a7 7 0 0 1-8 10ZM2 22l10-10',
+    home:'m3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8',
+    box:'m3 7 9-4 9 4-9 4-9-4ZM3 7v10l9 4 9-4V7M12 11v10M7.5 5l9 4',
+    check:'m5 12 4 4L19 6',
+    lock:'M6 10h12v11H6zM8 10V6a4 4 0 0 1 8 0v4',
+    mountain:'m2 20 7-14 5 9 3-5 5 10H2Z',
+    power:'M12 2v10M6 5a9 9 0 1 0 12 0'
+  };
+  function icon(name){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+paths[name]+'"/></svg>';}
+  function el(tag,cls,content){const node=document.createElement(tag);if(cls)node.className=cls;if(content!=null)node.textContent=content;return node;}
+  function button(label,fn,secondary){
+    const b=el('button','sg-review-action'+(secondary?' secondary':''),label);b.type='button';b.onclick=fn;return b;
+  }
+  function focus(node){if(node)node.focus({preventScroll:true});}
+  function creatures(items){
+    return items.map((item,i)=>'<div class="sg-pet-slot" data-pet="'+i+'"><div class="sg-pet-platform" aria-hidden="true"><div class="sg-creature"><span class="sg-eyes"></span><span class="sg-mouth"></span></div><div class="sg-cage"></div></div><span class="sg-pet-label">等你來救我</span></div>').join('');
+  }
+  function memoryGame(mount,words,onWin,previous){
+    let stopped=false,opened=[],matched=[],doneWords=new Set(),lastWord=null;
+    const n=words.length,deck=previous&&previous.deck?reshuffle(previous.deck):shuffle(Array.from({length:n*2},(_,i)=>i));
+    mount.innerHTML='<h3>翻牌救怪獸</h3><p class="sg-game-hint">翻出英文和中文，救出森林小隊。</p><div class="sg-pets" style="--pet-count:'+n+'">'+creatures(words)+'</div><div class="sg-memory-grid" style="--card-columns:'+n+'"></div><div class="sg-feedback" role="status" aria-live="polite" aria-atomic="true"></div><div class="sg-mini-actions"></div>';
+    const grid=mount.querySelector('.sg-memory-grid'),feedback=mount.querySelector('.sg-feedback'),actions=mount.querySelector('.sg-mini-actions');
+    deck.forEach((code,pos)=>{
+      const word=words[code%n],b=el('button','sg-flip');b.type='button';
+      b.innerHTML='<span class="sg-flip-inner" aria-hidden="true"><span class="sg-card-face sg-card-back"><span class="sg-card-number">'+(pos+1)+'</span>'+icon('leaf')+'</span><span class="sg-card-face sg-card-front"><b'+(code<n?' lang="en"':'')+'>'+html(code<n?word.word:word.meaning)+'</b><small>'+(code<n?'ENGLISH':'中文意思')+'</small></span></span>';
+      b.onclick=()=>{
+        if(stopped||opened.length===2||opened.includes(pos)||matched.includes(pos))return;
+        opened.push(pos);
+        if(opened.length===2){
+          const [a,b]=opened,ca=deck[a],cb=deck[b];
+          if((ca<n)!==(cb<n)&&norm(words[ca%n].meaning)===norm(words[cb%n].meaning)){
+            lastWord=ca<n?ca:cb;doneWords.add(lastWord);matched.push(a,b);opened=[];
+          }else lastWord=null;
+        }else lastWord=null;
+        paint();
+        focus(opened.length===2?actions.querySelector('button'):grid.querySelector('button:not(:disabled)'));
+        if(doneWords.size===n){stopped=true;onWin();}
+      };
+      grid.appendChild(b);
+    });
+    function paint(){
+      [...grid.children].forEach((b,pos)=>{
+        const code=deck[pos],seen=opened.includes(pos)||matched.includes(pos);
+        b.classList.toggle('is-open',seen);b.classList.toggle('is-matched',matched.includes(pos));
+        b.disabled=stopped||opened.length===2||opened.includes(pos)||matched.includes(pos);
+        b.setAttribute('aria-pressed',String(seen));
+        b.setAttribute('aria-label','第 '+(pos+1)+' 張，'+(seen?(code<n?words[code].word:words[code%n].meaning)+(matched.includes(pos)?'，已配對':''):'蓋牌，點一下翻開'));
+      });
+      mount.querySelectorAll('[data-pet]').forEach(slot=>{
+        const i=Number(slot.dataset.pet),freed=doneWords.has(i);slot.classList.toggle('is-free',freed);
+        slot.querySelector('.sg-pet-label').textContent=freed?words[i].word+' 自由了！':'等你來救我';
+      });
+      actions.replaceChildren();feedback.classList.toggle('warning',opened.length===2);
+      if(opened.length===2){
+        feedback.replaceChildren(el('strong','','還沒配成一對，先記住這個！'));
+        [...new Set(opened.map(pos=>deck[pos]%n))].forEach(i=>feedback.appendChild(el('div','',words[i].word+' ＝ '+words[i].meaning)));
+        actions.appendChild(button('記住了，再找找',()=>{opened=[];paint();focus(grid.querySelector('button:not(:disabled)'));}));
+      }else if(lastWord!==null){
+        feedback.textContent='配對成功！'+words[lastWord].word+' ＝ '+words[lastWord].meaning+'。已救出 '+doneWords.size+' / '+n+' 隻。';
+      }else if(opened.length){const code=deck[opened[0]];feedback.textContent='翻開了「'+(code<n?words[code].word:words[code%n].meaning)+'」，找到它的另一半。';}
+      else feedback.textContent='一張英文 ＋ 一張正確中文，就能配成一對。';
+    }
+    paint();focus(grid.querySelector('button'));
+    return {deck,dispose(){stopped=true;}};
+  }
+  function courierGame(mount,words,meaningPool,onWin,previous){
+    let stopped=false,timer=null,path=[],x=2,y=5,bridge=!!(previous&&previous.houses),carrying=null,delivered=new Set();
+    const columns=[0,2,4],packages=previous&&previous.packages?reshuffle(previous.packages):shuffle(words.map((_,i)=>i)),directions={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};
+    const labels=[...new Set(words.map(w=>w.meaning))];
+    // 干擾門牌不是額外練習字；只有一個錯字時仍能辨認正確意思。
+    const candidates=shuffle(meaningPool).concat(['蘋果','天空','喝水','開心的','房子','河流']);
+    for(const meaning of candidates){if(labels.length>=3)break;if(meaning&&!labels.some(v=>norm(v)===norm(meaning)))labels.push(meaning);}
+    const houses=previous&&previous.houses?reshuffle(previous.houses):shuffle(labels.slice(0,3));
+    mount.innerHTML='<h3>搬單字回家</h3><p class="sg-game-hint">拿起單字包裹，送到正確的中文小屋。</p><div class="sg-world"><div class="sg-tiles" role="group" aria-label="點地面移動角色"></div><div class="sg-actor" aria-hidden="true"><span class="sg-cargo"></span><div class="sg-creature sg-courier"><span class="sg-eyes"></span><span class="sg-mouth"></span></div></div></div><div class="sg-feedback" role="status" aria-live="polite" aria-atomic="true"></div><div class="sg-dpad" role="group" aria-label="移動角色"></div><p class="sg-game-hint">點地面、包裹或小屋也能移動；電腦可用方向鍵。</p>';
+    const tiles=mount.querySelector('.sg-tiles'),actor=mount.querySelector('.sg-actor'),feedback=mount.querySelector('.sg-feedback'),pad=mount.querySelector('.sg-dpad');
+    let message=bridge?'小屋換位置了！拿起單字包裹，再找一次。':'先踩右下角的黃色開關，讓木橋出現。',warning=false;
+    // 長片語／多義詞在地圖旁保留完整文字，觸控裝置不必靠 hover 才看得到。
+    if(houses.some(v=>v.length>7)||words.some(w=>w.word.length>12)){
+      const addresses=el('div','sg-addresses');
+      houses.forEach((meaning,i)=>addresses.appendChild(button(String.fromCharCode(65+i)+' 小屋：'+meaning,()=>walkTo(columns[i],0),true)));
+      mount.querySelector('.sg-world').after(addresses);
+    }
+    function rock(cx,cy){return cy===3&&(cx===0||cx===4);}
+    function house(cx,cy){return cy===0&&columns.includes(cx);}
+    function parcel(cx,cy){
+      if(cy!==4||!columns.includes(cx))return null;
+      const i=packages[columns.indexOf(cx)];return i==null||delivered.has(i)||carrying===i?null:i;
+    }
+    function canWalk(cx,cy){return cx>=0&&cx<5&&cy>=0&&cy<6&&!rock(cx,cy)&&(cy!==2||(cx===2&&bridge));}
+    function stopWalk(){if(timer!==null)clearTimeout(timer);timer=null;path=[];}
+    function paint(){
+      [...tiles.children].forEach((b,i)=>{
+        const cx=i%5,cy=Math.floor(i/5);let cls='sg-tile'+((cx+cy)%2?' alt':''),key='grass',body='<span class="sg-grass"></span>',label='草地，第 '+(cy+1)+' 列第 '+(cx+1)+' 格';
+        if(house(cx,cy)){
+          const meaning=houses[columns.indexOf(cx)],done=[...delivered].some(j=>norm(words[j].meaning)===norm(meaning));
+          key='house:'+meaning+done;body='<span class="sg-house'+(done?' delivered':'')+'"><span class="sg-house-code">'+String.fromCharCode(65+columns.indexOf(cx))+'</span>'+icon(done?'check':'home')+'<b>'+html(meaning)+'</b></span>';label=meaning+'的小屋，走到這裡送包裹';
+        }else if(cy===2){
+          key='river:'+cx+bridge;cls+=cx===2&&bridge?' is-bridge':' is-river';body=cx===2&&!bridge?icon('lock'):'';label=cx===2?(bridge?'木橋，可以過河':'橋還沒開，先踩黃色開關'):'河水，要從橋通過';
+        }else if(rock(cx,cy)){key='rock';cls+=' is-rock';body=icon('mountain');label='石頭，要繞路';}
+        else if(cx===4&&cy===5){key='switch:'+bridge;body='<span class="sg-switch">'+icon(bridge?'check':'power')+(bridge?'已開橋':'開橋')+'</span>';label='黃色開關，走到這裡開橋';}
+        else{
+          const word=parcel(cx,cy);
+          if(word!==null){key='parcel:'+word;body='<span class="sg-package">'+icon('box')+'<b lang="en">'+html(words[word].word)+'</b></span>';label=words[word].word+'包裹，走到這裡拿起來';}
+        }
+        b.className=cls;b.disabled=stopped;b.setAttribute('aria-label',label+(cx===x&&cy===y?'，你在這裡':''));
+        if(b.dataset.tile!==key){b.dataset.tile=key;b.innerHTML=body;}
+      });
+      actor.style.transform='translate('+(x*100)+'%,'+(y*100)+'%)';
+      actor.querySelector('.sg-cargo').textContent=carrying===null?'':words[carrying].word;
+      feedback.classList.toggle('warning',warning);
+      const content=message+' 已送達 '+delivered.size+' / '+words.length+' 個。';
+      if(feedback.textContent!==content)feedback.textContent=content;
+      [...pad.children].forEach(b=>b.disabled=stopped);
+      mount.querySelectorAll('.sg-addresses button').forEach(b=>b.disabled=stopped);
+    }
+    function arrive(){
+      warning=false;
+      if(x===4&&y===5&&!bridge){bridge=true;message='木橋打開了！拿起包裹，送到正確小屋。';return;}
+      const p=parcel(x,y);
+      if(p!==null&&carrying===null){carrying=p;message='正在搬 '+words[p].word+'。它是什麼意思？';return;}
+      if(house(x,y)){
+        if(carrying===null){message='先到下方拿一個單字包裹。';return;}
+        const word=words[carrying],meaning=houses[columns.indexOf(x)];
+        if(norm(word.meaning)===norm(meaning)){
+          delivered.add(carrying);carrying=null;message='送對了！'+word.word+' ＝ '+word.meaning+'。';
+          if(delivered.size===words.length)stopped=true;
+        }else{message=word.word+' 是「'+word.meaning+'」，這間是「'+meaning+'」。包裹還在身上，換一家試試。';warning=true;}
+      }
+    }
+    function afterMove(){paint();if(stopped){stopWalk();onWin();}}
+    function route(tx,ty){
+      if(!canWalk(tx,ty))return null;
+      const start=y*5+x,end=ty*5+tx,queue=[start],previous=new Map([[start,null]]);
+      for(let i=0;i<queue.length;i++){
+        const cell=queue[i];if(cell===end)break;
+        for(const [dx,dy] of Object.values(directions)){
+          const nx=cell%5+dx,ny=Math.floor(cell/5)+dy,next=ny*5+nx;
+          if(!canWalk(nx,ny)||previous.has(next))continue;
+          if(next!==end&&(house(nx,ny)||(carrying===null&&parcel(nx,ny)!==null)))continue;
+          previous.set(next,cell);queue.push(next);
+        }
+      }
+      if(!previous.has(end))return null;
+      const result=[];for(let at=end;at!==start;at=previous.get(at))result.unshift(at);return result;
+    }
+    function tick(){
+      timer=null;
+      if(stopped||!mount.isConnected||document.hidden){stopWalk();return;}
+      const cell=path.shift();if(cell==null)return;
+      x=cell%5;y=Math.floor(cell/5);arrive();afterMove();
+      if(path.length&&!stopped)timer=setTimeout(tick,190);
+    }
+    function walkTo(tx,ty){
+      if(stopped)return;stopWalk();
+      const next=route(tx,ty);
+      if(next===null){warning=true;message=!bridge&&ty<=2?'橋還沒打開，先踩右下角黃色開關。':'這條路走不通，請繞過石頭、從橋上過河。';paint();return;}
+      warning=false;
+      if(!next.length){arrive();afterMove();return;}
+      path=next;tick();
+    }
+    function step(dir){
+      if(stopped||!directions[dir])return;stopWalk();
+      const [dx,dy]=directions[dir],nx=x+dx,ny=y+dy;
+      if(!canWalk(nx,ny)){warning=true;message=ny===2&&nx===2&&!bridge?'先踩黃色開關，橋才會出現。':'換個方向，河水和石頭不能直接走過。';paint();return;}
+      x=nx;y=ny;arrive();afterMove();
+    }
+    for(let i=0;i<30;i++){const b=el('button');b.type='button';b.onclick=()=>walkTo(i%5,Math.floor(i/5));tiles.appendChild(b);}
+    [['left','←','向左走'],['up','↑','向上走'],['down','↓','向下走'],['right','→','向右走']].forEach(([dir,symbol,label])=>{
+      const b=el('button','sg-direction',symbol);b.type='button';b.setAttribute('aria-label',label);b.onclick=()=>step(dir);pad.appendChild(b);
+    });
+    paint();focus(pad.children[1]);
+    return {houses,packages,pause:stopWalk,key(event){
+      const dir={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down',a:'left',d:'right',w:'up',s:'down'}[event.key];
+      if(!dir||event.ctrlKey||event.metaKey||event.altKey)return;
+      event.preventDefault();step(dir);
+    },dispose(){stopped=true;stopWalk();}};
   }
   function show(title,options){
     options=options||{};
-    const host=options.mount;
     if(active)add('unanswered',{},false);
-    document.getElementById('sg-review-modal')?.remove();ensureStyle();
-    const info=summary();
-    const givenStars=Number(options&&options.stars);
-    const stars=Number.isFinite(givenStars)?Math.max(1,Math.min(5,Math.round(givenStars))):info.stars;
-    const cards=info.missed.map(cardData);
-    const modal=document.createElement('div');modal.id='sg-review-modal';modal.className='sg-review-backdrop';modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','sg-review-title');
-    const card=document.createElement('div');card.className='sg-review-card';modal.appendChild(card);
-    if(host){modal.className='sg-review-embedded';modal.removeAttribute('role');modal.removeAttribute('aria-modal');}
-    let completed=false;
-    const finish=()=>{if(completed)return;completed=true;modal.remove();if(options.onComplete)options.onComplete();};
-    const attach=()=>{if(host)host.replaceChildren(modal);else document.body.appendChild(modal);};
-    const h=document.createElement('h2');h.id='sg-review-title';h.textContent=title||'本局學習結算';card.appendChild(h);if(host){h.hidden=true;modal.removeAttribute('aria-labelledby');}
-    const lead=document.createElement('p');lead.className='sg-review-lead';lead.textContent=options.lead||'先看看本局評分，再把學習星一起收下！';card.appendChild(lead);
-    const rating=document.createElement('section');rating.className='sg-review-rating';
-    const ratingLabel=document.createElement('div');ratingLabel.className='sg-review-rating-label';ratingLabel.textContent='本局收集到的星星';rating.appendChild(ratingLabel);
-    const starDisplay=makeStars(stars,!cards.length);rating.appendChild(starDisplay.box);
-    const ratingText=document.createElement('div');ratingText.className='sg-review-rating-text';ratingText.innerHTML='<span class="learning-state">'+(cards.length?'橘色學習星尚未收集':'橘色全對學習星已收集')+'</span>　｜　本局評分 '+stars+' / 5';rating.appendChild(ratingText);card.appendChild(rating);
-    const total=document.createElement('p');total.className='sg-review-total';total.setAttribute('aria-live','polite');total.textContent='目前收集 '+(stars+(cards.length?0:1))+' 顆星';card.appendChild(total);
-    if(!cards.length){
-      const perfect=document.createElement('div');perfect.className='sg-review-perfect';perfect.textContent=info.items.length?'🎉 這局沒有答錯或漏答，直接獲得全對學習星！':'這局結束前沒有出現單字題，學習星直接收下！';card.appendChild(perfect);
-      const done=document.createElement('button');done.type='button';done.className='sg-review-action';done.textContent=options.completeLabel||'收下學習星，查看成績';done.onclick=finish;card.appendChild(done);
-      attach();done.focus();return;
+    if(disposeReview)disposeReview();
+    ensureStyle();
+    const info=summary(),plan=planReview(info),selected=plan.flatMap(stage=>stage.words);
+    const missedWords=info.missed.filter(item=>item.rec.kind==='word').length;
+    const givenStars=Number(options.stars),stars=Number.isFinite(givenStars)?Math.max(1,Math.min(5,Math.round(givenStars))):info.stars;
+    const previousFocus=document.activeElement,host=options.mount,modal=el('div',host?'sg-review-embedded':'sg-review-backdrop'),card=el('div','sg-review-card');
+    modal.id='sg-review-modal';modal.lang='zh-Hant';modal.appendChild(card);
+    if(!host){modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','sg-review-title');}
+    let closed=false,game=null,stageIndex=0,earned=info.items.length>0&&!info.missed.length;
+    const passed=new Set();
+    function dispose(){
+      if(closed)return;closed=true;if(game)game.dispose();modal.remove();document.removeEventListener('visibilitychange',onVisibility);
+      if(disposeReview===dispose)disposeReview=null;
     }
-    const progress=document.createElement('div');progress.className='sg-review-progress';card.appendChild(progress);
-    const deck=document.createElement('div');deck.className='sg-review-deck';card.appendChild(deck);
-    const flip=document.createElement('button');flip.type='button';flip.className='sg-review-flip';flip.setAttribute('aria-pressed','false');deck.appendChild(flip);
-    const front=document.createElement('span');front.className='sg-review-face sg-review-front';flip.appendChild(front);
-    const back=document.createElement('span');back.className='sg-review-face sg-review-back';flip.appendChild(back);
-    const action=document.createElement('button');action.type='button';action.className='sg-review-action';action.hidden=true;card.appendChild(action);
-    let index=0;
-    function renderCard(){
-      const item=cards[index];flip.classList.remove('flipped');flip.setAttribute('aria-pressed','false');flip.setAttribute('aria-label','第 '+(index+1)+' 張單字卡：'+item.word+'。點一下查看中文');
-      front.replaceChildren();back.replaceChildren();
-      const fk=document.createElement('span');fk.className='sg-review-kicker';fk.textContent='第 '+(index+1)+' / '+cards.length+' 張・剛剛沒記住';front.appendChild(fk);
-      const fw=document.createElement('span');fw.className='sg-review-word';fw.textContent=item.word;front.appendChild(fw);
-      const fh=document.createElement('span');fh.className='sg-review-hint';fh.textContent='點一下查看中文';front.appendChild(fh);
-      const bk=document.createElement('span');bk.className='sg-review-kicker';bk.textContent='單字卡';back.appendChild(bk);
-      const bw=document.createElement('span');bw.className='sg-review-word';bw.textContent=item.word;back.appendChild(bw);
-      const bm=document.createElement('span');bm.className='sg-review-meaning';bm.textContent=item.meaning;back.appendChild(bm);
-      const bc=document.createElement('span');bc.className='sg-review-confirmed';bc.textContent='✓ 已確認';back.appendChild(bc);
-      progress.innerHTML='翻開每張卡片，收集 <b>1 顆學習星</b>　'+(index+1)+' / '+cards.length;
-      action.hidden=true;action.disabled=false;
+    function finish(){
+      if(closed)return;
+      dispose();if(options.onComplete)options.onComplete();
+      else if(previousFocus&&previousFocus.isConnected)focus(previousFocus);
     }
-    flip.onclick=()=>{
-      if(flip.classList.contains('flipped'))return;
-      flip.classList.add('flipped');flip.setAttribute('aria-pressed','true');
-      flip.setAttribute('aria-label','已翻開：'+cards[index].word+'，'+cards[index].meaning);
-      action.hidden=false;action.textContent=index<cards.length-1?'下一張單字卡':'收下 '+cards.length+' 張單字卡與學習星';action.focus();
-    };
-    action.onclick=()=>{
-      if(index<cards.length-1){index++;renderCard();flip.focus();return;}
-      action.disabled=true;action.textContent='正在收集單字卡…';
-      const deckRect=deck.getBoundingClientRect(),starRect=starDisplay.learning.getBoundingClientRect();
-      const flying=document.createElement('span');flying.className='sg-review-flying-star';flying.textContent='★';flying.setAttribute('aria-hidden','true');
-      flying.style.left=(deckRect.left+deckRect.width/2)+'px';flying.style.top=(deckRect.top+deckRect.height/2)+'px';
-      flying.style.setProperty('--sg-fly-x',(starRect.left+starRect.width/2-deckRect.left-deckRect.width/2)+'px');flying.style.setProperty('--sg-fly-y',(starRect.top+starRect.height/2-deckRect.top-deckRect.height/2)+'px');document.body.appendChild(flying);
-      deck.classList.add('collecting');
-      requestAnimationFrame(()=>flying.classList.add('go'));
-      window.setTimeout(()=>{
-        flying.remove();starDisplay.learning.classList.add('earned');starDisplay.learning.textContent='★';starDisplay.box.setAttribute('aria-label','學習星已收集。本局評分 '+stars+' 顆星，滿分 5 顆');ratingText.innerHTML='<span class="learning-state">橘色學習星已收集</span>　｜　本局評分 '+stars+' / 5';total.textContent='本局共收集 '+(stars+1)+' 顆星';progress.textContent='✅ '+cards.length+' 張單字卡已全部收下！';
-        action.disabled=false;action.textContent=options.completeLabel||'看完成績，繼續';action.onclick=finish;action.focus();
-      },window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches?0:400);
-    };
-    renderCard();attach();flip.focus();
+    function onVisibility(){if(document.hidden&&game&&game.pause)game.pause();}
+    disposeReview=dispose;
+    document.addEventListener('visibilitychange',onVisibility);
+    // 讓真實按鈕正常 click，但不要讓複習手勢／空白鍵傳回底下的遊戲。
+    ['pointerdown','pointerup','mousedown','mouseup','touchstart','touchmove','touchend','click','keyup'].forEach(type=>modal.addEventListener(type,event=>event.stopPropagation(),{passive:true}));
+    modal.addEventListener('keydown',event=>{
+      event.stopPropagation();
+      if(game&&game.key)game.key(event);
+      if(event.key==='Tab'){
+        const buttons=[...modal.querySelectorAll('button:not(:disabled),summary')].filter(b=>b.getClientRects().length);
+        if(!buttons.length)return;
+        const first=buttons[0],last=buttons[buttons.length-1];
+        if(event.shiftKey&&(document.activeElement===first||!modal.contains(document.activeElement))){event.preventDefault();focus(last);}
+        else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();focus(first);}
+      }
+    });
+    const heading=el('h2','',title||'本局學習回顧');heading.id='sg-review-title';card.appendChild(heading);if(host)heading.hidden=true;
+    const lead=el('p','sg-review-lead',options.lead||'把剛剛卡住的單字，再挑戰一次。');card.appendChild(lead);
+    const rating=el('div','sg-review-rating');card.appendChild(rating);
+    function updateRating(){
+      rating.replaceChildren();
+      const starText=el('span','sg-review-stars','★'.repeat(stars)+'☆'.repeat(5-stars));starText.setAttribute('aria-label','本局評分 '+stars+' / 5');
+      rating.append(starText,el('span','sg-review-rating-label','本局評分 '+stars+' / 5'));
+      if(earned)rating.appendChild(el('span','sg-learning-earned',info.missed.length?'★ 複習完成星':'★ 全對學習星'));
+    }
+    updateRating();
+    const stageHost=el('section','sg-stage-host'),stageActions=el('div','sg-stage-actions');
+    card.append(stageHost,stageActions);
+    const missedDetails=el('details','sg-review-details');
+    if(info.missed.length){
+      missedDetails.appendChild(el('summary','','本局錯字與錯題（'+info.missed.length+'）'));
+      const list=el('ul');
+      info.missed.forEach(item=>{
+        const li=el('li'),rec=item.rec;li.appendChild(el('strong','',rec.answer));
+        li.appendChild(el('span','',rec.kind==='word'?rec.meaning:rec.prompt));list.appendChild(li);
+      });
+      missedDetails.appendChild(list);card.appendChild(missedDetails);
+    }
+    function overview(){
+      stageHost.replaceChildren();stageActions.replaceChildren();
+      if(!plan.length){
+        const note=!info.items.length?'這局沒有出現單字題。':!info.missed.length?'這局全部答對，直接收下全對學習星！':'這局沒有需要練習的單字；其他錯題可展開回顧。';
+        stageHost.appendChild(el('p','sg-review-perfect',note));
+        const done=button(options.completeLabel||'查看成績，繼續',finish);stageActions.appendChild(done);focus(done);return;
+      }
+      stageHost.appendChild(el('h3','','這次先追回 '+selected.length+' 個單字'));
+      stageHost.appendChild(el('p','sg-game-hint',missedWords>6?'本局有 '+missedWords+' 個錯字，只選其中 6 個；完成這次安排就結束。':'共 '+plan.length+' 個小關卡，不倒數、不扣分。'));
+      const chips=el('div','sg-word-chips');selected.forEach(word=>chips.appendChild(el('span','',word.word)));stageHost.appendChild(chips);
+      const route=el('p','sg-review-route',plan.map(s=>s.kind==='memory'?'翻牌救怪獸':'搬單字回家').join(' → '));stageHost.appendChild(route);
+      stageActions.append(button('開始複習',startStage),button('這次先休息，查看成績',finish,true));focus(stageActions.firstChild);
+    }
+    function nextStage(){if(stageIndex+1<plan.length){stageIndex++;startStage();}else complete();}
+    function startStage(){
+      const previous=passed.has(stageIndex)?game:null;
+      if(game)game.dispose();game=null;stageHost.replaceChildren();stageActions.replaceChildren();
+      card.scrollTop=0;if(host&&host.parentElement)host.parentElement.scrollTop=0;
+      const stage=plan[stageIndex];
+      const progress=el('p','sg-review-progress','第 '+(stageIndex+1)+' / '+plan.length+' 關 · 這關 '+stage.words.length+' 個字');
+      const board=el('div','sg-mini-game');stageHost.append(progress,board);
+      const skip=button(passed.has(stageIndex)?'結束重玩，繼續':'先休息，查看成績',passed.has(stageIndex)?nextStage:finish,true);stageActions.appendChild(skip);
+      const onWin=()=>{
+        if(closed)return;
+        passed.add(stageIndex);
+        stageActions.replaceChildren(
+          button(stageIndex+1<plan.length?'救援成功，前往下一關':'完成這次複習',nextStage),
+          button('重新洗牌，再玩一次（選玩）',startStage,true)
+        );
+        focus(stageActions.firstChild);
+      };
+      game=stage.kind==='memory'?memoryGame(board,stage.words,onWin,previous):courierGame(board,stage.words,info.items.map(item=>item.rec.meaning).filter(Boolean),onWin,previous);
+    }
+    function complete(){
+      if(game)game.dispose();game=null;earned=true;updateRating();stageHost.replaceChildren();stageActions.replaceChildren();
+      card.scrollTop=0;if(host&&host.parentElement)host.parentElement.scrollTop=0;
+      stageHost.appendChild(el('h3','','這次的 '+selected.length+' 個單字，都練過了！'));
+      const list=el('ul','sg-finished-words');selected.forEach(word=>list.appendChild(el('li','',word.word+' ＝ '+word.meaning)));stageHost.appendChild(list);
+      stageHost.appendChild(el('p','sg-game-hint','下次再遇到，試著自己想起來。'));
+      stageActions.appendChild(button(options.completeLabel||'收下完成星，查看成績',finish));focus(stageActions.firstChild);
+    }
+    if(host)host.replaceChildren(modal);else document.body.appendChild(modal);
+    overview();
   }
   window.RoundReview={
-    reset(){records.length=0;active=null;document.getElementById('sg-review-modal')?.remove();},
+    reset(){records.length=0;active=null;if(disposeReview)disposeReview();},
     begin(item){active=clean(item);},
     correct(item){add('correct',item,false);},
     wrong(item){add('wrong',item,true);},

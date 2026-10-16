@@ -1,0 +1,116 @@
+/* 所有遊戲共用的結算與錯字小遊戲；不依賴外部字型、圖示或音訊。 */
+.sg-review-backdrop{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:rgba(3,8,20,.9);overscroll-behavior:contain;touch-action:pan-y}
+.sg-review-card{width:min(660px,100%);max-height:94vh;max-height:94dvh;overflow-y:auto;overscroll-behavior:contain;border:1px solid #506078;border-radius:22px;background:linear-gradient(155deg,#172554,#111827 65%);box-shadow:0 22px 70px #0009;padding:24px;touch-action:pan-y}
+.sg-review-embedded .sg-review-card{width:100%;max-height:none;overflow:visible;padding:0;border:0;background:none;box-shadow:none}
+#sg-review-modal{font:400 16px/1.55 system-ui,-apple-system,"Segoe UI","Microsoft JhengHei",sans-serif;color:#f1f5f9;text-align:left;letter-spacing:normal;user-select:text;-webkit-user-select:text}
+#sg-review-modal *{box-sizing:border-box}
+#sg-review-modal [hidden]{display:none!important}
+#sg-review-modal h2{font-size:clamp(22px,5vw,30px);line-height:1.3;text-align:center;margin:0;color:#fff}
+#sg-review-modal h3{font-size:clamp(22px,5vw,27px);line-height:1.3;margin:0 0 8px;font-weight:850;color:inherit;text-align:center}
+#sg-review-modal p{margin:0}
+#sg-review-modal button{font:inherit;min-height:0;margin:0;letter-spacing:normal;text-transform:none;filter:none;transform:none;opacity:1;cursor:pointer;touch-action:manipulation;transition:background .16s ease,transform .16s ease;outline-offset:3px}
+#sg-review-modal button:focus-visible,#sg-review-modal summary:focus-visible{outline:3px solid #38bdf8}
+#sg-review-modal button:disabled{cursor:default}
+#sg-review-modal svg{width:20px;height:20px;flex-shrink:0}
+#sg-review-modal .sg-review-lead{margin:7px 0 14px;text-align:center;color:#cbd5e1;font-size:14px}
+#sg-review-modal .sg-review-rating{display:flex;align-items:center;justify-content:center;gap:8px 14px;flex-wrap:wrap;padding:12px;border-radius:13px;background:#ffffff0b;margin-bottom:19px}
+#sg-review-modal .sg-review-stars{color:#facc15;font-size:25px;line-height:1;letter-spacing:2px}
+#sg-review-modal .sg-review-rating-label{font-size:13px;color:#dbeafe}
+#sg-review-modal .sg-learning-earned{color:#fdba74;font-size:13px;font-weight:800}
+#sg-review-modal .sg-review-progress{text-align:center;color:#cbd5e1;font-size:13px;font-weight:750;margin-bottom:12px}
+#sg-review-modal .sg-game-hint{text-align:center;color:inherit;opacity:.8;font-size:13px;line-height:1.65;margin:6px 0 15px}
+#sg-review-modal .sg-stage-actions{display:grid;gap:10px;margin-top:16px}
+#sg-review-modal .sg-review-action{display:flex;align-items:center;justify-content:center;width:100%;min-height:49px;padding:12px 16px;border:0;border-radius:13px;background:#ffcf65;color:#403314;font-size:16px;font-weight:850;line-height:1.5;box-shadow:0 3px 0 #ba852b;margin:0}
+#sg-review-modal .sg-review-action:active{transform:translateY(2px)}
+#sg-review-modal .sg-review-action.secondary{min-height:44px;background:transparent;color:#cbd5e1;box-shadow:none;font-size:14px;font-weight:600;border:1px solid #475569}
+#sg-review-modal .sg-word-chips{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:20px 0}
+#sg-review-modal .sg-word-chips span{max-width:100%;overflow-wrap:anywhere;background:#ffffff0d;border:1px solid #64748b;border-radius:11px;padding:8px 14px;font-weight:750}
+#sg-review-modal .sg-review-route{text-align:center;color:#a7f3d0;font-size:14px}
+#sg-review-modal .sg-review-perfect{padding:24px 15px;text-align:center;border-radius:14px;background:#22c55e12;color:#bbf7d0;font-weight:750}
+#sg-review-modal .sg-review-details{border-top:1px solid #475569;margin-top:18px}
+#sg-review-modal .sg-review-details summary{padding:12px 3px;min-height:44px;color:#cbd5e1;font-size:14px;cursor:pointer}
+#sg-review-modal .sg-review-details ul,#sg-review-modal .sg-finished-words{list-style:none;padding:0;margin:0}
+#sg-review-modal .sg-review-details li{display:grid;gap:4px;padding:9px 3px;border-bottom:1px solid #ffffff12;overflow-wrap:anywhere}
+#sg-review-modal .sg-review-details li span{font-size:13px;color:#cbd5e1;white-space:pre-wrap}
+#sg-review-modal .sg-finished-words li{padding:12px 15px;margin-top:8px;background:#ffffff0a;border-radius:10px;overflow-wrap:anywhere}
+#sg-review-modal .sg-mini-game{--sg-soft:#e9f3df;--sg-green:#167347;--sg-line:#d6e1cc;border-radius:18px;padding:20px;background:#fffaf1;color:#263d37}
+#sg-review-modal .sg-mini-game .sg-game-hint{color:#52614e}
+#sg-review-modal .sg-mini-game .sg-review-action{font-size:15px}
+#sg-review-modal .sg-pets{display:grid;grid-template-columns:repeat(var(--pet-count),minmax(0,1fr));gap:10px;padding:9px 5px 0;margin:15px 0 21px;border-radius:16px;background:var(--sg-soft)}
+#sg-review-modal .sg-pet-slot{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-height:112px;min-width:0;padding-top:9px}
+#sg-review-modal .sg-pet-platform{position:relative;width:75px;height:64px;display:grid;place-items:center}
+#sg-review-modal .sg-creature{--pet:#91cbe9;position:relative;width:51px;height:47px;border-radius:45% 45% 37% 37%;background:var(--pet);box-shadow:inset -5px -5px 0 #143c1e20;transform-origin:50% 100%}
+#sg-review-modal .sg-creature:before,#sg-review-modal .sg-creature:after{content:"";position:absolute;top:-8px;width:14px;height:19px;background:var(--pet);border-radius:70% 35% 30% 30%}
+#sg-review-modal .sg-creature:before{left:3px;transform:rotate(-20deg)}
+#sg-review-modal .sg-creature:after{right:3px;transform:rotate(20deg)}
+#sg-review-modal .sg-eyes{position:absolute;width:6px;height:9px;background:#243a35;border-radius:50%;left:13px;top:16px;box-shadow:19px 0 0 #243a35;z-index:1}
+#sg-review-modal .sg-mouth{position:absolute;left:22px;top:30px;width:8px;height:4px;border-bottom:2px solid #243a35;border-radius:0 0 50% 50%}
+#sg-review-modal .sg-pet-slot:nth-child(2) .sg-creature{--pet:#d0b2e9}
+#sg-review-modal .sg-pet-slot:nth-child(3) .sg-creature{--pet:#f0bd80}
+#sg-review-modal .sg-cage{position:absolute;inset:-6px -1px 0;border:3px solid #849881;border-radius:30px 30px 7px 7px;background:repeating-linear-gradient(90deg,transparent 0,transparent 14px,#849881 14px,#849881 17px);transition:transform .3s ease,opacity .3s ease;z-index:2}
+#sg-review-modal .sg-pet-slot.is-free .sg-cage{opacity:0;transform:translateY(-16px)}
+#sg-review-modal .sg-pet-slot.is-free .sg-creature{animation:sg-review-hop .36s ease-out}
+#sg-review-modal .sg-pet-label{padding:8px 3px;min-height:34px;max-width:100%;font-size:12px;text-align:center;overflow-wrap:anywhere}
+#sg-review-modal .sg-pet-slot.is-free .sg-pet-label{color:var(--sg-green);font-weight:750}
+#sg-review-modal .sg-memory-grid{display:grid;grid-template-columns:repeat(var(--card-columns),minmax(0,1fr));gap:12px}
+#sg-review-modal .sg-flip{height:125px;padding:0;background:transparent;border:0;border-radius:14px;perspective:800px;color:#263d37;box-shadow:none;min-width:0}
+#sg-review-modal .sg-flip-inner{position:relative;display:block;width:100%;height:100%;transform-style:preserve-3d;-webkit-transform-style:preserve-3d;transition:transform .28s ease}
+#sg-review-modal .sg-flip.is-open .sg-flip-inner{transform:rotateY(180deg)}
+#sg-review-modal .sg-card-face{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:14px;backface-visibility:hidden;-webkit-backface-visibility:hidden;padding:9px}
+#sg-review-modal .sg-card-back{background:#356c57;color:#f5ffe8;box-shadow:inset 0 0 0 3px #ffffff26,0 3px 0 #263d3726}
+#sg-review-modal .sg-card-back svg{width:30px;height:30px}
+#sg-review-modal .sg-card-number{position:absolute;left:9px;top:7px;font-size:11px}
+#sg-review-modal .sg-card-front{transform:rotateY(180deg);background:#fff;border:2px solid var(--sg-line)}
+#sg-review-modal .sg-card-front b{font-size:clamp(15px,3.6vw,22px);font-weight:800;max-width:100%;overflow-wrap:anywhere;line-height:1.3;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+#sg-review-modal .sg-card-front small{font-size:11px;color:#52614e;margin-top:8px}
+#sg-review-modal .sg-flip.is-matched .sg-card-front{border-color:var(--sg-green);background:var(--sg-soft);color:var(--sg-green)}
+#sg-review-modal .sg-flip:active:not(:disabled){transform:scale(.97)}
+#sg-review-modal .sg-feedback{background:var(--sg-soft);padding:13px 15px;border-radius:12px;margin:16px 0 12px;font-size:14px;line-height:1.7;min-height:65px;overflow-wrap:anywhere}
+#sg-review-modal .sg-feedback.warning{background:#fff0ce;color:#76500b}
+#sg-review-modal .sg-feedback strong{display:block;font-weight:750}
+#sg-review-modal .sg-world{position:relative;width:min(100%,330px);margin:17px auto 0;border-radius:15px;isolation:isolate;background:#dcebbf;box-shadow:0 4px 0 var(--sg-line)}
+#sg-review-modal .sg-world:before{content:"";display:block;padding-top:120%}
+#sg-review-modal .sg-tiles{position:absolute;inset:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:repeat(6,minmax(0,1fr));border-radius:15px;overflow:hidden}
+#sg-review-modal .sg-tile{position:relative;min-width:0;min-height:0;border:0;border-radius:0;padding:0;background:#dcebbf;color:#3c4b36;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px #1e462809}
+#sg-review-modal .sg-tile.alt{background:#e4efcb}
+#sg-review-modal .sg-tile.is-river{background:repeating-linear-gradient(0deg,#b0dce5 0,#b0dce5 12px,#d8f1f2 12px,#d8f1f2 14px,#b0dce5 14px,#b0dce5 27px)}
+#sg-review-modal .sg-tile.is-bridge{background:repeating-linear-gradient(0deg,#c18c51 0,#c18c51 10px,#9e6e3d 10px,#9e6e3d 12px);box-shadow:inset 5px 0 0 #ffffff2e,inset -5px 0 0 #ffffff2e}
+#sg-review-modal .sg-tile.is-rock svg{width:34px;height:34px;color:#879b7e;fill:#879b7e}
+#sg-review-modal .sg-switch{display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:9px;padding:4px 7px;background:#ffcf65;box-shadow:0 3px 0 #cf9b36;color:#403314;font-size:10px;font-weight:800}
+#sg-review-modal .sg-house{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;width:89%;min-height:44px;border-radius:6px;background:#fbf4df;box-shadow:0 3px 0 #323c232e;border-top:6px solid #c26b43;padding:2px}
+#sg-review-modal .sg-house-code{position:absolute;top:0;left:3px;font-size:9px;color:#705137}
+#sg-review-modal .sg-house svg{color:#a54e29;width:19px;height:19px}
+#sg-review-modal .sg-house b{font-size:12px;font-weight:800;line-height:1.3;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+#sg-review-modal .sg-addresses{display:grid;gap:7px;margin-top:13px}
+#sg-review-modal .sg-addresses .sg-review-action{font-size:13px;color:#263d37;border-color:#a7b89d;overflow-wrap:anywhere;text-align:left}
+#sg-review-modal .sg-house.delivered{border-color:#43824d;background:#eef6c8}
+#sg-review-modal .sg-house.delivered svg{color:#397642}
+#sg-review-modal .sg-package{display:flex;flex-direction:column;align-items:center;gap:0;color:#4b3721;background:#ffdf98;border-radius:7px;padding:4px 3px;max-width:98%;box-shadow:0 3px 0 #c5a66a}
+#sg-review-modal .sg-package b{font-size:12px;line-height:1.2;font-weight:800;overflow-wrap:anywhere;max-width:100%;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+#sg-review-modal .sg-grass{width:12px;height:6px;border-left:2px solid #879b7e;border-right:2px solid #879b7e;border-radius:0 0 50% 50%;opacity:.3}
+#sg-review-modal .sg-actor{position:absolute;left:0;top:0;width:20%;height:calc(100% / 6);z-index:3;display:flex;align-items:center;justify-content:center;pointer-events:none;transition:transform .17s linear}
+#sg-review-modal .sg-courier{width:34px;height:33px;border-radius:12px;box-shadow:inset -3px -3px 0 #143c1e20,0 4px 0 #1e37192e}
+#sg-review-modal .sg-courier:before,#sg-review-modal .sg-courier:after{width:10px;height:12px;top:-5px}
+#sg-review-modal .sg-courier .sg-eyes{width:4px;height:6px;left:8px;top:11px;box-shadow:13px 0 0 #243a35}
+#sg-review-modal .sg-courier .sg-mouth{left:14px;top:22px;width:6px;height:3px}
+#sg-review-modal .sg-cargo{position:absolute;bottom:85%;left:50%;transform:translateX(-50%);max-width:120px;border-radius:6px;background:#fbf4df;color:#3c4b36;padding:2px 5px;font-size:11px;font-weight:800;line-height:1.3;overflow-wrap:anywhere;box-shadow:0 2px 4px #0002;z-index:4}
+#sg-review-modal .sg-cargo:empty{display:none}
+#sg-review-modal .sg-dpad{display:flex;justify-content:center;gap:9px;margin-top:13px}
+#sg-review-modal .sg-direction{width:48px;height:46px;display:grid;place-items:center;border:1px solid var(--sg-line);border-radius:10px;background:#fff;color:#263d37;box-shadow:0 3px 0 var(--sg-line);padding:0;font-size:23px;font-weight:700}
+#sg-review-modal .sg-direction:active:not(:disabled){transform:translateY(2px)}
+#sg-review-modal .sg-direction:disabled{opacity:.5}
+@keyframes sg-review-hop{0%{transform:translateY(0)}45%{transform:translateY(-12px) rotate(-5deg)}100%{transform:translateY(0)}}
+@media(hover:hover){#sg-review-modal .sg-tile:not(:disabled):hover{box-shadow:inset 0 0 0 3px #167347}#sg-review-modal .sg-direction:not(:disabled):hover{background:#e9f3df}}
+@media(max-width:520px){
+  .sg-review-backdrop{padding:max(7px,env(safe-area-inset-top)) max(7px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left))}
+  .sg-review-card{max-height:97vh;max-height:97dvh;padding:15px 11px;border-radius:17px}
+  #sg-review-modal .sg-mini-game{padding:16px 10px}
+  #sg-review-modal .sg-memory-grid{gap:8px}
+  #sg-review-modal .sg-flip{height:116px}
+  #sg-review-modal .sg-pets{gap:4px;padding-left:0;padding-right:0}
+  #sg-review-modal .sg-pet-platform{width:65px}
+  #sg-review-modal .sg-pet-label{font-size:11px}
+  #sg-review-modal .sg-house b,#sg-review-modal .sg-package b{font-size:11px}
+  #sg-review-modal .sg-feedback{padding:11px;font-size:13px}
+}
+@media(prefers-reduced-motion:reduce){#sg-review-modal button,#sg-review-modal .sg-flip-inner,#sg-review-modal .sg-cage,#sg-review-modal .sg-actor{transition:none}#sg-review-modal .sg-pet-slot.is-free .sg-creature{animation:none}}

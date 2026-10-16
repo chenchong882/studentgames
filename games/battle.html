@@ -2153,7 +2153,10 @@ function bossOnWrong(){
 function loadQuestion(){
   if(!state || state.phase !== 'playing') return;
   currentQuestion = getNextQuestion();
-  RoundReview.begin({prompt:currentQuestion.prompt,answer:currentQuestion.opts[currentQuestion.ans]});
+  const reviewWord=currentQuestion.type!=='文法選擇題'&&wordPool.find(w=>w.word===currentQuestion.audio);
+  RoundReview.begin(reviewWord
+    ?{prompt:currentQuestion.prompt,answer:reviewWord.word,meaning:reviewWord.chinese,kind:'word'}
+    :{prompt:currentQuestion.prompt,answer:currentQuestion.opts[currentQuestion.ans],kind:'question'});
   const isGrammar = isPowerQuestion(currentQuestion);
   const qt = document.getElementById('quiz-type');
   const vocabBossNow = state.boss && state.bossMode === 'vocab';

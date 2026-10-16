@@ -1035,6 +1035,18 @@ function applyTheme(){
 }
 
 /* ================= 判定 ================= */
+// 複習使用英文／中文配對，不把作答方向或圖片當成單字。
+function runnerReviewRecord(q){
+  const prompt=q.q.replace(/<[^>]*>/g,'').trim(),answer=q.opts[DIRS.indexOf(q.answerDir)];
+  const entry=runnerPool&&runnerPool.find(w=>w.word===q.say);
+  if(entry)return {prompt,answer:entry.word,meaning:entry.chinese,kind:'word'};
+  const cn=prompt.match(/^「(.+)」的英文是/),en=prompt.match(/^「?([A-Za-z][A-Za-z .'-]*?)」?\s*的中文是/);
+  if(cn)return {prompt,answer,meaning:cn[1],kind:'word'};
+  if(en)return {prompt,answer:en[1],meaning:answer,kind:'word'};
+  const pictureMeanings={cat:'貓咪',dog:'狗',apple:'蘋果',sun:'太陽',car:'汽車',house:'房子',book:'書',star:'星星',rain:'雨',fish:'魚'};
+  if(q.q.includes('<span class="big">')&&pictureMeanings[answer.toLowerCase()])return {prompt,answer,meaning:pictureMeanings[answer.toLowerCase()],kind:'word'};
+  return {prompt,answer,kind:'question'};
+}
 function resolveObstacle(o, hitTime = runTime){
   o.resolved = true;
   let pass, gateChoice = null;
@@ -1055,8 +1067,7 @@ function resolveObstacle(o, hitTime = runTime){
   if (pass) {
     passed++;
     if (o.type === 'gate') {
-      const idx = DIRS.indexOf(o.answerDir);
-      RoundReview.correct({prompt:o.q.q,answer:DIR_ICON[o.answerDir]+' '+o.q.opts[idx]});
+      RoundReview.correct(runnerReviewRecord(o.q));
       gateNum++; gateCorrect++;
       combo++;
       let bonus = 0;
@@ -1097,8 +1108,8 @@ function crash(o){
     const idx = DIRS.indexOf(o.answerDir);
     const correctText = DIR_ICON[o.answerDir] + ' ' + o.q.opts[idx];
     const chosenIdx = DIRS.indexOf(o.choice);
-    if(o.choice)RoundReview.wrong({prompt:o.q.q,answer:correctText,chosen:chosenIdx>=0?o.q.opts[chosenIdx]:o.choice});
-    else RoundReview.unanswered({prompt:o.q.q,answer:correctText});
+    if(o.choice)RoundReview.wrong({...runnerReviewRecord(o.q),chosen:chosenIdx>=0?o.q.opts[chosenIdx]:o.choice});
+    else RoundReview.unanswered(runnerReviewRecord(o.q));
     wrongAnswers.push({ q: o.q.q, correct: correctText });
     showToast('💥 正確答案：' + correctText, 1600);
     refreshHud();
