@@ -191,6 +191,7 @@
 <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
 <script src="game-setup.js"></script>
+<script src="game-runtime.js"></script>
 </head>
 <body>
 <div id="tankRotateWarning" role="status"><div><div class="rotateIcon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div></div>
@@ -358,9 +359,9 @@ function th(x,z){
 /* ============ Three.js 場景 ============ */
 let renderer,scene,camera,ground,treeSpots=[];
 function initScene(){
-  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer=new THREE.WebGLRenderer({antialias:!GameRuntime.touch});
   renderer.setSize(innerWidth,innerHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setPixelRatio(GameRuntime.pixelRatio());
   document.body.appendChild(renderer.domElement);
   scene=new THREE.Scene();
   scene.background=new THREE.Color(0xb9e0f2);
@@ -1805,15 +1806,17 @@ const elProgressFill=document.getElementById('progressFill'),elProgressText=docu
 const elDashSkill=document.getElementById('dashSkill'),elLightBtn=document.getElementById('lightBtn');
 const elDashZone=document.getElementById('dashZone');
 function setSkillVisual(el,unlocked,cd,scoreNeed,name){
+  const visualKey=unlocked?(cd>0?'cooldown'+Math.ceil(cd):'ready'):'locked';
+  if(el.dataset.visualKey===visualKey)return;el.dataset.visualKey=visualKey;
   el.classList.remove('locked','ready','cooldown');const c=el.querySelector('.cd');
-  if(!unlocked){el.classList.add('locked');c.textContent=scoreNeed.toLocaleString('en-US')+' 分';el.setAttribute('aria-label',name+'尚未解鎖');}
-  else if(cd>0){el.classList.add('cooldown');c.textContent=Math.ceil(cd)+'s';el.setAttribute('aria-label',name+'冷卻中，剩 '+Math.ceil(cd)+' 秒');}
-  else{el.classList.add('ready');c.textContent='';el.setAttribute('aria-label',name+'可以使用');}
+  if(!unlocked){el.classList.add('locked');GameRuntime.text(c, scoreNeed.toLocaleString('en-US')+' 分');el.setAttribute('aria-label',name+'尚未解鎖');}
+  else if(cd>0){el.classList.add('cooldown');GameRuntime.text(c, Math.ceil(cd)+'s');el.setAttribute('aria-label',name+'冷卻中，剩 '+Math.ceil(cd)+' 秒');}
+  else{el.classList.add('ready');GameRuntime.text(c, '');el.setAttribute('aria-label',name+'可以使用');}
 }
 function updProgressAndSkills(){
   elProgressFill.style.width=(clamp(score/STAGE_SCORE[2],0,1)*100)+'%';
   const next=STAGE_SCORE.find(v=>score<v);
-  elProgressText.textContent=score.toLocaleString('en-US')+(next?' / '+next.toLocaleString('en-US'):' / MAX');
+  GameRuntime.text(elProgressText, score.toLocaleString('en-US')+(next?' / '+next.toLocaleString('en-US'):' / MAX'));
   document.getElementById('stage1').classList.toggle('on',score>=STAGE_SCORE[0]);
   document.getElementById('stage2').classList.toggle('on',score>=STAGE_SCORE[1]);
   document.getElementById('stage3').classList.toggle('on',score>=STAGE_SCORE[2]);
@@ -1821,12 +1824,12 @@ function updProgressAndSkills(){
   setSkillVisual(elLightBtn,score>=STAGE_SCORE[2],lightCD,STAGE_SCORE[2],'光速攻擊');
   elLightBtn.disabled=score<STAGE_SCORE[2]||lightCD>0;
   elDashZone.className=score>=STAGE_SCORE[0]?'show '+(dashCD>0?'cooldown':'ready')+(dashZoneEntered&&dashCD<=0?' targeted':''):'';
-  elDashZone.textContent=dashCD>0?Math.ceil(dashCD):'💨';
+  GameRuntime.text(elDashZone, dashCD>0?Math.ceil(dashCD):'💨');
 }
 function updHUD(){
   elArmor.style.width=(clamp(tank.hp/tank.maxHp,0,1)*100)+'%';
-  elScore.textContent=score;
-  elKills.textContent=kills;
+  GameRuntime.text(elScore, score);
+  GameRuntime.text(elKills, kills);
   let near=null,nd=1e9, gw=null,gi=0;
   for(const d of dinos){
     if(d.deadT>=0)continue;
@@ -1842,9 +1845,9 @@ function updHUD(){
   }
   setThreatGlow(state==='play'?gw:null,gi);
   if(near){
-    elThreat.textContent=DT[near.type].name+' '+Math.round(nd)+'m';
+    GameRuntime.text(elThreat, DT[near.type].name+' '+Math.round(nd)+'m');
     elThreat.style.color=nd<25?'#ff6655':'#ffb454';
-  }else{elThreat.textContent='—';elThreat.style.color='#9aa0ac';}
+  }else{GameRuntime.text(elThreat, '—');elThreat.style.color='#9aa0ac';}
   let fx='';
   if(tank.shield>0)fx+='🛡 護盾 '+Math.ceil(tank.shield)+'s<br>';
   if(effects.meteor>0)fx+='☄️ 隕石風暴 '+Math.ceil(effects.meteor)+'s<br>';
@@ -1852,7 +1855,7 @@ function updHUD(){
   if(effects.gold>0)fx+='✨ 雙倍分數 '+Math.ceil(effects.gold)+'s<br>';
   if(effects.rapid>0)fx+='🔥 連發砲 '+Math.ceil(effects.rapid)+'s<br>';
   if(effects.shrink>0)fx+='🐣 恐龍縮小 '+Math.ceil(effects.shrink)+'s<br>';
-  elFx.innerHTML=fx;
+  if(elFx.innerHTML!==fx)elFx.innerHTML=fx;
   updProgressAndSkills();
   let crx=mouse.x,cry=mouse.y;
   if(reticleObj){                                // 準心一律畫在砲口子物件(reticleObj)的投影位置：與砲口同一物件，永遠一致、不會飛走（平板＋桌機）
@@ -2222,11 +2225,11 @@ addEventListener('touchend',endTouch);
 addEventListener('touchcancel',endTouch);
 document.getElementById('btnPause').addEventListener('click',e=>{e.stopPropagation();togglePause();});
 addEventListener('contextmenu',e=>e.preventDefault());
-addEventListener('resize',()=>{
+GameRuntime.onResize(()=>{
   renderer.setSize(innerWidth,innerHeight);
   camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
   resizeArcLayer();
-  if(IS_TOUCH)refreshTouchRects();
+  if(IS_TOUCH){resetTouch();refreshTouchRects();}
 });
 
 /* ============ 主迴圈 ============ */

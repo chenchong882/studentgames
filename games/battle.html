@@ -275,6 +275,7 @@ body.battle-active #boss-banner > div > div { min-width:40px; }
 <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
 <script src="game-setup.js"></script>
+<script src="game-runtime.js"></script>
 </head>
 <body>
 <button id="battle-pause-btn" type="button" aria-label="暫停">⏸</button>
@@ -629,9 +630,13 @@ const portraitBattle = window.matchMedia('(orientation:portrait) and (max-width:
 // iPad（含偽裝成 Mac 的 iPadOS）與 Android 平板不顯示手機提示。
 document.body.classList.toggle('battle-phone', /iPhone|iPod|Android.*Mobile/i.test(navigator.userAgent));
 let battleView = { portrait:false, width:900, height:360 };
+let battleViewDirty = true;
+GameRuntime.onResize(()=>{battleViewDirty=true;}, canvas.parentElement);
 
 // 只轉換繪圖座標；移動、射程、碰撞與傷害仍使用原本的 900 × 360 戰場。
 function syncBattleView(){
+  if(!battleViewDirty)return;
+  battleViewDirty=false;
   const portrait = portraitBattle.matches;
   if(portrait !== battleView.portrait){
     const banner=document.getElementById('boss-banner');
@@ -640,7 +645,7 @@ function syncBattleView(){
   }
   const width = portrait ? 420 : 900;
   const height = portrait ? Math.round(width * Math.max(1,canvas.clientHeight) / Math.max(1,canvas.clientWidth)) : 360;
-  const density = portrait ? Math.min(window.devicePixelRatio || 1,2) : 1;
+  const density = portrait ? GameRuntime.pixelRatio() : 1;
   const pixelWidth = Math.round(width*density), pixelHeight = Math.round(height*density);
   if(canvas.width !== pixelWidth || canvas.height !== pixelHeight){
     canvas.width = pixelWidth; canvas.height = pixelHeight;
@@ -1834,6 +1839,7 @@ function showStartScreen(){
 }
 
 function loop(ts){
+  if(battleViewDirty && state && paused) drawBattleFrame(pauseStart);
   if(paused){ requestAnimationFrame(loop); return; }   // 暫停：保持排程但不推進
   if(!state || state.phase !== 'playing') return;
   const dt = ts - lastTime;
@@ -1885,6 +1891,16 @@ function loop(ts){
     playSound('win');
   }
 
+  drawBattleFrame(now);
+  updateHUD();
+
+  if(state.enemyHP <= 0){ endGame('win', 'rout'); return; }   // 打爆敵方基地 → 完全制霸
+  if(state.playerHP <= 0){ endGame('lose'); return; }
+  if(state.timeLeft <= 0){ endGame(getTimedResult(), 'points'); return; }   // 時間到、血量較多
+  requestAnimationFrame(loop);
+}
+
+function drawBattleFrame(now){
   syncBattleView();
   ctx.clearRect(0,0,battleView.width,battleView.height);
   ctx.save();
@@ -1898,12 +1914,6 @@ function loop(ts){
   drawEffects(now);
   drawFloats(now);
   ctx.restore();
-  updateHUD();
-
-  if(state.enemyHP <= 0){ endGame('win', 'rout'); return; }   // 打爆敵方基地 → 完全制霸
-  if(state.playerHP <= 0){ endGame('lose'); return; }
-  if(state.timeLeft <= 0){ endGame(getTimedResult(), 'points'); return; }   // 時間到、血量較多
-  requestAnimationFrame(loop);
 }
 
 /* ── 暫停 / 玩法說明 ── */
@@ -1949,23 +1959,29 @@ document.getElementById('battle-guide-ok').addEventListener('click', () => {
   document.getElementById('battle-guide').classList.remove('show');
 });
 
+let battleHudKey = '';
 function updateHUD(){
+  const b=state.boss;
+  const key=[state.stageIndex,state.gold,state.timeLeft,state.correctCount,state.wrongCount,state.power,state.allowLevelUp,
+    ...Object.values(state.levels),b&&b.hp,b&&b.maxHp,b&&b.need,b&&bossProgress(b),b&&b.bossName,b&&b.emoji,b&&b.bossColor].join('|');
+  if(key===battleHudKey)return;
+  battleHudKey=key;
   const stageLabel = ['一','二','三'][state.stageIndex] || state.stageIndex+1;
-  document.getElementById('stage-display').textContent = `第${stageLabel}關：${state.stage.name}`;
+  GameRuntime.text(document.getElementById('stage-display'), `第${stageLabel}關：${state.stage.name}`);
   document.querySelectorAll('.stage-step').forEach((step, index) => {
     step.classList.toggle('current', index === state.stageIndex);
     step.classList.toggle('done', index < state.stageIndex);
   });
-  document.getElementById('gold-display').textContent = state.gold;
+  GameRuntime.text(document.getElementById('gold-display'), state.gold);
   const timeText = `${Math.floor(state.timeLeft/60)}:${String(state.timeLeft%60).padStart(2,'0')}`;
   const timer = document.getElementById('battle-timer');
-  timer.textContent = `⏱ ${timeText}`;
+  GameRuntime.text(timer, `⏱ ${timeText}`);
   timer.classList.toggle('warning', state.timeLeft <= 30 && state.timeLeft > 10);
   timer.classList.toggle('danger', state.timeLeft <= 10);
-  document.getElementById('correct-display').textContent = state.correctCount;
-  document.getElementById('wrong-display').textContent = state.wrongCount;
-  document.getElementById('power-display').textContent = state.power;
-  document.getElementById('intermission-power').textContent = `剩餘強化值：${state.power} 點`;
+  GameRuntime.text(document.getElementById('correct-display'), state.correctCount);
+  GameRuntime.text(document.getElementById('wrong-display'), state.wrongCount);
+  GameRuntime.text(document.getElementById('power-display'), state.power);
+  GameRuntime.text(document.getElementById('intermission-power'), `剩餘強化值：${state.power} 點`);
   for(const [key, def] of Object.entries(UNIT_DEF)){
     const btn = document.getElementById('btn-' + key);
     const lv = state.levels[key];
@@ -1979,12 +1995,12 @@ function updateHUD(){
     btn.classList.toggle('upgrade-ready', canUpgrade);
     if(canUpgrade){
       const upgradeCost = CONFIG.levelCost[lv+1];
-      if(nameEl) nameEl.textContent = `⬆ ${def.label}進化`;
-      if(costEl) costEl.textContent = `升 Lv${lv+1}・${upgradeCost} 強化值`;
+      if(nameEl) GameRuntime.text(nameEl, `⬆ ${def.label}進化`);
+      if(costEl) GameRuntime.text(costEl, `升 Lv${lv+1}・${upgradeCost} 強化值`);
       btn.setAttribute('aria-label', `${def.label}可進化，點擊升到等級 ${lv+1}`);
     } else {
-      if(nameEl) nameEl.textContent = `${def.label} Lv${lv}`;
-      if(costEl) costEl.textContent = `派兵 ${deployCost} 金`;
+      if(nameEl) GameRuntime.text(nameEl, `${def.label} Lv${lv}`);
+      if(costEl) GameRuntime.text(costEl, `派兵 ${deployCost} 金`);
       btn.setAttribute('aria-label', `派出${def.label}，需要 ${deployCost} 金`);
     }
     const mini=document.getElementById('intermission-'+key);
@@ -1992,7 +2008,7 @@ function updateHUD(){
       const small=mini.querySelector('small');
       const maxed=lv>=5, cost=maxed?0:CONFIG.levelCost[lv+1];
       const perk=maxed?'':EVOLUTION_PERKS[key][lv+1];
-      if(small) small.textContent=maxed?`${EVOLUTION_NAMES[key][lv-1]}｜已滿級`:`Lv${lv} ${EVOLUTION_NAMES[key][lv-1]} → Lv${lv+1}｜${cost} 點${perk?'｜'+perk:''}`;
+      if(small) GameRuntime.text(small, maxed?`${EVOLUTION_NAMES[key][lv-1]}｜已滿級`:`Lv${lv} ${EVOLUTION_NAMES[key][lv-1]} → Lv${lv+1}｜${cost} 點${perk?'｜'+perk:''}`);
       mini.disabled=maxed||state.power<cost;mini.classList.toggle('ready',!maxed&&state.power>=cost);
     }
   }

@@ -1,0 +1,887 @@
+{
+  "dateTaipei": "2026-10-18",
+  "baseline": "3633c0f",
+  "conditions": {
+    "browser": "Headless Chrome on macOS",
+    "viewport": [
+      844,
+      390
+    ],
+    "deviceScaleFactor": 3,
+    "cpuThrottlingRate": 4,
+    "sampleMs": 3500,
+    "note": "Desktop GPU; frame rates are not mobile-device performance guarantees. Regular samples are randomized; targeted comparison uses a fixed random seed."
+  },
+  "samples": {
+    "bomb": {
+      "before": {
+        "n": 183,
+        "median": 16.699999999999818,
+        "p95": 16.800000000000182,
+        "over33": 2,
+        "layoutCount": 0,
+        "layoutMs": 0,
+        "scriptMs": 345.461,
+        "mutations": 0,
+        "rects": 0,
+        "gradients": 732,
+        "renderer": null,
+        "errors": []
+      },
+      "after": {
+        "n": 210,
+        "median": 16.699999999999818,
+        "p95": 16.700000000000728,
+        "over33": 0,
+        "layoutCount": 0,
+        "layoutMs": 0,
+        "scriptMs": 303.82300000000004,
+        "mutations": 0,
+        "rects": 0,
+        "gradients": 840,
+        "renderer": null,
+        "errors": []
+      }
+    },
+    "battle": {
+      "before": {
+        "n": 214,
+        "median": 16.699999999999818,
+        "p95": 16.700000000000728,
+        "over33": 0,
+        "layoutCount": 213,
+        "layoutMs": 548.286,
+        "scriptMs": 467.057,
+        "mutations": 5136,
+        "rects": 0,
+        "gradients": 642,
+        "renderer": null,
+        "errors": []
+      },
+      "after": {
+        "n": 211,
+        "median": 16.699999999999818,
+        "p95": 16.799999999999727,
+        "over33": 0,
+        "layoutCount": 4,
+        "layoutMs": 12.338999999999999,
+        "scriptMs": 276.98,
+        "mutations": 37,
+        "rects": 0,
+        "gradients": 633,
+        "renderer": null,
+        "errors": []
+      }
+    },
+    "miner": {
+      "before": {
+        "n": 195,
+        "median": 16.699999999999818,
+        "p95": 33.399999999999636,
+        "over33": 0,
+        "layoutCount": 195,
+        "layoutMs": 154.812,
+        "scriptMs": 401.507,
+        "mutations": 418,
+        "rects": 195,
+        "gradients": 2925,
+        "renderer": null,
+        "errors": []
+      },
+      "after": {
+        "n": 210,
+        "median": 16.699999999999818,
+        "p95": 16.700000000000728,
+        "over33": 0,
+        "layoutCount": 5,
+        "layoutMs": 3.448,
+        "scriptMs": 251.68699999999998,
+        "mutations": 34,
+        "rects": 0,
+        "gradients": 2100,
+        "renderer": null,
+        "errors": []
+      }
+    },
+    "ship": {
+      "before": {
+        "n": 212,
+        "median": 16.699999999999818,
+        "p95": 16.800000000000182,
+        "over33": 0,
+        "layoutCount": 211,
+        "layoutMs": 207.184,
+        "scriptMs": 1391.227,
+        "mutations": 1060,
+        "rects": 212,
+        "gradients": 2332,
+        "renderer": null,
+        "errors": []
+      },
+      "after": {
+        "n": 210,
+        "median": 16.699999999999818,
+        "p95": 16.799999999999727,
+        "over33": 0,
+        "layoutCount": 4,
+        "layoutMs": 4.181,
+        "scriptMs": 1159.3739999999998,
+        "mutations": 4,
+        "rects": 0,
+        "gradients": 2310,
+        "renderer": null,
+        "errors": []
+      }
+    },
+    "sniper": {
+      "before": {
+        "n": 211,
+        "median": 16.699999999999818,
+        "p95": 16.799999999999272,
+        "over33": 0,
+        "layoutCount": 211,
+        "layoutMs": 118.97399999999999,
+        "scriptMs": 562.697,
+        "mutations": 1899,
+        "rects": 211,
+        "gradients": 14348,
+        "renderer": null,
+        "errors": []
+      },
+      "after": {
+        "n": 211,
+        "median": 16.699999999999818,
+        "p95": 16.799999999999272,
+        "over33": 0,
+        "layoutCount": 0,
+        "layoutMs": 0,
+        "scriptMs": 485.379,
+        "mutations": 124,
+        "rects": 0,
+        "gradients": 14348,
+        "renderer": null,
+        "errors": []
+      }
+    },
+    "tank": {
+      "before": {
+        "n": 211,
+        "median": 16.699999999999818,
+        "p95": 16.700000000000728,
+        "over33": 0,
+        "layoutCount": 257,
+        "layoutMs": 151.832,
+        "scriptMs": 752.071,
+        "mutations": 4527,
+        "rects": 0,
+        "gradients": 0,
+        "renderer": {
+          "memory": {
+            "geometries": 19,
+            "textures": 1
+          },
+          "calls": 26,
+          "triangles": 54840
+        },
+        "errors": []
+      },
+      "after": {
+        "n": 211,
+        "median": 16.699999999999818,
+        "p95": 16.799999999999727,
+        "over33": 0,
+        "layoutCount": 26,
+        "layoutMs": 8.959999999999999,
+        "scriptMs": 650.184,
+        "mutations": 1648,
+        "rects": 0,
+        "gradients": 0,
+        "renderer": {
+          "memory": {
+            "geometries": 19,
+            "textures": 1
+          },
+          "calls": 20,
+          "triangles": 54818
+        },
+        "errors": []
+      }
+    },
+    "gun": {
+      "before": {
+        "n": 223,
+        "median": 16.699999999999818,
+        "p95": 16.800000000000182,
+        "over33": 0,
+        "layoutCount": 223,
+        "layoutMs": 132.849,
+        "scriptMs": 2856.828,
+        "mutations": 447,
+        "rects": 0,
+        "gradients": 0,
+        "renderer": {
+          "memory": {
+            "geometries": 256,
+            "textures": 11
+          },
+          "calls": 943,
+          "triangles": 3210
+        },
+        "errors": []
+      },
+      "after": {
+        "n": 210,
+        "median": 16.699999999999818,
+        "p95": 16.700000000000728,
+        "over33": 0,
+        "layoutCount": 4,
+        "layoutMs": 1.485,
+        "scriptMs": 1026.4189999999999,
+        "mutations": 5,
+        "rects": 0,
+        "gradients": 0,
+        "renderer": {
+          "memory": {
+            "geometries": 130,
+            "textures": 12
+          },
+          "calls": 168,
+          "triangles": 2960
+        },
+        "errors": []
+      }
+    },
+    "runner": {
+      "before": {
+        "n": 210,
+        "median": 16.699999999999818,
+        "p95": 16.700000000000273,
+        "over33": 0,
+        "layoutCount": 2,
+        "layoutMs": 3.0109999999999997,
+        "scriptMs": 103.616,
+        "mutations": 1872,
+        "rects": 0,
+        "gradients": 0,
+        "renderer": null,
+        "errors": []
+      },
+      "after": {
+        "n": 210,
+        "median": 16.699999999999818,
+        "p95": 16.799999999999272,
+        "over33": 0,
+        "layoutCount": 2,
+        "layoutMs": 3.072,
+        "scriptMs": 77.36800000000001,
+        "mutations": 1874,
+        "rects": 0,
+        "gradients": 0,
+        "renderer": null,
+        "errors": []
+      }
+    },
+    "word-hunt-vocab": {
+      "before": {
+        "n": 211,
+        "median": 16.699999999999818,
+        "p95": 16.799999999999727,
+        "over33": 0,
+        "layoutCount": 4,
+        "layoutMs": 4.369,
+        "scriptMs": 18.915,
+        "mutations": 4,
+        "rects": 0,
+        "gradients": 0,
+        "renderer": null,
+        "errors": []
+      },
+      "after": {
+        "n": 210,
+        "median": 16.699999999999818,
+        "p95": 16.700000000000273,
+        "over33": 0,
+        "layoutCount": 4,
+        "layoutMs": 3.975,
+        "scriptMs": 11.356,
+        "mutations": 4,
+        "rects": 0,
+        "gradients": 0,
+        "renderer": null,
+        "errors": []
+      }
+    }
+  },
+  "targetedComparison": {
+    "before": {
+      "explosion": {
+        "gradients": 4950,
+        "ms": 9.800000011920929
+      },
+      "pausedBattle": {
+        "portrait": false,
+        "canvas": [
+          900,
+          360
+        ],
+        "view": [
+          900,
+          360
+        ],
+        "css": [
+          372,
+          482
+        ],
+        "paused": true
+      },
+      "shipAim": {
+        "x": 832,
+        "y": 370,
+        "W": 390,
+        "H": 844,
+        "inside": false
+      },
+      "gun": {
+        "base": {
+          "geometries": 175,
+          "textures": 10
+        },
+        "rounds": [
+          {
+            "geometries": 205,
+            "textures": 12
+          },
+          {
+            "geometries": 235,
+            "textures": 13
+          },
+          {
+            "geometries": 265,
+            "textures": 14
+          },
+          {
+            "geometries": 295,
+            "textures": 15
+          }
+        ],
+        "hits": [
+          {
+            "distance": 42.650000005960464,
+            "point": [
+              0,
+              1.7,
+              -8.650000005960464
+            ]
+          },
+          {
+            "distance": 57.650000005960464,
+            "point": [
+              -77.65000000596046,
+              2,
+              -30
+            ]
+          },
+          {
+            "distance": 147.65000000596046,
+            "point": [
+              42,
+              2,
+              77.65000000596046
+            ]
+          },
+          {
+            "distance": 67.65000000596046,
+            "point": [
+              50,
+              2,
+              77.65000000596046
+            ]
+          },
+          {
+            "distance": 48.650000005960464,
+            "point": [
+              -45,
+              2,
+              6.3499999940395355
+            ]
+          },
+          {
+            "distance": 87.65000000596046,
+            "point": [
+              -77.65000000596046,
+              2,
+              54
+            ]
+          },
+          {
+            "distance": 77.65000000596046,
+            "point": [
+              77.65000000596046,
+              2,
+              0
+            ]
+          },
+          {
+            "distance": 8.650000005960464,
+            "point": [
+              0,
+              2,
+              -8.650000005960464
+            ]
+          }
+        ],
+        "calls": 793
+      },
+      "errors": []
+    },
+    "after": {
+      "explosion": {
+        "gradients": 7,
+        "ms": 7.899999976158142
+      },
+      "pausedBattle": {
+        "portrait": true,
+        "canvas": [
+          630,
+          816
+        ],
+        "view": [
+          420,
+          544
+        ],
+        "css": [
+          372,
+          482
+        ],
+        "paused": true
+      },
+      "shipAim": {
+        "x": 384.45497630331755,
+        "y": 800.7179487179486,
+        "W": 390,
+        "H": 844,
+        "inside": true
+      },
+      "gun": {
+        "base": {
+          "geometries": 83,
+          "textures": 10
+        },
+        "rounds": [
+          {
+            "geometries": 83,
+            "textures": 11
+          },
+          {
+            "geometries": 83,
+            "textures": 11
+          },
+          {
+            "geometries": 83,
+            "textures": 11
+          },
+          {
+            "geometries": 83,
+            "textures": 11
+          }
+        ],
+        "hits": [
+          {
+            "distance": 42.64999961853027,
+            "point": [
+              0,
+              1.7,
+              -8.649999618530273
+            ]
+          },
+          {
+            "distance": 57.650001525878906,
+            "point": [
+              -77.6500015258789,
+              2,
+              -30
+            ]
+          },
+          {
+            "distance": 147.6500015258789,
+            "point": [
+              42,
+              2,
+              77.6500015258789
+            ]
+          },
+          {
+            "distance": 67.6500015258789,
+            "point": [
+              50,
+              2,
+              77.6500015258789
+            ]
+          },
+          {
+            "distance": 48.65000009536744,
+            "point": [
+              -45,
+              2,
+              6.349999904632561
+            ]
+          },
+          {
+            "distance": 87.6500015258789,
+            "point": [
+              -77.6500015258789,
+              2,
+              54
+            ]
+          },
+          {
+            "distance": 77.6500015258789,
+            "point": [
+              77.6500015258789,
+              2,
+              0
+            ]
+          },
+          {
+            "distance": 8.649999618530273,
+            "point": [
+              0,
+              2,
+              -8.649999618530273
+            ]
+          }
+        ],
+        "calls": 86
+      },
+      "errors": []
+    },
+    "viewports": [
+      {
+        "game": "bomb",
+        "width": 390,
+        "height": 844,
+        "ok": true
+      },
+      {
+        "game": "bomb",
+        "width": 844,
+        "height": 390,
+        "ok": true
+      },
+      {
+        "game": "bomb",
+        "width": 768,
+        "height": 1024,
+        "ok": true
+      },
+      {
+        "game": "bomb",
+        "width": 1024,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "bomb",
+        "width": 1366,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "battle",
+        "width": 390,
+        "height": 844,
+        "ok": true
+      },
+      {
+        "game": "battle",
+        "width": 844,
+        "height": 390,
+        "ok": true
+      },
+      {
+        "game": "battle",
+        "width": 768,
+        "height": 1024,
+        "ok": true
+      },
+      {
+        "game": "battle",
+        "width": 1024,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "battle",
+        "width": 1366,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "miner",
+        "width": 390,
+        "height": 844,
+        "ok": true
+      },
+      {
+        "game": "miner",
+        "width": 844,
+        "height": 390,
+        "ok": true
+      },
+      {
+        "game": "miner",
+        "width": 768,
+        "height": 1024,
+        "ok": true
+      },
+      {
+        "game": "miner",
+        "width": 1024,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "miner",
+        "width": 1366,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "ship",
+        "width": 390,
+        "height": 844,
+        "ok": true
+      },
+      {
+        "game": "ship",
+        "width": 844,
+        "height": 390,
+        "ok": true
+      },
+      {
+        "game": "ship",
+        "width": 768,
+        "height": 1024,
+        "ok": true
+      },
+      {
+        "game": "ship",
+        "width": 1024,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "ship",
+        "width": 1366,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "sniper",
+        "width": 390,
+        "height": 844,
+        "ok": true
+      },
+      {
+        "game": "sniper",
+        "width": 844,
+        "height": 390,
+        "ok": true
+      },
+      {
+        "game": "sniper",
+        "width": 768,
+        "height": 1024,
+        "ok": true
+      },
+      {
+        "game": "sniper",
+        "width": 1024,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "sniper",
+        "width": 1366,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "tank",
+        "width": 390,
+        "height": 844,
+        "ok": true
+      },
+      {
+        "game": "tank",
+        "width": 844,
+        "height": 390,
+        "ok": true
+      },
+      {
+        "game": "tank",
+        "width": 768,
+        "height": 1024,
+        "ok": true
+      },
+      {
+        "game": "tank",
+        "width": 1024,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "tank",
+        "width": 1366,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "gun",
+        "width": 390,
+        "height": 844,
+        "ok": true
+      },
+      {
+        "game": "gun",
+        "width": 844,
+        "height": 390,
+        "ok": true
+      },
+      {
+        "game": "gun",
+        "width": 768,
+        "height": 1024,
+        "ok": true
+      },
+      {
+        "game": "gun",
+        "width": 1024,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "gun",
+        "width": 1366,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "runner",
+        "width": 390,
+        "height": 844,
+        "ok": true
+      },
+      {
+        "game": "runner",
+        "width": 844,
+        "height": 390,
+        "ok": true
+      },
+      {
+        "game": "runner",
+        "width": 768,
+        "height": 1024,
+        "ok": true
+      },
+      {
+        "game": "runner",
+        "width": 1024,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "runner",
+        "width": 1366,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "word-hunt-vocab",
+        "width": 390,
+        "height": 844,
+        "ok": true
+      },
+      {
+        "game": "word-hunt-vocab",
+        "width": 844,
+        "height": 390,
+        "ok": true
+      },
+      {
+        "game": "word-hunt-vocab",
+        "width": 768,
+        "height": 1024,
+        "ok": true
+      },
+      {
+        "game": "word-hunt-vocab",
+        "width": 1024,
+        "height": 768,
+        "ok": true
+      },
+      {
+        "game": "word-hunt-vocab",
+        "width": 1366,
+        "height": 768,
+        "ok": true
+      }
+    ]
+  },
+  "desktopOffline": [
+    {
+      "name": "bomb",
+      "before": 0,
+      "after": 2,
+      "errors": []
+    },
+    {
+      "name": "battle",
+      "before": 120,
+      "after": 119,
+      "errors": []
+    },
+    {
+      "name": "miner",
+      "before": 179.6465,
+      "after": 178.0688999999763,
+      "errors": []
+    },
+    {
+      "name": "ship",
+      "before": 15.683299999999996,
+      "after": 14.083399999999973,
+      "errors": []
+    },
+    {
+      "name": "sniper",
+      "before": 30.833299999999994,
+      "after": 29.23339999999997,
+      "errors": []
+    },
+    {
+      "name": "tank",
+      "before": 0.3664,
+      "after": 1.9664000000000004,
+      "errors": []
+    },
+    {
+      "name": "gun",
+      "before": 0.3667000000000001,
+      "after": 1.9665999999999997,
+      "errors": []
+    },
+    {
+      "name": "runner",
+      "before": 300,
+      "after": 1899.8999999999999,
+      "errors": []
+    },
+    {
+      "name": "word-hunt-vocab",
+      "before": "0 秒",
+      "after": "1 秒",
+      "errors": []
+    }
+  ]
+}

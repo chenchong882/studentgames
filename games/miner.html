@@ -603,6 +603,7 @@
     <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
 <script src="game-setup.js"></script>
+<script src="game-runtime.js"></script>
 </head>
 <body>
     <div id="miner-rotate-warning" role="status">
@@ -1274,6 +1275,7 @@
         window.speechSynthesis.speak(msg);
     }
 
+    let cartCanvasRect = null;
     function syncCartSpeechButton() {
         const canSpeak = gamePhase === "PLAYING" && currentQ === "word" && targetWordObj;
         if (!canSpeak) {
@@ -1281,7 +1283,7 @@
             return;
         }
 
-        const rect = canvas.getBoundingClientRect();
+        const rect = cartCanvasRect || (cartCanvasRect=canvas.getBoundingClientRect());
         const scaleX = rect.width / canvas.width;
         const scaleY = rect.height / canvas.height;
         cartSpeechBtn.style.display = "block";
@@ -1423,7 +1425,7 @@
                 finishGame();
                 return;
             }
-            timeLeftEl.textContent = formatTime(timeLeft);
+            GameRuntime.text(timeLeftEl,formatTime(timeLeft));
         } else {
             return;
         }
@@ -1547,11 +1549,18 @@
         };
     }
 
+    const backdrop = document.createElement('canvas');
+    backdrop.width=canvas.width; backdrop.height=canvas.height;
+    let backdropKey='';
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawBackground();
-        drawCaveFrame();
-        drawTrack();
+        const key=level+':'+bgImage.naturalWidth;
+        if(backdropKey!==key){
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            drawBackground(); drawCaveFrame(); drawTrack();
+            backdrop.getContext('2d').drawImage(canvas,0,0);
+            backdropKey=key;
+        }else ctx.drawImage(backdrop,0,0);
+        drawMineCart(origin.x,60);
         drawItems();
         drawHookSystem();
         drawParticles();
@@ -1697,7 +1706,6 @@
         }
         ctx.restore();
 
-        drawMineCart(origin.x, 60);
     }
 
     function drawMineCart(x, y) {
@@ -2355,10 +2363,12 @@
         const scale = Math.max(0, Math.min(stage.clientWidth / canvas.width, stage.clientHeight / canvas.height));
         canvas.style.width = `${canvas.width * scale}px`;
         canvas.style.height = `${canvas.height * scale}px`;
+        cartCanvasRect=canvas.getBoundingClientRect();
+        input.left=input.right=false;
         syncCartSpeechButton();
+        renderProgress();
     }
-    window.addEventListener("resize", fitGameCanvas);
-    if (window.visualViewport) window.visualViewport.addEventListener("resize", fitGameCanvas);
+    GameRuntime.onResize(fitGameCanvas,canvas.parentElement);
     fitGameCanvas();
 
     clampMode();

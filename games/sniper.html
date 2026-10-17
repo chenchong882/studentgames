@@ -38,7 +38,7 @@
   #stats b { color: #fbbf24; font-size: 16px; }
   #ammo { letter-spacing: 1px; font-size: 18px; line-height: 1; }
   #timerbar { width: 120px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.15); overflow: hidden; }
-  #timerfill { height: 100%; width: 100%; background: #34d399; transition: width .1s linear; }
+  #timerfill { height: 100%; width: 100%; background: #34d399; transform-origin:left center; transition: transform .1s linear; will-change:transform; }
 
   /* 底部控制 */
   #controls { position: fixed; bottom: 0; left: 0; right: 0; padding: 14px; display: flex; justify-content: space-between; align-items: flex-end; z-index: 5; pointer-events: none; }
@@ -146,6 +146,7 @@
 <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
 <script src="game-setup.js"></script>
+<script src="game-runtime.js"></script>
 </head>
 <body>
 <div id="stage"><canvas id="cv"></canvas></div>
@@ -358,12 +359,14 @@ let VW = 0, VH = 0, DPR = 1;
 let overviewDirty = true, overviewFrame = null;
 function resize(){
   overviewDirty = true;
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
-  VW = window.innerWidth; VH = window.innerHeight;
-  cv.width = Math.floor(VW*DPR); cv.height = Math.floor(VH*DPR);
+  DPR = GameRuntime.pixelRatio();
+  const rect=cv.getBoundingClientRect();
+  VW = Math.max(1,Math.round(rect.width)); VH = Math.max(1,Math.round(rect.height));
+  const width=Math.round(VW*DPR),height=Math.round(VH*DPR);
+  if(cv.width!==width||cv.height!==height){cv.width=width;cv.height=height;}
   ctx.setTransform(DPR,0,0,DPR,0,0);
 }
-window.addEventListener('resize', resize);
+GameRuntime.onResize(resize, cv.parentElement);
 resize();
 
 /* ---------- 世界 / 大樓設定 ---------- */
@@ -888,26 +891,26 @@ function enterKillcam(f, success){
 
 /* ---------- 計時/輸入更新 ---------- */
 function updateHUD(){
-  overviewDirty = true;
-  document.getElementById('round').textContent = Math.min(roundNo, MAX_ROUNDS);
-  document.getElementById('score').textContent = score;
-  document.getElementById('money').textContent = money;
+  GameRuntime.text(document.getElementById('round'), Math.min(roundNo, MAX_ROUNDS));
+  GameRuntime.text(document.getElementById('score'), score);
+  GameRuntime.text(document.getElementById('money'), money);
   let a = '';
   for(let i=0;i<ammoMax;i++) a += i<ammo ? '🔸' : '▫️';
   if(noWindShots>0) a += '　🧭';
   if(tempAPShots>0) a += '　🛡️';
-  document.getElementById('ammo-icons').textContent = a;
-  document.getElementById('phone-ammo').textContent = `${ammo}/${ammoMax}`;
-  document.getElementById('phone-perks').textContent = (noWindShots>0 ? ' 🧭' : '') + (tempAPShots>0 ? ' 🛡️' : '');
+  GameRuntime.text(document.getElementById('ammo-icons'), a);
+  GameRuntime.text(document.getElementById('phone-ammo'), `${ammo}/${ammoMax}`);
+  GameRuntime.text(document.getElementById('phone-perks'), (noWindShots>0 ? ' 🧭' : '') + (tempAPShots>0 ? ' 🛡️' : ''));
   const lr = document.getElementById('lives-row');   // 兩模式共用 3 次機會池, 都顯示
   lr.style.display = 'flex';
-  document.getElementById('lives').textContent = '❤️'.repeat(Math.max(0,lives)) + '🖤'.repeat(Math.max(0,MAX_LIVES-lives));
-  document.getElementById('phone-lives').textContent = Math.max(0,lives);
+  GameRuntime.text(document.getElementById('lives'), '❤️'.repeat(Math.max(0,lives)) + '🖤'.repeat(Math.max(0,MAX_LIVES-lives)));
+  GameRuntime.text(document.getElementById('phone-lives'), Math.max(0,lives));
   const pct = clamp(timeLeft/timeMax, 0, 1)*100;
   const fill = document.getElementById('timerfill');
-  fill.style.width = pct + '%';
+  fill.style.transform = 'scaleX('+(pct/100).toFixed(3)+')';
   fill.style.background = pct>40 ? '#34d399' : (pct>18 ? '#fbbf24' : '#f87171');
-  document.getElementById('timerbar').setAttribute('aria-valuenow', Math.round(pct));
+  const bar=document.getElementById('timerbar'),value=String(Math.round(pct));
+  if(bar.getAttribute('aria-valuenow')!==value)bar.setAttribute('aria-valuenow',value);
 }
 
 /* ---------- 主迴圈 ---------- */
@@ -1688,7 +1691,8 @@ function detectDevice(){
   document.body.classList.add('dev-' + DEVICE);
 }
 detectDevice();
-window.addEventListener('resize', detectDevice);
+GameRuntime.onResize(detectDevice);
+if(window.ResizeObserver)new ResizeObserver(()=>{overviewDirty=true;}).observe(document.getElementById('hud-top'));
 const inputActive = ()=> state==='playing'; // 只有遊玩中吃瞄準/開火; killcam/feedback 接管畫面
 
 /* ---------- 設定(可交換操控, 存 localStorage) ---------- */
@@ -1735,6 +1739,8 @@ cv.addEventListener('wheel', e=>{ if(!inputActive()) return; e.preventDefault();
 // 觸控: 單指拖曳移動準星; 雙指捏合切換開/收鏡(方向可在設定反轉)
 const PINCH_THRESH = 55;
 let lastTouch = null, pinchDist = 0;
+GameRuntime.onResize(()=>{lastTouch=null;pinchDist=0;});
+cv.addEventListener('touchcancel',()=>{lastTouch=null;pinchDist=0;});
 cv.addEventListener('touchstart', e=>{
   if(!inputActive()) return;
   e.preventDefault();

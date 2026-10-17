@@ -137,7 +137,7 @@
   #ammo-label {
     position: fixed;
     top: calc(10px + env(safe-area-inset-top));
-    right: calc(10px + env(safe-area-inset-right));
+    right: calc(72px + env(safe-area-inset-right));
     z-index: 14;
     min-width: 132px;
     padding: 9px 13px;
@@ -304,7 +304,7 @@
   #sky-chips .bigchip { font-size:18px; padding:4px 10px; max-width:100%; overflow-wrap:anywhere; }
   #toast { max-width:calc(100vw - 24px); white-space:normal; overflow-wrap:anywhere; }
   @media(orientation:landscape) and (max-height:500px) {
-    #sky-question { top:8px; left:62px; right:125px; }
+    #sky-question { top:8px; left:max(12px,env(safe-area-inset-left)); right:calc(220px + env(safe-area-inset-right)); }
     #sky-title { display:none; }
     #sky-chips .bigchip { font-size:16px; padding:3px 8px; }
     #sky-chips .bigchip.special { display:none; }
@@ -316,6 +316,7 @@
 <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
 <script src="game-setup.js"></script>
+<script src="game-runtime.js"></script>
 </head>
 <body>
 <div id="game-wrap">
@@ -482,15 +483,24 @@ let W = 0, H = 0, DPR = 1;
 let horizonY = 0, focal = 0;
 
 function resize() {
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
-  W = window.innerWidth; H = window.innerHeight;
-  canvas.width = W * DPR; canvas.height = H * DPR;
+  DPR = GameRuntime.pixelRatio();
+  const oldW=W,oldH=H,rect=canvas.getBoundingClientRect();
+  W=Math.max(1,Math.round(rect.width));H=Math.max(1,Math.round(rect.height));
+  if(oldW&&oldH&&(oldW!==W||oldH!==H)){
+    const sx=W/oldW,sy=H/oldH;
+    game.aimX=Math.max(0,Math.min(W,game.aimX*sx));game.aimY=Math.max(0,Math.min(H,game.aimY*sy));
+    for(const r of game.rockets){r.x0*=sx;r.x1*=sx;r.sceneX*=sx;r.y0*=sy;r.y1*=sy;r.sceneY*=sy;}
+    for(const p of [...game.particles,...game.splashes]){p.x*=sx;p.y*=sy;}
+    dragId=null;shipLabelsDirty=true;
+  }
+  const width=Math.round(W*DPR),height=Math.round(H*DPR);
+  if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   const phone = W < H && W < 500;
   horizonY = H * 0.42;
   focal = phone ? W * 0.65 : Math.max(W, H) * 0.62;
 }
-window.addEventListener("resize", resize);
+GameRuntime.onResize(resize, canvas.parentElement);
 resize();
 
 // 世界座標 (x 橫向, z 距離) → 螢幕座標；scale = 每世界單位的像素數
@@ -537,6 +547,9 @@ const game = {
 
 const $ = id => document.getElementById(id);
 const skyQ = $("sky-question");
+let shipLabelsTop=12, shipLabelsDirty=true;
+GameRuntime.onResize(()=>{shipLabelsDirty=true;},skyQ);
+new MutationObserver(()=>{shipLabelsDirty=true;}).observe(skyQ,{childList:true,subtree:true,characterData:true});
 const hud = $("hud"), toastEl = $("toast");
 
 // 上方題目：用「方框 chips」把重點羅列出來，一眼看懂（取代原本一長串描述）
@@ -824,16 +837,16 @@ function updateQuestionUI() {
 }
 
 function updateHUD() {
-  $("lives").textContent = "❤️".repeat(game.lives) + "🖤".repeat(3 - game.lives);
-  $("score-label").textContent = "分數 " + game.score;
-  $("level-label").textContent = game.boss
+  GameRuntime.text($("lives"), "❤️".repeat(game.lives) + "🖤".repeat(3 - game.lives));
+  GameRuntime.text($("score-label"), "分數 " + game.score);
+  GameRuntime.text($("level-label"), game.boss
     ? `👑 ${game.boss.name}`
-    : `第 ${game.level} 關 ${"★".repeat(game.clearProgress)}${"☆".repeat(Math.max(0, ROUNDS_PER_LEVEL - game.clearProgress))}`;
+    : `第 ${game.level} 關 ${"★".repeat(game.clearProgress)}${"☆".repeat(Math.max(0, ROUNDS_PER_LEVEL - game.clearProgress))}`);
 
   const ammoEl = $("ammo-label");
   if (usesAmmo()) {
     ammoEl.style.display = "";
-    ammoEl.textContent = `🚀 剩餘 ${game.ammo}`;
+    GameRuntime.text(ammoEl, `🚀 剩餘 ${game.ammo}`);
     ammoEl.classList.toggle("ammo-low", game.ammo >= 1 && game.ammo <= 2);
     ammoEl.classList.toggle("ammo-empty", game.ammo === 0);
   } else {
@@ -841,8 +854,8 @@ function updateHUD() {
     ammoEl.classList.remove("ammo-low", "ammo-empty");
   }
 
-  if (game.boss) $("timer-label").textContent = `💢 HP ${game.boss.hp}/${game.boss.maxHp}`;
-  else $("timer-label").textContent = "⏱️ " + Math.max(0, Math.ceil(game.timer)) + "s";
+  if (game.boss) GameRuntime.text($("timer-label"), `💢 HP ${game.boss.hp}/${game.boss.maxHp}`);
+  else GameRuntime.text($("timer-label"), "⏱️ " + Math.max(0, Math.ceil(game.timer)) + "s");
 }
 
 /* ════════════════ 命中與回合結算 ════════════════ */
@@ -1695,6 +1708,7 @@ canvas.addEventListener("touchmove", e => {
   }
 }, { passive: false });
 
+canvas.addEventListener("touchcancel",()=>{dragId=null;});
 canvas.addEventListener("touchend", e => {
   e.preventDefault();
   for (const t of e.changedTouches) if (t.identifier === dragId) dragId = null;
@@ -1918,7 +1932,8 @@ function drawShipLabels() {
   const gap = 8, cols = Math.min(ships.length, compactShipView() ? 3 : Math.max(2, Math.floor((W - 24) / 150)));
   const width = Math.min(190, (W - 24 - gap * (cols - 1)) / cols);
   const left = (W - (cols * width + (cols - 1) * gap)) / 2;
-  let y = Math.max(12, skyQ.getBoundingClientRect().bottom + 8);
+  if(shipLabelsDirty){shipLabelsTop=Math.max(12,skyQ.getBoundingClientRect().bottom+8);shipLabelsDirty=false;}
+  let y = shipLabelsTop;
   const cards = [];
   ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
   for (let row = 0; row * cols < ships.length; row++) {

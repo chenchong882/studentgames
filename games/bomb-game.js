@@ -30,9 +30,8 @@ const IS_IOS = /iP(hone|od|ad)/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 function resizeCanvas() {
-  // 手機 devicePixelRatio 常是 3，canvas 實際像素 = 螢幕 ×3，漸層/陰影很吃效能、
-  // 幀率掉一半。上限壓到 2 倍：畫面幾乎看不出差別，但手機效能省一大截。
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // 觸控裝置上限 1.5 倍、桌機 2 倍；相較原本 2 倍，觸控畫布少畫約 44% 像素。
+  const dpr = GameRuntime.pixelRatio();
   const rect = canvas.getBoundingClientRect();
   const oldW = W, oldH = H;
   W = Math.max(1, Math.round(rect.width || window.innerWidth));
@@ -50,8 +49,8 @@ function resizeCanvas() {
     if (game.phase === 'playing' || game.phase === 'levelClear') game.togglePause();
   }
   
-  canvas.width = W * dpr;
-  canvas.height = H * dpr;
+  const width=Math.round(W*dpr),height=Math.round(H*dpr);
+  if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
   
   ctx.resetTransform();
   ctx.scale(dpr, dpr);
@@ -60,16 +59,7 @@ function resizeCanvas() {
   if (joystick)    { joystick.baseX = W * 0.14; joystick.baseY = controlY; joystick.r = clamp(Math.min(W, H) * 0.105, 54, 84); joystick.reset(); }
   if (bombButton)  { bombButton.cx  = W * 0.88; bombButton.cy  = controlY; bombButton.r = clamp(Math.min(W, H) * 0.078, 42, 62); }
 }
-window.addEventListener('resize', () => {
-  resizeCanvas();
-  setTimeout(resizeCanvas, 100);
-  setTimeout(resizeCanvas, 300);
-});
-window.addEventListener('orientationchange', () => {
-  setTimeout(resizeCanvas, 100);
-  setTimeout(resizeCanvas, 300);
-  setTimeout(resizeCanvas, 500);
-});
+GameRuntime.onResize(resizeCanvas, canvas);
 
 // ══════════════════════════════════════════
 //  CONSTANTS
@@ -1100,6 +1090,15 @@ class House {
 // ══════════════════════════════════════════
 //  EXPLOSION
 // ══════════════════════════════════════════
+// Seven small reusable glow sprites replace hundreds of gradients per explosion.
+const explosionGlows = new Map();
+function explosionGlow(color){
+  if(explosionGlows.has(color))return explosionGlows.get(color);
+  const sprite=document.createElement('canvas');sprite.width=sprite.height=64;
+  const c=sprite.getContext('2d'),g=c.createRadialGradient(32,32,0,32,32,32);
+  g.addColorStop(0,'white');g.addColorStop(.3,color);g.addColorStop(1,'rgba(0,0,0,0)');
+  c.fillStyle=g;c.fillRect(0,0,64,64);explosionGlows.set(color,sprite);return sprite;
+}
 class Explosion {
   constructor(x, y, big = false) {
     this.x = x; this.y = y; this.done = false;
@@ -1139,10 +1138,8 @@ class Explosion {
       if (p.debris) {
         c.fillStyle = p.col; c.fillRect(p.x-p.sz/2, p.y-p.sz/2, p.sz, p.sz);
       } else {
-        const gr = c.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.sz*p.life);
-        gr.addColorStop(0,'white'); gr.addColorStop(0.3, p.col); gr.addColorStop(1,'rgba(0,0,0,0)');
-        c.fillStyle = gr;
-        c.beginPath(); c.arc(p.x, p.y, p.sz*p.life, 0, Math.PI*2); c.fill();
+        const r=p.sz*p.life;
+        c.drawImage(explosionGlow(p.col),p.x-r,p.y-r,r*2,r*2);
       }
       c.restore();
     });

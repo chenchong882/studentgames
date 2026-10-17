@@ -275,6 +275,7 @@
 <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
 <script src="game-setup.js"></script>
+<script src="game-runtime.js"></script>
 </head>
 <body>
 <div id="gunRotateWarning" role="status"><div><div class="rotateIcon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div></div>
@@ -581,9 +582,9 @@ scene.fog=new THREE.Fog(SKY,90,240);
 const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,400);
 camera.rotation.order='YXZ';
 scene.add(camera);
-const renderer=new THREE.WebGLRenderer({antialias:true});
+const renderer=new THREE.WebGLRenderer({antialias:!GameRuntime.touch});
 renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setPixelRatio(GameRuntime.pixelRatio());
 document.body.appendChild(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xdfeeff,0x88a35a,0.95));
 const sun=new THREE.DirectionalLight(0xfff2d0,0.85);
@@ -593,9 +594,46 @@ function matOf(tex,rx,ry){
   const t=tex.clone();t.needsUpdate=true;t.repeat.set(rx,ry);
   return new THREE.MeshLambertMaterial({map:t});
 }
-function block(w,h,d,tex,su=2){    // 三組材質讓磚紋依尺寸正確重複
-  const mx=matOf(tex,d/su,h/su),mz=matOf(tex,w/su,h/su),my=matOf(tex,w/su,d/su);
-  return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),[mx,mx,my,my,mz,mz]);
+function block(w,h,d,tex,su=2){
+  const geometry=new THREE.BoxGeometry(w,h,d),uv=geometry.attributes.uv,index=geometry.index;
+  const repeat=[[d/su,h/su],[d/su,h/su],[w/su,d/su],[w/su,d/su],[w/su,h/su],[w/su,h/su]];
+  geometry.groups.forEach((group,face)=>{
+    const vertices=new Set();
+    for(let i=group.start;i<group.start+group.count;i++)vertices.add(index.getX(i));
+    for(const i of vertices)uv.setXY(i,uv.getX(i)*repeat[face][0],uv.getY(i)*repeat[face][1]);
+  });
+  geometry.clearGroups();
+  const mesh=new THREE.Mesh(geometry,new THREE.MeshLambertMaterial({map:tex}));
+  mesh.userData.worldBlock=true;return mesh;
+}
+// Batch only the initial, immovable walls/floors/crates, by texture and map cell.
+// Collision keeps its original solids; raycasts still hit the same triangles.
+function batchWorldBlocks(){
+  const batches=new Map();scene.updateMatrixWorld(true);
+  for(const m of [...scene.children]){
+    if(!m.userData.worldBlock)continue;
+    const key=m.material.map.uuid+':'+Math.floor(m.position.x/32)+':'+Math.floor(m.position.z/32);
+    let b=batches.get(key);
+    if(!b){b={material:m.material,position:[],normal:[],uv:[]};batches.set(key,b);}
+    const g=m.geometry.toNonIndexed();g.applyMatrix4(m.matrixWorld);
+    for(const name of ['position','normal','uv'])for(const value of g.attributes[name].array)b[name].push(value);
+    scene.remove(m);g.dispose();m.geometry.dispose();if(m.material!==b.material)m.material.dispose();
+  }
+  for(const b of batches.values()){
+    const g=new THREE.BufferGeometry();
+    for(const name of ['position','normal','uv'])g.setAttribute(name,new THREE.Float32BufferAttribute(b[name],name==='uv'?2:3));
+    g.computeBoundingSphere();g.computeBoundingBox();scene.add(new THREE.Mesh(g,b.material));
+  }
+}
+// These transient objects own their materials/geometries, but share TEX maps.
+function removeTransient(object){
+  scene.remove(object);
+  const geometries=new Set(),materials=new Set(),textures=new Set(),shared=new Set(Object.values(TEX));
+  object.traverse(o=>{
+    if(o.geometry&&!o.isSprite)geometries.add(o.geometry);
+    for(const m of (Array.isArray(o.material)?o.material:[o.material]))if(m){materials.add(m);if(m.map&&!shared.has(m.map))textures.add(m.map);}
+  });
+  geometries.forEach(g=>g.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());
 }
 
 /* 地面 */
@@ -779,6 +817,8 @@ crate(-30,-8);crate(9,-28);crate(10.4,-28.2);crate(9.7,-26.9);
 addSolid(-152,-152,152,-150);addSolid(-152,150,152,152);
 addSolid(-152,-152,-150,152);addSolid(150,-152,152,152);
 
+batchWorldBlocks();
+
 /* ============ 雲（緩慢漂移的白色方塊） ============ */
 const clouds=[];
 {
@@ -944,7 +984,7 @@ function shootEnemyArrow(z){
   enemyArrows.push({m,vx:dir.x*ENEMY_ARROW_SPEED,vy:dir.y*ENEMY_ARROW_SPEED,vz:dir.z*ENEMY_ARROW_SPEED,life:5,owner:z});
 }
 function clearEnemyArrows(){
-  for(const a of enemyArrows)scene.remove(a.m);enemyArrows.length=0;
+  for(const a of enemyArrows)removeTransient(a.m);enemyArrows.length=0;
 }
 function updateEnemyArrows(dt){
   const adt=dt*(slowT>.01?.35:1),steps=Math.max(1,Math.ceil(ENEMY_ARROW_SPEED*adt/.2));
@@ -957,7 +997,7 @@ function updateEnemyArrows(dt){
         hurt(ENEMY_ARROW_DAMAGE,{x:a.owner.position.x,z:a.owner.position.z});gone=true;if(!playing)return;
       }
     }
-    if(gone){scene.remove(a.m);enemyArrows.splice(i,1);}
+    if(gone){removeTransient(a.m);enemyArrows.splice(i,1);}
   }
 }
 function makeZombie(x,z,kind='normal'){
@@ -1376,8 +1416,8 @@ function updateCapture(dt){
   const hardCapturing=gameMode==='hard'&&captureHouse;
   if(!h&&!hardCapturing)questionT=Math.max(0,questionT-dt);
   const seconds=Math.max(0,Math.ceil(questionT));
-  questionTimerEl.textContent=compactHud.matches?((h||hardCapturing?'⏸ ':'')+seconds+' 秒'):((h||hardCapturing)?('倒數暫停（剩餘 '+seconds+' 秒）'):('剩餘 '+seconds+' 秒'));
-  if(captureCooldown>0){captureCooldown-=dt;captureTextEl.style.display='block';captureTextEl.textContent='重新洗牌中…';captureTrackEl.style.display='none';houseWordEl.style.display='none';return;}
+  GameRuntime.text(questionTimerEl, compactHud.matches?((h||hardCapturing?'⏸ ':'')+seconds+' 秒'):((h||hardCapturing)?('倒數暫停（剩餘 '+seconds+' 秒）'):('剩餘 '+seconds+' 秒')));
+  if(captureCooldown>0){captureCooldown-=dt;captureTextEl.style.display='block';GameRuntime.text(captureTextEl, '重新洗牌中…');captureTrackEl.style.display='none';houseWordEl.style.display='none';return;}
   if(gameMode==='hard'){
     if(!captureHouse&&h){
       captureHouse=h;captureT=h.captureT||0;
@@ -1385,10 +1425,10 @@ function updateCapture(dt){
     }
     if(captureHouse){
       captureT+=dt;captureHouse.captureT=captureT;const left=Math.max(0,CAPTURE_SECONDS-captureT),inside=h===captureHouse;
-      captureTextEl.style.display='block';captureTextEl.textContent=(inside?'佔領倒數 ':'離屋持續佔領 ')+left.toFixed(1)+' 秒';houseWordEl.textContent='佔領小屋：'+(captureHouse.answer&&captureHouse.answer.word?captureHouse.answer.word:'—');houseWordEl.style.display='block';captureTrackEl.style.display='block';captureFillEl.style.width=(Math.min(1,captureT/CAPTURE_SECONDS)*100)+'%';
+      captureTextEl.style.display='block';GameRuntime.text(captureTextEl, (inside?'佔領倒數 ':'離屋持續佔領 ')+left.toFixed(1)+' 秒');GameRuntime.text(houseWordEl, '佔領小屋：'+(captureHouse.answer&&captureHouse.answer.word?captureHouse.answer.word:'—'));houseWordEl.style.display='block';captureTrackEl.style.display='block';captureFillEl.style.width=(Math.min(1,captureT/CAPTURE_SECONDS)*100)+'%';
       if(captureT>=CAPTURE_SECONDS){const completed=captureHouse;captureActive=false;captureHudEl.style.display='none';completed.correct?onHouseCorrect(completed):onHouseWrong(completed);return;}
     }else{
-      captureFillEl.style.width='0%';captureTrackEl.style.display='none';captureTextEl.style.display='none';houseWordEl.style.display='none';houseWordEl.textContent='';
+      captureFillEl.style.width='0%';captureTrackEl.style.display='none';captureTextEl.style.display='none';houseWordEl.style.display='none';GameRuntime.text(houseWordEl, '');
     }
     if(questionT<=0){captureActive=false;onQuestionTimeout();}
     return;
@@ -1399,13 +1439,13 @@ function updateCapture(dt){
       showObjective('留在 '+h.name+' 裡防守；離開後會保留這間的進度');
     }
     captureT+=dt;h.captureT=captureT;const left=Math.max(0,CAPTURE_SECONDS-captureT);
-    captureTextEl.style.display='block';captureTextEl.textContent='佔領倒數 '+left.toFixed(1)+' 秒';houseWordEl.textContent='目前小屋：'+(h.answer&&h.answer.word?h.answer.word:'—');houseWordEl.style.display='block';captureTrackEl.style.display='block';captureFillEl.style.width=(Math.min(1,captureT/CAPTURE_SECONDS)*100)+'%';
+    captureTextEl.style.display='block';GameRuntime.text(captureTextEl, '佔領倒數 '+left.toFixed(1)+' 秒');GameRuntime.text(houseWordEl, '目前小屋：'+(h.answer&&h.answer.word?h.answer.word:'—'));houseWordEl.style.display='block';captureTrackEl.style.display='block';captureFillEl.style.width=(Math.min(1,captureT/CAPTURE_SECONDS)*100)+'%';
     if(captureT>=CAPTURE_SECONDS){captureActive=false;captureHudEl.style.display='none';h.correct?onHouseCorrect(h):onHouseWrong(h);return;}
   }else{
     captureHouse=null;captureT=0;
     const saved=Math.max(0,...HOUSES.map(x=>x.captureT||0));
     captureFillEl.style.width=(saved/CAPTURE_SECONDS*100)+'%';captureTrackEl.style.display=saved>0?'block':'none';
-    captureTextEl.style.display=saved>0?'block':'none';captureTextEl.textContent=saved>0?('已保留 '+saved.toFixed(1)+' 秒'):'';houseWordEl.style.display='none';houseWordEl.textContent='';
+    captureTextEl.style.display=saved>0?'block':'none';GameRuntime.text(captureTextEl, saved>0?('已保留 '+saved.toFixed(1)+' 秒'):'');houseWordEl.style.display='none';GameRuntime.text(houseWordEl, '');
   }
   if(questionT<=0){captureActive=false;onQuestionTimeout();}
 }
@@ -1528,7 +1568,7 @@ function applySurpriseReward(pos){
 }
 function breakSurpriseBox(item,hitPoint){
   if(!item||item.taken)return;item.taken=true;const pos=new THREE.Vector3(item.x,.8,item.z),idx=pickups.indexOf(item);
-  scene.remove(item.m);scene.remove(item.pil);if(idx>=0)pickups.splice(idx,1);sndCrateBreak();sparks(pos,0xc58a52,30);sparks(pos,0x8b48ad,12);
+  removeTransient(item.m);removeTransient(item.pil);if(idx>=0)pickups.splice(idx,1);sndCrateBreak();sparks(pos,0xc58a52,30);sparks(pos,0x8b48ad,12);
   const reward=applySurpriseReward(pos),zombieRoll=Math.random()<.1;
   if(zombieRoll){const zx=item.x+rnd(-.8,.8),zz=item.z+rnd(-.8,.8);if(blockedForZombie(zx,zz,.46))spawnZombie('normal');else makeZombie(zx,zz,'normal');}
   supplyAlertHoldT=4;supplyAlertEl.textContent=zombieRoll?('⚠️ 箱子裡跳出殭屍！獲得 '+reward):('🎁 驚喜箱開啟：'+reward);
@@ -1544,9 +1584,9 @@ function updateSupplyAlert(dt){
   if(item){
     const dx=item.x-player.x,dz=item.z-player.z,d=Math.hypot(dx,dz)||1,fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw),rx=Math.cos(player.yaw),rz=-Math.sin(player.yaw),
       angle=Math.atan2(dx*rx+dz*rz,dx*fx+dz*fz),dirs=['前方','右前方','右方','右後方','後方','左後方','左方','左前方'],dir=dirs[(Math.round(angle/(Math.PI/4))+8)%8];
-    supplyAlertEl.textContent=compactHud.matches?('🎁 '+dir+' '+Math.round(d/5)*5+'m'):('🎁 驚喜箱已經出現！在你的'+dir+'，約 '+Math.round(d/5)*5+' 公尺');return;
+    GameRuntime.text(supplyAlertEl, compactHud.matches?('🎁 '+dir+' '+Math.round(d/5)*5+'m'):('🎁 驚喜箱已經出現！在你的'+dir+'，約 '+Math.round(d/5)*5+' 公尺'));return;
   }
-  if(supplyAlertHoldT>0){supplyAlertHoldT=Math.max(0,supplyAlertHoldT-dt);return;}supplyAlertEl.textContent='';
+  if(supplyAlertHoldT>0){supplyAlertHoldT=Math.max(0,supplyAlertHoldT-dt);return;}GameRuntime.text(supplyAlertEl, '');
 }
 function setupFixedAmmo(){
   if(fixedAmmoSpawned)return;fixedAmmoSpawned=true;
@@ -1657,8 +1697,8 @@ function updatePowerupUI(){
   const active=[];if(fireAmmoT>0)active.push('🔥 火焰彈 '+Math.ceil(fireAmmoT)+' 秒');if(iceAmmoT>0)active.push('❄️ 冰凍彈 '+Math.ceil(iceAmmoT)+' 秒');
   if(weaponBoostT>0)active.push('⚡ 實驗武器 '+Math.ceil(weaponBoostT)+' 秒');if(armorT>0)active.push('🛡️ 護甲 '+Math.ceil(armorT)+' 秒');
   if(speedT>0)active.push('🧪 快速藥水 '+Math.ceil(speedT)+' 秒');
-  powerupEl.textContent=compactHud.matches?active.map(text=>text.replace(/ (火焰彈|冰凍彈|實驗武器|護甲|快速藥水) /,' ').replace(' 秒','s')).join('  '):active.join(' ・ ');
-  powerupEl.setAttribute('aria-label',active.join(' ・ '));
+  GameRuntime.text(powerupEl, compactHud.matches?active.map(text=>text.replace(/ (火焰彈|冰凍彈|實驗武器|護甲|快速藥水) /,' ').replace(' 秒','s')).join('  '):active.join(' ・ '));
+  const label=active.join(' ・ ');if(powerupEl.getAttribute('aria-label')!==label)powerupEl.setAttribute('aria-label',label);
 }
 function updatePowerups(dt){
   const hadBoost=weaponBoostT>0;fireAmmoT=Math.max(0,fireAmmoT-dt);iceAmmoT=Math.max(0,iceAmmoT-dt);weaponBoostT=Math.max(0,weaponBoostT-dt);armorT=Math.max(0,armorT-dt);speedT=Math.max(0,speedT-dt);
@@ -1674,7 +1714,7 @@ function throwGrenade(){
   thrownGrenades.push({m,vx:dir.x*11,vy:5+dir.y*4,vz:dir.z*11,t:1.25,age:0});tone(260,.08,.16,'square',160);
 }
 function explodeGrenade(g){
-  scene.remove(g.m);sndGrenade();const x=g.m.position.x,z=g.m.position.z,p=g.m.position.clone();sparks(p,0xffb43b,28);
+  removeTransient(g.m);sndGrenade();const x=g.m.position.x,z=g.m.position.z,p=g.m.position.clone();sparks(p,0xffb43b,28);
   const fx=new THREE.Mesh(new THREE.SphereGeometry(1,16,12),new THREE.MeshBasicMaterial({color:0xff9b32,transparent:true,opacity:.55,blending:THREE.AdditiveBlending,depthWrite:false}));
   fx.position.copy(p);scene.add(fx);explosions.push({m:fx,t:.36});
   for(const zom of zombies){const d=Math.hypot(zom.position.x-x,zom.position.z-z);if(d<8)blastZombie(zom,Math.max(4,Math.ceil(15*(1-d/9))),x,z);}
@@ -2005,7 +2045,7 @@ function loop(now){
           const op=Math.max(0,1-(u.deadT-0.5)/0.6);
           u.mats.forEach(m=>{m.transparent=true;m.opacity=op;});
         }
-        if(u.deadT>1.15){scene.remove(z);zombies.splice(i,1);}
+        if(u.deadT>1.15){removeTransient(z);zombies.splice(i,1);}
       }
     }
     updateEnemyArrows(dt);
@@ -2018,7 +2058,7 @@ function loop(now){
       }
       b.m.rotation.y+=dt*1.6;
       b.m.position.y=0.55+Math.sin(now*0.003+b.x)*0.09;
-      if(!b.big){b.life-=dt;if(b.life<=0){scene.remove(b.m);scene.remove(b.pil);pickups.splice(i,1);continue;}}
+      if(!b.big){b.life-=dt;if(b.life<=0){removeTransient(b.m);removeTransient(b.pil);pickups.splice(i,1);continue;}}
       if(b.type!=='surprise'&&Math.hypot(b.x-player.x,b.z-player.z)<1.5&&player.y<1.2){
         if(b.type==='grenade'){grenades+=b.amount;updGrenades();popAt(b.m.position.clone().setY(1.4),'+1 手榴彈','#b8ef71');sndGrenadePickup();}
         else{
@@ -2026,7 +2066,7 @@ function loop(now){
           const autoReload=mag===0&&!reloading;popAt(b.m.position.clone().setY(1.4),'+'+added+' 彈藥'+(autoReload?'・自動換彈':''),'#ffd34d');sndAmmoPickup();if(autoReload)reload();
         }
         if(b.big){b.taken=true;b.t=0;b.m.visible=b.pil.visible=false;}
-        else{scene.remove(b.m);scene.remove(b.pil);pickups.splice(i,1);}
+        else{removeTransient(b.m);removeTransient(b.pil);pickups.splice(i,1);}
       }
     }
     /* 手榴彈：拋物線飛行，落地或引信到時爆炸。 */
@@ -2077,7 +2117,7 @@ refreshModeUI();setWeaponLevel(0);updateWeaponUI();updAmmo();updateDashUI(true);
 })();
 requestAnimationFrame(loop);
 
-addEventListener('resize',()=>{
+GameRuntime.onResize(()=>{
   camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);resetTouchControls();
 });
