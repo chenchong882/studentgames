@@ -852,24 +852,33 @@ function wordSprite(text,color='#173443'){
   const m=new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false});const s=new THREE.Sprite(m);s.scale.set(2.85,.59,1);return s;
 }
 function houseSprite(text,large=false){
-  const c=document.createElement('canvas'),g=c.getContext('2d'),font=large?'900 164px "Apple Color Emoji","Segoe UI Emoji",Arial,sans-serif':'900 76px Arial,sans-serif';
-  g.font=font;c.width=large?512:Math.max(256,Math.ceil(g.measureText(text||'?').width)+48);c.height=large?220:120;
+  const c=document.createElement('canvas'),g=c.getContext('2d'),font=large?'900 180px "Apple Color Emoji","Segoe UI Emoji",Arial,sans-serif':'900 76px Arial,sans-serif';
+  // 圖片用方形牌，拿掉兩側空白，手機放大時不會先撞到寬度上限。
+  g.font=font;c.width=large?256:Math.max(256,Math.ceil(g.measureText(text||'?').width)+48);c.height=large?256:120;
   g.fillStyle='rgba(12,26,33,.97)';g.fillRect(5,5,c.width-10,c.height-10);g.strokeStyle=large?'#5de8ff':'#ffe08a';g.lineWidth=8;g.strokeRect(5,5,c.width-10,c.height-10);
   g.fillStyle='#fff';g.font=font;g.textAlign='center';g.textBaseline='middle';g.fillText(text||'?',c.width/2,c.height/2,c.width-42);
   const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;
   const m=new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false,depthWrite:false});const s=new THREE.Sprite(m);
-  s.userData={noHit:true,labelAspect:c.width/c.height,labelHeight:large?3.18:1.5,labelMinPx:large?64:42,labelMaxPx:large?96:64};
+  s.userData={noHit:true,labelAspect:c.width/c.height,labelHeight:large?3.18:1.5,labelMinPx:large?(isTouch?88:64):(isTouch?52:42),labelMaxPx:large?(isTouch?120:96):(isTouch?76:64)};
   s.center.set(.5,0);s.scale.set(s.userData.labelHeight*s.userData.labelAspect,s.userData.labelHeight,1);return s;
 }
-const houseLabelView=new THREE.Vector3(),houseLabelUp=new THREE.Vector3();
+const houseLabelView=new THREE.Vector3(),houseLabelUp=new THREE.Vector3(),houseLabelRight=new THREE.Vector3();
 function placeHouseLabel(box,placed,minY,maxY){
   const gap=8,overlaps=(a,b)=>a.left<b.right+gap&&a.right>b.left-gap&&a.top<b.bottom+gap&&a.bottom>b.top-gap;
   const candidates=[box.top,minY,maxY-box.height];
   for(const other of placed)candidates.push(other.top-gap-box.height,other.bottom+gap);
   candidates.sort((a,b)=>Math.abs(a-box.top)-Math.abs(b-box.top));
-  for(const top of candidates){
-    const candidate={...box,top,bottom:top+box.height};
-    if(top>=minY&&candidate.bottom<=maxY&&!placed.some(other=>overlaps(candidate,other)))return candidate;
+  const width=box.right-box.left,minX=12,maxX=innerWidth-12-width;
+  const nearX=clamp(box.left,minX,maxX),xs=[nearX,minX,maxX];
+  for(const other of placed)xs.push(other.left-gap-width,other.right+gap);
+  // 優先保持屋頂正上方；窄手機放不下 8 牌時，才向左右尋找空位。
+  xs.sort((a,b)=>Math.abs(a-box.left)-Math.abs(b-box.left));
+  for(const left of xs){
+    if(left<minX||left>maxX)continue;
+    for(const top of candidates){
+      const candidate={...box,left,right:left+width,top,bottom:top+box.height};
+      if(top>=minY&&candidate.bottom<=maxY&&!placed.some(other=>overlaps(candidate,other)))return candidate;
+    }
   }
   return box;
 }
@@ -877,10 +886,11 @@ function updateHouseLabelSizes(){
   /* 以 CSS 像素保住遠處字級；靠近時限制大小，字牌底部固定在屋頂上方。 */
   camera.updateMatrixWorld();
   houseLabelUp.set(0,1,0).applyQuaternion(camera.quaternion);
+  houseLabelRight.set(1,0,0).applyQuaternion(camera.quaternion);
   const projection=innerHeight*camera.projectionMatrix.elements[5]/2,maxWidth=Math.min(320,innerWidth*.42),labels=[],placed=[];
   for(const h of HOUSES){
     if(!h.label)continue;
-    const s=h.label,u=s.userData,depth=-houseLabelView.copy(s.position).applyMatrix4(camera.matrixWorldInverse).z;s.center.y=0;h.labelLeader.visible=false;
+    const s=h.label,u=s.userData,depth=-houseLabelView.copy(s.position).applyMatrix4(camera.matrixWorldInverse).z;s.center.set(.5,0);h.labelLeader.visible=false;
     if(depth<=camera.near)continue;
     const pixels=Math.min(clamp(u.labelHeight*projection/depth,u.labelMinPx,u.labelMaxPx),maxWidth/u.labelAspect),height=pixels*depth/projection;
     s.scale.set(height*u.labelAspect,height,1);
@@ -888,14 +898,17 @@ function updateHouseLabelSizes(){
     if(x+width/2<0||x-width/2>innerWidth||y<0||y-pixels>innerHeight)continue;
     labels.push({h,depth,height:pixels,left:x-width/2,right:x+width/2,top:y-pixels,bottom:y});
   }
-  /* 先保留近處字牌；重疊的遠處字牌上下錯開，連線仍指向原本房屋。 */
+  /* 先保留近處字牌；重疊字牌錯開，連線仍指向原本房屋。 */
   labels.sort((a,b)=>a.depth-b.depth);
   for(const box of labels){
-    const placedBox=placeHouseLabel(box,placed,Math.min(100,innerHeight*.25),innerHeight-12),offset=placedBox.top-box.top,h=box.h;
-    placed.push(placedBox);h.label.center.y=offset/box.height;
-    if(Math.abs(offset)<1)continue;
-    const endPixels=offset>0?offset-box.height:offset,positions=h.labelLeader.geometry.attributes.position;
-    h.labelLeader.position.copy(h.label.position);positions.setXYZ(1,houseLabelUp.x*-endPixels*box.depth/projection,houseLabelUp.y*-endPixels*box.depth/projection,houseLabelUp.z*-endPixels*box.depth/projection);
+    const placedBox=placeHouseLabel(box,placed,Math.min(100,innerHeight*.25),innerHeight-12),h=box.h,width=box.right-box.left;
+    placed.push(placedBox);h.label.center.set(.5-(placedBox.left-box.left)/width,(placedBox.top-box.top)/box.height);
+    // 連到牌子的最近邊緣；屋頂本來就在牌內時不畫線，避免穿過圖片／文字。
+    const anchorX=(box.left+box.right)/2,anchorY=box.bottom;
+    const ex=clamp(anchorX,placedBox.left,placedBox.right)-anchorX,ey=clamp(anchorY,placedBox.top,placedBox.bottom)-anchorY;
+    if(Math.hypot(ex,ey)<1)continue;
+    const scale=box.depth/projection,positions=h.labelLeader.geometry.attributes.position;
+    h.labelLeader.position.copy(h.label.position);positions.setXYZ(1,(houseLabelRight.x*ex-houseLabelUp.x*ey)*scale,(houseLabelRight.y*ex-houseLabelUp.y*ey)*scale,(houseLabelRight.z*ex-houseLabelUp.z*ey)*scale);
     positions.needsUpdate=true;h.labelLeader.visible=true;
   }
 }

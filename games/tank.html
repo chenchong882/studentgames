@@ -1354,6 +1354,36 @@ function raySphere(ro,rd,c,r){
   const t=-b-Math.sqrt(h);
   return t>0?t:-1;
 }
+// 字牌略放寬；整段砲彈路徑都判定，避免掉幀時跨過樹／字牌卻沒命中。
+const SIGN_HIT_RADIUS=3.8,TREE_HIT_RADIUS=3.0;
+function segmentSphereHit(a,b,c,r){
+  const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z,ox=a.x-c.x,oy=a.y-c.y,oz=a.z-c.z;
+  const cc=ox*ox+oy*oy+oz*oz-r*r;
+  if(cc<=0)return 0;
+  const length2=dx*dx+dy*dy+dz*dz,projection=ox*dx+oy*dy+oz*dz;
+  const discriminant=projection*projection-length2*cc;
+  if(length2===0||discriminant<0)return Infinity;
+  const t=(-projection-Math.sqrt(discriminant))/length2;
+  return t>=0&&t<=1?t:Infinity;
+}
+function treeTargetHit(a,b,it){
+  const signT=segmentSphereHit(a,b,it.pos,SIGN_HIT_RADIUS),tree=it.tree;
+  const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z,ox=a.x-tree.x,oz=a.z-tree.z;
+  const aa=dx*dx+dz*dz,bb=ox*dx+oz*dz,cc=ox*ox+oz*oz-TREE_HIT_RADIUS*TREE_HIT_RADIUS;
+  let enter=0,leave=1;
+  if(aa<1e-12){if(cc>0)return signT;}
+  else{
+    const disc=bb*bb-aa*cc;
+    if(disc<0)return signT;
+    const root=Math.sqrt(disc);enter=Math.max(enter,(-bb-root)/aa);leave=Math.min(leave,(-bb+root)/aa);
+  }
+  if(Math.abs(dy)<1e-12){if(a.y<tree.base||a.y>tree.top+.6)return signT;}
+  else{
+    const y0=(tree.base-a.y)/dy,y1=(tree.top+.6-a.y)/dy;
+    enter=Math.max(enter,Math.min(y0,y1));leave=Math.min(leave,Math.max(y0,y1));
+  }
+  return enter<=leave?Math.min(signT,enter):signT;
+}
 function computeAim(){
   if(IS_TOUCH)return;                             // 觸控：準心改由砲管實際射擊線決定（見 updTank），不在此做射線吸附 → 不會被飛行物吸走、不會甩上天/消失
   // 桌機：維持原本「鏡頭穿過準心」的射線瞄準（含自動吸附輔助）
@@ -1362,7 +1392,7 @@ function computeAim(){
   ro=raycaster.ray.origin;rd=raycaster.ray.direction;
   let bestT=Infinity;
   const test=(c,r)=>{const t=raySphere(ro,rd,c,r);if(t>0&&t<bestT)bestT=t;};
-  if(round)for(const it of round.items)test(it.pos,2.8); // 字牌可瞄準
+  if(round)for(const it of round.items)test(it.pos,SIGN_HIT_RADIUS); // 瞄準提示與實際字牌判定一致
   for(const d of dinos)if(d.deadT<0)test(dinoCenter(d,_v1),DT[d.type].r*d.sc*1.2);
   for(const p of pteros)if(p.state!=='dead')test(p.pos,2.2*p.sc);
   for(const u of ufos)if(!u.gone)test(u.g.position,4);
@@ -1600,22 +1630,28 @@ function updUFO(u,dt){
     }
   }
 }
+const shellFrom=new THREE.Vector3();
 function updShell(s,dt){
+  shellFrom.copy(s.m.position);
   s.life-=dt;
   s.vel.y-=shellGrav()*dt;
   s.m.position.addScaledVector(s.vel,dt);
   const p=s.m.position;
   spawnP(p.x,p.y,p.z,0,0,0,0.12,0xffaa55,0);
-  if(round)for(let i=0;i<round.items.length;i++){ // 樹上的單字牌／其所掛的樹
-    const it=round.items[i];
-    const dx=p.x-it.tree.x,dz=p.z-it.tree.z;
-    const hitTree=dx*dx+dz*dz<2.6*2.6&&p.y>=it.tree.base&&p.y<=it.tree.top+0.6;
-    if(p.distanceTo(it.pos)<3.2||hitTree){
+  if(round){ // 同一路徑碰到多個標的時，先算最近的；正解與錯誤選項用同一判定。
+    let hitIndex=-1,hitT=Infinity;
+    for(let i=0;i<round.items.length;i++){
+      const t=treeTargetHit(shellFrom,p,round.items[i]);
+      if(t<hitT){hitT=t;hitIndex=i;}
+    }
+    if(hitIndex>=0){
+      const it=round.items[hitIndex];
+      p.lerpVectors(shellFrom,p,hitT);
       if(it.correct){
         for(let k=0;k<20;k++){const a=rnd(TAU),v=rnd(5,16);
           spawnP(p.x,p.y,p.z,Math.cos(a)*v,rnd(-3,12),Math.sin(a)*v,rnd(0.4,0.8),0xffe070,-8);}
         roundSuccess(it.pos);
-      }else hitWrongSign(it,i);
+      }else hitWrongSign(it,hitIndex);
       s.gone=true;return;
     }
   }

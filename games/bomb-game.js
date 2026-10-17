@@ -30,6 +30,7 @@ const IS_IOS = /iP(hone|od|ad)/.test(navigator.userAgent)
   || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 function resizeCanvas() {
+  _renderDirty=true;
   // 觸控裝置上限 1.5 倍、桌機 2 倍；相較原本 2 倍，觸控畫布少畫約 44% 像素。
   const dpr = GameRuntime.pixelRatio();
   const rect = canvas.getBoundingClientRect();
@@ -1569,7 +1570,20 @@ function drawHUD(c, game) {
     c.fillText(String(i+1), sx + segW/2, barY + barH/2 + 0.5);
   }
 
-  // ── RIGHT: Bomb count — 固定在右上框格，剩 1～2 顆時閃紅提示 ──
+  // 低彈量的閃爍框另外即時畫，其他 HUD 只在資料改變時重畫。
+  if(game.bombsLeft<1||game.bombsLeft>2)drawBombCount(c,game);
+  const bombX=W-SAFE_R-126-68;
+
+  // ── RIGHT: Timer（排在炸彈框左側，避開右側瀏海安全區）──
+  const m=Math.floor(game.timer/60), s=game.timer%60;
+  c.textAlign='right'; c.font='bold 15px Arial'; c.textBaseline='middle';
+  c.fillStyle = game.timer>90 ? '#FF6B6B' : 'rgba(255,255,255,0.85)';
+  c.fillText(`⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`,bombX-12,15);
+
+  c.restore();
+}
+function drawBombCount(c,game){
+  c.save();
   const bombW=126, bombH=38, bombX=W-SAFE_R-bombW-68, bombY=6;
   const bombLow=game.bombsLeft>=1&&game.bombsLeft<=2;
   const bombEmpty=game.bombsLeft===0;
@@ -1582,12 +1596,6 @@ function drawHUD(c, game) {
   c.textAlign='center';c.font='bold 17px Arial';c.fillStyle='white';c.textBaseline='middle';
   c.fillText(`💣 剩餘 ${game.bombsLeft}`,bombX+bombW/2,bombY+bombH/2+1);
   c.shadowBlur=0;
-
-  // ── RIGHT: Timer（排在炸彈框左側，避開右側瀏海安全區）──
-  const m=Math.floor(game.timer/60), s=game.timer%60;
-  c.textAlign='right'; c.font='bold 15px Arial'; c.textBaseline='middle';
-  c.fillStyle = game.timer>90 ? '#FF6B6B' : 'rgba(255,255,255,0.85)';
-  c.fillText(`⏱ ${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`,bombX-12,15);
 
   c.restore();
 }
@@ -1615,6 +1623,25 @@ function drawWordPanel(c, game) {
   c.textAlign='center'; c.textBaseline='middle';
   c.fillText(display, W/2 + (isCn ? 0 : 12), py+ph/2);
   c.restore();
+}
+
+// 小型透明圖層重用文字／emoji，不在每一幀重新排字；換題、旋轉、字型載入都會失效。
+const hudLayer=document.createElement('canvas');
+let hudLayerKey='';
+if(document.fonts)document.fonts.ready.then(()=>{hudLayerKey='';});
+function drawGameHUD(c,game){
+  const dpr=GameRuntime.pixelRatio(),height=Math.max(110,50+SAFE_T);
+  const key=JSON.stringify([W,height,dpr,SAFE_L,SAFE_R,SAFE_T,game.score,game.lives,game.lvIdx,
+    game.clearGoal,game.solvedCount,game.bombsLeft,game.timer,game.targetWord,game.qType,
+    chineseForWord(game.targetWord),LEVELS[game.lvIdx]?.themeZH]);
+  if(key!==hudLayerKey){
+    const width=Math.round(W*dpr),h=Math.round(height*dpr);
+    if(hudLayer.width!==width||hudLayer.height!==h){hudLayer.width=width;hudLayer.height=h;}
+    const g=hudLayer.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,height);
+    drawHUD(g,game);drawWordPanel(g,game);hudLayerKey=key;
+  }
+  c.drawImage(hudLayer,0,0,W,height);
+  if(game.bombsLeft>=1&&game.bombsLeft<=2)drawBombCount(c,game);
 }
 
 // ══════════════════════════════════════════
@@ -2208,12 +2235,13 @@ class Game {
   //  UPDATE
   // ══════════════════════════════════════
   update() {
-    if (window.matchMedia('(orientation: portrait)').matches && (this.phase === 'playing' || this.phase === 'levelClear')) this.togglePause();
+    if (portraitView.matches && (this.phase === 'playing' || this.phase === 'levelClear')) this.togglePause();
     if (this.phase === 'paused') return;
     if (this.phase === 'victory') { this._updateVictoryConfetti(); return; }
     if (this.phase === 'levelClear') {
       this.levelClearT--;
-      this.exps.forEach(e=>e.update()); this.exps=this.exps.filter(e=>!e.done);
+      this.houses.forEach(h=>h.update());
+      this._updateFeedback();
       if (this.levelClearT <= 0) {
         this.lvIdx++;
         this._loadLevel();
@@ -2225,6 +2253,10 @@ class Game {
     }
     if (this.phase !== 'playing') return;
     if (this.nextTargetFrames > 0) {
+      // 換題等待仍讓倒塌、爆炸與加分文字播放；飛機／敵人暫停，保留原本的安全讀題時間。
+      this.houses.forEach(h=>h.update());
+      this._updateFeedback();
+      bombButton.update();
       this.nextTargetFrames--;
       if (!this.nextTargetFrames) {
         this.bombs = [];
@@ -2394,13 +2426,17 @@ class Game {
     }
 
     // Explosions & floats
-    this.exps.forEach(e=>e.update()); this.exps=this.exps.filter(e=>!e.done);
-    this.floats.forEach(f=>f.update()); this.floats=this.floats.filter(f=>f.life>0);
+    this._updateFeedback();
 
     // Supply crate — spawns when bombs run low, refills on pickup
     this._updateCrate();
 
     bombButton.update();
+  }
+
+  _updateFeedback() {
+    this.exps.forEach(e=>e.update()); this.exps=this.exps.filter(e=>!e.done);
+    this.floats.forEach(f=>f.update()); this.floats=this.floats.filter(f=>f.life>0);
   }
 
   _updateCrate() {
@@ -2516,7 +2552,7 @@ class Game {
   // ══════════════════════════════════════
   draw(c) {
     const receipt = document.getElementById("lesson-load-receipt");
-    if (receipt) receipt.hidden = this.phase !== "menu";
+    if (receipt && receipt.hidden !== (this.phase !== "menu")) receipt.hidden = this.phase !== "menu";
     c.clearRect(0,0,W,H);
 
     if (this.phase === 'menu') { drawBackground(c, LEVELS[0]); return; }
@@ -2561,8 +2597,7 @@ class Game {
     bombButton.draw(c);
 
     // HUD
-    drawHUD(c, this);
-    drawWordPanel(c, this);
+    drawGameHUD(c, this);
 
     // Overlays
     // 暫停選單由共用 DOM 介面呈現。
@@ -2747,8 +2782,9 @@ const _speechOverlay = (() => {
     if(paused.hidden===showPause)paused.hidden=!showPause;
     const showButton=game.phase==='playing'||game.phase==='levelClear';
     if(pause.hidden===showButton)pause.hidden=!showButton;
-    if(!showMenu)info.open=false;
-    speak.style.display=game.phase==='playing'&&game.targetWord&&game.qType!=='cn2en'?'block':'none';
+    if(!showMenu&&info.open)info.open=false;
+    const display=game.phase==='playing'&&game.targetWord&&game.qType!=='cn2en'?'block':'none';
+    if(speak.style.display!==display)speak.style.display=display;
   };
 })();
 
@@ -2758,8 +2794,10 @@ const _speechOverlay = (() => {
 // 固定步長累加器：邏輯恆定跑 60 次/秒，不管畫面幾 fps。
 // 手機掉幀時一幀補跑多步，120Hz 平板則隔幀才更新——三邊速度因此一致。
 const _STEP = 1000 / 60;
+const portraitView=window.matchMedia('(orientation: portrait)');
 let _lastT = (typeof performance !== 'undefined' ? performance.now() : Date.now());
 let _acc = 0;
+let _renderDirty = true;
 function loop(now) {
   if (now === undefined) now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
   let dt = now - _lastT;
@@ -2769,8 +2807,8 @@ function loop(now) {
   let steps = 0;
   while (_acc >= _STEP && steps < 5) { game.update(); _acc -= _STEP; steps++; }
   if (steps === 5) _acc = 0;       // 補不完就放棄積欠，別陷入死亡螺旋
-  game.draw(ctx);
-  _speechOverlay();
+  // 高更新率裝置略過邏輯尚未前進的畫面；一般 60 Hz 保留每幀，避免時間戳誤差造成跳幀。
+  if(steps>0||dt>=_STEP*.75||_renderDirty){game.draw(ctx);_speechOverlay();_renderDirty=false;}
   requestAnimationFrame(loop);
 }
 

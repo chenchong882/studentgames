@@ -1,0 +1,510 @@
+{
+  "date": "2026-10-18",
+  "timezone": "Asia/Taipei",
+  "baseline": "0f406c7",
+  "method": "Desktop Chrome with touch viewport; deterministic gameplay checks, not native-device FPS. hudMs is a synchronous command-enqueue microbenchmark including first cache allocation, not rendered-frame duration.",
+  "results": {
+    "before": {
+      "bomb": {
+        "feedback": {
+          "start": {
+            "shock": 9,
+            "sink": 0,
+            "floatY": 263.59999999999997
+          },
+          "end": {
+            "shock": 9,
+            "sink": 0,
+            "floatY": 263.59999999999997
+          },
+          "remaining": 24,
+          "sameTarget": true,
+          "score": 100
+        },
+        "steadyTextCalls": 1560,
+        "changedScoreTextCalls": 13,
+        "hudMs": 3.800000011920929,
+        "at120Hz": {
+          "draws": 120,
+          "updates": 59
+        },
+        "at60Hz": {
+          "draws": 60,
+          "updates": 59
+        }
+      },
+      "runner": {
+        "state": "play",
+        "gateNum": 1,
+        "lives": 3,
+        "classMutations": 317,
+        "faces": 24,
+        "thinkScale": 0.999999999999993,
+        "rotation": {
+          "paused": false,
+          "tracking": false,
+          "slideHeld": false,
+          "overflow": false
+        },
+        "tabletFaces": 36
+      },
+      "labels": {
+        "pictures": [
+          {
+            "height": 64,
+            "width": 148.94545454545454,
+            "aspect": 2.327272727272727
+          },
+          {
+            "height": 64,
+            "width": 148.94545454545454,
+            "aspect": 2.327272727272727
+          },
+          {
+            "height": 64,
+            "width": 148.94545454545454,
+            "aspect": 2.327272727272727
+          },
+          {
+            "height": 64,
+            "width": 148.94545454545454,
+            "aspect": 2.327272727272727
+          },
+          {
+            "height": 64,
+            "width": 148.94545454545457,
+            "aspect": 2.327272727272727
+          },
+          {
+            "height": 64,
+            "width": 148.94545454545454,
+            "aspect": 2.327272727272727
+          },
+          {
+            "height": 64,
+            "width": 148.94545454545454,
+            "aspect": 2.327272727272727
+          },
+          {
+            "height": 64,
+            "width": 148.94545454545454,
+            "aspect": 2.327272727272727
+          }
+        ],
+        "words": [
+          {
+            "height": 42,
+            "width": 138.24999999999997,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 42,
+            "width": 138.25,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 42,
+            "width": 138.25,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 42,
+            "width": 138.25,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 42,
+            "width": 138.25,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 42,
+            "width": 138.25,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 42.00000000000001,
+            "width": 138.25,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 42,
+            "width": 138.25,
+            "aspect": 3.2916666666666665
+          }
+        ]
+      },
+      "tank": {
+        "grazing": {
+          "gone": false,
+          "events": []
+        },
+        "relaxed": {
+          "gone": false,
+          "events": []
+        },
+        "outside": {
+          "gone": false,
+          "events": []
+        },
+        "above": {
+          "gone": false,
+          "events": []
+        },
+        "signEdge": {
+          "gone": false,
+          "events": []
+        },
+        "wrong": {
+          "gone": false,
+          "events": []
+        },
+        "nearest": {
+          "gone": true,
+          "events": [
+            "correct"
+          ]
+        }
+      },
+      "errors": []
+    },
+    "after": {
+      "bomb": {
+        "feedback": {
+          "start": {
+            "shock": 9,
+            "sink": 0,
+            "floatY": 263.59999999999997
+          },
+          "end": {
+            "shock": 279,
+            "sink": 75,
+            "floatY": 228.73861138921174
+          },
+          "remaining": 24,
+          "sameTarget": true,
+          "score": 100
+        },
+        "steadyTextCalls": 13,
+        "changedScoreTextCalls": 13,
+        "hudMs": 17,
+        "at120Hz": {
+          "draws": 59,
+          "updates": 59
+        },
+        "at60Hz": {
+          "draws": 60,
+          "updates": 59
+        }
+      },
+      "runner": {
+        "state": "play",
+        "gateNum": 1,
+        "lives": 3,
+        "classMutations": 0,
+        "faces": 24,
+        "thinkScale": 0.999999999999993,
+        "rotation": {
+          "paused": true,
+          "tracking": false,
+          "slideHeld": false,
+          "overflow": false
+        },
+        "tabletFaces": 24
+      },
+      "labels": {
+        "pictures": [
+          {
+            "height": 88,
+            "width": 88,
+            "aspect": 1
+          },
+          {
+            "height": 88,
+            "width": 88,
+            "aspect": 1
+          },
+          {
+            "height": 88,
+            "width": 88,
+            "aspect": 1
+          },
+          {
+            "height": 88,
+            "width": 88,
+            "aspect": 1
+          },
+          {
+            "height": 88,
+            "width": 88,
+            "aspect": 1
+          },
+          {
+            "height": 88,
+            "width": 88,
+            "aspect": 1
+          },
+          {
+            "height": 88,
+            "width": 88,
+            "aspect": 1
+          },
+          {
+            "height": 88.00000000000001,
+            "width": 88.00000000000001,
+            "aspect": 1
+          }
+        ],
+        "words": [
+          {
+            "height": 51.99999999999999,
+            "width": 171.16666666666666,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 52,
+            "width": 171.16666666666669,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 51.99999999999999,
+            "width": 171.1666666666666,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 52,
+            "width": 171.16666666666669,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 52,
+            "width": 171.16666666666666,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 52,
+            "width": 171.16666666666666,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 52,
+            "width": 171.16666666666666,
+            "aspect": 3.2916666666666665
+          },
+          {
+            "height": 52,
+            "width": 171.16666666666666,
+            "aspect": 3.2916666666666665
+          }
+        ]
+      },
+      "tank": {
+        "grazing": {
+          "gone": true,
+          "events": [
+            "correct"
+          ]
+        },
+        "relaxed": {
+          "gone": true,
+          "events": [
+            "correct"
+          ]
+        },
+        "outside": {
+          "gone": false,
+          "events": []
+        },
+        "above": {
+          "gone": false,
+          "events": []
+        },
+        "signEdge": {
+          "gone": true,
+          "events": [
+            "correct"
+          ]
+        },
+        "wrong": {
+          "gone": true,
+          "events": [
+            "wrong"
+          ]
+        },
+        "nearest": {
+          "gone": true,
+          "events": [
+            "wrong"
+          ]
+        }
+      },
+      "rotations": [
+        {
+          "game": "bomb",
+          "width": 667,
+          "height": 375,
+          "ok": true
+        },
+        {
+          "game": "bomb",
+          "width": 390,
+          "height": 844,
+          "ok": true
+        },
+        {
+          "game": "bomb",
+          "width": 844,
+          "height": 390,
+          "ok": true
+        },
+        {
+          "game": "bomb",
+          "width": 768,
+          "height": 1024,
+          "ok": true
+        },
+        {
+          "game": "bomb",
+          "width": 1024,
+          "height": 768,
+          "ok": true
+        },
+        {
+          "game": "runner",
+          "width": 667,
+          "height": 375,
+          "ok": true
+        },
+        {
+          "game": "runner",
+          "width": 390,
+          "height": 844,
+          "ok": true
+        },
+        {
+          "game": "runner",
+          "width": 844,
+          "height": 390,
+          "ok": true
+        },
+        {
+          "game": "runner",
+          "width": 768,
+          "height": 1024,
+          "ok": true
+        },
+        {
+          "game": "runner",
+          "width": 1024,
+          "height": 768,
+          "ok": true
+        },
+        {
+          "game": "gun",
+          "width": 667,
+          "height": 375,
+          "ok": true
+        },
+        {
+          "game": "gun",
+          "width": 390,
+          "height": 844,
+          "ok": true
+        },
+        {
+          "game": "gun",
+          "width": 844,
+          "height": 390,
+          "ok": true
+        },
+        {
+          "game": "gun",
+          "width": 768,
+          "height": 1024,
+          "ok": true
+        },
+        {
+          "game": "gun",
+          "width": 1024,
+          "height": 768,
+          "ok": true
+        },
+        {
+          "game": "tank",
+          "width": 667,
+          "height": 375,
+          "ok": true
+        },
+        {
+          "game": "tank",
+          "width": 390,
+          "height": 844,
+          "ok": true
+        },
+        {
+          "game": "tank",
+          "width": 844,
+          "height": 390,
+          "ok": true
+        },
+        {
+          "game": "tank",
+          "width": 768,
+          "height": 1024,
+          "ok": true
+        },
+        {
+          "game": "tank",
+          "width": 1024,
+          "height": 768,
+          "ok": true
+        }
+      ],
+      "errors": []
+    }
+  },
+  "houseLabelLayouts": [
+    {
+      "width": 667,
+      "height": 375,
+      "picture": false,
+      "visible": 8,
+      "overlaps": []
+    },
+    {
+      "width": 667,
+      "height": 375,
+      "picture": true,
+      "visible": 8,
+      "overlaps": []
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "picture": false,
+      "visible": 8,
+      "overlaps": []
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "picture": true,
+      "visible": 8,
+      "overlaps": []
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "picture": false,
+      "visible": 6,
+      "overlaps": []
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "picture": true,
+      "visible": 6,
+      "overlaps": []
+    }
+  ]
+}
