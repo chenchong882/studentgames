@@ -24,18 +24,19 @@
     return {prompt:text(item.prompt||item.question),answer,meaning,emoji:text(item.emoji)||pictureFor(answer),chosen:text(item.chosen),kind:item.kind||(meaning?'word':'question'),status:item.status||'correct'};
   }
   function keyOf(rec){return rec.kind==='word'?'word:'+norm(rec.answer):'question:'+norm(rec.prompt)+'\u0000'+norm(rec.answer);}
-  function summary(){
+  function summary(separateUnanswered){
     const grouped=new Map();
     records.forEach(rec=>{
       if(!rec.answer&&!rec.prompt)return;
       const key=keyOf(rec);
-      if(!grouped.has(key))grouped.set(key,{key,rec,missed:false,missCount:0});
+      if(!grouped.has(key))grouped.set(key,{key,rec,missed:false,missCount:0,answered:false,lastAnswer:null});
       const item=grouped.get(key);
-      if(rec.status!=='correct'){item.rec=rec;item.missed=true;item.missCount++;}
+      if(rec.status==='correct'||rec.status==='wrong'){item.answered=true;item.lastAnswer=rec.status;}
+      if(rec.status!=='correct'&&(!separateUnanswered||rec.status==='wrong')){item.rec=rec;item.missed=true;item.missCount++;}
     });
-    const items=[...grouped.values()],missed=items.filter(item=>item.missed),correct=items.length-missed.length;
-    const ratio=items.length?correct/items.length:0;
-    return {items,missed,correct,stars:ratio>=1?5:ratio>=.85?4:ratio>=.7?3:ratio>=.5?2:1};
+    const items=[...grouped.values()],missed=items.filter(item=>item.missed),pending=separateUnanswered?items.filter(item=>!item.answered):[];
+    const judged=items.length-pending.length,correct=judged-missed.length,ratio=judged?correct/judged:0;
+    return {items,missed,pending,judged,correct,practice:missed.concat(pending),stars:ratio>=1?5:ratio>=.85?4:ratio>=.7?3:ratio>=.5?2:1};
   }
   function add(status,item,keepActive){
     const rec=clean({...active,...item,status});if(!rec.prompt&&!rec.answer)return;
@@ -52,7 +53,7 @@
   }
   function planReview(info){
     // 先打散同次數的字，再優先挑本局錯得最多的；每局最多 6 個不同英文單字。
-    const words=shuffle(info.missed.filter(item=>item.rec.kind==='word'&&item.rec.answer&&item.rec.meaning))
+    const words=shuffle(info.practice.filter(item=>item.rec.kind==='word'&&item.rec.answer&&item.rec.meaning))
       .sort((a,b)=>b.missCount-a.missCount).slice(0,6)
       .map(item=>({key:item.key,word:item.rec.answer,meaning:item.rec.meaning,emoji:item.rec.emoji}));
     if(!words.length)return [];
@@ -292,13 +293,13 @@
     if(active)add('unanswered',{},false);
     if(disposeReview)disposeReview();
     ensureStyle();
-    const info=summary(),plan=planReview(info),selected=plan.flatMap(stage=>stage.words);
-    const missedWords=info.missed.filter(item=>item.rec.kind==='word').length;
+    const info=summary(options.separateUnanswered),plan=planReview(info),selected=plan.flatMap(stage=>stage.words);
+    const missedWords=info.practice.filter(item=>item.rec.kind==='word').length;
     const givenStars=Number(options.stars),stars=Number.isFinite(givenStars)?Math.max(1,Math.min(5,Math.round(givenStars))):info.stars;
     const previousFocus=document.activeElement,host=options.mount,modal=el('div',host?'sg-review-embedded':'sg-review-backdrop'),card=el('div','sg-review-card');
     modal.id='sg-review-modal';modal.lang='zh-Hant';modal.appendChild(card);
     if(!host){modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','sg-review-title');}
-    let closed=false,game=null,completion=null,stageIndex=0,earned=info.items.length>0&&!info.missed.length;
+    let closed=false,game=null,completion=null,stageIndex=0,earned=info.items.length>0&&!info.practice.length;
     const speech=reviewSpeech();
     const passed=new Set();
     function dispose(){
@@ -328,34 +329,42 @@
     });
     const heading=el('h2','',title||'本局學習回顧');heading.id='sg-review-title';card.appendChild(heading);if(host)heading.hidden=true;
     const lead=el('p','sg-review-lead',options.lead||'把剛剛卡住的單字，再挑戰一次。');card.appendChild(lead);
+    if(options.separateUnanswered)card.appendChild(el('p','sg-game-hint','已作答 '+info.judged+' 字 · 曾判讀錯誤 '+info.missed.length+' 字 · 未完成 '+info.pending.length+' 字。射偏、超時與未完成不列入判讀評分。'));
     const rating=el('div','sg-review-rating');card.appendChild(rating);
     function updateRating(){
       rating.replaceChildren();
+      if(options.separateUnanswered&&!info.judged){
+        rating.appendChild(el('span','sg-review-rating-label','尚無可評分的英文作答'));
+        if(earned)rating.appendChild(el('span','sg-learning-earned','★ 複習完成星'));
+        return;
+      }
       const starText=el('span','sg-review-stars','★'.repeat(stars)+'☆'.repeat(5-stars));starText.setAttribute('aria-label','本局評分 '+stars+' / 5');
-      rating.append(starText,el('span','sg-review-rating-label','本局評分 '+stars+' / 5'));
-      if(earned)rating.appendChild(el('span','sg-learning-earned',info.missed.length?'★ 複習完成星':'★ 全對學習星'));
+      rating.append(starText,el('span','sg-review-rating-label',(options.separateUnanswered?'英文判讀評分 ':'本局評分 ')+stars+' / 5'));
+      if(earned)rating.appendChild(el('span','sg-learning-earned',info.practice.length?'★ 複習完成星':'★ 全對學習星'));
     }
     updateRating();
     const stageHost=el('section','sg-stage-host'),stageActions=el('div','sg-stage-actions');
     card.append(stageHost,stageActions);
     const missedDetails=el('details','sg-review-details');
-    if(info.missed.length){
-      missedDetails.appendChild(el('summary','','本局錯字與錯題（'+info.missed.length+'）'));
+    if(info.practice.length){
+      missedDetails.appendChild(el('summary','',(options.separateUnanswered?'判讀錯誤與未完成':'本局錯字與錯題')+'（'+info.practice.length+'）'));
       const list=el('ul');
-      info.missed.forEach(item=>{
+      info.practice.forEach(item=>{
         const li=el('li'),rec=item.rec;li.appendChild(el('strong','',rec.answer));
-        li.appendChild(el('span','',rec.kind==='word'?rec.meaning:rec.prompt));list.appendChild(li);
+        li.appendChild(el('span','',rec.kind==='word'?rec.meaning:rec.prompt));
+        if(options.separateUnanswered){li.dataset.reviewKey=item.key;li.appendChild(el('small','sg-result-note',item.missed?(item.lastAnswer==='correct'?'曾答錯，後來已答對':'判讀錯誤'):'未完成，還沒確認會不會'));}
+        list.appendChild(li);
       });
       missedDetails.appendChild(list);card.appendChild(missedDetails);
     }
     function overview(){
       stageHost.replaceChildren();stageActions.replaceChildren();
       if(!plan.length){
-        const note=!info.items.length?'這局沒有出現單字題。':!info.missed.length?'這局全部答對，直接收下全對學習星！':'這局沒有需要練習的單字；其他錯題可展開回顧。';
+        const note=!info.items.length?'這局沒有出現單字題。':!info.practice.length?'這局全部答對，直接收下全對學習星！':options.separateUnanswered?'這局沒有可練習的單字；其他錯題與未完成題目可展開回顧。':'這局沒有需要練習的單字；其他錯題可展開回顧。';
         showCompletion(earned?'全部答對！':'本局回顧',note,options.completeLabel||'確認，查看成績',finish);return;
       }
       stageHost.appendChild(el('h3','','這次先追回 '+selected.length+' 個單字'));
-      stageHost.appendChild(el('p','sg-game-hint',(missedWords>6?'本局有 '+missedWords+' 個錯字，這次先練 6 個。':'')+'每次隨機抽一種玩法；這次分 '+plan.length+' 批，不倒數、不扣分。'));
+      stageHost.appendChild(el('p','sg-game-hint',(missedWords>6?'本局有 '+missedWords+' 個'+(options.separateUnanswered?'待複習單字':'錯字')+'，這次先練 6 個。':'')+'每次隨機抽一種玩法；這次分 '+plan.length+' 批，不倒數、不扣分。'));
       const chips=el('div','sg-word-chips');selected.forEach(word=>chips.appendChild(el('span','',word.word)));stageHost.appendChild(chips);
       const route=el('p','sg-review-route','這次抽到：'+(plan[0].kind==='memory'?'翻牌救怪獸':'搬單字回家'));stageHost.appendChild(route);
       if(selected.some(w=>w.emoji))stageHost.appendChild(el('p','sg-game-hint','內建圖卡：英文配圖片；沒有圖片的字會顯示中文。'));
@@ -374,6 +383,7 @@
       const onWin=()=>{
         if(closed)return;
         passed.add(stageIndex);
+        if(options.separateUnanswered)missedDetails.querySelectorAll('[data-review-key]').forEach(li=>{if(stage.words.some(w=>w.key===li.dataset.reviewKey))li.querySelector('.sg-result-note').textContent='已補答成功';});
         stageActions.replaceChildren();
         if(stageIndex+1<plan.length)showCompletion('這批複習完成！','已練完 '+stage.words.length+' 個單字，接著複習剩下的字。','確認，繼續下一批',nextStage,true);
         else complete();
@@ -391,7 +401,7 @@
       const actions=el('div','sg-stage-actions'),done=button(label,confirm);
       actions.appendChild(done);if(replay)actions.appendChild(button('重新洗牌，再玩一次（選玩）',startStage,true));
       panel.append(mark,titleNode,noteNode,rating.cloneNode(true));
-      if(!plan.length&&info.missed.length)panel.appendChild(missedDetails.cloneNode(true));
+      if(!plan.length&&info.practice.length)panel.appendChild(missedDetails.cloneNode(true));
       panel.appendChild(actions);completion.appendChild(panel);modal.appendChild(completion);
       card.hidden=true;focus(done);
     }
