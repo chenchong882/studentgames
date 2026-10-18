@@ -544,8 +544,8 @@
         padding:max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
             max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
         justify-content:center; gap:0; }
-    .shell { width:min(1180px,100%); height:100%; min-height:0;
-        grid-template-rows:48px minmax(0,1fr) 80px; gap:8px; }
+    .shell { width:100%; height:100%; min-height:0;
+        grid-template-rows:48px minmax(0,1fr) 112px; gap:8px; }
     .hud { display:grid; grid-template-columns:minmax(0,1fr) 44px; gap:8px; min-width:0; }
     .stat-row { min-width:0; }
     .stat { max-width:none; min-height:0; padding:4px; }
@@ -559,44 +559,36 @@
         width:0; height:0; max-width:none; max-height:none;
         aspect-ratio:auto; border:0; border-radius:8px; outline:2px solid rgba(255,231,162,.6); outline-offset:-2px; }
     .hint { display:none; }
-    .miner-controls { display:grid; grid-template-columns:64px minmax(0,1fr) 64px;
-        align-items:center; gap:12px; min-width:0; }
-    .miner-controls .corner-btn { position:static; width:60px; height:60px; font-size:28px; justify-self:center; }
-    #miner-bottom { position:static; transform:none; width:100%; min-width:0; gap:4px; }
-    #miner-toast { width:100%; max-width:560px; padding:3px 10px; font-size:13px; line-height:1.3;
+    .miner-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+        grid-template-rows:40px minmax(0,1fr); gap:8px; min-width:0; }
+    .miner-controls .corner-btn { position:static; width:100%; height:100%; min-height:48px;
+        border-radius:12px; font-size:20px; transform:none; box-shadow:inset 0 2px 0 rgba(255,255,255,.25); }
+    .miner-controls .corner-btn.is-held { filter:brightness(1.25); border-color:var(--gold); }
+    #move-left-btn { grid-column:1; grid-row:2; }
+    #move-right-btn { grid-column:2; grid-row:2; }
+    #miner-bottom { position:relative; left:auto; bottom:auto; transform:none; grid-column:1 / -1;
+        grid-row:1; width:100%; min-width:0; gap:3px; justify-content:flex-end; }
+    #miner-toast { position:absolute; bottom:calc(100% + 8px); width:auto; max-width:100%; padding:5px 12px; font-size:13px; line-height:1.3;
         white-space:nowrap; overflow:hidden; text-overflow:ellipsis; border-width:1px; }
     #miner-action-hint { display:block; visibility:hidden; height:17px; font-size:12px; line-height:17px; }
     #miner-action-hint.is-visible { visibility:visible; }
-    #miner-progress { width:min(360px,100%); height:20px; flex-shrink:0; }
+    #miner-progress { width:min(560px,100%); height:20px; flex-shrink:0; }
     #miner-progress-label { font-size:12px; }
     #miner-startscreen { position:fixed; border-radius:0; }
-    /* 橫向把資訊與操作移到兩側，讓礦坑使用整個螢幕高度。 */
-    @media (orientation:landscape) {
-        .shell { width:100%; grid-template-columns:clamp(112px,14vw,160px) minmax(0,1fr) clamp(112px,14vw,160px);
-            grid-template-rows:minmax(0,1fr); gap:6px; }
-        .hud { display:flex; flex-direction:column; justify-content:center; gap:8px; }
-        .stat-row { display:grid; grid-template-columns:1fr; gap:6px; }
-        .stat { min-height:44px; padding:5px; }
-        #miner-settings-btn { flex-shrink:0; }
-        .miner-controls { grid-template-columns:repeat(2,minmax(0,1fr));
-            grid-template-rows:minmax(0,1fr) 60px; gap:8px 4px; padding-bottom:6px; }
-        #miner-bottom { grid-column:1 / -1; grid-row:1; align-self:center; gap:10px; }
-        #move-left-btn { grid-column:1; grid-row:2; }
-        #move-right-btn { grid-column:2; grid-row:2; }
-        .miner-controls .corner-btn { width:52px; height:52px; font-size:24px; }
-        #miner-toast { font-size:13px; padding:8px 5px; white-space:normal; overflow-wrap:anywhere;
-            line-height:1.5; border-radius:12px; }
-        #miner-action-hint { font-size:12px; letter-spacing:0; }
-        #miner-progress { height:22px; }
-        #miner-progress-label { font-size:12px; }
+    /* 平板橫放仍保留上下排列，礦坑左右不再放資訊面板。 */
+    @media (max-height:500px) {
+        .shell { grid-template-rows:44px minmax(0,1fr) 80px; gap:4px; }
+        .miner-controls { grid-template-rows:28px minmax(0,1fr); gap:4px 8px; }
+        #miner-action-hint { display:none; }
+        .miner-controls .corner-btn { font-size:17px; }
+        #miner-toast { font-size:12px; padding:3px 8px; }
     }
-    @media (orientation:landscape) and (max-height:350px) {
-        .hud, .stat-row { gap:4px; }
-        .stat { min-height:38px; padding:3px; }
-        .stat-label { font-size:10px; }
-        .stat-value { font-size:16px; }
-        #miner-bottom { gap:5px; }
-        #miner-toast { font-size:12px; padding:4px; }
+    #miner-cart-speech-btn { touch-action:none; cursor:grab; }
+    #miner-cart-speech-btn.is-dragging { cursor:grabbing; }
+    button:focus-visible { outline:3px solid var(--cyan); outline-offset:2px; }
+    @media (prefers-reduced-motion:reduce) {
+        button, #miner-progress-fill, #miner-toast { transition:none; }
+        #miner-start-btn { animation:none; }
     }
 
 </style>
@@ -634,7 +626,7 @@
 
         <section class="game-wrap">
             <canvas id="gameCanvas" width="1080" height="675"></canvas>
-            <button id="miner-cart-speech-btn" type="button" aria-label="點礦車重聽英文發音"></button>
+            <button id="miner-cart-speech-btn" type="button" aria-label="拖曳移動礦車，輕點重聽英文發音"></button>
             <div id="miner-startscreen" class="startscreen hidden">
                 <div class="startscreen-card">
                     <h2 id="ss-title">⛏️ 單字挖金礦</h2>
@@ -663,16 +655,16 @@
         </section>
 
         <section class="miner-controls" aria-label="遊戲操作">
-            <button class="corner-btn" id="move-left-btn" type="button" aria-label="礦車往左">◀</button>
+            <button class="corner-btn" id="move-left-btn" type="button" aria-label="按住讓礦車往左">◀ 往左拉</button>
             <div id="miner-bottom" aria-hidden="true">
                 <div id="miner-toast"></div>
-                <div id="miner-action-hint">點擊發射鉤鎖</div>
+                <div id="miner-action-hint">拖曳礦車或繩子移動，點礦坑放鉤</div>
                 <div id="miner-progress">
                     <div id="miner-progress-fill"></div>
                     <span id="miner-progress-label"></span>
                 </div>
             </div>
-            <button class="corner-btn" id="move-right-btn" type="button" aria-label="礦車往右">▶</button>
+            <button class="corner-btn" id="move-right-btn" type="button" aria-label="按住讓礦車往右">往右拉 ▶</button>
         </section>
     </main>
     <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"><span id="status"></span></div>
@@ -692,12 +684,13 @@
             <div class="r">
                 🎯 看<b>礦車上的題目</b>（單字／中文／圖片），把鉤爪射向<b>對應的金塊</b>。<br>
                 🔊 題目是英文單字時會自動發音，<b>點礦車</b>可重聽。<br>
-                ⬅️➡️ <b>左下／右下方向鈕</b>（或鍵盤 ←→、A／D）：移動礦車<br>
-                👆 <b>點畫面任一處</b>（或空白鍵）：放出鉤爪<br>
+                ⬅️➡️ 按住<b>底部左半／右半按鈕</b>（或鍵盤 ←→、A／D）：拉動礦車<br>
+                🪢 也可以直接<b>拖曳礦車或左右繩子</b>；放鉤、回收時仍可移動。<br>
+                👆 <b>點礦坑</b>（或空白鍵）：放出鉤爪；飛出時再點一下可提早收回<br>
                 <br>
                 🏆 遊戲從 <b>3:00</b> 開始，分數夠高就進下一關，<b>共 6 關</b>。<br>
                 抓對 +20 分，抓錯扣 5 秒，炸彈扣分、石頭會彈開。<br>
-                ⏸ 左上角按鈕可<b>暫停遊戲</b>。
+                ⏸ 上方按鈕可<b>暫停遊戲</b>。
             </div>
             <button class="mBtn" id="miner-guide-ok">▶ 開始遊戲</button>
         </div>
@@ -767,6 +760,7 @@
     const CART_SPEED = 430;
     const CART_MIN_X = 155;
     const CART_MAX_X = canvas.width - 155;
+    const MAX_HOOK_LENGTH = Math.hypot(canvas.width, canvas.height);
 
     /* ── 六關卡：達門檻(累積分)進關，每關難度漸進 ── */
     const LEVELS = [
@@ -837,6 +831,7 @@
     let hookLength = 70;
     let defaultHookLength = 70;
     let hookSpeed = 13;
+    let hookSeconds = 0;
     let state = "IDLE";
     let idleSeconds = 0;
     let gamePhase = "READY";
@@ -863,6 +858,13 @@
         left: false,
         right: false
     };
+    const movePointers = new Map();
+    const moveKeys = new Set();
+    const reduceMotion = matchMedia("(prefers-reduced-motion:reduce)");
+    let cartDrag = null;
+    let cartVelocity = 0;
+    let ropePull = 0;
+    let cartClickSuppressed = false;
     const cavePebbles = Array.from({ length: 9 }, (_, i) => ({
         x: 70 + i * 118,
         y: canvas.height - (18 + (i * 17) % 34),
@@ -1145,6 +1147,7 @@
     }
 
     function resetStats() {
+        resetMovement();
         score = 0;
         streak = 0;
         bestStreak = 0;
@@ -1197,6 +1200,7 @@
         stopBgm();
         pendingNextRoundTimer = null;
         gamePhase = "ENDED";
+        resetMovement();
         gameWon = true;
         state = "IDLE";
         caughtItem = null;
@@ -1213,6 +1217,7 @@
         stopBgm();
         pendingNextRoundTimer = null;
         gamePhase = "ENDED";
+        resetMovement();
         gameWon = false;
         state = "IDLE";
         caughtItem = null;
@@ -1232,12 +1237,25 @@
     }
 
     function updateCartPosition(dt) {
-        if (state !== "IDLE") return;
-
         const direction = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-        if (direction === 0) return;
-
-        origin.x = Math.max(CART_MIN_X, Math.min(CART_MAX_X, origin.x + direction * CART_SPEED * dt));
+        const dragging = cartDrag && cartDrag.moved;
+        const pull = dragging ? Math.max(-1, Math.min(1, (cartDrag.x-origin.x)/70)) : direction;
+        ropePull += (pull - ropePull) * Math.min(1, dt * 16);
+        // 彈簧拉力＋阻尼，以小步積分，低幀率時也不會暴衝或震盪。
+        for (let remaining = dt; remaining > 0;) {
+            const step = Math.min(remaining, 1/120);
+            const acceleration = dragging
+                ? (cartDrag.x-origin.x) * 190 - cartVelocity * 28
+                : (direction*CART_SPEED-cartVelocity) * 18;
+            cartVelocity = Math.max(-CART_SPEED*2, Math.min(CART_SPEED*2, cartVelocity + acceleration*step));
+            origin.x += cartVelocity * step;
+            if (origin.x <= CART_MIN_X || origin.x >= CART_MAX_X) {
+                origin.x = Math.max(CART_MIN_X, Math.min(CART_MAX_X, origin.x));
+                cartVelocity = 0;
+            }
+            remaining -= step;
+        }
+        if (!dragging && !direction && Math.abs(cartVelocity) < 0.5) cartVelocity = 0;
     }
 
     /* iOS 必須由真實按鈕的 click 先「暖機」一次，speechSynthesis 才解得了鎖 */
@@ -1246,6 +1264,7 @@
         if (speechPrimed || !("speechSynthesis" in window)) return;
         try {
             const warm = new SpeechSynthesisUtterance(" ");
+            warm.lang = "en-US";
             warm.volume = 0;
             window.speechSynthesis.speak(warm);
         } catch (e) {}
@@ -1261,7 +1280,7 @@
         const voice = pickEnglishVoice();
         const msg = new SpeechSynthesisUtterance(speechTextFor(word));
         if (voice) msg.voice = voice;
-        msg.lang = voice?.lang || "en-US";
+        msg.lang = "en-US";
         msg.rate = 0.82;
         msg.pitch = 1;
 
@@ -1277,8 +1296,8 @@
 
     let cartCanvasRect = null;
     function syncCartSpeechButton() {
-        const canSpeak = gamePhase === "PLAYING" && currentQ === "word" && targetWordObj;
-        if (!canSpeak) {
+        const canUse = gamePhase === "PLAYING" && !paused && !guideOpen && targetWordObj;
+        if (!canUse) {
             cartSpeechBtn.style.display = "none";
             return;
         }
@@ -1290,8 +1309,9 @@
         cartSpeechBtn.style.left = `${rect.left + (origin.x - 142) * scaleX}px`;
         cartSpeechBtn.style.top = `${rect.top + 6 * scaleY}px`;
         cartSpeechBtn.style.width = `${284 * scaleX}px`;
-        cartSpeechBtn.style.height = `${104 * scaleY}px`;
-        cartSpeechBtn.setAttribute("aria-label", `重聽 ${targetWordObj.word} 的英文發音`);
+        cartSpeechBtn.style.height = `${Math.max(44, 104 * scaleY)}px`;
+        cartSpeechBtn.setAttribute("aria-label", currentQ === "word"
+            ? `拖曳移動礦車，輕點重聽 ${targetWordObj.word} 的英文發音` : "拖曳移動礦車");
     }
 
     function initLevel(autoSpeak = true) {
@@ -1300,6 +1320,7 @@
         items = [];
         caughtItem = null;
         state = "IDLE";
+        hookSeconds = 0;
         hookLength = defaultHookLength;
         angle = rand(-Math.PI / 3.8, Math.PI / 3.8);
         angleDir = Math.random() > 0.5 ? 1 : -1;
@@ -1364,8 +1385,13 @@
     }
 
     function shoot() {
-        if (gamePhase === "PLAYING" && state === "IDLE") {
+        if (gamePhase !== "PLAYING" || paused || guideOpen || cartDrag || pendingNextRoundTimer !== null) return;
+        if (state === "SHOOTING") {
+            state = "RETRACTING";
+            setStatus("收回中");
+        } else if (state === "IDLE") {
             state = "SHOOTING";
+            hookSeconds = 0;
             idleSeconds = 0;
             renderActionHint();
             setStatus("鉤子發射");
@@ -1432,12 +1458,26 @@
 
         updateCartPosition(dt);
 
+        // 回收速度／角度異常也不讓鉤子永久卡住；被抓的物件放回礦坑，可重新作答。
+        if (state === "SHOOTING" || state === "RETRACTING") {
+            hookSeconds += dt;
+            if (!Number.isFinite(hookLength) || !Number.isFinite(angle) || hookSeconds > 8) {
+                if (caughtItem) caughtItem.active = true;
+                caughtItem = null;
+                hookLength = defaultHookLength;
+                angle = 0;
+                state = "IDLE";
+                hookSeconds = 0;
+                setMessage("鉤子已收回，可以再放鉤", "info", 120);
+            }
+        }
+
         if (state === "IDLE") {
             if (pendingNextRoundTimer === null) idleSeconds += dt;
             angle += angleSpeed * angleDir * timeScale;
-            if (angle > Math.PI / 2.65 || angle < -Math.PI / 2.65) {
-                angleDir *= -1;
-            }
+            const limit = Math.PI / 2.65;
+            if (angle > limit) { angle = limit; angleDir = -1; }
+            if (angle < -limit) { angle = -limit; angleDir = 1; }
             return;
         }
 
@@ -1445,7 +1485,7 @@
             hookLength += hookSpeed * timeScale;
             const tip = getHookTip();
 
-            if (tip.x < 32 || tip.x > canvas.width - 32 || tip.y > canvas.height - 26) {
+            if (hookLength >= MAX_HOOK_LENGTH || tip.x < 32 || tip.x > canvas.width - 32 || tip.y > canvas.height - 26) {
                 state = "RETRACTING";
                 setStatus("收回中");
                 return;
@@ -1479,7 +1519,7 @@
         if (state === "RETRACTING") {
             let speed = hookSpeed * 1.05;
             if (caughtItem) {
-                if (caughtItem.type === "gold") speed = hookSpeed * caughtItem.pullFactor;
+                if (caughtItem.type === "gold") speed = hookSpeed * (Number.isFinite(caughtItem.pullFactor) ? Math.max(0.34, caughtItem.pullFactor) : 0.5);
                 if (caughtItem.type === "bomb") speed = hookSpeed * 0.75;
             }
 
@@ -1487,6 +1527,7 @@
 
             if (hookLength <= defaultHookLength) {
                 hookLength = defaultHookLength;
+                hookSeconds = 0;
                 if (caughtItem) {
                     handleCaughtItem(caughtItem);
                 } else {
@@ -1534,6 +1575,7 @@
         if (gamePhase !== "PLAYING") return;
 
         if (shouldAdvanceRound) {
+            state = "ROUND_WAIT";
             pendingNextRoundTimer = 1.05;
         } else {
             state = "IDLE";
@@ -1560,6 +1602,7 @@
             backdrop.getContext('2d').drawImage(canvas,0,0);
             backdropKey=key;
         }else ctx.drawImage(backdrop,0,0);
+        drawCartRopes();
         drawMineCart(origin.x,60);
         drawItems();
         drawHookSystem();
@@ -1708,6 +1751,40 @@
 
     }
 
+    function drawCartRopes() {
+        ctx.save();
+        ctx.lineCap = "round";
+        for (const side of [-1, 1]) {
+            const anchorX = side < 0 ? 10 : canvas.width - 10;
+            const cartX = origin.x + side * 130;
+            const tension = Math.max(0, ropePull * side);
+            const sag = Math.min(28, Math.abs(cartX-anchorX)*0.09) * (1-tension*0.9);
+            const sway = reduceMotion.matches ? 0 : -cartVelocity / CART_SPEED * side * 4;
+            ctx.beginPath();
+            ctx.moveTo(anchorX, 47);
+            ctx.quadraticCurveTo((anchorX+cartX)/2, 61+sag+sway, cartX, 60);
+            ctx.strokeStyle = "#25150c";
+            ctx.lineWidth = 9;
+            ctx.stroke();
+            ctx.strokeStyle = tension > 0.2 ? "#ffe191" : "#ba864d";
+            ctx.lineWidth = 5;
+            ctx.stroke();
+            ctx.setLineDash([3, 7]);
+            ctx.strokeStyle = "#79502d";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.arc(anchorX, 47, 7, 0, Math.PI*2);
+            ctx.fillStyle = "#baa078";
+            ctx.fill();
+            ctx.strokeStyle = "#3a2414";
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
     function drawMineCart(x, y) {
         ctx.save();
         ctx.translate(x, y);
@@ -1773,6 +1850,7 @@
     function drawWheel(x, y, r) {
         ctx.save();
         ctx.translate(x, y);
+        ctx.rotate(reduceMotion.matches ? 0 : origin.x / r);
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.fillStyle = "#24292b";
@@ -1784,6 +1862,12 @@
         ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
         ctx.fillStyle = "#6d7476";
         ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-r*0.75, 0); ctx.lineTo(r*0.75, 0);
+        ctx.moveTo(0, -r*0.75); ctx.lineTo(0, r*0.75);
+        ctx.strokeStyle = "#aeb4b5";
+        ctx.lineWidth = 2;
+        ctx.stroke();
         ctx.restore();
     }
 
@@ -2153,7 +2237,11 @@
     function renderActionHint() {
         if (!actionHintEl) return;
         const visible = gamePhase === "PLAYING" && !paused && !guideOpen
-            && state === "IDLE" && pendingNextRoundTimer === null && idleSeconds >= 3;
+            && (state !== "IDLE" || idleSeconds >= 3);
+        const hint = state === "SHOOTING" ? "再點礦坑可提早收回，礦車仍可移動"
+            : state === "RETRACTING" ? "鉤子回收中，仍可拖曳礦車"
+            : state === "ROUND_WAIT" ? "換題中，礦車仍可移動" : "拖曳礦車或繩子移動，點礦坑放鉤";
+        GameRuntime.text(actionHintEl, hint);
         actionHintEl.classList.toggle("is-visible", visible);
     }
 
@@ -2207,8 +2295,72 @@
         draw();
     }
 
+    function syncMovementInput() {
+        const directions = [...movePointers.values()];
+        input.left = moveKeys.has("ArrowLeft") || moveKeys.has("KeyA") || directions.includes("left");
+        input.right = moveKeys.has("ArrowRight") || moveKeys.has("KeyD") || directions.includes("right");
+        moveLeftBtn.classList.toggle("is-held", input.left);
+        moveRightBtn.classList.toggle("is-held", input.right);
+    }
+
+    function resetMovement() {
+        const drag = cartDrag;
+        const pointers = [...movePointers];
+        cartDrag = null;
+        movePointers.clear();
+        moveKeys.clear();
+        cartVelocity = ropePull = 0;
+        cartClickSuppressed = true;
+        cartSpeechBtn.classList.remove("is-dragging");
+        syncMovementInput();
+        if (drag && drag.element.hasPointerCapture?.(drag.id)) drag.element.releasePointerCapture(drag.id);
+        for (const [id, direction] of pointers) {
+            const button = direction === "left" ? moveLeftBtn : moveRightBtn;
+            if (button.hasPointerCapture?.(id)) button.releasePointerCapture(id);
+        }
+    }
+
+    function canvasPoint(event) {
+        const rect = cartCanvasRect || canvas.getBoundingClientRect();
+        return { x:(event.clientX-rect.left)*canvas.width/Math.max(1,rect.width),
+            y:(event.clientY-rect.top)*canvas.height/Math.max(1,rect.height) };
+    }
+
+    function beginCartDrag(event) {
+        if (gamePhase !== "PLAYING" || paused || guideOpen || cartDrag || event.button !== 0) return;
+        const point = canvasPoint(event);
+        cartClickSuppressed = false;
+        cartDrag = { id:event.pointerId, element:event.currentTarget, startX:event.clientX,
+            offsetX:origin.x-point.x, x:origin.x, moved:false };
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+    }
+
+    function moveCartDrag(event) {
+        if (!cartDrag || event.pointerId !== cartDrag.id) return;
+        if (Math.abs(event.clientX-cartDrag.startX) > 5) cartDrag.moved = true;
+        if (!cartDrag.moved) return;
+        cartClickSuppressed = true;
+        cartDrag.x = Math.max(CART_MIN_X, Math.min(CART_MAX_X, canvasPoint(event).x+cartDrag.offsetX));
+        cartSpeechBtn.classList.add("is-dragging");
+    }
+
+    function endCartDrag(event) {
+        if (!cartDrag || event.pointerId !== cartDrag.id) return;
+        const drag = cartDrag;
+        cartClickSuppressed = drag.moved || event.type !== "pointerup";
+        cartDrag = null;
+        cartSpeechBtn.classList.remove("is-dragging");
+        if (drag.element.hasPointerCapture?.(drag.id)) drag.element.releasePointerCapture(drag.id);
+    }
+
+    cartSpeechBtn.addEventListener("pointerdown", beginCartDrag);
+    for (const surface of [cartSpeechBtn, canvas]) {
+        surface.addEventListener("pointermove", moveCartDrag);
+        surface.addEventListener("lostpointercapture", endCartDrag);
+    }
     cartSpeechBtn.addEventListener("click", () => {
-        if (gamePhase === "PLAYING" && currentQ === "word" && targetWordObj) {
+        if (cartClickSuppressed) { cartClickSuppressed = false; return; }
+        if (gamePhase === "PLAYING" && !paused && !guideOpen && currentQ === "word" && targetWordObj) {
             primeSpeech();
             speakWord(targetWordObj.word);
         }
@@ -2252,10 +2404,12 @@
     }
     startBtn.addEventListener("click", beginGame);
 
-    /* 遊玩中點畫面任一處：放出鉤爪 */
-    canvas.addEventListener("pointerdown", () => {
+    /* 上方車子／繩子可以拖曳；只有礦坑區域的點擊才發射或收回。 */
+    canvas.addEventListener("pointerdown", (event) => {
         if (paused || guideOpen) return;
-        if (gamePhase === "PLAYING" && state === "IDLE") shoot();
+        if (event.button !== 0) return;
+        if (canvasPoint(event).y <= 118) beginCartDrag(event);
+        else shoot();
     });
 
     /* ===== 暫停選單 + 玩法守則 ===== */
@@ -2264,12 +2418,15 @@
     function openSettings() {
         if (paused) return;
         paused = true;
+        resetMovement();
+        syncCartSpeechButton();
         pauseEl.classList.remove("hidden");
         stopBgm();
     }
     function closeSettings() {
         if (!paused || matchMedia("(orientation:portrait)").matches) return;
         paused = false;
+        lastFrameTime = performance.now();
         pauseEl.classList.add("hidden");
         if (gamePhase === "PLAYING") startBgm();
     }
@@ -2285,8 +2442,7 @@
         gamePhase = "READY";
         state = "IDLE";
         caughtItem = null;
-        input.left = false;
-        input.right = false;
+        resetMovement();
         updateHud();
         updateControls();
     }
@@ -2302,22 +2458,29 @@
     document.getElementById("miner-guide-ok").addEventListener("click", closeGuide);
 
     function bindMoveButton(button, direction) {
-        const setPressed = (pressed) => {
-            input[direction] = pressed;
-        };
-
         button.addEventListener("pointerdown", (event) => {
+            if (gamePhase !== "PLAYING" || paused || guideOpen || event.button !== 0) return;
             event.preventDefault();
-            setPressed(true);
+            movePointers.set(event.pointerId, direction);
+            syncMovementInput();
             button.setPointerCapture?.(event.pointerId);
         });
-        button.addEventListener("pointerup", () => setPressed(false));
-        button.addEventListener("pointercancel", () => setPressed(false));
-        button.addEventListener("pointerleave", () => setPressed(false));
+        button.addEventListener("lostpointercapture", (event) => {
+            movePointers.delete(event.pointerId);
+            syncMovementInput();
+        });
     }
 
     bindMoveButton(moveLeftBtn, "left");
     bindMoveButton(moveRightBtn, "right");
+    for (const type of ["pointerup", "pointercancel"]) {
+        window.addEventListener(type, (event) => {
+            movePointers.delete(event.pointerId);
+            syncMovementInput();
+            endCartDrag(event);
+        });
+    }
+    window.addEventListener("blur", resetMovement);
 
     window.addEventListener("keydown", (event) => {
         if (guideOpen) {
@@ -2326,16 +2489,13 @@
         }
         if (event.code === "Escape") { event.preventDefault(); togglePause(); return; }
         if (paused) { event.preventDefault(); return; }
-        if (event.code === "ArrowLeft" || event.code === "KeyA") {
+        if (["ArrowLeft", "KeyA", "ArrowRight", "KeyD"].includes(event.code)) {
             event.preventDefault();
-            input.left = true;
-        }
-        if (event.code === "ArrowRight" || event.code === "KeyD") {
-            event.preventDefault();
-            input.right = true;
+            if (gamePhase === "PLAYING") { moveKeys.add(event.code); syncMovementInput(); }
         }
         if (event.code === "Space") {
             event.preventDefault();
+            if (event.repeat) return;
             if (gamePhase === "READY" || gamePhase === "ENDED") beginGame();
             else shoot();
         }
@@ -2344,8 +2504,8 @@
     });
 
     window.addEventListener("keyup", (event) => {
-        if (event.code === "ArrowLeft" || event.code === "KeyA") input.left = false;
-        if (event.code === "ArrowRight" || event.code === "KeyD") input.right = false;
+        moveKeys.delete(event.code);
+        syncMovementInput();
     });
 
     window.addEventListener("message", (event) => {
@@ -2364,7 +2524,7 @@
         canvas.style.width = `${canvas.width * scale}px`;
         canvas.style.height = `${canvas.height * scale}px`;
         cartCanvasRect=canvas.getBoundingClientRect();
-        input.left=input.right=false;
+        resetMovement();
         syncCartSpeechButton();
         renderProgress();
     }
@@ -2379,6 +2539,7 @@
     loop();
     addEventListener('visibilitychange',()=>{
       if(!document.hidden)return;
+      resetMovement();
       if(gamePhase==='PLAYING'&&!paused)togglePause(); else stopBgm();
     });
 

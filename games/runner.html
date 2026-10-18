@@ -352,7 +352,7 @@
   <div id="haze"></div>
 
   <div id="topbar">
-    <span id="lives">❤️❤️❤️</span>
+    <span id="lives">❤️❤️❤️❤️❤️</span>
     <span id="levelTag">第 1 題</span>
     <span>分數 <span id="score">0</span></span>
   </div>
@@ -761,6 +761,7 @@ function decoEmoji(){
 
 /* ================= 遊戲狀態 ================= */
 let state = 'idle';   // idle | play | crash | over
+const MAX_LIVES = 5;
 let score, lives, combo, passed, gateNum, gateCorrect, wrongAnswers;
 let lane, jumpStart, slideStart, speed, roadY, surviveTimer, slowUntil, themeIdx;
 let timeScale = 1, runTime = 0;
@@ -1012,7 +1013,7 @@ function addScore(n, label, small){
   app.appendChild(pop);
   setTimeout(() => pop.remove(), 1000);
 }
-function renderLives(){ $('lives').textContent = '❤️'.repeat(lives) + '🖤'.repeat(3 - lives); }
+function renderLives(){ $('lives').textContent = '❤️'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives); }
 function renderCombo(){ $('combo').textContent = combo >= 2 ? '🔥 連續答對 x' + combo : ''; }
 function showToast(msg, ms){
   const t = $('toast');
@@ -1305,7 +1306,7 @@ function startGame(){
   RoundReview.reset();
   obstacles.forEach(o => { stopGateSpeech(o); o.el.remove(); });
   obstacles = [];
-  score = 0; lives = 3; combo = 0; passed = 0;
+  score = 0; lives = MAX_LIVES; combo = 0; passed = 0;
   gateNum = 0; gateCorrect = 0; wrongAnswers = [];
   speed = runSpeed(); roadY = 0; surviveTimer = 0; slowUntil = 0; timeScale = 1; runTime = 0;
   sinceGate = 0; reflexTarget = 3; nextIn = 500;

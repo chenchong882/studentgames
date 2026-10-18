@@ -360,7 +360,7 @@
           📖 題目包含中文意思、挖空句子與圖片題。<br>
           🏁 每關擊沉 <b>2 艘</b>目標船才過關；失敗會扣命。<br>
           💥 困難模式中，敵方狙擊手約 10 秒後會現身反擊。<br>
-          🦑 海怪需連打 5 下，擊敗後可獲得隨機獎勵。<br>
+          🦑 海怪會在近岸出現，命中 3 發即可擊敗，並獲得隨機獎勵。<br>
           👑 第 4、8 關是魔王戰，擊敗最終魔王即可通關。
         </div>
       </details>
@@ -464,9 +464,9 @@ const ENEMY_AIM_WARN  = 1.5; // 鎖定後到開火的預警秒數
 const ROUNDS_PER_LEVEL = 2;  // 每關需擊沉幾艘目標才過關
 const MAX_LEVEL = 8;         // 最高關卡
 const MONSTER_WINDUP = 1.2;  // 海怪不打掉時，襲擊前的預警秒數
-const MONSTER_HP = 5;        // 海怪要連續打幾下才會死（死了給隨機大獎）
+const MONSTER_HP = 3;        // 海怪命中 3 發即擊敗（給隨機大獎）
 const MONSTER_SPAWN = 45;    // 海怪平均多久出現一隻（秒）
-const AMMO_BY_MODE = { simple: 6, normal: 6, hard: 6 };  // 每回合 6 發：足夠擊敗 5 HP 海怪並保留 1 發
+const AMMO_BY_MODE = { simple: 6, normal: 6, hard: 6 };  // 每回合 6 發：擊敗海怪後仍有 3 發可打船
 const BASE_HIT_SCORE  = 200; // 擊沉目標的基礎分數
 const WRONG_HIT_SPEEDUP = 1.25; // 簡單／一般：打錯船時目標船加速倍率
 function usesAmmo(){ return AMMO_BY_MODE[game.difficulty] != null; }
@@ -1124,15 +1124,40 @@ function enemyCounterFire() {
   else afterGameTime(endRound, 1400);
 }
 
-// ── 海怪：稀有出沒的獎勵目標。不打掉它會襲擊你；累積擊沉 5 隻換一次隨機大獎 ──
+// ── 海怪：近岸獎勵目標。不打掉它會襲擊你；命中 3 發換一次隨機大獎 ──
 function spawnMonster() {
+  // 先在螢幕空間避開船身與字卡，再換回世界座標；空間不足就稍後重試。
+  const blockers = [];
+  for (const ship of game.ships) {
+    if (!ship.alive) continue;
+    const r = shipScreenRect(ship), pad = r.u * 1.2 + 12;
+    blockers.push({ left:r.left-pad, right:r.right+pad, top:r.top-pad-16, bottom:r.bottom+pad });
+    if (ship.labelRect) {
+      const l = ship.labelRect;
+      blockers.push({ left:l.x-8, right:l.x+l.w+8, top:l.y-8, bottom:l.y+l.h+8 });
+    }
+  }
+  const hudTop = $("hud").getBoundingClientRect().top;
+  const candidates = [];
+  for (const z of [SHORE_Z + 18, SHORE_Z + 30, SHORE_Z + 45]) {
+    const base = monsterScreen({ x:0, z });
+    const margin = base.r + 14;
+    if (margin * 2 >= W || base.cy - base.r < 12 || base.cy + base.r > hudTop - 10) continue;
+    for (let i = 0; i <= 12; i++) {
+      const sx = lerp(margin, W - margin, i / 12);
+      const clear = blockers.every(r => Math.hypot(sx - clamp(sx,r.left,r.right), base.cy - clamp(base.cy,r.top,r.bottom)) > base.r + 10);
+      if (clear) candidates.push({ x:(sx-W/2)*z/focal, z });
+    }
+  }
+  if (!candidates.length) return false;
   game.monster = {
-    x: rand(-110, 110), z: rand(135, 235),
+    ...pick(candidates),
     t: 0, life: rand(5.5, 7.5), bob: rand(0, Math.PI * 2),
     hp: MONSTER_HP, maxHp: MONSTER_HP, hitFlash: 0,
     dead: false, windup: false, windT: 0,
   };
   sfx.monster();
+  return true;
 }
 function updateMonster(dt) {
   const m = game.monster;
@@ -1150,8 +1175,7 @@ function updateMonster(dt) {
   }
   game.monsterCd -= dt;
   if (game.monsterCd <= 0) {
-    game.monsterCd = rand(MONSTER_SPAWN - 6, MONSTER_SPAWN + 6);   // 約 45 秒一隻
-    spawnMonster();
+    game.monsterCd = spawnMonster() ? rand(MONSTER_SPAWN - 6, MONSTER_SPAWN + 6) : 0.75;
   }
 }
 function monsterAttack(m) {
@@ -1167,7 +1191,7 @@ function monsterAttack(m) {
 }
 function monsterScreen(m) {
   const p = project(m.x, m.z);
-  const u = p.s * 3.6;
+  const u = Math.min(p.s * 3.6, Math.min(W,H) * 0.12 / 4.8);
   return { cx: p.sx, cy: p.waterY - u * 1.7, u, r: u * 4.8 };
 }
 function monsterHitTest(m, x, y) {
@@ -1183,7 +1207,7 @@ function hitMonster(m, fxX, fxY) {
   if (m.hp <= 0) {
     m.dead = true; m.t = 0;
     game.score += 200;
-    grantMonsterReward();                  // 連打 5 下打死才給隨機大獎
+    grantMonsterReward();                  // 命中 3 發後給隨機大獎
   } else {
     game.score += 50;
     m.hitFlash = 1;                         // 受擊閃白
@@ -1204,7 +1228,7 @@ function grantMonsterReward() {
     default:      game.score += 1500; msg = "💯 海怪寶藏 +1500 分！";
   }
   sfx.good();
-  showToast(`🏆 滿 5 隻獎勵：${msg}`, "#ffe082");
+  showToast(`🏆 擊敗海怪獎勵：${msg}`, "#ffe082");
 }
 
 /* ── 受擊方向小圓弧 + 困難反擊預警動畫 ── */
@@ -1258,7 +1282,7 @@ function drawMonster(now) {
   const m = game.monster;
   if (!m) return;
   const p = project(m.x, m.z);
-  const u = p.s * 3.6;
+  const { u } = monsterScreen(m);
   if (u < 0.3) return;
   // 升起 / 下潛（被打掉或襲擊後才下潛；蓄力時持續探出水面）
   let rise = 1;
@@ -2289,14 +2313,18 @@ function render(now, dt) {
 
   drawSky(now);
   drawSea(now);
-  if (!game.boss) drawMonster(now);   // 海怪畫在船之前（較遠深度）
 
   // 魔王畫在護衛艦之後（深度較遠）
   if (game.boss) drawBoss(now);
 
   // 由遠到近排序繪製船隻
-  const sorted = [...game.ships].filter(s => s.alive).sort((a, b) => b.z - a.z);
-  for (const s of sorted) drawShip(s, now);
+  const sorted = [...game.ships].filter(s => s.alive);
+  if (!game.boss && game.monster) sorted.push(game.monster);
+  sorted.sort((a, b) => b.z - a.z);
+  for (const s of sorted) {
+    if (s === game.monster) drawMonster(now);
+    else drawShip(s, now);
+  }
 
   ctx.restore();
 
