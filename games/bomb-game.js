@@ -7,6 +7,8 @@ const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 let W = 0, H = 0;
 let SAFE_L = 0, SAFE_R = 0, SAFE_T = 0;  // 瀏海/動態島安全區內距（px），橫放時左右會有缺口
+// 網址題庫載入會提早呼叫 resizeCanvas，重繪旗標必須先初始化。
+let _renderDirty = true;
 
 // 用一個隱藏探針讀 env(safe-area-inset-*)：直接讀 CSS 變數常拿不到解析後的 px，
 // 但設成 padding 再讀 computed 值就一定是 px。
@@ -2797,7 +2799,6 @@ const _STEP = 1000 / 60;
 const portraitView=window.matchMedia('(orientation: portrait)');
 let _lastT = (typeof performance !== 'undefined' ? performance.now() : Date.now());
 let _acc = 0;
-let _renderDirty = true;
 function loop(now) {
   if (now === undefined) now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
   let dt = now - _lastT;
