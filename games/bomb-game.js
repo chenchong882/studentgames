@@ -330,6 +330,7 @@ function readLessonDataFromHash() {
 // ══════════════════════════════════════════
 const Audio = (() => {
   let ctx = null;
+  RoundReview.setAudioContext(()=>ctx);
   let speaking = false;   // iOS 唸字中：讓出音訊工作階段給人聲，期間別硬把 ctx resume 回來
   function ensure() {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();

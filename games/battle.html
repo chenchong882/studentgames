@@ -485,7 +485,7 @@ const DIFFICULTY_CONFIG = {
     passiveMs: 5000,
     enemyIntervals: { early: 11000, mid: 9000, late: 7000 },
     enemyTierMult: [1.0, 1.25, 1.5],
-    wrongPenalty: 'advance_spawn',   // 答錯不生兵，只把敵方出兵倒數提前
+    wrongPenalty: 'none',            // 答錯不增援，也不提前敵方出兵
     bossChipMode: 'count',           // 每答對一題就扣 BOSS 血
     bossWrong: 'none',               // 答錯不影響 BOSS 血量
     bossMode: 'vocab',               // BOSS 出單字題，答對擊退
@@ -493,7 +493,7 @@ const DIFFICULTY_CONFIG = {
     allowLevelUp: true,              // 簡單：可升級（強化值靠連對賺）
     powerQuiz: false,                // 簡單：不穿插填空/文法題
     streakNeed: 5,                   // 連對 5 題 +1 強化值
-    summary: '簡單：30 金開局，每 5 秒 +8 金；敵人 11 / 9 / 7 秒出兵，答錯只讓敵方出兵倒數提前、不生兵。題型依練習設定；連對 5 題 +1 強化值可升級。BOSS：答對單字擊退，答錯不回血。'
+    summary: '簡單：30 金開局，每 5 秒 +8 金；敵人 11 / 9 / 7 秒出兵，答錯不加快出兵，也不增援。題型依練習設定；連對 5 題 +1 強化值可升級。BOSS：答對單字擊退，答錯不回血。'
   },
   normal: {
     label: '一般',
@@ -769,6 +769,7 @@ function stopBgm(){
 }
 
 let audioCtx = null;
+RoundReview.setAudioContext(()=>audioCtx);
 const soundGate = {};
 
 function getAudioCtx(){
@@ -1800,11 +1801,7 @@ function spawnEnemy(type='sword', reason='timer'){
 function applyWrongPenalty(){
   state.wrongStreak += 1;
 
-  if(CONFIG.wrongPenalty === 'advance_spawn'){
-    state.lastEnemySpawn -= CONFIG.wrongSpawnAdvanceMs || 4000;
-    state.floats.push({ x:790, y:178, text:'敵方整隊加速!', color:'#ff9f1c', life:900, born:Date.now() });
-    return '答錯！敵方出兵倒數提前';
-  }
+  if(CONFIG.wrongPenalty === 'none') return '再試試！答錯不會加快敵方出兵';
 
   spawnEnemy('sword', 'wrong');
   if(CONFIG.wrongPenalty === 'spawn_scaling' && state.wrongStreak % 2 === 0){

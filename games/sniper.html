@@ -540,6 +540,7 @@ function stopBgm(){
 
 /* ---------- 音效(Web Audio 合成槍聲) ---------- */
 let actx = null, sfxOut = null;
+RoundReview.setAudioContext(()=>actx);
 function audio(){
   if(!actx){
     actx = new (window.AudioContext || window.webkitAudioContext)();

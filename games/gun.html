@@ -420,6 +420,7 @@ try{
 
 /* ============ 音效（Web Audio 合成） ============ */
 let AC=null,master=null,noiseBuf=null;
+RoundReview.setAudioContext(()=>AC);
 function ensureAudio(){
   if(AC){if(AC.state==='suspended')AC.resume();return;}
   AC=new (window.AudioContext||window.webkitAudioContext)();

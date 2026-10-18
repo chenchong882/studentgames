@@ -36,6 +36,22 @@
 #sg-review-modal .sg-mini-game{--sg-soft:#e9f3df;--sg-green:#167347;--sg-line:#d6e1cc;border-radius:18px;padding:20px;background:#fffaf1;color:#263d37}
 #sg-review-modal .sg-mini-game .sg-game-hint{color:#52614e}
 #sg-review-modal .sg-mini-game .sg-review-action{font-size:15px}
+#sg-review-modal .sg-game-guide{list-style:none;display:grid;gap:8px;margin:12px 0;padding:12px;border:1px solid var(--sg-line);border-radius:12px;background:#fff;font-size:13px;line-height:1.6}
+#sg-review-modal .sg-game-guide li{display:flex;align-items:flex-start;gap:8px;padding:3px;border-radius:6px}
+#sg-review-modal .sg-game-guide li>span{display:grid;place-items:center;flex-shrink:0;width:23px;height:23px;border-radius:50%;background:#e9f3df;color:#1d5939;font-weight:850}
+#sg-review-modal .sg-game-guide li.is-current{background:#e9f3df;font-weight:800}
+#sg-review-modal .sg-game-guide li.is-current>span{background:#167347;color:#fff}
+#sg-review-modal .sg-next-step{padding:10px 12px;border-radius:10px;background:#e9f3df;color:#1d5939;font-size:14px;font-weight:800;overflow-wrap:anywhere}
+#sg-review-modal .sg-speech-actions{display:flex;justify-content:center;margin:10px 0}
+#sg-review-modal .sg-speech-actions .sg-review-action{width:auto;min-height:44px;padding:8px 14px;color:#263d37;border-color:#9bad91}
+#sg-review-modal .sg-word-picture{display:block;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-size:52px;line-height:1.1}
+#sg-review-modal .sg-house .sg-word-picture{font-size:clamp(24px,6vw,34px)}
+#sg-review-modal .sg-tile.is-guide-target{box-shadow:inset 0 0 0 3px #167347}
+#sg-review-modal .sg-completion-layer{position:fixed;inset:0;z-index:100001;display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:#030814e6;overscroll-behavior:contain}
+#sg-review-modal .sg-completion-card{width:min(440px,100%);max-height:90vh;max-height:90dvh;overflow:auto;overscroll-behavior:contain;padding:24px 20px;border:1px solid #64748b;border-radius:22px;background:linear-gradient(155deg,#172554,#111827 65%);box-shadow:0 22px 70px #0009;text-align:center}
+#sg-review-modal .sg-completion-mark{width:64px;height:64px;display:grid;place-items:center;border-radius:50%;background:#bbf7d0;color:#166534;margin:0 auto 16px}
+#sg-review-modal .sg-completion-mark svg{width:34px;height:34px}
+#sg-review-modal .sg-completion-card .sg-review-details{text-align:left}
 #sg-review-modal .sg-pets{display:grid;grid-template-columns:repeat(var(--pet-count),minmax(0,1fr));gap:10px;padding:9px 5px 0;margin:15px 0 21px;border-radius:16px;background:var(--sg-soft)}
 #sg-review-modal .sg-pet-slot{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-height:112px;min-width:0;padding-top:9px}
 #sg-review-modal .sg-pet-platform{position:relative;width:75px;height:64px;display:grid;place-items:center}

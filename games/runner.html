@@ -512,6 +512,7 @@ function shade(hex, f){
 
 /* ================= 音效 ================= */
 let ac = null;
+RoundReview.setAudioContext(()=>ac);
 const noiseBuffers = new Map();
 function tone(freq, dur, delay, type){
   try {

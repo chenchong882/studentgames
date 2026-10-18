@@ -593,6 +593,7 @@ function stopBgm(){
 
 /* ════════════════ 音效（WebAudio 合成） ════════════════ */
 let actx = null;
+RoundReview.setAudioContext(()=>actx);
 function audio() {
   if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
   if (actx.state === "suspended") actx.resume();

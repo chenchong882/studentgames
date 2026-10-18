@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   const records=[];
-  let active=null,disposeReview=null;
+  let active=null,disposeReview=null,getAudioContext=()=>null;
   const text=v=>String(v==null?'':v).trim();
   const html=v=>text(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const norm=v=>text(v).toLocaleLowerCase();
@@ -11,10 +11,17 @@
     const link=document.createElement('link');link.id='sg-review-style';link.rel='stylesheet';link.href=styleURL;document.head.appendChild(link);
   }
   ensureStyle();
+  function pictureFor(answer){
+    const current=window.GameData&&GameData.current(),payload=current&&current.payload;
+    if(payload&&payload.builtin!==true)return '';
+    const words=payload?payload.words:window.WORD_BANK?WORD_BANK.getWords():[];
+    const word=words.find(w=>norm(w.word||w.en)===norm(answer));
+    return word?text(word.emoji||word.icon):'';
+  }
   function clean(item){
     item=item||{};
-    const meaning=text(item.meaning||item.chinese);
-    return {prompt:text(item.prompt||item.question),answer:text(item.answer||item.word),meaning,chosen:text(item.chosen),kind:item.kind||(meaning?'word':'question'),status:item.status||'correct'};
+    const meaning=text(item.meaning||item.chinese),answer=text(item.answer||item.word);
+    return {prompt:text(item.prompt||item.question),answer,meaning,emoji:text(item.emoji)||pictureFor(answer),chosen:text(item.chosen),kind:item.kind||(meaning?'word':'question'),status:item.status||'correct'};
   }
   function keyOf(rec){return rec.kind==='word'?'word:'+norm(rec.answer):'question:'+norm(rec.prompt)+'\u0000'+norm(rec.answer);}
   function summary(){
@@ -47,13 +54,50 @@
     // 先打散同次數的字，再優先挑本局錯得最多的；每局最多 6 個不同英文單字。
     const words=shuffle(info.missed.filter(item=>item.rec.kind==='word'&&item.rec.answer&&item.rec.meaning))
       .sort((a,b)=>b.missCount-a.missCount).slice(0,6)
-      .map(item=>({key:item.key,word:item.rec.answer,meaning:item.rec.meaning}));
+      .map(item=>({key:item.key,word:item.rec.answer,meaning:item.rec.meaning,emoji:item.rec.emoji}));
     if(!words.length)return [];
-    if(words.length===1)return [{kind:'courier',words}];
-    if(words.length<=3)return [{kind:Math.random()<.5?'memory':'courier',words}];
-    const mixed=shuffle(words),cut=Math.ceil(mixed.length/2),kinds=shuffle(['memory','courier']);
-    return [{kind:kinds[0],words:mixed.slice(0,cut)},{kind:kinds[1],words:mixed.slice(cut)}];
+    // 每次獨立抽玩法，與錯字數無關；超過 3 字只分批，維持同一種玩法。
+    const kind=Math.random()<.5?'memory':'courier',mixed=shuffle(words),plan=[];
+    for(let i=0;i<mixed.length;i+=3)plan.push({kind,words:mixed.slice(i,i+3)});
+    return plan;
   }
+  function reviewSpeech(){
+    const synth=window.speechSynthesis,ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    let voices=[],generation=0,timer=null,heldContext=null,utterance=null;
+    function loadVoices(){try{voices=synth?synth.getVoices():[];}catch(e){voices=[];}}
+    loadVoices();if(synth)synth.addEventListener('voiceschanged',loadVoices);
+    function restore(){
+      clearTimeout(timer);timer=null;
+      const ctx=heldContext;heldContext=null;
+      if(ctx&&ctx.state!=='closed'){try{const p=ctx.resume();if(p&&p.catch)p.catch(()=>{});}catch(e){}}
+    }
+    function speak(word){
+      if(!synth||!word)return;
+      const token=++generation;clearTimeout(timer);
+      try{
+        if(synth.speaking||synth.pending)synth.cancel();
+        const ctx=getAudioContext();
+        if(ios&&ctx&&ctx.state==='running'){
+          heldContext=ctx;const p=ctx.suspend();if(p&&p.catch)p.catch(()=>{});
+        }
+        const u=new SpeechSynthesisUtterance(text(word));utterance=u;
+        const voice=voices.find(v=>/^en[-_]US/i.test(v.lang))||voices.find(v=>/^en/i.test(v.lang));
+        if(voice)u.voice=voice;u.lang='en-US';u.rate=.82;
+        const done=()=>{if(token!==generation)return;utterance=null;restore();};
+        u.onend=done;u.onerror=done;
+        // 首次呼叫來自「開始複習」的真實 button click；移動抵達時可接續唸字。
+        synth.resume();synth.speak(u);timer=setTimeout(done,8000);
+      }catch(e){utterance=null;restore();}
+    }
+    return {speak,dispose(){
+      generation++;if(synth){synth.removeEventListener('voiceschanged',loadVoices);if(utterance&&(synth.speaking||synth.pending))synth.cancel();}
+      utterance=null;restore();
+    }};
+  }
+  function targetKey(word){return word.emoji?'picture:'+word.emoji:'meaning:'+norm(word.meaning);}
+  function targetHTML(word){return word.emoji?'<span class="sg-word-picture" role="img" aria-label="'+html(word.meaning)+'">'+html(word.emoji)+'</span>':'<b>'+html(word.meaning)+'</b>';}
+  function targetName(words){return words.some(w=>w.emoji)?'圖片':'中文';}
+  function guide(steps){return '<ol class="sg-game-guide" aria-label="操作步驟">'+steps.map((step,i)=>'<li><span>'+(i+1)+'</span>'+step+'</li>').join('')+'</ol>';}
   const paths={
     leaf:'M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 2 17 2c1.1 2 2 5.3 2 8a7 7 0 0 1-8 10ZM2 22l10-10',
     home:'m3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8',
@@ -72,23 +116,26 @@
   function creatures(items){
     return items.map((item,i)=>'<div class="sg-pet-slot" data-pet="'+i+'"><div class="sg-pet-platform" aria-hidden="true"><div class="sg-creature"><span class="sg-eyes"></span><span class="sg-mouth"></span></div><div class="sg-cage"></div></div><span class="sg-pet-label">等你來救我</span></div>').join('');
   }
-  function memoryGame(mount,words,onWin,previous){
-    let stopped=false,opened=[],matched=[],doneWords=new Set(),lastWord=null;
+  function memoryGame(mount,words,onWin,previous,speak){
+    let stopped=false,opened=[],matched=[],doneWords=new Set(),lastWord=null,heard=words[0].word;
     const n=words.length,deck=previous&&previous.deck?reshuffle(previous.deck):shuffle(Array.from({length:n*2},(_,i)=>i));
-    mount.innerHTML='<h3>翻牌救怪獸</h3><p class="sg-game-hint">翻出英文和中文，救出森林小隊。</p><div class="sg-pets" style="--pet-count:'+n+'">'+creatures(words)+'</div><div class="sg-memory-grid" style="--card-columns:'+n+'"></div><div class="sg-feedback" role="status" aria-live="polite" aria-atomic="true"></div><div class="sg-mini-actions"></div>';
+    const target=targetName(words);
+    mount.innerHTML='<h3>翻牌救怪獸</h3><p class="sg-game-hint">英文配'+target+'，每配成一對就救出一隻小怪獸。</p>'+guide(['點一張卡片翻開，聽單字發音。','再翻一張，找出「英文 ＋ '+target+'」的一對。','配錯先看提示，再按「記住了」繼續找。'])+'<div class="sg-speech-actions"></div><div class="sg-pets" style="--pet-count:'+n+'">'+creatures(words)+'</div><div class="sg-memory-grid" style="--card-columns:'+Math.max(2,n)+'"></div><div class="sg-feedback" role="status" aria-live="polite" aria-atomic="true"></div><div class="sg-mini-actions"></div>';
     const grid=mount.querySelector('.sg-memory-grid'),feedback=mount.querySelector('.sg-feedback'),actions=mount.querySelector('.sg-mini-actions');
+    mount.querySelector('.sg-speech-actions').appendChild(button('再聽一次單字',()=>speak(heard),true));
     deck.forEach((code,pos)=>{
       const word=words[code%n],b=el('button','sg-flip');b.type='button';
-      b.innerHTML='<span class="sg-flip-inner" aria-hidden="true"><span class="sg-card-face sg-card-back"><span class="sg-card-number">'+(pos+1)+'</span>'+icon('leaf')+'</span><span class="sg-card-face sg-card-front"><b'+(code<n?' lang="en"':'')+'>'+html(code<n?word.word:word.meaning)+'</b><small>'+(code<n?'ENGLISH':'中文意思')+'</small></span></span>';
+      b.innerHTML='<span class="sg-flip-inner" aria-hidden="true"><span class="sg-card-face sg-card-back"><span class="sg-card-number">'+(pos+1)+'</span>'+icon('leaf')+'</span><span class="sg-card-face sg-card-front">'+(code<n?'<b lang="en">'+html(word.word)+'</b>':targetHTML(word))+'<small>'+(code<n?'ENGLISH':word.emoji?'圖片':'中文意思')+'</small></span></span>';
       b.onclick=()=>{
         if(stopped||opened.length===2||opened.includes(pos)||matched.includes(pos))return;
         opened.push(pos);
         if(opened.length===2){
           const [a,b]=opened,ca=deck[a],cb=deck[b];
-          if((ca<n)!==(cb<n)&&norm(words[ca%n].meaning)===norm(words[cb%n].meaning)){
+          if((ca<n)!==(cb<n)&&targetKey(words[ca%n])===targetKey(words[cb%n])){
             lastWord=ca<n?ca:cb;doneWords.add(lastWord);matched.push(a,b);opened=[];
           }else lastWord=null;
         }else lastWord=null;
+        heard=lastWord!==null?words[lastWord].word:word.word;speak(heard);
         paint();
         focus(opened.length===2?actions.querySelector('button'):grid.querySelector('button:not(:disabled)'));
         if(doneWords.size===n){stopped=true;onWin();}
@@ -115,26 +162,28 @@
       }else if(lastWord!==null){
         feedback.textContent='配對成功！'+words[lastWord].word+' ＝ '+words[lastWord].meaning+'。已救出 '+doneWords.size+' / '+n+' 隻。';
       }else if(opened.length){const code=deck[opened[0]];feedback.textContent='翻開了「'+(code<n?words[code].word:words[code%n].meaning)+'」，找到它的另一半。';}
-      else feedback.textContent='一張英文 ＋ 一張正確中文，就能配成一對。';
+      else feedback.textContent='先點一張卡片；一張英文 ＋ 一張正確'+target+'，就能配成一對。';
     }
     paint();focus(grid.querySelector('button'));
     return {deck,dispose(){stopped=true;}};
   }
-  function courierGame(mount,words,meaningPool,onWin,previous){
-    let stopped=false,timer=null,path=[],x=2,y=5,bridge=!!(previous&&previous.houses),carrying=null,delivered=new Set();
+  function courierGame(mount,words,wordPool,onWin,previous,speak){
+    let stopped=false,timer=null,path=[],x=2,y=5,bridge=!!(previous&&previous.houses),carrying=null,delivered=new Set(),heard=words[0].word;
     const columns=[0,2,4],packages=previous&&previous.packages?reshuffle(previous.packages):shuffle(words.map((_,i)=>i)),directions={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};
-    const labels=[...new Set(words.map(w=>w.meaning))];
-    // 干擾門牌不是額外練習字；只有一個錯字時仍能辨認正確意思。
-    const candidates=shuffle(meaningPool).concat(['蘋果','天空','喝水','開心的','房子','河流']);
-    for(const meaning of candidates){if(labels.length>=3)break;if(meaning&&!labels.some(v=>norm(v)===norm(meaning)))labels.push(meaning);}
+    const labels=[...new Map(words.map(w=>[targetKey(w),w])).values()],pictureMode=words.some(w=>w.emoji),target=targetName(words);
+    // 干擾門牌不列入練習字；圖片題的干擾選項也使用圖片。
+    const fallback=[['蘋果','🍎'],['天空','🌌'],['喝水','🥤'],['開心的','😊'],['房子','🏠'],['河流','🏞️']].map(([meaning,emoji])=>({meaning,emoji:pictureMode?emoji:''}));
+    const candidates=shuffle(wordPool.filter(w=>!!w.emoji===pictureMode)).concat(fallback);
+    for(const word of candidates){if(labels.length>=3)break;if(word.meaning&&!labels.some(v=>targetKey(v)===targetKey(word)))labels.push(word);}
     const houses=previous&&previous.houses?reshuffle(previous.houses):shuffle(labels.slice(0,3));
-    mount.innerHTML='<h3>搬單字回家</h3><p class="sg-game-hint">拿起單字包裹，送到正確的中文小屋。</p><div class="sg-world"><div class="sg-tiles" role="group" aria-label="點地面移動角色"></div><div class="sg-actor" aria-hidden="true"><span class="sg-cargo"></span><div class="sg-creature sg-courier"><span class="sg-eyes"></span><span class="sg-mouth"></span></div></div></div><div class="sg-feedback" role="status" aria-live="polite" aria-atomic="true"></div><div class="sg-dpad" role="group" aria-label="移動角色"></div><p class="sg-game-hint">點地面、包裹或小屋也能移動；電腦可用方向鍵。</p>';
+    mount.innerHTML='<h3>搬單字回家</h3><p class="sg-game-hint">點包裹拿起英文，送到掛著正確'+target+'的小屋。</p>'+guide(['點右下角黃色「開橋」，角色會自己走過去。','點下方英文包裹，拿起時聽單字發音。','點上方對應'+target+'的小屋，角色會過橋送達。'])+'<div class="sg-next-step" role="status" aria-live="polite"></div><div class="sg-speech-actions"></div><div class="sg-world"><div class="sg-tiles" role="group" aria-label="點地面移動角色"></div><div class="sg-actor" aria-hidden="true"><span class="sg-cargo"></span><div class="sg-creature sg-courier"><span class="sg-eyes"></span><span class="sg-mouth"></span></div></div></div><div class="sg-feedback" role="status" aria-live="polite" aria-atomic="true"></div><div class="sg-dpad" role="group" aria-label="移動角色"></div><p class="sg-game-hint">直接點格子即可移動，不用拖曳。也可以按下方方向鈕；電腦可用方向鍵。</p>';
     const tiles=mount.querySelector('.sg-tiles'),actor=mount.querySelector('.sg-actor'),feedback=mount.querySelector('.sg-feedback'),pad=mount.querySelector('.sg-dpad');
+    mount.querySelector('.sg-speech-actions').appendChild(button('再聽一次單字',()=>speak(heard),true));
     let message=bridge?'小屋換位置了！拿起單字包裹，再找一次。':'先踩右下角的黃色開關，讓木橋出現。',warning=false;
     // 長片語／多義詞在地圖旁保留完整文字，觸控裝置不必靠 hover 才看得到。
-    if(houses.some(v=>v.length>7)||words.some(w=>w.word.length>12)){
+    if(houses.some(v=>!v.emoji&&v.meaning.length>7)||words.some(w=>w.word.length>12)){
       const addresses=el('div','sg-addresses');
-      houses.forEach((meaning,i)=>addresses.appendChild(button(String.fromCharCode(65+i)+' 小屋：'+meaning,()=>walkTo(columns[i],0),true)));
+      houses.forEach((word,i)=>addresses.appendChild(button(String.fromCharCode(65+i)+' 小屋：'+(word.emoji||word.meaning),()=>walkTo(columns[i],0),true)));
       mount.querySelector('.sg-world').after(addresses);
     }
     function rock(cx,cy){return cy===3&&(cx===0||cx===4);}
@@ -149,8 +198,8 @@
       [...tiles.children].forEach((b,i)=>{
         const cx=i%5,cy=Math.floor(i/5);let cls='sg-tile'+((cx+cy)%2?' alt':''),key='grass',body='<span class="sg-grass"></span>',label='草地，第 '+(cy+1)+' 列第 '+(cx+1)+' 格';
         if(house(cx,cy)){
-          const meaning=houses[columns.indexOf(cx)],done=[...delivered].some(j=>norm(words[j].meaning)===norm(meaning));
-          key='house:'+meaning+done;body='<span class="sg-house'+(done?' delivered':'')+'"><span class="sg-house-code">'+String.fromCharCode(65+columns.indexOf(cx))+'</span>'+icon(done?'check':'home')+'<b>'+html(meaning)+'</b></span>';label=meaning+'的小屋，走到這裡送包裹';
+          const word=houses[columns.indexOf(cx)],done=[...delivered].some(j=>targetKey(words[j])===targetKey(word));
+          key='house:'+targetKey(word)+done;body='<span class="sg-house'+(done?' delivered':'')+'"><span class="sg-house-code">'+String.fromCharCode(65+columns.indexOf(cx))+'</span>'+icon(done?'check':'home')+targetHTML(word)+'</span>';label=word.meaning+'的小屋，走到這裡送包裹';
         }else if(cy===2){
           key='river:'+cx+bridge;cls+=cx===2&&bridge?' is-bridge':' is-river';body=cx===2&&!bridge?icon('lock'):'';label=cx===2?(bridge?'木橋，可以過河':'橋還沒開，先踩黃色開關'):'河水，要從橋通過';
         }else if(rock(cx,cy)){key='rock';cls+=' is-rock';body=icon('mountain');label='石頭，要繞路';}
@@ -159,7 +208,8 @@
           const word=parcel(cx,cy);
           if(word!==null){key='parcel:'+word;body='<span class="sg-package">'+icon('box')+'<b lang="en">'+html(words[word].word)+'</b></span>';label=words[word].word+'包裹，走到這裡拿起來';}
         }
-        b.className=cls;b.disabled=stopped;b.setAttribute('aria-label',label+(cx===x&&cy===y?'，你在這裡':''));
+        const suggested=!bridge?cx===4&&cy===5:carrying===null?parcel(cx,cy)!==null:house(cx,cy);
+        b.className=cls+(suggested&&!stopped?' is-guide-target':'');b.disabled=stopped;b.setAttribute('aria-label',label+(cx===x&&cy===y?'，你在這裡':''));
         if(b.dataset.tile!==key){b.dataset.tile=key;b.innerHTML=body;}
       });
       actor.style.transform='translate('+(x*100)+'%,'+(y*100)+'%)';
@@ -167,6 +217,10 @@
       feedback.classList.toggle('warning',warning);
       const content=message+' 已送達 '+delivered.size+' / '+words.length+' 個。';
       if(feedback.textContent!==content)feedback.textContent=content;
+      const step=!bridge?0:carrying===null?1:2;
+      mount.querySelectorAll('.sg-game-guide li').forEach((li,i)=>{li.classList.toggle('is-current',i===step);if(i===step)li.setAttribute('aria-current','step');else li.removeAttribute('aria-current');});
+      const nextStep=mount.querySelector('.sg-next-step'),instruction=stopped?'包裹全部送到了！':!bridge?'現在：點右下角「開橋」':carrying===null?'現在：點一個英文包裹拿起來':'正在搬 '+words[carrying].word+' → 點對應'+target+'的小屋';
+      if(nextStep.textContent!==instruction)nextStep.textContent=instruction;
       [...pad.children].forEach(b=>b.disabled=stopped);
       mount.querySelectorAll('.sg-addresses button').forEach(b=>b.disabled=stopped);
     }
@@ -174,14 +228,15 @@
       warning=false;
       if(x===4&&y===5&&!bridge){bridge=true;message='木橋打開了！拿起包裹，送到正確小屋。';return;}
       const p=parcel(x,y);
-      if(p!==null&&carrying===null){carrying=p;message='正在搬 '+words[p].word+'。它是什麼意思？';return;}
+      if(p!==null&&carrying===null){carrying=p;heard=words[p].word;speak(heard);message='拿起 '+heard+'！找出對應'+target+'的小屋。';return;}
       if(house(x,y)){
         if(carrying===null){message='先到下方拿一個單字包裹。';return;}
-        const word=words[carrying],meaning=houses[columns.indexOf(x)];
-        if(norm(word.meaning)===norm(meaning)){
+        const word=words[carrying],destination=houses[columns.indexOf(x)];
+        if(targetKey(word)===targetKey(destination)){
+          heard=word.word;speak(heard);
           delivered.add(carrying);carrying=null;message='送對了！'+word.word+' ＝ '+word.meaning+'。';
           if(delivered.size===words.length)stopped=true;
-        }else{message=word.word+' 是「'+word.meaning+'」，這間是「'+meaning+'」。包裹還在身上，換一家試試。';warning=true;}
+        }else{heard=word.word;speak(heard);message=word.word+' 是「'+word.meaning+'」，這間是「'+destination.meaning+'」。包裹還在身上，換一家試試。';warning=true;}
       }
     }
     function afterMove(){paint();if(stopped){stopWalk();onWin();}}
@@ -243,10 +298,11 @@
     const previousFocus=document.activeElement,host=options.mount,modal=el('div',host?'sg-review-embedded':'sg-review-backdrop'),card=el('div','sg-review-card');
     modal.id='sg-review-modal';modal.lang='zh-Hant';modal.appendChild(card);
     if(!host){modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','sg-review-title');}
-    let closed=false,game=null,stageIndex=0,earned=info.items.length>0&&!info.missed.length;
+    let closed=false,game=null,completion=null,stageIndex=0,earned=info.items.length>0&&!info.missed.length;
+    const speech=reviewSpeech();
     const passed=new Set();
     function dispose(){
-      if(closed)return;closed=true;if(game)game.dispose();modal.remove();document.removeEventListener('visibilitychange',onVisibility);
+      if(closed)return;closed=true;if(game)game.dispose();speech.dispose();modal.remove();document.removeEventListener('visibilitychange',onVisibility);
       if(disposeReview===dispose)disposeReview=null;
     }
     function finish(){
@@ -261,7 +317,7 @@
     ['pointerdown','pointerup','mousedown','mouseup','touchstart','touchmove','touchend','click','keyup'].forEach(type=>modal.addEventListener(type,event=>event.stopPropagation(),{passive:true}));
     modal.addEventListener('keydown',event=>{
       event.stopPropagation();
-      if(game&&game.key)game.key(event);
+      if(!completion&&game&&game.key)game.key(event);
       if(event.key==='Tab'){
         const buttons=[...modal.querySelectorAll('button:not(:disabled),summary')].filter(b=>b.getClientRects().length);
         if(!buttons.length)return;
@@ -296,47 +352,58 @@
       stageHost.replaceChildren();stageActions.replaceChildren();
       if(!plan.length){
         const note=!info.items.length?'這局沒有出現單字題。':!info.missed.length?'這局全部答對，直接收下全對學習星！':'這局沒有需要練習的單字；其他錯題可展開回顧。';
-        stageHost.appendChild(el('p','sg-review-perfect',note));
-        const done=button(options.completeLabel||'查看成績，繼續',finish);stageActions.appendChild(done);focus(done);return;
+        showCompletion(earned?'全部答對！':'本局回顧',note,options.completeLabel||'確認，查看成績',finish);return;
       }
       stageHost.appendChild(el('h3','','這次先追回 '+selected.length+' 個單字'));
-      stageHost.appendChild(el('p','sg-game-hint',missedWords>6?'本局有 '+missedWords+' 個錯字，只選其中 6 個；完成這次安排就結束。':'共 '+plan.length+' 個小關卡，不倒數、不扣分。'));
+      stageHost.appendChild(el('p','sg-game-hint',(missedWords>6?'本局有 '+missedWords+' 個錯字，這次先練 6 個。':'')+'每次隨機抽一種玩法；這次分 '+plan.length+' 批，不倒數、不扣分。'));
       const chips=el('div','sg-word-chips');selected.forEach(word=>chips.appendChild(el('span','',word.word)));stageHost.appendChild(chips);
-      const route=el('p','sg-review-route',plan.map(s=>s.kind==='memory'?'翻牌救怪獸':'搬單字回家').join(' → '));stageHost.appendChild(route);
+      const route=el('p','sg-review-route','這次抽到：'+(plan[0].kind==='memory'?'翻牌救怪獸':'搬單字回家'));stageHost.appendChild(route);
+      if(selected.some(w=>w.emoji))stageHost.appendChild(el('p','sg-game-hint','內建圖卡：英文配圖片；沒有圖片的字會顯示中文。'));
       stageActions.append(button('開始複習',startStage),button('這次先休息，查看成績',finish,true));focus(stageActions.firstChild);
     }
     function nextStage(){if(stageIndex+1<plan.length){stageIndex++;startStage();}else complete();}
     function startStage(){
       const previous=passed.has(stageIndex)?game:null;
+      if(completion){completion.remove();completion=null;}card.hidden=false;
       if(game)game.dispose();game=null;stageHost.replaceChildren();stageActions.replaceChildren();
       card.scrollTop=0;if(host&&host.parentElement)host.parentElement.scrollTop=0;
       const stage=plan[stageIndex];
-      const progress=el('p','sg-review-progress','第 '+(stageIndex+1)+' / '+plan.length+' 關 · 這關 '+stage.words.length+' 個字');
+      const progress=el('p','sg-review-progress','第 '+(stageIndex+1)+' / '+plan.length+' 批 · 這批 '+stage.words.length+' 個字');
       const board=el('div','sg-mini-game');stageHost.append(progress,board);
       const skip=button(passed.has(stageIndex)?'結束重玩，繼續':'先休息，查看成績',passed.has(stageIndex)?nextStage:finish,true);stageActions.appendChild(skip);
       const onWin=()=>{
         if(closed)return;
         passed.add(stageIndex);
-        stageActions.replaceChildren(
-          button(stageIndex+1<plan.length?'救援成功，前往下一關':'完成這次複習',nextStage),
-          button('重新洗牌，再玩一次（選玩）',startStage,true)
-        );
-        focus(stageActions.firstChild);
+        stageActions.replaceChildren();
+        if(stageIndex+1<plan.length)showCompletion('這批複習完成！','已練完 '+stage.words.length+' 個單字，接著複習剩下的字。','確認，繼續下一批',nextStage,true);
+        else complete();
       };
-      game=stage.kind==='memory'?memoryGame(board,stage.words,onWin,previous):courierGame(board,stage.words,info.items.map(item=>item.rec.meaning).filter(Boolean),onWin,previous);
+      speech.speak(stage.words[0].word);
+      game=stage.kind==='memory'?memoryGame(board,stage.words,onWin,previous,speech.speak):courierGame(board,stage.words,info.items.filter(item=>item.rec.kind==='word').map(item=>item.rec),onWin,previous,speech.speak);
+    }
+    function showCompletion(title,note,label,confirm,replay){
+      if(completion)completion.remove();
+      completion=el('div','sg-completion-layer');
+      const panel=el('section','sg-completion-card');panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-labelledby','sg-completion-title');panel.setAttribute('aria-describedby','sg-completion-note');
+      const mark=el('div','sg-completion-mark');mark.innerHTML=icon('check');mark.setAttribute('aria-hidden','true');
+      const titleNode=el('h3','',title);titleNode.id='sg-completion-title';
+      const noteNode=el('p','sg-game-hint',note);noteNode.id='sg-completion-note';
+      const actions=el('div','sg-stage-actions'),done=button(label,confirm);
+      actions.appendChild(done);if(replay)actions.appendChild(button('重新洗牌，再玩一次（選玩）',startStage,true));
+      panel.append(mark,titleNode,noteNode,rating.cloneNode(true));
+      if(!plan.length&&info.missed.length)panel.appendChild(missedDetails.cloneNode(true));
+      panel.appendChild(actions);completion.appendChild(panel);modal.appendChild(completion);
+      card.hidden=true;focus(done);
     }
     function complete(){
-      if(game)game.dispose();game=null;earned=true;updateRating();stageHost.replaceChildren();stageActions.replaceChildren();
-      card.scrollTop=0;if(host&&host.parentElement)host.parentElement.scrollTop=0;
-      stageHost.appendChild(el('h3','','這次的 '+selected.length+' 個單字，都練過了！'));
-      const list=el('ul','sg-finished-words');selected.forEach(word=>list.appendChild(el('li','',word.word+' ＝ '+word.meaning)));stageHost.appendChild(list);
-      stageHost.appendChild(el('p','sg-game-hint','下次再遇到，試著自己想起來。'));
-      stageActions.appendChild(button(options.completeLabel||'收下完成星，查看成績',finish));focus(stageActions.firstChild);
+      earned=true;updateRating();
+      showCompletion('複習完成！','這次的 '+selected.length+' 個單字都練過了，獲得一顆複習完成星！',options.completeLabel||'確認，收下完成星',finish,true);
     }
     if(host)host.replaceChildren(modal);else document.body.appendChild(modal);
     overview();
   }
   window.RoundReview={
+    setAudioContext(getter){getAudioContext=getter;},
     reset(){records.length=0;active=null;if(disposeReview)disposeReview();},
     begin(item){active=clean(item);},
     correct(item){add('correct',item,false);},

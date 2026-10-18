@@ -310,6 +310,7 @@ const _v1=new THREE.Vector3(),_v2=new THREE.Vector3(),_v3=new THREE.Vector3();
 
 /* ============ 音效（Web Audio 合成） ============ */
 let AC=null,master=null,noiseBuf=null,speechGen=0;
+RoundReview.setAudioContext(()=>AC);
 function ensureAudio(){
   if(AC){if(AC.state==='suspended')AC.resume();return;}
   AC=new (window.AudioContext||window.webkitAudioContext)();
