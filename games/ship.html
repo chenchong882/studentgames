@@ -86,6 +86,17 @@
     color: #fff; font-weight: 700;
     text-shadow: 0 1px 3px rgba(0,0,0,.7);
   }
+  #lives {
+    position: fixed;
+    top: calc(10px + env(safe-area-inset-top));
+    left: calc(12px + env(safe-area-inset-left));
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: rgba(5,12,28,.65);
+    font-size: clamp(18px, 3.2vw, 22px);
+    line-height: 1.4;
+    white-space: nowrap;
+  }
   #conditions {
     display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;
     justify-content: center;
@@ -304,7 +315,7 @@
   #sky-chips .bigchip { font-size:18px; padding:4px 10px; max-width:100%; overflow-wrap:anywhere; }
   #toast { max-width:calc(100vw - 24px); white-space:normal; overflow-wrap:anywhere; }
   @media(orientation:landscape) and (max-height:500px) {
-    #sky-question { top:8px; left:max(12px,env(safe-area-inset-left)); right:calc(220px + env(safe-area-inset-right)); }
+    #sky-question { top:calc(8px + env(safe-area-inset-top)); left:calc(112px + env(safe-area-inset-left)); right:calc(220px + env(safe-area-inset-right)); }
     #sky-title { display:none; }
     #sky-chips .bigchip { font-size:16px; padding:3px 8px; }
     #sky-chips .bigchip.special { display:none; }
