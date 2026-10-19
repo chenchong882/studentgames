@@ -1,3 +1,21 @@
+/* 遊戲畫面長按不反白、不顯示系統選單；保留表單欄位的編輯操作。 */
+* {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea,
+select,
+[contenteditable]:not([contenteditable="false"]),
+[contenteditable]:not([contenteditable="false"]) * {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 /* 所有遊戲共用：開始畫面的返回按鈕固定在右上角。 */
 .game-menu-return {
   position: fixed !important;

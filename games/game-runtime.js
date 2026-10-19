@@ -1,6 +1,13 @@
 /* Small shared helpers for the standalone games; no game state or vocabulary here. */
 (() => {
   'use strict';
+  // Block native long-press selection/menus without cancelling gameplay gestures.
+  function preventGameSelection(event) {
+    const target = event.target;
+    if (target instanceof Element && (target.closest('input, textarea, select') || target.isContentEditable)) return;
+    event.preventDefault();
+  }
+  ['selectstart', 'contextmenu'].forEach(type => document.addEventListener(type, preventGameSelection, true));
   const touch = matchMedia('(pointer:coarse)').matches || navigator.maxTouchPoints > 0;
   function pixelRatio() { return Math.min(window.devicePixelRatio || 1, touch ? 1.5 : 2); }
   function text(el, value) {
