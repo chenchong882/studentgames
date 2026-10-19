@@ -220,8 +220,8 @@
       <div class="game-info-panel">
         <h2>🎯 詳細玩法</h2>
         先開鏡找出正確單字樓層，趁目標經過窗戶時射擊；收鏡即可躲回掩體。<br>
-        每關補滿 <b>3 發普通彈</b>。木牆可穿透；困難模式的石牆需要額外穿甲彈。打錯、彈盡或超時會用掉 1 次機會，全場共 3 次。<br>
-        簡單模式目標較慢、窗戶較多，第 4、7 關後自動補給；困難模式可進商店補充穿甲彈與升級。<br>
+        每關補滿 <b>3 發普通彈</b>。木牆可穿透，石牆會擋住普通彈；可等目標走到窗戶，困難模式也能使用額外穿甲彈。打錯、彈盡或超時會用掉 1 次機會，全場共 3 次。<br>
+        簡單模式每層最多 2 段石牆，目標較慢、窗戶較多，第 4、7 關後自動補給；困難模式可進商店補充穿甲彈與升級。<br>
         第 3 題完成後可能遇到屋頂獎勵支線，每局最多 2 次，可收鏡避開；只有困難模式探頭逾時才會受傷。<br><br>
         <div class="help">
           <div class="row phone">📱 <b>手機</b>：點大樓開鏡、拖曳微調，按 🔫 開火、🔭 收鏡。</div>
@@ -448,6 +448,11 @@ function genSegs(){
   }
   // 每隔三段保證窗戶，不需要買穿甲彈也有穩定的射擊機會。
   for(const k of [1,4,7])segs[k]=MAT.WINDOW;
+  if(mode==='simple'){
+    // 每層隨機放 1～2 段石牆，避開三個保留窗戶的位置。
+    const stoneSlots=shuffle([0,2,3,5,6,8]);
+    for(const k of stoneSlots.slice(0,randi(1,2)))segs[k]=MAT.STONE;
+  }
   return segs;
 }
 function segIndexAt(worldX){ return clamp(Math.floor((worldX - BX)/SEGW), 0, SEG-1); }
@@ -906,7 +911,7 @@ function tryFire(){
       enterKillcam(target,false);
     }
   }else{
-    showToast(blocked?'石牆擋住了：等窗戶，或切換穿甲彈。':'射偏了，再調整準心。',blocked?'#94a3b8':'#fbbf24');
+    showToast(blocked?(mode==='simple'?'石牆擋住了，等目標走到窗戶再射擊。':'石牆擋住了：等窗戶，或切換穿甲彈。'):'射偏了，再調整準心。',blocked?'#94a3b8':'#fbbf24');
     if(ammo<=0&&apStock<=0)loseRound('彈藥耗盡');
     else{
       triggerSpotted();
@@ -2211,7 +2216,7 @@ GameSetup.register({
     document.getElementById('sniper-text-settings').hidden=selected!=='text';
     if(selected==='text' && qtype==='sentence') document.getElementById('sg-type-note').textContent='進階設定：閱讀例句，找出正確單字。';
   },
-  hints:{simple:'目標較慢、命中範圍較大、窗邊會停留；無風與反擊，自動補給。屋頂支線未完成不扣機會。',hard:'石牆需有限穿甲彈；商店手動補給、後段有風，落空或屋頂逾時需收鏡躲避。'}
+  hints:{simple:'每層最多 2 段石牆；目標較慢、命中範圍較大、窗邊會停留。無風與反擊，自動補給；屋頂支線未完成不扣機會。',hard:'石牆需有限穿甲彈；商店手動補給、後段有風，落空或屋頂逾時需收鏡躲避。'}
 });
 document.getElementById('qtype-word').addEventListener('click',()=>GameSetup.refresh());
 document.getElementById('theme-chips').addEventListener('click',()=>setTimeout(()=>GameSetup.refresh(),0));
