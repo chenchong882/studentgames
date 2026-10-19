@@ -58,7 +58,9 @@
   .mission-panel { position:fixed; z-index:8; left:50%; transform:translateX(-50%); bottom:calc(110px + env(safe-area-inset-bottom)); width:min(400px,calc(100% - 28px)); padding:12px 16px; border:1px solid #fbbf24; border-radius:12px; background:rgba(15,23,42,.96); text-align:center; font-size:15px; line-height:1.5; }
   .mission-panel p { margin:0 0 8px; }
   .mission-panel button { min-height:44px; padding:8px 16px; border:1px solid #94a3b8; border-radius:8px; background:#263449; color:#fff; font:inherit; }
-  #roof-title { color:#fbbf24; font-weight:800; }
+  #roof-panel { pointer-events:none; border-color:#f87171; }
+  #roof-title { color:#f87171; font-weight:800; font-size:clamp(22px,4vw,30px); font-variant-numeric:tabular-nums; }
+  #roof-help { margin-bottom:0; }
   #ap-btn:focus-visible, .mission-panel button:focus-visible { outline:3px solid #fff; outline-offset:3px; }
   #timerbar { width: 120px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.15); overflow: hidden; }
   #timerfill { height: 100%; width: 100%; background: #34d399; transform-origin:left center; transition: transform .1s linear; will-change:transform; }
@@ -205,7 +207,7 @@
   <button id="ap-btn" type="button" aria-pressed="false" hidden>穿甲彈 ×0</button>
   <button class="pad-btn" id="fire-btn" disabled><span class="ico">🔫</span><span>開火</span></button>
 </div>
-<div class="mission-panel" id="roof-panel" hidden><p id="roof-title"></p><p id="roof-help"></p><button id="roof-skip" type="button">收鏡避開，繼續任務</button></div>
+<div class="mission-panel" id="roof-panel" hidden><p id="roof-title" role="timer" aria-live="off"></p><p id="roof-help">擊倒屋頂敵人！逾時扣 1 顆生命</p></div>
 <div class="mission-panel" id="training-panel" hidden><p id="training-help"></p><button id="training-skip" type="button">略過練習，開始任務</button></div>
 
 <div id="toast"></div>
@@ -222,7 +224,8 @@
         先開鏡找出正確單字樓層，趁目標經過窗戶時射擊；收鏡即可躲回掩體。<br>
         每關補滿 <b>3 發普通彈</b>。木牆可穿透，石牆會擋住普通彈；可等目標走到窗戶，困難模式也能使用額外穿甲彈。打錯、彈盡或超時會用掉 1 次機會，全場共 3 次。<br>
         簡單模式每層最多 2 段石牆，目標較慢、窗戶較多，第 4、7 關後自動補給；困難模式可進商店補充穿甲彈與升級。<br>
-        第 3 題完成後可能遇到屋頂獎勵支線，每局最多 2 次，可收鏡避開；只有困難模式探頭逾時才會受傷。<br><br>
+        簡單模式第 4、7 關後會發生屋頂緊急事件；困難模式第 3 關後可能在答題中遇到，每局最多 2 次，期間暫停英文計時。<br>
+        屋頂敵人出現後須在 <b>10 秒內擊倒</b>，逾時扣 1 顆生命；使用獨立緊急彈藥，收鏡不會解除危機。<br><br>
         <div class="help">
           <div class="row phone">📱 <b>手機</b>：點大樓開鏡、拖曳微調，按 🔫 開火、🔭 收鏡。</div>
           <div class="row tablet">📲 <b>平板</b>：點想看的位置開鏡，拖曳微調，按開火射擊。</div>
@@ -499,7 +502,7 @@ function worldToScreen(wx, wy){
 }
 
 /* ---------- 遊戲狀態 ---------- */
-let state = 'menu'; // menu | playing | raid | killcam | feedback | paused | shop | over
+let state = 'menu'; // menu | playing | raid | raid-result | killcam | feedback | paused | shop | over
 let pausedFrom = 'playing', pauseStarted = 0;
 let WB = null;      // word bank
 let roundNo = 0, score = 0, money = 0, combo = 0;
@@ -524,7 +527,7 @@ let lastT = 0;
 let feedbackUntil = 0;
 const MAX_ROUNDS = 10;
 let answerOrder = [], answerCounts = new Map(), reviewQueue = [];
-let shotsThisRound = 0, roundWon = false, roundSettled = false, practiceOnly = false;
+let shotsThisRound = 0, roundSettled = false, practiceOnly = false;
 let nextTimeBonus = 0, nextAmmoBonus = 0;
 let tutorial = null;
 
@@ -549,8 +552,10 @@ let duckDeadline = 0;         // 必須在此時間戳前收鏡(蹲回掩體)
 let shooterIdx = -1;          // 反擊的目標樓層 index
 let damageFlash = 0;          // 中彈紅閃 0..1
 
-// 題目成功結算後才進入支線；獨立緊急彈藥，不干擾英文作答。
-let roofRaid = null;          // {x,y,readyAt,deadline,ammo,hitFlash}
+// 簡單模式在補給後突襲；困難模式可打斷作答，結束後回到原題。
+const ROOF_TIME_MS = 10000;
+let roofRaid = null;          // {x,y,deadline,ammo,hitFlash,lastSecond,resume}
+let roofDelay = -1, roofResume = null;
 let roofCount = 0, lastRoofRound = 0, roofCheckedRound = 0;
 
 /* 粒子(特效) */
@@ -684,9 +689,9 @@ function startRound(){
   roundNo++;
   if(roundNo > MAX_ROUNDS){ endGame(); return; }
 
-  roofRaid = null;
+  roofRaid = null; roofResume = null; roofDelay = -1;
   document.getElementById('roof-panel').hidden = true;
-  roundWon = false; roundSettled = false; shotsThisRound = 0; apSelected = false;
+  roundSettled = false; shotsThisRound = 0; apSelected = false;
   setMissionNote('');
 
   roundType = pickRoundType();
@@ -763,6 +768,7 @@ function startRound(){
   cam.y = overview.y; zoom = overview.zoom;
   document.getElementById('fire-btn').disabled = true;
   state = 'playing';
+  if(mode==='hard'&&!practiceOnly&&roundNo>3&&roundNo<MAX_ROUNDS&&roofCount<2&&roundNo-lastRoofRound>=2&&Math.random()<0.4)roofDelay=rand(6,10);
   if(supply)showToast('📦 上一階段補給已套用到本題', '#34d399');
   if(mode==='hard' && roundNo===5)setMissionNote('風會推偏落點：看鏡內箭頭，朝反方向修正準心。');
   if(roundType==='en2cn' || roundType==='en2pic') speakWord(answer.word);
@@ -799,15 +805,23 @@ function renderIntel(){
   }
 }
 
-/* ---------- 關卡間屋頂支線 ---------- */
-function startRoofRaid(){
-  state='raid'; roofCount++; lastRoofRound=roundNo;
+/* ---------- 屋頂緊急事件 ---------- */
+function startRoofRaid(duringQuestion=false){
+  if(roofRaid||roofResume||spotted||practiceOnly||roofCount>=2)return;
   const now=performance.now();
-  roofRaid={x:pick([-BW*0.31,0,BW*0.31]),y:BY-58,readyAt:now+1500,deadline:now+8500,ammo:2,hitFlash:0};
+  const resume=duringQuestion?{
+    aimX:aim.x,aimY:aim.y,camX:cam.x,camY:cam.y,zoom,scoped,scopeBlend,apSelected,
+    note:document.getElementById('mission-note').textContent,cooldown:Math.max(0,nextFireAt-now),
+  }:null;
+  state='raid'; roofCount++; lastRoofRound=roundNo; roofDelay=-1;
+  roofRaid={x:pick([-BW*0.31,0,BW*0.31]),y:BY-58,deadline:now+ROOF_TIME_MS,ammo:2,hitFlash:0,lastSecond:10,resume};
   apSelected=false; spotted=false; shooterIdx=-1;
-  setScope(false,true);
+  setScope(false);
+  aim.x=0;aim.y=roofRaid.y;
+  scopeBlend=0;recoil=0;flash=0;shake.x=0;shake.y=0;nextFireAt=now;
   document.getElementById('roof-panel').hidden=false;
-  setMissionNote('本題已答對。屋頂支線可自由避開，不影響英文連對紀錄。');
+  setMissionNote('');
+  const overview=getOverviewFrame();cam.x=0;cam.y=overview.y;zoom=overview.zoom;
   tickSnd(true); updateHUD(); updateRoofRaid(0);
 }
 function roofRaidHitTest(x,y){
@@ -827,22 +841,34 @@ function grantRoofReward(){
 function finishRoofRaid(outcome){
   if(state!=='raid'||!roofRaid)return;
   if(outcome==='win')spawnParticles(roofRaid.x,roofRaid.y,'#fbbf24',28,240);
-  const hurt=outcome==='timeout'&&scoped&&mode==='hard';
-  const message=outcome==='win'?'屋頂挑戰成功！'+grantRoofReward():hurt?'探頭逾時，中彈失去 1 次機會。':'已安全離開屋頂支線，繼續英文任務。';
+  const hurt=outcome==='timeout';
+  const message=hurt?'屋頂敵人開火！生命 −1':'危機解除！'+grantRoofReward();
+  roofResume=roofRaid.resume;
   if(hurt){lives--;damageFlash=1;gunshot();}
-  setScope(false,true); roofRaid=null;
+  setScope(false); roofRaid=null;
   document.getElementById('roof-panel').hidden=true;
   setMissionNote(message); showToast(message,hurt?'#f87171':'#34d399');
   if(lives<=0){failGame('roof');return;}
-  state='feedback'; feedbackUntil=performance.now()+1700;updateHUD();
+  state=roofResume?'raid-result':'feedback'; feedbackUntil=performance.now()+1500;updateHUD();
+}
+function resumeRoofQuestion(){
+  if(!roofResume)return;
+  const saved=roofResume;roofResume=null;state='playing';
+  aim.x=saved.aimX;aim.y=saved.aimY;apSelected=saved.apSelected;
+  setMissionNote(saved.note);setScope(saved.scoped);
+  cam.x=saved.camX;cam.y=saved.camY;zoom=saved.zoom;scopeBlend=saved.scopeBlend;
+  recoil=0;flash=0;shake.x=0;shake.y=0;
+  nextFireAt=performance.now()+saved.cooldown;
+  lastT=performance.now();updateHUD();
 }
 function updateRoofRaid(dt){
   if(!roofRaid)return;
-  const now=performance.now(),ready=now>=roofRaid.readyAt;
+  const now=performance.now(),remaining=Math.max(0,(roofRaid.deadline-now)/1000),second=Math.ceil(remaining);
   roofRaid.hitFlash=Math.max(0,roofRaid.hitFlash-dt*4);
-  GameRuntime.text(document.getElementById('roof-title'),ready?'屋頂挑戰 · '+Math.max(0,(roofRaid.deadline-now)/1000).toFixed(1)+' 秒':'屋頂發現鏡片反光！準備中…');
-  GameRuntime.text(document.getElementById('roof-help'),(ready?'緊急彈藥 '+roofRaid.ammo+'/2。開鏡反擊，或收鏡避開。':'先找屋頂紅光，倒數稍後開始。')+(mode==='hard'?' 探頭逾時會受傷。':' 未擊中不扣機會。'));
-  document.getElementById('fire-btn').disabled=!scoped||scopeBlend<0.8||!ready||roofRaid.ammo<=0;
+  GameRuntime.text(document.getElementById('roof-title'),'🚨 緊急狙擊 · '+remaining.toFixed(1)+' 秒');
+  if(second>0&&second<=3&&second!==roofRaid.lastSecond)tickSnd(true);
+  roofRaid.lastSecond=second;
+  document.getElementById('fire-btn').disabled=!scoped||scopeBlend<0.8||roofRaid.ammo<=0;
   if(now>=roofRaid.deadline)finishRoofRaid('timeout');
 }
 
@@ -858,11 +884,11 @@ function tryFire(){
   if(state==='raid'){
     if(!roofRaid)return;
     if(performance.now()>=roofRaid.deadline){finishRoofRaid('timeout');return;}
-    if(performance.now()<roofRaid.readyAt||roofRaid.ammo<=0){clickEmpty();return;}
+    if(roofRaid.ammo<=0){clickEmpty();return;}
     roofRaid.ammo--; nextFireAt=performance.now()+FIRE_COOLDOWN_MS;
     recoil=1;flash=1;gunshot();
     if(roofRaidHitTest(sight.x,sight.y))finishRoofRaid('win');
-    else{roofRaid.hitFlash=1;showToast(roofRaid.ammo?'射偏了，還有 1 發緊急彈藥':'緊急彈藥用完，收鏡就能安全離開','#fbbf24');}
+    else{roofRaid.hitFlash=1;showToast(roofRaid.ammo?'射偏了！剩 1 發緊急彈藥':'緊急彈藥用盡，敵人即將開火！','#fbbf24');}
     updateHUD();return;
   }
   const shotAP=mode==='hard'&&apSelected&&apStock>0;
@@ -896,7 +922,7 @@ function tryFire(){
     target.alive=false;target.falling=0.01;
     spawnParticles(target.px,floorRect(target.i).y+FLOOR_H*0.5,'#ef4444',24,250);
     if(target.word.word===answer.word){
-      settleQuestion('correct');roundWon=true;combo++;
+      settleQuestion('correct');combo++;
       const precision=shotsThisRound===1?40:0;
       const speed=Math.max(0,Math.round(20*(1-clamp((timeMax-timeLeft)/30,0,1))));
       const gained=100+precision+speed+Math.min(50,(combo-1)*10);
@@ -978,9 +1004,9 @@ function updateHUD(){
   apButton.disabled=state!=='playing'||apStock<=0||!!tutorial;
   apButton.setAttribute('aria-pressed',String(apSelected));
   GameRuntime.text(apButton,(apSelected?'已選穿甲':'穿甲彈')+' ×'+apStock);
-  document.getElementById('fire-btn').disabled=!inputActive()||!scoped||scopeBlend<0.8||!!tutorial||(roofRaid?(roofRaid.ammo<=0||performance.now()<roofRaid.readyAt):(apSelected?apStock<=0:ammo<=0));
+  document.getElementById('fire-btn').disabled=!inputActive()||!scoped||scopeBlend<0.8||!!tutorial||(roofRaid?roofRaid.ammo<=0:(apSelected?apStock<=0:ammo<=0));
   const sightY=cam.y-shake.y/Math.max(zoom,0.1),fi=Math.floor((sightY-BY)/FLOOR_H),floor=floorsData[fi];
-  GameRuntime.text(document.getElementById('scope-readout'),roofRaid?'屋頂支線 · 緊急彈藥':sightY<BY?'屋頂':floor?`${FLOORS-fi} 樓 · ${floor.display}`:'');
+  GameRuntime.text(document.getElementById('scope-readout'),roofRaid?'屋頂敵人 · 緊急彈藥':sightY<BY?'屋頂':floor?`${FLOORS-fi} 樓 · ${floor.display}`:'');
   const lr = document.getElementById('lives-row');   // 兩模式共用 3 次機會池, 都顯示
   lr.style.display = 'flex';
   GameRuntime.text(document.getElementById('lives'), '❤️'.repeat(Math.max(0,lives)) + '🖤'.repeat(Math.max(0,MAX_LIVES-lives)));
@@ -990,7 +1016,7 @@ function updateHUD(){
   fill.style.transform = 'scaleX('+(pct/100).toFixed(3)+')';
   fill.style.background = pct>40 ? '#34d399' : (pct>18 ? '#fbbf24' : '#f87171');
   const bar=document.getElementById('timerbar'),value=String(Math.round(pct));
-  bar.style.visibility=roofRaid||tutorial?'hidden':'visible';
+  bar.style.visibility=roofRaid||roofResume||tutorial?'hidden':'visible';
   if(bar.getAttribute('aria-valuenow')!==value)bar.setAttribute('aria-valuenow',value);
 }
 
@@ -1004,9 +1030,9 @@ function loop(t){
   const sdt = rawdt * timeScale;   // 世界物理時間(killcam 時變慢)
 
   // 人物 / 粒子 (playing / feedback / killcam 都更新)
-  if(state==='playing' || state==='feedback' || state==='killcam' || state==='raid'){
+  if(state==='playing' || state==='feedback' || state==='killcam' || state==='raid' || state==='raid-result'){
     for(const f of floorsData){
-      if(tutorial||state==='raid')continue;
+      if(tutorial||state==='raid'||state==='raid-result')continue;
       if(f.alive){
         const r = floorRect(f.i);
         const sp = f.speed;
@@ -1035,6 +1061,10 @@ function loop(t){
     if(timeLeft > 0 && sec <= 5 && sec !== lastTickSec){ lastTickSec = sec; tickSnd(sec <= 2); }
     if(timeLeft <= 0){timeLeft=0;loseRound('時間到');}
     if(state==='playing' && difficulty === 'hard') updateHardMode(rawdt);
+    if(state==='playing'&&!spotted&&roofDelay>=0){
+      roofDelay-=rawdt;
+      if(roofDelay<=0)startRoofRaid(true);
+    }
   }
   if(state==='raid')updateRoofRaid(rawdt);
   if(inputActive()&&scoped&&DEVICE==='desktop'&&mouseInside&&!tutorial){
@@ -1046,6 +1076,7 @@ function loop(t){
   if(state === 'feedback' && performance.now() > feedbackUntil){
     advance();
   }
+  if(state==='raid-result'&&performance.now()>feedbackUntil)resumeRoofQuestion();
 
   // 相機目標: killcam 推近目標, 否則開鏡跟 aim / 收鏡看全棟
   let cx, cy, cz, follow;
@@ -1605,7 +1636,8 @@ function drawScopeOverlay(){
     ctx.fillStyle = 'rgba(226,232,240,0.85)';
     ctx.font = '600 15px "Noto Sans TC", sans-serif'; ctx.textAlign='center';
     const ty = VH*0.66 + 30;   // 收進掩體牆面內(牆頂之下), 手機上不再遮到大樓/單字
-    if(DEVICE==='phone') ctx.fillText('點大樓開鏡 · 拖曳微調 · 按鈕射擊', VW/2, ty);
+    if(roofRaid) ctx.fillText('屋頂敵襲：開鏡擊倒敵人！', VW/2, ty);
+    else if(DEVICE==='phone') ctx.fillText('點大樓開鏡 · 拖曳微調 · 按鈕射擊', VW/2, ty);
     else ctx.fillText('🔭 開鏡＝探頭瞄準　·　收鏡＝縮回掩體躲避', VW/2, ty);
     ctx.restore();
     return;
@@ -1861,7 +1893,7 @@ cv.addEventListener('touchend',e=>{
 
 // 鍵盤(電腦) — 對齊 ship: 空白=開火, Z=切換開鏡
 window.addEventListener('keydown', e=>{
-  if(e.code === 'Escape' && (state==='playing'||state==='raid'||state==='feedback'||state==='killcam'||state==='paused')){
+  if(e.code === 'Escape' && (state==='playing'||state==='raid'||state==='raid-result'||state==='feedback'||state==='killcam'||state==='paused')){
     e.preventDefault(); state==='paused' ? resumeGame() : pauseGame(); return;
   }
   if(e.target.closest&&e.target.closest('button,input,select,textarea'))return;
@@ -1870,7 +1902,7 @@ window.addEventListener('keydown', e=>{
   if(e.code === 'KeyZ'){ e.preventDefault(); setScope(!scoped); }
 });
 
-function setScope(on,quiet=false){
+function setScope(on){
   if(!inputActive())return;
   audio(); // 解鎖音訊
   if(scoped === on) return;
@@ -1883,7 +1915,6 @@ function setScope(on,quiet=false){
   document.getElementById('fire-btn').disabled = !on;
   if(DEVICE==='desktop') cv.style.cursor = on ? 'none' : 'crosshair';
   if(tutorial){if(on)tutorial.opened=true;else if(tutorial.opened&&tutorial.moved)tutorial.closed=true;updateTutorial();}
-  if(state==='raid'&&!on&&!quiet)finishRoofRaid('skip');
   updateHUD();
 }
 
@@ -1894,7 +1925,6 @@ document.getElementById('ap-btn').addEventListener('click',()=>{
   apSelected=!apSelected;updateHUD();
   showToast(apSelected?'已選穿甲彈：射出 1 發後自動切回普通彈':'已切回普通彈','#bae6fd');
 });
-document.getElementById('roof-skip').addEventListener('click',()=>finishRoofRaid('skip'));
 function updateTutorial(){
   if(!tutorial)return;
   GameRuntime.text(document.getElementById('training-help'),!tutorial.opened?'安全練習 1/3：點大樓或按開鏡。時間暫停，不耗子彈。':!tutorial.moved?'安全練習 2/3：拖曳畫面，或移動滑鼠微調準心。':!tutorial.closed?'安全練習 3/3：按收鏡，回到掩體。':'練習完成！準備好就開始第一題。');
@@ -1902,7 +1932,7 @@ function updateTutorial(){
 }
 function finishTutorial(){
   if(!tutorial||state!=='playing')return;
-  tutorial=null;setScope(false,true);
+  tutorial=null;setScope(false);
   document.getElementById('training-panel').hidden=true;
   try{localStorage.setItem('sniperAimTutorial','1');}catch(e){}
   lastT=performance.now();updateHUD();
@@ -1946,7 +1976,7 @@ function startGame(m){
   WB.hasPic = GameData.picturePool(WB.bank).length >= 5;
   roundNo = 0; score = 0; money = 0; combo = 0; lives = MAX_LIVES;
   apStock=0;apSelected=false;extraAmmo=0;extraTime=0;shoppedAt={};
-  roofRaid=null;roofCount=0;lastRoofRound=0;roofCheckedRound=0;nextFireAt=0;
+  roofRaid=null;roofResume=null;roofDelay=-1;roofCount=0;lastRoofRound=0;roofCheckedRound=0;nextFireAt=0;
   nextTimeBonus=0;nextAmmoBonus=0;practiceOnly=false;tutorial=null;
   answerOrder=shuffle(WB.bank);answerCounts=new Map();reviewQueue=[];
   document.getElementById('practice-continue').hidden=true;
@@ -1964,7 +1994,7 @@ function startGame(m){
 }
 function finishOverlay(title){
   stopBgm();
-  roofRaid=null;tutorial=null;
+  roofRaid=null;roofResume=null;roofDelay=-1;tutorial=null;
   document.getElementById('roof-panel').hidden=true;
   document.getElementById('training-panel').hidden=true;
   state = 'over';
@@ -1989,7 +2019,7 @@ function failGame(reason){
   finishOverlay('本次作戰結束');
   document.getElementById('practice-continue').hidden=mode!=='simple'||roundNo>=MAX_ROUNDS;
   document.getElementById('end-summary').textContent='3 次機會用盡 · 作戰分數 '+score;
-  document.getElementById('end-detail').textContent=(reason==='roof'?'屋頂支線探頭逾時。':reason==='shot'?'落空後未及時收鏡。':reason==='judge'?'本題判讀錯誤。':'本題未完成。')+'進度 '+Math.min(roundNo,MAX_ROUNDS)+' / '+MAX_ROUNDS+'。'+(mode==='simple'&&roundNo<MAX_ROUNDS?'可以接著練完剩下的題目，續練不扣機會、不增加作戰分數。':'先複習卡住的字，再挑戰一次。');
+  document.getElementById('end-detail').textContent=(reason==='roof'?'未在 10 秒內擊倒屋頂敵人。':reason==='shot'?'落空後未及時收鏡。':reason==='judge'?'本題判讀錯誤。':'本題未完成。')+'進度 '+Math.min(roundNo,MAX_ROUNDS)+' / '+MAX_ROUNDS+'。'+(mode==='simple'&&roundNo<MAX_ROUNDS?'可以接著練完剩下的題目，續練不扣機會、不增加作戰分數。':'先複習卡住的字，再挑戰一次。');
   showLearningReview();
 }
 
@@ -1997,14 +2027,14 @@ function failGame(reason){
 function advance(){
   const next=roundNo+1;
   if(next>MAX_ROUNDS){endGame();return;}
-  if(roofCheckedRound!==roundNo){
-    roofCheckedRound=roundNo;
-    if(!practiceOnly&&roundWon&&roundNo>=3&&roofCount<2&&roundNo-lastRoofRound>=2&&Math.random()<0.4){startRoofRaid();return;}
-  }
   if(SHOP_ROUNDS.includes(next)&&!shoppedAt[next]){
     shoppedAt[next]=true;
     if(mode==='hard'&&!practiceOnly){openShop();return;}
+    // 先結算基本補給，再開始屋頂戰，避免逾時扣血後立即被自動補回。
     lives=Math.min(MAX_LIVES,lives+1);nextTimeBonus+=6;
+  }
+  if(mode==='simple'&&!practiceOnly&&SHOP_ROUNDS.includes(next)&&roofCheckedRound!==roundNo&&roofCount<2){
+    roofCheckedRound=roundNo;startRoofRaid();return;
   }
   startRound();
 }
@@ -2121,7 +2151,7 @@ const themeChipsBox = document.getElementById('theme-chips');
 if(themeChipsBox) themeChipsBox.addEventListener('click', ()=> setTimeout(refreshStartUI, 0));  // 換主題後重新檢查來源
 refreshStartUI();
 addEventListener('visibilitychange',()=>{
-  if(document.hidden&&['playing','raid','feedback','killcam'].includes(state))pauseGame();
+  if(document.hidden&&['playing','raid','raid-result','feedback','killcam'].includes(state))pauseGame();
 });
 document.getElementById('restart-btn').addEventListener('click', ()=>{
   document.getElementById('end-overlay').classList.add('hide');
@@ -2143,7 +2173,7 @@ document.getElementById('shop-continue').addEventListener('click', ()=>{
   startRound();
 });
 function pauseGame(){
-  if(!['playing','raid','feedback','killcam'].includes(state)) return;
+  if(!['playing','raid','raid-result','feedback','killcam'].includes(state)) return;
   pausedFrom = state;
   pauseStarted = performance.now();
   state = 'paused';
@@ -2159,7 +2189,7 @@ function resumeGame(){
   if(killUntil) killUntil += gap;
   if(spotWarnUntil) spotWarnUntil += gap;
   if(duckDeadline) duckDeadline += gap;
-  if(roofRaid){roofRaid.readyAt+=gap;roofRaid.deadline+=gap;}
+  if(roofRaid)roofRaid.deadline+=gap;
   state = pausedFrom;
   lastT = now;
   document.getElementById('pause-overlay').classList.add('hide');
@@ -2169,7 +2199,7 @@ function resumeGame(){
 function returnToMainMenu(){
   stopBgm();
   state = 'menu';
-  roofRaid=null;tutorial=null;
+  roofRaid=null;roofResume=null;roofDelay=-1;tutorial=null;
   document.getElementById('roof-panel').hidden=true;
   document.getElementById('training-panel').hidden=true;
   document.body.classList.remove('scoped');
@@ -2216,7 +2246,7 @@ GameSetup.register({
     document.getElementById('sniper-text-settings').hidden=selected!=='text';
     if(selected==='text' && qtype==='sentence') document.getElementById('sg-type-note').textContent='進階設定：閱讀例句，找出正確單字。';
   },
-  hints:{simple:'每層最多 2 段石牆；目標較慢、命中範圍較大、窗邊會停留。無風與反擊，自動補給；屋頂支線未完成不扣機會。',hard:'石牆需有限穿甲彈；商店手動補給、後段有風，落空或屋頂逾時需收鏡躲避。'}
+  hints:{simple:'每層最多 2 段石牆；目標較慢、無風，射偏不觸發反擊。第 4、7 關後自動補給並遇到屋頂敵人，10 秒未擊倒扣 1 顆生命。',hard:'有限穿甲彈、商店與風偏；射偏需收鏡躲避。第 3 關後可能遭遇屋頂敵襲，暫停英文計時，10 秒未擊倒扣 1 顆生命。'}
 });
 document.getElementById('qtype-word').addEventListener('click',()=>GameSetup.refresh());
 document.getElementById('theme-chips').addEventListener('click',()=>setTimeout(()=>GameSetup.refresh(),0));
