@@ -90,6 +90,13 @@
     border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 14px 18px;
     font-size: 15px; cursor: pointer; text-align: left; }
   .set-row:active { transform: scale(0.98); }
+  .supply-options { display:flex; flex-direction:column; gap:14px; margin-top:18px; width:min(460px,92vw); }
+  .supply-option { min-height:96px; display:flex; flex-direction:column; gap:8px; }
+  .supply-option strong { color:#fbbf24; font-size:20px; }
+  .supply-option span { color:#cbd5e1; font-size:15px; line-height:1.5; }
+  .supply-option:disabled { opacity:.45; cursor:not-allowed; }
+  .supply-option:focus-visible { outline:3px solid #fff; outline-offset:3px; }
+  #supply-extra:empty { display:none; }
 
   #pause-btn { position:fixed; top:calc(10px + env(safe-area-inset-top)); left:calc(10px + env(safe-area-inset-left)); z-index:30;
     width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,.25); background:rgba(15,23,42,.8);
@@ -223,7 +230,7 @@
         <h2>🎯 詳細玩法</h2>
         先開鏡找出正確單字樓層，趁目標經過窗戶時射擊；收鏡即可躲回掩體。<br>
         每關補滿 <b>3 發普通彈</b>。木牆可穿透，石牆會擋住普通彈；可等目標走到窗戶，困難模式也能使用額外穿甲彈。打錯、彈盡或超時會用掉 1 次機會，全場共 3 次。<br>
-        簡單模式每層最多 2 段石牆，目標較慢、窗戶較多，第 4、7 關後自動補給；困難模式可進商店補充穿甲彈與升級。<br>
+        簡單模式每層最多 2 段石牆，目標較慢、窗戶較多；第 4、7 關的屋頂事件後可免費選一項：接下來 3 關每關普通彈 +1，或恢復 1 顆生命。困難模式保留付費商店。<br>
         簡單模式第 4、7 關後會發生屋頂緊急事件；困難模式第 3 關後可能在答題中遇到，每局最多 2 次，期間暫停英文計時。<br>
         屋頂敵人出現後須在 <b>10 秒內擊倒</b>，逾時扣 1 顆生命；使用獨立緊急彈藥，收鏡不會解除危機。<br><br>
         <div class="help">
@@ -279,6 +286,18 @@
   <p>資金 $<b id="shop-money">0</b>　—　趁補給時升級裝備，下一批目標更難對付</p>
   <div id="shop-items" style="display:flex;flex-direction:column;gap:12px;margin-top:8px;width:min(460px,92vw)"></div>
   <button class="btn" id="shop-continue">繼續任務 →</button>
+</div>
+
+<!-- 簡單模式免費補給 -->
+<div class="overlay hide" id="supply-overlay" role="dialog" aria-modal="true" aria-labelledby="supply-title" aria-describedby="supply-status">
+  <h1 id="supply-title">📦 免費補給</h1>
+  <p id="supply-status"></p>
+  <p>免費選一項，選完直接進入下一關。這裡不倒數。</p>
+  <p id="supply-extra"></p>
+  <div class="supply-options">
+    <button class="set-row supply-option" id="supply-ammo" type="button"><strong>彈藥補給</strong><span>接下來 3 關，每關普通彈 +1（基本 3 → 4 發）</span></button>
+    <button class="set-row supply-option" id="supply-health" type="button"><strong id="supply-health-label">恢復血量</strong><span>立即恢復 1 顆生命，上限 3 顆</span></button>
+  </div>
 </div>
 
 <!-- 結算畫面 -->
@@ -502,7 +521,7 @@ function worldToScreen(wx, wy){
 }
 
 /* ---------- 遊戲狀態 ---------- */
-let state = 'menu'; // menu | playing | raid | raid-result | killcam | feedback | paused | shop | over
+let state = 'menu'; // menu | playing | raid | raid-result | killcam | feedback | paused | supply | shop | over
 let pausedFrom = 'playing', pauseStarted = 0;
 let WB = null;      // word bank
 let roundNo = 0, score = 0, money = 0, combo = 0;
@@ -516,6 +535,7 @@ let apStock = 0, apSelected = false; // 困難模式獨立補給，射出一發�
 const AP_CAP = 4;
 let apBoughtHere = false;
 let extraAmmo = 0;              // 加彈匣: ammoMax 加成(上限 +2)
+let easyAmmoUntilRound = 0;     // 免費彈藥補給：到指定關卡為止，每關普通彈 +1，不疊加
 let extraTime = 0;             // 延長時限: timeMax 加成(上限 +12)
 let timeLeft = 0, timeMax = 0;
 let lastTickSec = -1;   // 最後 5 秒滴答聲: 記住上次發聲的整數秒
@@ -552,7 +572,7 @@ let duckDeadline = 0;         // 必須在此時間戳前收鏡(蹲回掩體)
 let shooterIdx = -1;          // 反擊的目標樓層 index
 let damageFlash = 0;          // 中彈紅閃 0..1
 
-// 簡單模式在補給後突襲；困難模式可打斷作答，結束後回到原題。
+// 簡單模式先屋頂突襲、再選免費補給；困難模式可打斷作答，結束後回到原題。
 const ROOF_TIME_MS = 10000;
 let roofRaid = null;          // {x,y,deadline,ammo,hitFlash,lastSecond,resume}
 let roofDelay = -1, roofResume = null;
@@ -723,7 +743,8 @@ function startRound(){
   timeMax = (mode==='simple' ? 40 : Math.max(26,34-roundNo*0.6)) + (roundType==='cloze'?10:0) + extraTime + nextTimeBonus;
   timeLeft = timeMax;
   lastTickSec = -1;   // 重置滴答計時
-  ammoMax = 3 + extraAmmo + nextAmmoBonus; ammo = ammoMax;
+  const easyAmmoBonus=mode==='simple'&&roundNo<=easyAmmoUntilRound?1:0;
+  ammoMax = 3 + extraAmmo + easyAmmoBonus + nextAmmoBonus; ammo = ammoMax;
   const supply = nextTimeBonus || nextAmmoBonus;
   nextTimeBonus = 0; nextAmmoBonus = 0;
 
@@ -1975,12 +1996,13 @@ function startGame(m){
   try{ localStorage.setItem('sniperMode3', mode); }catch(e){}
   WB.hasPic = GameData.picturePool(WB.bank).length >= 5;
   roundNo = 0; score = 0; money = 0; combo = 0; lives = MAX_LIVES;
-  apStock=0;apSelected=false;extraAmmo=0;extraTime=0;shoppedAt={};
+  apStock=0;apSelected=false;extraAmmo=0;easyAmmoUntilRound=0;extraTime=0;shoppedAt={};
   roofRaid=null;roofResume=null;roofDelay=-1;roofCount=0;lastRoofRound=0;roofCheckedRound=0;nextFireAt=0;
   nextTimeBonus=0;nextAmmoBonus=0;practiceOnly=false;tutorial=null;
   answerOrder=shuffle(WB.bank);answerCounts=new Map();reviewQueue=[];
   document.getElementById('practice-continue').hidden=true;
   document.getElementById('shop-overlay').classList.add('hide');
+  document.getElementById('supply-overlay').classList.add('hide');
   document.getElementById('start-overlay').classList.add('hide');
   document.getElementById('end-overlay').classList.add('hide');
   document.getElementById('settings-overlay').classList.add('hide');
@@ -1997,6 +2019,7 @@ function finishOverlay(title){
   roofRaid=null;roofResume=null;roofDelay=-1;tutorial=null;
   document.getElementById('roof-panel').hidden=true;
   document.getElementById('training-panel').hidden=true;
+  document.getElementById('supply-overlay').classList.add('hide');
   state = 'over';
   document.querySelector('#end-overlay h1').textContent = title;
   document.getElementById('end-overlay').classList.remove('hide');
@@ -2027,17 +2050,46 @@ function failGame(reason){
 function advance(){
   const next=roundNo+1;
   if(next>MAX_ROUNDS){endGame();return;}
-  if(SHOP_ROUNDS.includes(next)&&!shoppedAt[next]){
-    shoppedAt[next]=true;
-    if(mode==='hard'&&!practiceOnly){openShop();return;}
-    // 先結算基本補給，再開始屋頂戰，避免逾時扣血後立即被自動補回。
-    lives=Math.min(MAX_LIVES,lives+1);nextTimeBonus+=6;
-  }
   if(mode==='simple'&&!practiceOnly&&SHOP_ROUNDS.includes(next)&&roofCheckedRound!==roundNo&&roofCount<2){
     roofCheckedRound=roundNo;startRoofRaid();return;
   }
+  if(SHOP_ROUNDS.includes(next)&&!shoppedAt[next]){
+    shoppedAt[next]=true;
+    if(mode==='hard'&&!practiceOnly){openShop();return;}
+    if(mode==='simple'){openSupply();return;}
+  }
   startRound();
 }
+function openSupply(){
+  state='supply';
+  document.getElementById('fire-btn').disabled=true;
+  document.getElementById('pause-btn').style.display='none';
+  GameRuntime.text(document.getElementById('supply-status'),`目前生命 ${lives} / ${MAX_LIVES} · 下一階段：第 ${roundNo+1}～${Math.min(roundNo+3,MAX_ROUNDS)} 關`);
+  const extra=[];
+  if(nextTimeBonus)extra.push('時間 +'+nextTimeBonus+' 秒');
+  if(nextAmmoBonus)extra.push('普通彈 +'+nextAmmoBonus+' 發');
+  GameRuntime.text(document.getElementById('supply-extra'),extra.length?'屋頂額外獎勵：下一關'+extra.join('、')+'，另行加上。':'');
+  document.getElementById('supply-health').disabled=lives>=MAX_LIVES;
+  GameRuntime.text(document.getElementById('supply-health-label'),lives>=MAX_LIVES?'生命已滿':'恢復血量');
+  document.getElementById('supply-overlay').classList.remove('hide');
+  document.getElementById('supply-ammo').focus();
+}
+function chooseSupply(choice){
+  if(state!=='supply'||mode!=='simple')return;
+  let message;
+  if(choice==='ammo'){
+    easyAmmoUntilRound=Math.min(roundNo+3,MAX_ROUNDS);
+    message=`彈藥補給：第 ${roundNo+1}～${easyAmmoUntilRound} 關，每關普通彈 +1`;
+  }else if(choice==='health'&&lives<MAX_LIVES){
+    lives=Math.min(MAX_LIVES,lives+1);
+    message=`生命 +1（${lives} / ${MAX_LIVES}）`;
+  }else return;
+  document.getElementById('supply-overlay').classList.add('hide');
+  document.getElementById('pause-btn').style.display='block';
+  startRound();showToast(message,'#34d399');
+}
+document.getElementById('supply-ammo').addEventListener('click',()=>chooseSupply('ammo'));
+document.getElementById('supply-health').addEventListener('click',()=>chooseSupply('health'));
 function openShop(){
   state='shop';apBoughtHere=false;
   document.getElementById('fire-btn').disabled=true;
@@ -2207,6 +2259,7 @@ function returnToMainMenu(){
   document.getElementById('pause-overlay').classList.add('hide');
   document.getElementById('shop-overlay').classList.add('hide');
   document.getElementById('end-overlay').classList.add('hide');
+  document.getElementById('supply-overlay').classList.add('hide');
   document.getElementById('settings-overlay').classList.add('hide');
   document.getElementById('start-overlay').classList.remove('hide');
   document.getElementById('pause-btn').style.display = 'none';
@@ -2246,7 +2299,7 @@ GameSetup.register({
     document.getElementById('sniper-text-settings').hidden=selected!=='text';
     if(selected==='text' && qtype==='sentence') document.getElementById('sg-type-note').textContent='進階設定：閱讀例句，找出正確單字。';
   },
-  hints:{simple:'每層最多 2 段石牆；目標較慢、無風，射偏不觸發反擊。第 4、7 關後自動補給並遇到屋頂敵人，10 秒未擊倒扣 1 顆生命。',hard:'有限穿甲彈、商店與風偏；射偏需收鏡躲避。第 3 關後可能遭遇屋頂敵襲，暫停英文計時，10 秒未擊倒扣 1 顆生命。'}
+  hints:{simple:'每層最多 2 段石牆；目標較慢、無風，射偏不觸發反擊。第 4、7 關後屋頂敵人限時 10 秒，逾時扣 1 顆生命；存活後免費選彈藥或生命補給。',hard:'有限穿甲彈、商店與風偏；射偏需收鏡躲避。第 3 關後可能遭遇屋頂敵襲，暫停英文計時，10 秒未擊倒扣 1 顆生命。'}
 });
 document.getElementById('qtype-word').addEventListener('click',()=>GameSetup.refresh());
 document.getElementById('theme-chips').addEventListener('click',()=>setTimeout(()=>GameSetup.refresh(),0));
