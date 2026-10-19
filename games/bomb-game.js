@@ -1519,17 +1519,16 @@ function drawHUD(c, game) {
   // ── Top bar background ──
   c.fillStyle='rgba(0,0,0,0.40)'; c.fillRect(0,0,W,50+SAFE_T);
 
-  // 右上角由真實 DOM 暫停按鈕接管；左側保留成績。
-  const infoX = SAFE_L + 14;
-  c.font='bold 18px Arial'; c.textAlign='left'; c.fillStyle='#FFD700'; c.textBaseline='middle';
-  c.fillText(`⭐ ${game.score}`, infoX, 27);
-
-  c.font='17px Arial';
+  // 右上角由真實 DOM 暫停按鈕接管；左側愛心在前、分數在後，同一排顯示。
+  const infoX = SAFE_L + 14, infoY = 27;
+  c.font='17px Arial'; c.textAlign='left'; c.fillStyle='#FFD700'; c.textBaseline='middle';
   for (let i=0; i<CFG.LIVES; i++) {
     c.globalAlpha = i < game.lives ? 1.0 : 0.20;
-    c.fillText('❤', infoX+i*24, 27+18);
+    c.fillText('❤', infoX+i*24, infoY);
   }
   c.globalAlpha=1;
+  c.font='bold 18px Arial';
+  c.fillText(`⭐ ${game.score}`, infoX+CFG.LIVES*24+8, infoY);
 
   // ── CENTER: Level label + theme（同一行：主題名排在 Level 右邊，不蓋住 Level 與進度格）──
   const lv = LEVELS[game.lvIdx];
