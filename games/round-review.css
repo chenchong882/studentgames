@@ -24,7 +24,12 @@
 #sg-review-modal .sg-review-action:active{transform:translateY(2px)}
 #sg-review-modal .sg-review-action.secondary{min-height:44px;background:transparent;color:#cbd5e1;box-shadow:none;font-size:14px;font-weight:600;border:1px solid #475569}
 #sg-review-modal .sg-word-chips{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:20px 0}
-#sg-review-modal .sg-word-chips span{max-width:100%;overflow-wrap:anywhere;background:#ffffff0d;border:1px solid #64748b;border-radius:11px;padding:8px 14px;font-weight:750}
+#sg-review-modal .sg-word-chip{display:grid;gap:5px;max-width:100%;min-height:64px;overflow-wrap:anywhere;background:#24334b;color:#fff;border:2px solid #94a3b8;border-radius:13px;padding:10px 16px;text-align:center}
+#sg-review-modal .sg-word-chip b{font-size:20px;line-height:1.3}
+#sg-review-modal .sg-word-chip small{font-size:13px;color:#dbeafe}
+#sg-review-modal .sg-word-chip.is-seen{border-color:#86efac;background:#163e39}
+#sg-review-modal .sg-word-chip.is-seen small{color:#bbf7d0}
+#sg-review-modal .sg-word-chip:active{transform:scale(.97)}
 #sg-review-modal .sg-review-route{text-align:center;color:#a7f3d0;font-size:14px}
 #sg-review-modal .sg-review-perfect{padding:24px 15px;text-align:center;border-radius:14px;background:#22c55e12;color:#bbf7d0;font-weight:750}
 #sg-review-modal .sg-review-details{border-top:1px solid #475569;margin-top:18px}
@@ -36,11 +41,14 @@
 #sg-review-modal .sg-mini-game{--sg-soft:#e9f3df;--sg-green:#167347;--sg-line:#d6e1cc;border-radius:18px;padding:20px;background:#fffaf1;color:#263d37}
 #sg-review-modal .sg-mini-game .sg-game-hint{color:#52614e}
 #sg-review-modal .sg-mini-game .sg-review-action{font-size:15px}
-#sg-review-modal .sg-game-guide{list-style:none;display:grid;gap:8px;margin:12px 0;padding:12px;border:1px solid var(--sg-line);border-radius:12px;background:#fff;font-size:13px;line-height:1.6}
-#sg-review-modal .sg-game-guide li{display:flex;align-items:flex-start;gap:8px;padding:3px;border-radius:6px}
-#sg-review-modal .sg-game-guide li>span{display:grid;place-items:center;flex-shrink:0;width:23px;height:23px;border-radius:50%;background:#e9f3df;color:#1d5939;font-weight:850}
-#sg-review-modal .sg-game-guide li.is-current{background:#e9f3df;font-weight:800}
-#sg-review-modal .sg-game-guide li.is-current>span{background:#167347;color:#fff}
+#sg-review-modal .sg-coach-layer{position:fixed;inset:0;inset:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);z-index:100002;pointer-events:none}
+#sg-review-modal .sg-coach-shade{position:absolute;background:rgba(34,42,52,.76);pointer-events:none}
+#sg-review-modal .sg-coach-ring{position:absolute;border:3px solid #ffcf65;border-radius:12px;box-shadow:0 0 0 3px #fff8;pointer-events:none}
+#sg-review-modal .sg-coach-bubble{position:absolute;width:min(310px,calc(100% - 24px));max-height:calc(100% - 24px);overflow-y:auto;padding:13px 16px 8px;border:2px solid #ffcf65;border-radius:15px;background:#fffaf1;color:#263d37;box-shadow:0 6px 24px #0005;pointer-events:auto}
+#sg-review-modal .sg-coach-arrow{position:absolute;width:12px;height:12px;background:#ffcf65;transform:rotate(45deg)}
+#sg-review-modal .sg-coach-note{font-size:16px;font-weight:800;line-height:1.6;overflow-wrap:anywhere}
+#sg-review-modal .sg-coach-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 8px;margin-top:4px}
+#sg-review-modal .sg-coach-bubble .sg-review-action.secondary{width:auto;min-height:44px;padding:6px 8px;border:0;color:#52614e;font-size:13px;text-decoration:underline}
 #sg-review-modal .sg-next-step{padding:10px 12px;border-radius:10px;background:#e9f3df;color:#1d5939;font-size:14px;font-weight:800;overflow-wrap:anywhere}
 #sg-review-modal .sg-speech-actions{display:flex;justify-content:center;margin:10px 0}
 #sg-review-modal .sg-speech-actions .sg-review-action{width:auto;min-height:44px;padding:8px 14px;color:#263d37;border-color:#9bad91}
