@@ -687,6 +687,7 @@
                 ⬅️➡️ 按住<b>底部左半／右半按鈕</b>（或鍵盤 ←→、A／D）：拉動礦車<br>
                 🪢 也可以直接<b>拖曳礦車或左右繩子</b>；放鉤、回收時仍可移動。<br>
                 👆 <b>點礦坑</b>（或空白鍵）：放出鉤爪；飛出時再點一下可提早收回<br>
+                🪙 金塊有<b>小、中、大</b>三種：小金塊收得快，大金塊較重、收得慢。<br>
                 <br>
                 🏆 遊戲從 <b>3:00</b> 開始，分數夠高就進下一關，<b>共 6 關</b>。<br>
                 抓對 +20 分，抓錯扣 5 秒，炸彈扣分、石頭會彈開。<br>
@@ -790,6 +791,14 @@
         { word: "bottle", chinese: "瓶子", emoji: "🍼" },
         { word: "holiday", chinese: "假日", emoji: "🎉" }
     ];
+
+    // 先排小、大，讓只有兩個選項的題庫也能出現大小差異；大小不跟字數綁定。
+    const GOLD_SIZES = [
+        { label: "小金塊", radius: 36, compactRadius: 54, pullFactor: 1 },
+        { label: "大金塊", radius: 76, compactRadius: 94, pullFactor: 0.22 },
+        { label: "中金塊", radius: 54, compactRadius: 74, pullFactor: 0.5 }
+    ];
+    const MIN_GOLD_PULL_FACTOR = Math.min(...GOLD_SIZES.map(size => size.pullFactor));
 
     const OBSTACLES = [
         { word: "bomb", type: "bomb", radius: 31 },
@@ -941,10 +950,6 @@
     const REP_VERB = { word: "聽單字", chinese: "看中文", image: "看圖片" };
     const REP_ANS = { word: "英文單字", chinese: "中文意思", image: "對應圖片" };
 
-    function labelLength(text) {
-        return [...String(text || "")].reduce((sum, char) => sum + (/[\u3400-\u9fff]/.test(char) ? 1.35 : 1), 0);
-    }
-
     function isCompactLayout() {
         return window.matchMedia("(max-width: 860px)").matches;
     }
@@ -955,13 +960,7 @@
         const emoji = getEntryEmoji(entry);
         const label = repText(entry, answerRep) || word;
         const compact = isCompactLayout();
-        const baseRadius = compact ? 54 : 36;
-        const maxRadius = compact ? 88 : 58;
-        const labelScale = compact ? 1.7 : 1.08;
-        const radius = answerRep === "image" ? (compact ? 76 : 50)
-            : Math.max(baseRadius, Math.min(maxRadius, 34 + labelLength(label) * labelScale + (index % 3) * 2));
-        // 手機金塊放大是為了易讀；以相同大小比例計算重量，避免手機額外變慢。
-        const sizeRatio = Math.max(0, Math.min(1, (radius - baseRadius) / (maxRadius - baseRadius)));
+        const size = GOLD_SIZES[index % GOLD_SIZES.length];
         return {
             word,
             chinese,
@@ -969,8 +968,10 @@
             label,
             answerType: answerRep,
             type: "gold",
-            radius,
-            pullFactor: 0.8 - sizeRatio * 0.46
+            radius: compact ? size.compactRadius : size.radius,
+            sizeLabel: size.label,
+            // 手機放大金塊以利辨識，回收速度仍與桌機相同。
+            pullFactor: size.pullFactor
         };
     }
 
@@ -1077,20 +1078,20 @@
             golds.push(item);
         });
 
-        return golds.length > 0 ? golds : DEFAULT_GOLD_WORDS.map((entry, index) => makeGoldItem(entry, index, "chinese"));
+        return golds.length > 0 ? golds : DEFAULT_GOLD_WORDS.slice(0, cap).map((entry, index) => makeGoldItem(entry, index, "chinese"));
     }
 
     function buildItemSlots() {
         if (isCompactLayout()) {
             const compactSlots = [
-                { x: 178, y: 252 }, { x: 540, y: 250 }, { x: 902, y: 252 },
-                { x: 222, y: 382 }, { x: 540, y: 394 }, { x: 858, y: 382 },
-                { x: 178, y: 514 }, { x: 540, y: 520 }, { x: 902, y: 514 }
+                { x: 178, y: 240 }, { x: 540, y: 240 }, { x: 902, y: 240 },
+                { x: 222, y: 402 }, { x: 540, y: 402 }, { x: 858, y: 402 },
+                { x: 178, y: 564 }, { x: 540, y: 564 }, { x: 902, y: 564 }
             ];
 
             return shuffle(compactSlots).map(slot => ({
-                x: slot.x + rand(-18, 18),
-                y: slot.y + rand(-14, 14)
+                x: slot.x + rand(-12, 12),
+                y: slot.y + rand(-6, 6)
             }));
         }
 
@@ -1101,8 +1102,8 @@
         ];
 
         return shuffle(slots).map(slot => ({
-            x: slot.x + rand(-34, 34),
-            y: slot.y + rand(-26, 26)
+            x: slot.x + rand(-18, 18),
+            y: slot.y + rand(-12, 12)
         }));
     }
 
@@ -1335,15 +1336,22 @@
         const maxObs = Math.max(2, slotCount - golds.length - 1);
         const obsCount = Math.min(LEVELS[level - 1]?.obstacles || 4, maxObs);
         const obstacles = shuffle(OBSTACLES).slice(0, obsCount);
-        const spawn = shuffle([...golds, ...obstacles]);
+        const spawn = shuffle([...golds, ...obstacles]).sort((a, b) => b.radius - a.radius);
         const slots = buildItemSlots();
 
-        spawn.forEach((item, index) => {
-            const slot = slots[index % slots.length];
+        spawn.forEach((item) => {
+            // 大金塊優先擺放，再挑與現有礦石距離最寬裕的位置，避免大小變化造成互相遮擋。
+            const clearance = slot => items.length === 0 ? 0 : Math.min(...items.map(other =>
+                Math.hypot(slot.x - other.x, slot.y - other.y) - item.radius - other.radius));
+            let slotIndex = 0;
+            for (let i = 1; i < slots.length; i += 1) {
+                if (clearance(slots[i]) > clearance(slots[slotIndex])) slotIndex = i;
+            }
+            const slot = slots.splice(slotIndex, 1)[0];
             items.push({
                 ...item,
-                x: slot.x + rand(-28, 28),
-                y: slot.y + rand(-22, 22),
+                x: slot.x,
+                y: slot.y,
                 active: true,
                 bump: 0,
                 bumpAngle: 0,
@@ -1461,7 +1469,9 @@
         // 回收速度／角度異常也不讓鉤子永久卡住；被抓的物件放回礦坑，可重新作答。
         if (state === "SHOOTING" || state === "RETRACTING") {
             hookSeconds += dt;
-            if (!Number.isFinite(hookLength) || !Number.isFinite(angle) || hookSeconds > 8) {
+            // 安全網涵蓋最遠距離的大金塊，避免正常的慢速回收被當成卡住。
+            const hookTimeout = MAX_HOOK_LENGTH / (hookSpeed * 60) * (1 + 1 / MIN_GOLD_PULL_FACTOR) + 2;
+            if (!Number.isFinite(hookLength) || !Number.isFinite(angle) || hookSeconds > hookTimeout) {
                 if (caughtItem) caughtItem.active = true;
                 caughtItem = null;
                 hookLength = defaultHookLength;
@@ -1508,7 +1518,7 @@
                         addSparkles(item.x, item.y, item.type === "gold" ? "gold" : "dust", 12);
                     }
                     state = "RETRACTING";
-                    setStatus("收回中");
+                    setStatus(caughtItem?.type === "gold" ? `${caughtItem.sizeLabel}回收中` : "收回中");
                     updateHud();
                     break;
                 }
@@ -1519,7 +1529,7 @@
         if (state === "RETRACTING") {
             let speed = hookSpeed * 1.05;
             if (caughtItem) {
-                if (caughtItem.type === "gold") speed = hookSpeed * (Number.isFinite(caughtItem.pullFactor) ? Math.max(0.34, caughtItem.pullFactor) : 0.5);
+                if (caughtItem.type === "gold") speed = hookSpeed * (Number.isFinite(caughtItem.pullFactor) ? Math.max(MIN_GOLD_PULL_FACTOR, caughtItem.pullFactor) : 0.5);
                 if (caughtItem.type === "bomb") speed = hookSpeed * 0.75;
             }
 
@@ -2239,7 +2249,9 @@
         const visible = gamePhase === "PLAYING" && !paused && !guideOpen
             && (state !== "IDLE" || idleSeconds >= 3);
         const hint = state === "SHOOTING" ? "再點礦坑可提早收回，礦車仍可移動"
-            : state === "RETRACTING" ? "鉤子回收中，仍可拖曳礦車"
+            : state === "RETRACTING" ? (caughtItem?.type === "gold"
+                ? `${caughtItem.sizeLabel}${caughtItem.pullFactor === MIN_GOLD_PULL_FACTOR ? "較重，慢慢拉回中" : "回收中"}，仍可拖曳礦車`
+                : "鉤子回收中，仍可拖曳礦車")
             : state === "ROUND_WAIT" ? "換題中，礦車仍可移動" : "拖曳礦車或繩子移動，點礦坑放鉤";
         GameRuntime.text(actionHintEl, hint);
         actionHintEl.classList.toggle("is-visible", visible);
