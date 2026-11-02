@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#182034">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>英文單字遊戲主機</title>
+  <link rel="stylesheet" href="./assets/practice-set.css">
   <style>
     :root {
       --bg: #080d1a;
@@ -191,13 +192,65 @@
         </div>
         <div class="scope-opts" id="theme-chips"></div>
       </div>
+      <section id="practice-panel" class="practice-panel" aria-labelledby="practice-title">
+        <h2 id="practice-title">今天練多少？</h2>
+        <div class="practice-modes" role="group" aria-label="練習範圍">
+          <button id="practice-all" type="button" aria-pressed="true">全部單字</button>
+          <button id="practice-daily" type="button" aria-pressed="false">今日 10 字</button>
+        </div>
+        <p id="practice-description" class="practice-help">選好主題後，可以挑出今天要練的 1～10 個單字。</p>
+        <div id="practice-picker" hidden>
+          <div class="practice-toolbar">
+            <strong id="practice-count" role="status" aria-live="polite"></strong>
+            <button id="practice-clear" type="button">清空選擇</button>
+          </div>
+          <div class="practice-batch">
+            <label for="practice-batch">分組快選</label>
+            <select id="practice-batch"></select>
+            <button id="practice-apply" type="button">選這一組</button>
+          </div>
+          <p class="practice-help">快選會替換目前選擇，再勾選調整即可。最多 10 字，不必選滿。</p>
+          <p id="practice-chosen" class="practice-chosen"></p>
+          <div id="practice-words" class="practice-words" role="group" aria-label="勾選今日單字"></div>
+          <p class="practice-help">部分遊戲至少需要 4～5 字；圖片題只使用有可辨識圖案的字。單字獵人只接受 2～9 個英文字母。</p>
+          <div class="practice-actions">
+            <button id="practice-play" class="practice-primary" type="button">用這組字玩遊戲</button>
+            <button id="practice-image" type="button">製作分享圖</button>
+            <button id="practice-copy" type="button">複製練習連結</button>
+          </div>
+          <div id="practice-link-fallback" hidden>
+            <label for="practice-link">練習連結（可長按或全選複製）</label>
+            <textarea id="practice-link" rows="3" readonly></textarea>
+          </div>
+        </div>
+        <p id="practice-message" class="practice-message" role="status" aria-live="polite" tabindex="-1"></p>
+        <section id="practice-card-panel" class="practice-card-panel" aria-labelledby="practice-card-title" hidden>
+          <div class="practice-toolbar">
+            <h3 id="practice-card-title">給家長的單字卡</h3>
+            <button id="practice-card-close" type="button">收起圖片</button>
+          </div>
+          <form id="practice-card-form">
+            <div class="practice-fields">
+              <label>練習日期<input id="practice-date" type="date" required></label>
+              <label>班級／學生（選填）<input id="practice-class" type="text" maxlength="40" placeholder="例如：週三英文班"></label>
+            </div>
+            <label>給家長的小提醒<textarea id="practice-note" rows="2" maxlength="120">回家可以請孩子指圖說英文，再一起複習中文意思。</textarea></label>
+            <div class="practice-actions">
+              <button id="practice-card-update" type="submit">更新圖片</button>
+              <a id="practice-download" class="practice-primary" hidden>下載 PNG 圖片</a>
+            </div>
+          </form>
+          <p id="practice-card-status" class="practice-help" role="status" aria-live="polite"></p>
+          <img id="practice-card-image" class="practice-card-image" alt="" hidden>
+        </section>
+      </section>
     </section>
     <section class="games-section" aria-labelledby="game-list-title">
       <div class="section-head">
         <span class="step" aria-hidden="true">2</span>
         <div>
           <h2 id="game-list-title">選一款遊戲出發</h2>
-          <p>每款遊戲都會帶入你剛才選好的單字。</p>
+          <p id="game-scope-note">遊戲會帶入你選好的單字；記憶翻牌使用獨立題庫。</p>
         </div>
         <span class="games-count">10 款遊戲任你挑</span>
       </div>
@@ -240,13 +293,14 @@
         </a>
         <a class="game-card foundation" id="memory-game-card" data-tone="green" href="https://english-memory-game.pages.dev" target="_blank" rel="noopener">
           <div class="card-top"><span class="game-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="7" height="7" rx="1"/><rect x="14" y="4" width="7" height="7" rx="1"/><rect x="3" y="15" width="7" height="7" rx="1"/><path d="M17.5 15v7m-3.5-3.5h7"/></svg></span><span class="game-tag">基礎練習</span></div>
-          <h3>記憶翻牌 <span class="badge">建議先玩</span></h3><p class="game-desc">配對單字與圖卡，先把基礎記熟再挑戰其他遊戲。</p><span class="card-cta"><span id="memory-game-cta">另開遊戲</span> <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
+          <h3>記憶翻牌 <span class="badge">獨立題庫</span></h3><p class="game-desc">配對單字與圖卡。本遊戲使用獨立題庫，不帶入今日選字。</p><span class="card-cta"><span id="memory-game-cta">另開遊戲</span> <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></span>
         </a>
       </div>
     </section>
     <p class="note">選「系統主題單字」可複選練習主題；選「本次段考單字」則需由學生教材頁進入。記憶翻牌使用獨立題庫，<span id="memory-game-note">會在新分頁開啟</span>。</p>
   </main>
   <script src="./data/wordbank.js"></script>
+  <script src="./assets/practice-set.js"></script>
   <script>
   (function(){
     function reportCentralView(view){
@@ -274,12 +328,36 @@
       if(!raw) return { raw:null, data:null };
       try { return { raw, data: JSON.parse(raw) }; } catch(e){ return { raw:null, data:null }; }
     }
-    let lesson = readHashLesson();
+    const incoming = readHashLesson();
+    const incomingPractice = PracticeSet.isPayload(incoming.data) ? incoming.data : null;
+    let lesson = incoming;
+    function readSession(key){ try { return sessionStorage.getItem(key); } catch(e){ return null; } }
+    function writeSession(key, value){ try { sessionStorage.setItem(key, value); } catch(e){} }
+    function removeSession(key){ try { sessionStorage.removeItem(key); } catch(e){} }
     try {
-      if(lesson.data && lesson.data.builtin !== true && Array.isArray(lesson.data.words) && lesson.data.words.length){
-        sessionStorage.setItem('sg_original_lesson', lesson.raw);
+      if(incomingPractice){
+        // A focused list must not replace the full lesson cached by the teaching page.
+        const raw = readSession('sg_original_lesson');
+        const data = raw ? JSON.parse(raw) : null;
+        if(incomingPractice.builtin !== true && data && Array.isArray(data.words) && PracticeSet.sourceKey({title:data.unitTitle || '本次段考', builtin:false, words:data.words}) === incomingPractice.practice.sourceKey){
+          lesson = {raw,data};
+          removeSession('sg_shared_lesson');
+        } else if(incomingPractice.builtin !== true){
+          const data = {...incomingPractice, unitTitle:incomingPractice.practice.sourceTitle, practiceSourceOnly:true};
+          delete data.practice;
+          lesson = {raw:JSON.stringify(data),data};
+          // On another device only the shared list is available. Keep it for reloads.
+          writeSession('sg_shared_lesson', lesson.raw);
+        } else {
+          const raw = readSession('sg_shared_lesson') || readSession('sg_original_lesson');
+          const data = raw ? JSON.parse(raw) : null;
+          if(data && Array.isArray(data.words) && data.words.length) lesson = {raw,data};
+        }
+      } else if(lesson.data && lesson.data.builtin !== true && Array.isArray(lesson.data.words) && lesson.data.words.length){
+        if(lesson.data.practiceSourceOnly === true) writeSession('sg_shared_lesson', lesson.raw);
+        else { writeSession('sg_original_lesson', lesson.raw); removeSession('sg_shared_lesson'); }
       } else if(!lesson.data || lesson.data.builtin === true){
-        const raw = sessionStorage.getItem('sg_original_lesson');
+        const raw = readSession('sg_shared_lesson') || readSession('sg_original_lesson');
         const data = raw ? JSON.parse(raw) : null;
         if(data && data.builtin !== true && Array.isArray(data.words) && data.words.length) lesson = {raw,data};
       }
@@ -301,7 +379,9 @@
     }
 
     // 預設範圍：有段考單字就選段考，否則只能用內建；sessionStorage 記住選擇
-    let scope = sessionStorage.getItem('sg_scope');
+    let scope = readSession('sg_scope');
+    if(incomingPractice) scope = incomingPractice.builtin === true ? 'builtin' : 'lesson';
+    else if(incoming.data && incoming.data.builtin !== true && hasLesson) scope = 'lesson';
     if(!hasLesson) scope = 'builtin';
     else if(scope !== 'builtin') scope = 'lesson';
 
@@ -309,8 +389,10 @@
     const themeSection = document.getElementById('theme-section');
     const themeChips = document.getElementById('theme-chips');
     let selectedThemes = [];
-    try { selectedThemes = JSON.parse(sessionStorage.getItem('sg_themes') || '[]'); } catch(e){ selectedThemes = []; }
+    try { selectedThemes = JSON.parse(readSession('sg_themes') || '[]'); } catch(e){ selectedThemes = []; }
     if(!Array.isArray(selectedThemes)) selectedThemes = [];
+    if(incomingPractice) selectedThemes = incomingPractice.practice.themeIds || [];
+    let practicePicker = null;
 
     function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
 
@@ -318,23 +400,24 @@
       themeChips.querySelectorAll('.scope-btn').forEach(c=>{
         const on = selectedThemes.length === 0 || selectedThemes.indexOf(c.dataset.id) >= 0;
         c.classList.toggle('active', on);
+        c.setAttribute('aria-pressed', String(on));
       });
     }
     function buildChips(){
       if(!window.WORD_BANK){ return; }
       window.WORD_BANK.themes().forEach(t=>{
-        const c = document.createElement('div');
-        c.className = 'scope-btn'; c.dataset.id = t.id; c.setAttribute('role','button'); c.tabIndex = 0;
+        const c = document.createElement('button');
+        c.type = 'button'; c.className = 'scope-btn'; c.dataset.id = t.id;
         c.textContent = t.name + '（' + t.count + '）';
         const toggle = ()=>{
           const i = selectedThemes.indexOf(t.id);
           if(i >= 0) selectedThemes.splice(i,1); else selectedThemes.push(t.id);
-          sessionStorage.setItem('sg_themes', JSON.stringify(selectedThemes));
+          writeSession('sg_themes', JSON.stringify(selectedThemes));
           paintChips();
+          if(practicePicker) practicePicker.refreshSource();
           if(vocabOpen) buildVocabPreview();
         };
         c.addEventListener('click', toggle);
-        c.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggle(); } });
         themeChips.appendChild(c);
       });
       paintChips();
@@ -353,7 +436,8 @@
     }
     function setScope(s){
       if(s === 'lesson' && !hasLesson) return;
-      scope = s; sessionStorage.setItem('sg_scope', s); render();
+      scope = s; writeSession('sg_scope', s); render();
+      if(practicePicker) practicePicker.refreshSource();
       if(vocabOpen) buildVocabPreview();
     }
     lessonBtn.addEventListener('click', () => setScope('lesson'));
@@ -361,6 +445,13 @@
     lessonBtn.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); setScope('lesson'); } });
     builtinBtn.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); setScope('builtin'); } });
     render();
+
+    function practiceSource(){
+      if(scope === 'lesson' && hasLesson) return {title:lesson.data.unitTitle || '本次段考', builtin:false, words:lesson.data.words};
+      const themes = window.WORD_BANK ? window.WORD_BANK.themes() : [];
+      const title = selectedThemes.length ? themes.filter(t => selectedThemes.includes(t.id)).map(t => t.name).join('、') : '綜合主題';
+      return {title:title || '綜合主題', builtin:true, themeIds:selectedThemes.slice(), words:window.WORD_BANK ? window.WORD_BANK.getWords(selectedThemes) : []};
+    }
 
     // 系統內建單字：依選定主題抽字，打包成與段考單字相同的 lessonData 格式
     function builtinRaw(){
@@ -407,7 +498,9 @@
 
     function buildVocabPreview(){
       let words = [];
-      if(scope === 'lesson' && hasLesson){
+      if(practicePicker && practicePicker.isDaily()){
+        words = practicePicker.words().map(w => ({en:w.word, zh:w.chinese, emoji:w.emoji}));
+      } else if(scope === 'lesson' && hasLesson){
         words = lesson.data.words.map(w => ({ en: w.word||w.en||'', zh: w.chinese||w.zh||w.meaning||'', emoji: w.emoji||'' }));
       } else if(scope === 'builtin' && window.WORD_BANK){
         words = window.WORD_BANK.getWords(selectedThemes).map(w => ({ en: w.word||'', zh: w.chinese||'', emoji: w.emoji||'' }));
@@ -440,6 +533,27 @@
       if(vocabOpen) buildVocabPreview();
     });
 
+    practicePicker = PracticeSet.create({
+      getSource:practiceSource, initial:incomingPractice, speak:speakPreviewWord,
+      onChange:() => {
+        if(!practicePicker) return;
+        const daily = practicePicker.isDaily(), raw = daily ? practicePicker.raw() : (scope === 'lesson' ? lesson.raw : builtinRaw());
+        document.getElementById('game-scope-note').textContent = daily ? `今日已選 ${practicePicker.words().length} 字，換遊戲也沿用這組；記憶翻牌使用獨立題庫。` : '遊戲會帶入你選好的單字；記憶翻牌使用獨立題庫。';
+        document.querySelectorAll('.game-card[data-href]').forEach(card => {
+          card.href = raw ? card.dataset.href + '#lessonData=' + encodeURIComponent(raw) : (daily ? '#practice-title' : card.dataset.href);
+        });
+        // Keep reloads and browser sharing in sync, even when storage is unavailable.
+        const menuRaw = daily && raw ? raw : (scope === 'lesson' ? lesson.raw : null);
+        try { history.replaceState(null, '', location.pathname + location.search + (menuRaw ? '#lessonData=' + encodeURIComponent(menuRaw) : '')); } catch(e){}
+        if(vocabOpen) buildVocabPreview();
+      }
+    });
+    practicePicker.notify();
+    if(incomingPractice){
+      writeSession('sg_scope', scope);
+      writeSession('sg_themes', JSON.stringify(selectedThemes));
+    }
+
     // 點遊戲卡：依範圍把單字用 hash 帶進遊戲
     document.querySelectorAll('.game-card').forEach(card => {
       card.addEventListener('click', e => {
@@ -450,7 +564,11 @@
         }
         e.preventDefault();
         let raw = null;
-        if(scope === 'lesson' && lesson.raw) raw = lesson.raw;
+        if(practicePicker.isDaily()){
+          if(!practicePicker.canLaunch(base)) return;
+          raw = practicePicker.raw();
+        }
+        else if(scope === 'lesson' && lesson.raw) raw = lesson.raw;
         else if(scope === 'builtin') raw = builtinRaw();
         const url = raw ? base + '#lessonData=' + encodeURIComponent(raw) : base;
         reportCentralView('game');

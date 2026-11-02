@@ -1,0 +1,49 @@
+.practice-panel { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+.practice-panel [hidden] { display: none !important; }
+.practice-panel h2 { margin: 0 0 14px; font-size: 20px; }
+.practice-panel h3 { margin: 0; font-size: 20px; }
+.practice-panel button, .practice-actions a { min-height: 46px; padding: 11px 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface-strong); font: 700 15px/1.4 Arial, "Noto Sans TC", sans-serif; cursor: pointer; text-decoration: none; text-align: center; transition: background .18s ease, border-color .18s ease; }
+.practice-panel button:hover:not(:disabled), .practice-actions a:hover { border-color: var(--cyan); background: #253650; }
+.practice-panel button:disabled { opacity: .45; cursor: not-allowed; }
+.practice-panel :is(button, a, input, select, textarea):focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+.practice-modes, .practice-actions, .practice-batch { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.practice-modes button { flex: 1; max-width: 240px; }
+.practice-modes [aria-pressed="true"], .practice-panel .practice-primary { color: #102232; border-color: var(--cyan); background: var(--cyan); }
+.practice-modes [aria-pressed="true"]:hover, .practice-panel .practice-primary:hover:not(:disabled) { color: #102232; background: #a0edff; }
+.practice-help { margin: 12px 0; color: var(--muted); font: 14px/1.65 Arial, "Noto Sans TC", sans-serif; overflow-wrap: anywhere; }
+.practice-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 20px 0 14px; }
+#practice-count { color: var(--yellow); font-size: 19px; }
+.practice-panel label { font: 15px/1.6 Arial, "Noto Sans TC", sans-serif; }
+.practice-panel input:not([type="checkbox"]), .practice-panel select, .practice-panel textarea { min-width: 0; max-width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid #62728a; border-radius: 10px; color: var(--text); background: #111c2e; font: 16px/1.5 Arial, "Noto Sans TC", sans-serif; color-scheme: dark; }
+.practice-panel textarea { resize: vertical; }
+.practice-batch select { flex: 1; max-width: 280px; }
+.practice-chosen { margin: 16px 0; color: #c5f7e2; font: 700 15px/1.7 Arial, "Noto Sans TC", sans-serif; overflow-wrap: anywhere; }
+.practice-words { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; max-height: 440px; overflow-y: auto; padding: 4px; scrollbar-gutter: stable; }
+.practice-word { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 8px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.035); }
+.practice-word.selected { border-color: var(--green); background: rgba(83,230,165,.09); }
+.practice-word label { display: flex; flex: 1; align-items: center; gap: 10px; min-width: 0; min-height: 80px; padding: 8px 0; cursor: pointer; }
+.practice-word input { flex-shrink: 0; width: 20px; height: 20px; margin: 0; accent-color: var(--green); }
+.practice-word input:disabled + span { opacity: .55; }
+.practice-word strong, .practice-word small { display: block; overflow-wrap: anywhere; }
+.practice-word strong { color: var(--text); font-size: 16px; }
+.practice-word small { color: var(--muted); font-size: 14px; }
+.practice-word .practice-listen { flex-shrink: 0; width: 44px; min-height: 44px; padding: 10px; }
+.practice-listen svg { display: block; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.practice-actions { margin: 18px 0 12px; }
+.practice-message { color: var(--yellow); font: 700 15px/1.7 Arial, "Noto Sans TC", sans-serif; overflow-wrap: anywhere; }
+.practice-message:empty { margin: 0; }
+#practice-link-fallback { margin-top: 18px; }
+#practice-link { display: block; width: 100%; margin-top: 8px; }
+.practice-card-panel { margin-top: 24px; padding-top: 4px; border-top: 1px solid var(--line); }
+.practice-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+#practice-card-form input, #practice-card-form textarea { display: block; width: 100%; margin-top: 6px; }
+.practice-card-image { display: block; width: min(100%, 540px); height: auto; margin: 18px auto 0; border-radius: 16px; background: #fffaf0; }
+@media (max-width: 900px) { .practice-words { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) {
+  .practice-words { grid-template-columns: 1fr; max-height: 420px; }
+  .practice-fields { grid-template-columns: 1fr; }
+  .practice-modes button { max-width: none; }
+  .practice-actions > * { flex: 1 1 145px; }
+  .practice-batch label { flex-basis: 100%; }
+  .practice-batch select { max-width: none; }
+}

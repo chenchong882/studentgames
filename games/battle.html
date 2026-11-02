@@ -1069,6 +1069,8 @@ window.addEventListener('message', (event) => {
   battleData = {
     unitTitle: event.data.payload?.unitTitle || '目前單元',
     builtin: !!event.data.payload?.builtin,
+    practice: event.data.payload?.practice,
+    practiceSourceOnly: event.data.payload?.practiceSourceOnly,
     words: event.data.payload?.words,
     grammarQuiz: event.data.payload?.grammarQuiz || [],
   };
@@ -2426,6 +2428,8 @@ function endGame(result, winType){
     if(d) battleData = {
       unitTitle: d.unitTitle || '目前單元',
       builtin: !!d.builtin,
+      practice: d.practice,
+      practiceSourceOnly: d.practiceSourceOnly,
       words: d.words,
       grammarQuiz: d.grammarQuiz || [],
     };
