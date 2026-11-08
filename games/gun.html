@@ -1497,7 +1497,8 @@ function activateGate(){
   beam.position.y=12;exitGate.add(beam);exitGate.position.set(0,0,-11.2);scene.add(exitGate);
 }
 function openGateQuiz(){
-  if(gateOpen||!gateReady)return;paused=true;
+  if(gateOpen||!gateReady)return;paused=true;resetTouchControls();
+  if(document.pointerLockElement===renderer.domElement)document.exitPointerLock();
   const answer=pickWord(),choices=[answer];while(choices.length<3){const w=pickWord(answer);if(!choices.includes(w))choices.push(w);}
   choices.sort(()=>rnd(-1,1));document.getElementById('quizPrompt').textContent='「'+answer.chinese+'」的英文是？';
   const box=document.getElementById('quizChoices');box.innerHTML='';
@@ -1507,7 +1508,8 @@ function openGateQuiz(){
   };box.appendChild(b);}document.getElementById('quiz').classList.add('show');
 }
 function winGame(){
-  gameWon=true;playing=false;clearEnemyArrows();stopBgm();waveEl.textContent='🎉 成功逃生！';
+  gameWon=true;playing=false;resetTouchControls();clearEnemyArrows();stopBgm();waveEl.textContent='🎉 成功逃生！';
+  if(document.pointerLockElement===renderer.domElement)document.exitPointerLock();
   document.getElementById('btnPause').classList.add('hidden');
   const sec=Math.max(1,Math.round(survivalSeconds));
   overlay.innerHTML='<h1>🏆 成功逃生！</h1><div class="sub">T O W N &nbsp; C L E A R</div><p>擊殺 '+kills+' 隻 ・ 武器分數 '+weaponScore+' ・ 存活 '+sec+' 秒</p><p class="go">找對小屋、守住佔領區，就能帶著補給活下去！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再守一輪</button>';
@@ -1739,7 +1741,8 @@ function hurt(amount,from){
   document.getElementById('hpFill').style.width=hp+'%';sndHurt();
   const f=document.getElementById('damageFlash');f.classList.remove('show');void f.offsetWidth;f.classList.add('show');
   if(hp<=0){
-    playing=false;paused=true;clearEnemyArrows();stopBgm();
+    playing=false;paused=true;resetTouchControls();clearEnemyArrows();stopBgm();
+    if(document.pointerLockElement===renderer.domElement)document.exitPointerLock();
     document.getElementById('btnPause').classList.add('hidden');
     overlay.innerHTML='<h1>💀 小鎮失守</h1><div class="sub">T R Y &nbsp; A G A I N</div><p>擊殺 '+kills+' 隻 ・ 撐到第 '+wave+' 波</p><p class="go">看清屋頂字牌，進正確小屋守住 10 秒！</p><button class="actionBtn" type="button" onclick="location.reload()">↻ 再試一次</button>';
     overlay.classList.remove('hidden');

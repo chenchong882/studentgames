@@ -117,7 +117,7 @@
     const layer=el('div','sg-coach-layer'),shades=Array.from({length:4},()=>el('div','sg-coach-shade'));
     const ring=el('div','sg-coach-ring'),arrow=el('div','sg-coach-arrow'),bubble=el('div','sg-coach-bubble'),note=el('p','sg-coach-note');
     note.id='sg-coach-note';note.setAttribute('role','status');note.setAttribute('aria-live','polite');
-    const skip=button('我會了，自己試',()=>{enabled=false;clear();focus(lastTargets.flatMap(controls).find(b=>!b.disabled));},true);
+    const skip=button('我會了，自己試',()=>{end();focus(lastTargets.flatMap(controls).find(b=>!b.disabled));},true);
     const replay=button('再聽一次',null,true),actions=el('div','sg-coach-actions');replay.hidden=true;actions.append(replay,skip);
     bubble.append(note,actions);layer.append(...shades,ring,arrow,bubble);layer.hidden=true;modal.appendChild(layer);
     let enabled=true,targets=[],lastTargets=[],frame=null,descriptions=new Map();
@@ -163,6 +163,7 @@
       descriptions.forEach((value,node)=>{if(value===null)node.removeAttribute('aria-describedby');else node.setAttribute('aria-describedby',value);});descriptions.clear();
       if(frame!==null)cancelAnimationFrame(frame);frame=null;
     }
+    function end(){enabled=false;clear();}
     function guard(event){if(!layer.hidden&&!allowed(event.target)){event.preventDefault();event.stopImmediatePropagation();focus(buttons()[0]);}}
     modal.addEventListener('click',guard,true);modal.addEventListener('focusin',guard);
     document.addEventListener('scroll',schedule,true);window.addEventListener('resize',schedule);
@@ -188,7 +189,7 @@
         }else if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','w','a','s','d'].includes(event.key)&&!event.ctrlKey&&!event.metaKey&&!event.altKey)event.preventDefault();
         return true;
       },
-      clear,
+      clear,end,
       dispose(){
         clear();layer.remove();modal.removeEventListener('click',guard,true);modal.removeEventListener('focusin',guard);
         document.removeEventListener('scroll',schedule,true);window.removeEventListener('resize',schedule);
@@ -217,6 +218,7 @@
           const [a,b]=opened,ca=deck[a],cb=deck[b];
           if((ca<n)!==(cb<n)&&targetKey(words[ca%n])===targetKey(words[cb%n])){
             lastWord=ca<n?ca:cb;doneWords.add(lastWord);matched.push(a,b);opened=[];
+            coach.end();
           }else lastWord=null;
         }else lastWord=null;
         heard=lastWord!==null?words[lastWord].word:word.word;speak(heard);
@@ -265,7 +267,7 @@
     const candidates=shuffle(wordPool.filter(w=>!!w.emoji===pictureMode)).concat(fallback);
     for(const word of candidates){if(labels.length>=3)break;if(word.meaning&&!labels.some(v=>targetKey(v)===targetKey(word)))labels.push(word);}
     const houses=previous&&previous.houses?reshuffle(previous.houses):shuffle(labels.slice(0,3));
-    mount.innerHTML='<h3>搬單字回家</h3><p class="sg-game-hint">點包裹拿起英文，送到掛著正確'+target+'的小屋。</p><div class="sg-next-step" role="status" aria-live="polite"></div><div class="sg-speech-actions"></div><div class="sg-world"><div class="sg-tiles" role="group" aria-label="點地面移動角色"></div><div class="sg-actor" aria-hidden="true"><span class="sg-cargo"></span><div class="sg-creature sg-courier"><span class="sg-eyes"></span><span class="sg-mouth"></span></div></div></div><div class="sg-feedback" role="status" aria-live="polite" aria-atomic="true"></div><div class="sg-mini-actions"></div><div class="sg-dpad" role="group" aria-label="移動角色"></div><p class="sg-game-hint">直接點格子即可移動，不用拖曳；熟悉後可按「我會了，自己試」，使用方向鈕或鍵盤移動。</p>';
+    mount.innerHTML='<h3>搬單字回家</h3><p class="sg-game-hint">點包裹拿起英文，送到掛著正確'+target+'的小屋。</p><div class="sg-next-step" role="status" aria-live="polite"></div><div class="sg-speech-actions"></div><div class="sg-world"><div class="sg-tiles" role="group" aria-label="點地面移動角色"></div><div class="sg-actor" aria-hidden="true"><span class="sg-cargo"></span><div class="sg-creature sg-courier"><span class="sg-eyes"></span><span class="sg-mouth"></span></div></div></div><div class="sg-feedback" role="status" aria-live="polite" aria-atomic="true"></div><div class="sg-mini-actions"></div><div class="sg-dpad" role="group" aria-label="移動角色"></div><p class="sg-game-hint">直接點格子即可移動，不用拖曳；送對第一個包裹後會自動結束引導，也可使用方向鈕或鍵盤移動。</p>';
     const tiles=mount.querySelector('.sg-tiles'),actor=mount.querySelector('.sg-actor'),feedback=mount.querySelector('.sg-feedback'),pad=mount.querySelector('.sg-dpad'),actions=mount.querySelector('.sg-mini-actions');
     mount.querySelector('.sg-speech-actions').appendChild(button('再聽一次單字',()=>speak(heard),true));
     let message=bridge?'小屋換位置了！拿起單字包裹，再找一次。':'先踩右下角的黃色開關，讓木橋出現。',warning=false;
@@ -333,6 +335,7 @@
         if(targetKey(word)===targetKey(destination)){
           heard=word.word;speak(heard);
           delivered.add(carrying);carrying=null;message='送對了！'+word.word+' ＝ '+word.meaning+'。';
+          coach.end();
           if(delivered.size===words.length)stopped=true;
         }else{heard=word.word;speak(heard);message=word.word+' 是「'+word.meaning+'」，這間是「'+destination.meaning+'」。包裹還在身上，換一家試試。';warning=true;retry=coach.enabled;}
       }

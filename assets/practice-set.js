@@ -112,6 +112,8 @@ window.PracticeSet = (() => {
       $('words').appendChild(fragment);
     }
     function renderMode() {
+      $('panel').hidden = source.builtin !== true;
+      $('daily').disabled = source.builtin !== true;
       $('all').textContent = `全部 ${catalog.length} 字`;
       $('all').setAttribute('aria-pressed', String(mode === 'all'));
       $('daily').setAttribute('aria-pressed', String(mode === 'daily'));
@@ -124,8 +126,10 @@ window.PracticeSet = (() => {
     function refreshSource(payload = null) {
       source = getSource(); currentKey = sourceKey(source);
       const saved = cache[currentKey];
-      mode = payload ? 'daily' : (saved?.mode === 'daily' || (!saved && mode === 'daily') ? 'daily' : 'all');
-      selected = normalize(payload ? payload.words : saved?.words).slice(0,10);
+      // Focused practice is only available for built-in topics, including restored lists.
+      const builtin = source.builtin === true;
+      mode = builtin && (payload || saved?.mode === 'daily' || (!saved && mode === 'daily')) ? 'daily' : 'all';
+      selected = builtin ? normalize(payload ? payload.words : saved?.words).slice(0,10) : [];
       // Preserve the exact shared snapshot even if a word's definition later changes.
       const snapshots = new Map(selected.map(w => [keyOf(w),w]));
       catalog = normalize(source.words).map(w => snapshots.get(keyOf(w)) || w);
@@ -134,7 +138,7 @@ window.PracticeSet = (() => {
       renderCatalog(); renderMode(); changed();
     }
     function raw() {
-      if(mode !== 'daily' || !selected.length) return null;
+      if(source.builtin !== true || mode !== 'daily' || !selected.length) return null;
       return JSON.stringify({unitTitle:`${source.title}・今日 ${selected.length} 字`, builtin:source.builtin === true,
         words:selected, practice:{version:1, sourceTitle:source.title, sourceKey:currentKey, themeIds:source.themeIds || []}});
     }
@@ -155,6 +159,7 @@ window.PracticeSet = (() => {
       return true;
     }
     ['all','daily'].forEach(value => $(value).addEventListener('click', () => {
+      if(value === 'daily' && source.builtin !== true) return;
       mode = value; renderMode(); changed();
     }));
     $('clear').addEventListener('click', () => { selected = []; changed(); });
