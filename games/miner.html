@@ -502,6 +502,14 @@
         background:linear-gradient(#ffd766,#ffb52e);border:none;border-radius:40px;
         padding:12px 34px;cursor:pointer;margin:5px;}
     .mBtn.sec{background:rgba(255,255,255,.16);color:#fff;border:2px solid #ffd24d;}
+    #miner-shop{z-index:1100;padding:12px;}
+    #miner-shop .mCard{width:min(440px,100%);max-height:calc(100dvh - 24px);overflow-y:auto;padding:20px;}
+    #miner-shop h2{margin:0 0 8px;}
+    #miner-shop p{margin:8px 0;line-height:1.5;}
+    .miner-shop-balance{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;padding:12px;border:1px solid rgba(255,213,74,.35);border-radius:12px;background:rgba(0,0,0,.2);}
+    #miner-shop .mBtn{width:100%;min-height:44px;margin:5px 0;padding:10px 16px;font-size:16px;}
+    #miner-shop-note{min-height:24px;font-size:14px;color:#f6dfa6;}
+    #miner-guide .mCard{max-height:calc(100dvh - 24px);overflow-y:auto;}
 
     /* ===== 底部置中：遊戲回饋提示 + 操作提示 + 累積分數進度條（在左右移動鈕中間） ===== */
     #miner-bottom{position:fixed;left:50%;transform:translateX(-50%);
@@ -591,6 +599,49 @@
         #miner-start-btn { animation:none; }
     }
 
+    .miner-controls { grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr); }
+    #move-right-btn { grid-column:3; }
+    #miner-release-btn { position:relative; grid-column:2; grid-row:2; min-height:48px; padding:4px;
+        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+        color:var(--cream); background:linear-gradient(#705035,#3b281c); border:2px solid #cfa56a;
+        box-shadow:inset 0 1px 0 #ffffff30; border-radius:12px; touch-action:manipulation; }
+    #miner-release-btn[hidden] { display:none; }
+    #miner-release-btn:not(:disabled) { border-color:var(--gold); background:linear-gradient(#98632b,#54330f); }
+    #miner-release-btn svg { width:25px; height:25px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+    .miner-release-name { font-size:11px; }
+    #miner-release-count { position:absolute; right:-4px; top:-6px; min-width:22px; height:22px; padding:2px 4px;
+        border-radius:12px; background:#ffe27a; color:#24170a; font:900 13px/18px Arial,sans-serif; }
+    #miner-drag-cues { position:fixed; z-index:33; display:none; pointer-events:none; color:#ffe27a; filter:drop-shadow(0 2px 2px #000); }
+    #miner-drag-cues span { position:absolute; top:0; font-size:22px; line-height:28px; }
+    #miner-drag-cues span:first-child { left:0; }
+    #miner-drag-cues span:last-child { right:0; }
+    #miner-tutorial { position:fixed; inset:0; z-index:70; pointer-events:none; }
+    #miner-tutorial[hidden] { display:none; }
+    .miner-tutorial-card { position:absolute; left:50%; bottom:calc(66px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+        width:min(430px,calc(100vw - 32px)); padding:10px 12px; border:2px solid #ffe27a; border-radius:14px;
+        background:rgba(31,20,10,.96); color:var(--cream); box-shadow:0 6px 24px #0008; pointer-events:auto;
+        display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px 12px; }
+    #miner-tutorial-step { color:#ffe27a; font-size:12px; font-weight:800; }
+    #miner-tutorial-text { margin:3px 0 0; font-size:14px; line-height:1.4; }
+    #miner-tutorial-skip { min-height:44px; padding:0 12px; font-size:13px; touch-action:manipulation; }
+    #miner-tutorial-replay { display:none; }
+    .miner-phone #miner-tutorial-replay { display:inline-block; }
+    .miner-phone .miner-desktop-help { display:none; }
+    @media (orientation:landscape) {
+        .miner-phone .shell { grid-template-rows:44px minmax(0,1fr); gap:4px; }
+        .miner-phone .miner-controls { display:none; }
+        .miner-phone #miner-bottom { position:absolute; left:calc(var(--miner-canvas-inset-x,0px) + 10px);
+            bottom:calc(var(--miner-canvas-inset-y,0px) + 10px); top:auto; grid-area:auto; height:24px;
+            width:calc(var(--miner-canvas-width,100%) - 84px); justify-content:center; z-index:35; }
+        .miner-phone #miner-progress { width:100%; height:24px; border-width:1px; background:rgba(15,10,5,.85); }
+        .miner-phone #miner-progress-label { font-size:12px; }
+        .miner-phone #miner-action-hint { display:none; }
+        .miner-phone #miner-toast { bottom:calc(100% + 10px); font-size:12px; }
+        .miner-phone #miner-release-btn { position:absolute; right:calc(var(--miner-canvas-inset-x,0px) + 8px);
+            bottom:calc(var(--miner-canvas-inset-y,0px) + 8px); width:52px; height:48px; min-height:48px; z-index:36; }
+        .miner-phone .miner-release-name { display:none; }
+    }
+
 </style>
     <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
@@ -664,9 +715,20 @@
                     <span id="miner-progress-label"></span>
                 </div>
             </div>
+            <button id="miner-release-btn" type="button" aria-label="脫鉤，剩餘 1 次" title="脫鉤（X）" hidden disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3v9a5 5 0 1 1-10 0v-2l3 2M3 3l18 18"/></svg>
+                <span class="miner-release-name">脫鉤 X</span><span id="miner-release-count" aria-hidden="true">1</span>
+            </button>
             <button class="corner-btn" id="move-right-btn" type="button" aria-label="按住讓礦車往右">往右拉 ▶</button>
         </section>
     </main>
+    <div id="miner-drag-cues" aria-hidden="true"><span>◀</span><span>▶</span></div>
+    <div id="miner-tutorial" hidden>
+        <div class="miner-tutorial-card">
+            <div role="status" aria-live="polite"><div id="miner-tutorial-step"></div><p id="miner-tutorial-text"></p></div>
+            <button id="miner-tutorial-skip" type="button">略過教學</button>
+        </div>
+    </div>
     <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"><span id="status"></span></div>
 
     <div id="miner-pause" class="mOverlay hidden">
@@ -678,22 +740,39 @@
             </div>
         </div>
     </div>
+    <div id="miner-shop" class="mOverlay hidden" role="dialog" aria-modal="true" aria-labelledby="miner-shop-title">
+        <div class="mCard">
+            <h2 id="miner-shop-title">礦坑補給站</h2>
+            <p id="miner-shop-subtitle">休息一下，補充脫鉤鉗。</p>
+            <div class="miner-shop-balance" aria-live="polite">
+                <span>補給金幣 <b id="miner-shop-coins">0</b></span>
+                <span>脫鉤鉗 <b id="miner-shop-stock">1 / 3</b></span>
+            </div>
+            <p>每次答對賺 1 枚補給金幣，購買不影響分數。</p>
+            <button class="mBtn" id="miner-shop-buy" type="button">2 枚金幣・買 1 把脫鉤鉗</button>
+            <p id="miner-shop-note" aria-live="polite">計時已暫停，可以放心挑選。</p>
+            <button class="mBtn sec" id="miner-shop-continue" type="button">繼續下一關</button>
+        </div>
+    </div>
     <div id="miner-guide" class="mOverlay hidden">
         <div class="mCard">
             <h2>⛏️ 如何遊玩</h2>
             <div class="r">
                 🎯 看<b>礦車上的題目</b>（單字／中文／圖片），把鉤爪射向<b>對應的金塊</b>。<br>
                 🔊 題目是英文單字時會自動發音，<b>點礦車</b>可重聽。<br>
-                ⬅️➡️ 按住<b>底部左半／右半按鈕</b>（或鍵盤 ←→、A／D）：拉動礦車<br>
+                <span class="miner-desktop-help">⬅️➡️ 按住<b>底部左半／右半按鈕</b>（或鍵盤 ←→、A／D）：拉動礦車<br></span>
                 🪢 也可以直接<b>拖曳礦車或左右繩子</b>；放鉤、回收時仍可移動。<br>
                 👆 <b>點礦坑</b>（或空白鍵）：放出鉤爪；飛出時再點一下可提早收回<br>
                 🪙 金塊有<b>小、中、大</b>三種：小金塊收得快，大金塊較重、收得慢。<br>
+                鉤到後可按<b>脫鉤圖示</b>（鍵盤 X），消耗 1 把脫鉤鉗，把物件留在放開處。<br>
+                開場有 1 把，最多攜帶 3 把；答對賺 1 枚補給金幣，關間可花 2 枚補充 1 把。<br>
                 <br>
                 🏆 遊戲從 <b>3:00</b> 開始，分數夠高就進下一關，<b>共 6 關</b>。<br>
                 抓對 +20 分，抓錯扣 5 秒，炸彈扣分、石頭會彈開。<br>
                 ⏸ 上方按鈕可<b>暫停遊戲</b>。
             </div>
             <button class="mBtn" id="miner-guide-ok">▶ 開始遊戲</button>
+            <button class="mBtn sec" id="miner-tutorial-replay" type="button">練習手機操作</button>
         </div>
     </div>
 
@@ -709,6 +788,11 @@
     const statusEl = document.getElementById("status");
     const moveLeftBtn = document.getElementById("move-left-btn");
     const moveRightBtn = document.getElementById("move-right-btn");
+    const releaseBtn = document.getElementById("miner-release-btn");
+    const releaseCountEl = document.getElementById("miner-release-count");
+    const shopEl = document.getElementById("miner-shop");
+    const shopBuyBtn = document.getElementById("miner-shop-buy");
+    const shopContinueBtn = document.getElementById("miner-shop-continue");
     const cartSpeechBtn = document.getElementById("miner-cart-speech-btn");
     const settingsBtn = document.getElementById("miner-settings-btn");
     const toastEl = document.getElementById("miner-toast");
@@ -725,6 +809,88 @@
     const ssWrongEl = document.getElementById("ss-wrong");
     const ssStreakEl = document.getElementById("ss-streak");
     const ssBombEl = document.getElementById("ss-bomb");
+
+    // 以裝置區分手機，避免橫向手機漏判，或把平板／窄視窗的電腦改成手機版。
+    const deviceUA = navigator.userAgent;
+    const minerTablet = /iPad|Tablet|Silk/i.test(deviceUA)
+        || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+        || (/Android/i.test(deviceUA) && !/Mobile/i.test(deviceUA));
+    const minerPhone = !minerTablet && (/iPhone|iPod|Android.*Mobile/i.test(deviceUA)
+        || (matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 600));
+    function isMinerPhone() { return minerPhone; }
+    document.body.classList.toggle("miner-phone", minerPhone);
+    const dragCuesEl = document.getElementById("miner-drag-cues");
+    const tutorialEl = document.getElementById("miner-tutorial");
+    let minerTutorialStep = 0;
+    let minerTutorialCompleteAt = 0;
+    let phoneDragHintSeen = false;
+    let minerTutorialSeen = false;
+    try { minerTutorialSeen = localStorage.getItem("minerPhoneTutorialV1") === "1"; } catch(e) {}
+    if (minerPhone) {
+        canvas.parentElement.append(document.getElementById("miner-bottom"), document.getElementById("miner-release-btn"));
+    }
+
+    function setMinerTutorialStep(step) {
+        minerTutorialStep = step;
+        tutorialEl.hidden = !step || paused;
+        const instructions = ["", "按住礦車，往左或右拖動看看。", "點一下礦坑，鉤住正下方的示範金塊。", "按右下角的脫鉤圖示，把金塊放開。", "放開成功！金塊留在原地，準備開始挖礦。"];
+        document.getElementById("miner-tutorial-step").textContent = `操作練習 ${Math.min(step,3)} / 3・不計時、不扣道具`;
+        document.getElementById("miner-tutorial-text").textContent = instructions[step] || "";
+        updateReleaseButton();
+        syncCartSpeechButton();
+    }
+
+    function startMinerTutorial() {
+        if (!minerPhone || gamePhase !== "PLAYING") return;
+        resetMovement();
+        minerTutorialCompleteAt = 0;
+        pendingNextRoundTimer = null;
+        angle = 0; hookLength = defaultHookLength; state = "IDLE";
+        caughtItem = null; hookSeconds = 0;
+        items = [{...makeGoldItem(targetWordObj, 0, currentA), x:origin.x, y:270, active:true, spin:0, bump:0, wobble:0}];
+        message.timer = 0;
+        phoneDragHintSeen = false;
+        setMinerTutorialStep(1);
+    }
+
+    function onMinerTutorialDrag() {
+        if (minerTutorialStep !== 1) return;
+        cartVelocity = 0;
+        items[0].x = origin.x;
+        angle = 0;
+        setMinerTutorialStep(2);
+    }
+
+    function onMinerTutorialCatch() {
+        if (minerTutorialStep === 2) setMinerTutorialStep(3);
+    }
+
+    function finishMinerTutorial() {
+        if (!minerTutorialStep) return;
+        minerTutorialSeen = true;
+        try { localStorage.setItem("minerPhoneTutorialV1", "1"); } catch(e) {}
+        setMinerTutorialStep(0);
+        minerTutorialCompleteAt = 0;
+        phoneDragHintSeen = true;
+        resetMovement();
+        lastFrameTime = performance.now();
+        startGame();
+        settingsBtn.focus({preventScroll:true});
+    }
+
+    function onMinerTutorialRelease() {
+        setMinerTutorialStep(4);
+        minerTutorialCompleteAt = performance.now() + 900;
+    }
+
+    // 進度與脫鉤按鈕保留可操作空間，生成／放回物件都不能遮住它們。
+    function isMinerItemPositionAllowed(item, x, y) {
+        if (!minerPhone) return true;
+        const scale = (cartCanvasRect?.width || canvas.width) / canvas.width;
+        const r = item.radius;
+        return !(x - r < canvas.width - 72 / scale && y + r > canvas.height - 40 / scale)
+            && !(x + r > canvas.width - 68 / scale && y + r > canvas.height - 64 / scale);
+    }
 
     const bgImage = new Image();
     bgImage.src = "../assets/miner-visual-concept.png";
@@ -762,6 +928,9 @@
     const CART_MIN_X = 155;
     const CART_MAX_X = canvas.width - 155;
     const MAX_HOOK_LENGTH = Math.hypot(canvas.width, canvas.height);
+    const MIN_CAUGHT_RETURN_SECONDS = 0.8;
+    const MAX_RELEASE_TOOLS = 3;
+    const RELEASE_TOOL_COST = 2;
 
     /* ── 六關卡：達門檻(累積分)進關，每關難度漸進 ── */
     const LEVELS = [
@@ -794,7 +963,7 @@
 
     // 先排小、大，讓只有兩個選項的題庫也能出現大小差異；大小不跟字數綁定。
     const GOLD_SIZES = [
-        { label: "小金塊", radius: 36, compactRadius: 54, pullFactor: 1 },
+        { label: "小金塊", radius: 36, compactRadius: 54, pullFactor: 0.65 },
         { label: "大金塊", radius: 76, compactRadius: 94, pullFactor: 0.22 },
         { label: "中金塊", radius: 54, compactRadius: 74, pullFactor: 0.5 }
     ];
@@ -845,6 +1014,11 @@
     let idleSeconds = 0;
     let gamePhase = "READY";
     let caughtItem = null;
+    let caughtReturnSeconds = 0;
+    let caughtPullSpeed = 0;
+    let releaseTools = 1;
+    let supplyCoins = 0;
+    let shopOpen = false;
     let score = 0;
     let streak = 0;
     let bestStreak = 0;
@@ -951,7 +1125,7 @@
     const REP_ANS = { word: "英文單字", chinese: "中文意思", image: "對應圖片" };
 
     function isCompactLayout() {
-        return window.matchMedia("(max-width: 860px)").matches;
+        return minerPhone || window.matchMedia("(max-width: 860px)").matches;
     }
 
     function makeGoldItem(entry, index = 0, answerRep = "chinese") {
@@ -1109,12 +1283,124 @@
 
     function updateControls() {
         const playing = gamePhase === "PLAYING";
-        document.getElementById("miner-settings-btn").hidden = !playing;
+        document.getElementById("miner-settings-btn").hidden = !playing || shopOpen;
         moveLeftBtn.style.visibility = playing ? "visible" : "hidden";
         moveRightBtn.style.visibility = playing ? "visible" : "hidden";
-        moveLeftBtn.disabled = !playing;
-        moveRightBtn.disabled = !playing;
+        moveLeftBtn.disabled = !playing || shopOpen;
+        moveRightBtn.disabled = !playing || shopOpen;
         syncCartSpeechButton();
+        updateReleaseButton();
+    }
+
+    function updateReleaseButton() {
+        if (!releaseBtn) return;
+        const tutorial = minerTutorialStep > 0;
+        const count = tutorial ? 1 : releaseTools;
+        releaseBtn.hidden = gamePhase !== "PLAYING" || shopOpen;
+        GameRuntime.text(releaseCountEl, count);
+        releaseBtn.disabled = gamePhase !== "PLAYING" || paused || guideOpen || shopOpen
+            || state !== "RETRACTING" || !caughtItem || (!tutorial && releaseTools <= 0);
+        releaseBtn.setAttribute("aria-label", tutorial ? "練習脫鉤，不消耗道具" : `使用脫鉤鉗，剩餘 ${count} 次`);
+        releaseBtn.title = tutorial ? "練習脫鉤" : `脫鉤鉗 ×${count}（X）`;
+    }
+
+    function updateMinerShop() {
+        GameRuntime.text(document.getElementById("miner-shop-coins"), supplyCoins);
+        GameRuntime.text(document.getElementById("miner-shop-stock"), `${releaseTools} / ${MAX_RELEASE_TOOLS}`);
+        shopBuyBtn.disabled = releaseTools >= MAX_RELEASE_TOOLS || supplyCoins < RELEASE_TOOL_COST;
+        document.getElementById("miner-shop-note").textContent = releaseTools >= MAX_RELEASE_TOOLS
+            ? "脫鉤鉗已補滿，剩餘金幣留到下一個補給站。"
+            : supplyCoins < RELEASE_TOOL_COST ? "金幣不足 2 枚，下一關答對後再補充。" : "計時已暫停，可以放心挑選。";
+        updateReleaseButton();
+    }
+
+    function openMinerShop() {
+        shopOpen = true;
+        resetMovement();
+        stopBgm();
+        document.getElementById("miner-shop-title").textContent = `第 ${level - 1} 關完成！`;
+        document.getElementById("miner-shop-subtitle").textContent = `前往第 ${level} 關前，補充脫鉤鉗。`;
+        shopContinueBtn.textContent = `繼續第 ${level} 關`;
+        shopEl.classList.remove("hidden");
+        updateMinerShop();
+        updateControls();
+        shopContinueBtn.focus({ preventScroll: true });
+    }
+
+    function hideMinerShop() {
+        shopOpen = false;
+        shopEl.classList.add("hidden");
+    }
+
+    shopBuyBtn.addEventListener("click", () => {
+        if (!shopOpen || releaseTools >= MAX_RELEASE_TOOLS || supplyCoins < RELEASE_TOOL_COST) return;
+        supplyCoins -= RELEASE_TOOL_COST;
+        releaseTools += 1;
+        updateMinerShop();
+        if (shopBuyBtn.disabled) shopContinueBtn.focus({ preventScroll: true });
+    });
+    shopContinueBtn.addEventListener("click", () => {
+        if (!shopOpen) return;
+        hideMinerShop();
+        lastFrameTime = performance.now();
+        updateControls();
+        if (gamePhase === "PLAYING" && !paused) startBgm();
+        settingsBtn.focus({ preventScroll: true });
+    });
+    shopEl.addEventListener("keydown", (event) => {
+        event.stopPropagation();
+        if (event.key !== "Tab") return;
+        const buttons = [shopBuyBtn, shopContinueBtn].filter(button => !button.disabled);
+        const first = buttons[0], last = buttons[buttons.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    });
+
+    function findReleasePosition(item, x, y) {
+        const radius = item.radius;
+        const left = radius + 8, right = canvas.width - radius - 8;
+        const top = 122 + radius, bottom = canvas.height - radius - 16;
+        const canPlace = (px, py) => px >= left && px <= right && py >= top && py <= bottom
+            && (typeof isMinerItemPositionAllowed !== "function" || isMinerItemPositionAllowed(item, px, py))
+            && items.every(other => other === item || !other.active
+                || Math.hypot(px - other.x, py - other.y) >= radius + other.radius + 6);
+        if (canPlace(x, y)) return { x, y };
+        let best = null, bestDistance = Infinity;
+        const consider = (px, py) => {
+            const distance = (px - x) ** 2 + (py - y) ** 2;
+            if (distance < bestDistance && canPlace(px, py)) { best = { x: px, y: py }; bestDistance = distance; }
+        };
+        consider(Math.max(left, Math.min(right, x)), Math.max(top, Math.min(bottom, y)));
+        // 只有越界／重疊才找鄰近空位；不把物件送回原位，也不重排其他礦石。
+        for (let py = top; py <= bottom; py += 6) {
+            for (let px = left; px <= right; px += 6) consider(px, py);
+        }
+        return best;
+    }
+
+    function releaseCaughtItem() {
+        const tutorial = minerTutorialStep > 0;
+        if (gamePhase !== "PLAYING" || paused || guideOpen || shopOpen || state !== "RETRACTING"
+            || !caughtItem || (!tutorial && releaseTools <= 0)) return false;
+        const tip = getHookTip();
+        const position = findReleasePosition(caughtItem, tip.x, tip.y + caughtItem.radius + 10);
+        if (!position) {
+            setMessage("這裡太擠，移動礦車再試一次；道具未扣除", "info", 150);
+            return false;
+        }
+        caughtItem.x = position.x;
+        caughtItem.y = position.y;
+        caughtItem.active = true;
+        caughtItem.bump = 0;
+        caughtItem = null;
+        caughtReturnSeconds = caughtPullSpeed = 0;
+        hookSeconds = 0;
+        if (!tutorial) releaseTools -= 1;
+        setStatus("已脫鉤，空鉤收回中");
+        setMessage(tutorial ? "成功放開！" : `已放開，脫鉤鉗剩 ${releaseTools} 次`, "info", 130);
+        updateReleaseButton();
+        if (tutorial) onMinerTutorialRelease();
+        return true;
     }
 
     /* 開始／結束畫面（HTML 覆蓋層）：非遊玩中顯示，結束時帶出成績 */
@@ -1149,6 +1435,10 @@
 
     function resetStats() {
         resetMovement();
+        hideMinerShop();
+        releaseTools = 1;
+        supplyCoins = 0;
+        caughtReturnSeconds = caughtPullSpeed = 0;
         score = 0;
         streak = 0;
         bestStreak = 0;
@@ -1167,6 +1457,7 @@
 
     function startGame() {
         if (!GameData.ready()) return;
+        lastFrameTime = performance.now();
         pendingNextRoundTimer = null;
         RoundReview.reset();
         resetStats();
@@ -1181,7 +1472,7 @@
 
     /* 分數達門檻：進下一關並提升難度；通過最後一關＝全破 */
     function maybeLevelUp() {
-        if (gamePhase !== "PLAYING") return;
+        if (gamePhase !== "PLAYING" || shopOpen || minerTutorialStep > 0) return;
         const goal = levelGoal(level - 1);
         if (score < goal) return;
         if (level >= LEVELS.length) {
@@ -1194,10 +1485,12 @@
         setMessage(`🎉 進入第 ${level} 關！難度提升`, "good", 210);
         addSparkles(canvas.width / 2, 150, "gold", 44);
         updateHud();
+        openMinerShop();
     }
 
     function winGame() {
         if (gamePhase === "ENDED") return;
+        hideMinerShop();
         stopBgm();
         pendingNextRoundTimer = null;
         gamePhase = "ENDED";
@@ -1215,6 +1508,7 @@
 
     function finishGame() {
         if (gamePhase === "ENDED") return;
+        hideMinerShop();
         stopBgm();
         pendingNextRoundTimer = null;
         gamePhase = "ENDED";
@@ -1287,7 +1581,7 @@
 
         /* 唸字時把 BGM 讓開，避免 iOS 兩個音源搶音訊工作階段導致沒聲 */
         if (bgmAudio) { clearInterval(bgmFade); bgmAudio.volume = 0; }
-        const restoreBgm = () => { if (bgmAudio && gamePhase === "PLAYING" && !paused) fadeBgm(0.7, 450); };
+        const restoreBgm = () => { if (bgmAudio && gamePhase === "PLAYING" && !paused && !shopOpen) fadeBgm(0.7, 450); };
         msg.onend = restoreBgm;
         msg.onerror = restoreBgm;
 
@@ -1297,7 +1591,8 @@
 
     let cartCanvasRect = null;
     function syncCartSpeechButton() {
-        const canUse = gamePhase === "PLAYING" && !paused && !guideOpen && targetWordObj;
+        const canUse = gamePhase === "PLAYING" && !paused && !guideOpen && !shopOpen && targetWordObj;
+        dragCuesEl.style.display = "none";
         if (!canUse) {
             cartSpeechBtn.style.display = "none";
             return;
@@ -1313,6 +1608,12 @@
         cartSpeechBtn.style.height = `${Math.max(44, 104 * scaleY)}px`;
         cartSpeechBtn.setAttribute("aria-label", currentQ === "word"
             ? `拖曳移動礦車，輕點重聽 ${targetWordObj.word} 的英文發音` : "拖曳移動礦車");
+        if (minerPhone && (minerTutorialStep === 1 || (!minerTutorialStep && !phoneDragHintSeen))) {
+            dragCuesEl.style.display = "block";
+            dragCuesEl.style.left = `${rect.left + (origin.x - 195) * scaleX}px`;
+            dragCuesEl.style.top = `${rect.top + 45 * scaleY}px`;
+            dragCuesEl.style.width = `${390 * scaleX}px`;
+        }
     }
 
     function initLevel(autoSpeak = true) {
@@ -1337,21 +1638,25 @@
         const obsCount = Math.min(LEVELS[level - 1]?.obstacles || 4, maxObs);
         const obstacles = shuffle(OBSTACLES).slice(0, obsCount);
         const spawn = shuffle([...golds, ...obstacles]).sort((a, b) => b.radius - a.radius);
+        if (minerPhone) spawn.sort((a,b) => Number(b === targetWordObj) - Number(a === targetWordObj));
         const slots = buildItemSlots();
 
         spawn.forEach((item) => {
             // 大金塊優先擺放，再挑與現有礦石距離最寬裕的位置，避免大小變化造成互相遮擋。
-            const clearance = slot => items.length === 0 ? 0 : Math.min(...items.map(other =>
-                Math.hypot(slot.x - other.x, slot.y - other.y) - item.radius - other.radius));
+            const clearance = slot => !isMinerItemPositionAllowed(item,slot.x,slot.y) ? -Infinity
+                : items.length === 0 ? 0 : Math.min(...items.map(other =>
+                    Math.hypot(slot.x - other.x, slot.y - other.y) - item.radius - other.radius));
             let slotIndex = 0;
             for (let i = 1; i < slots.length; i += 1) {
                 if (clearance(slots[i]) > clearance(slots[slotIndex])) slotIndex = i;
             }
             const slot = slots.splice(slotIndex, 1)[0];
+            const position = minerPhone ? findReleasePosition(item, slot.x, slot.y) : slot;
+            if (!position) return;
             items.push({
                 ...item,
-                x: slot.x,
-                y: slot.y,
+                x: position.x,
+                y: position.y,
                 active: true,
                 bump: 0,
                 bumpAngle: 0,
@@ -1369,10 +1674,10 @@
             const spokenRound = round;
             const spokenTarget = targetWordObj;
             setTimeout(() => {
-                if (gamePhase === "PLAYING" && !paused && round === spokenRound && targetWordObj === spokenTarget) speakWord(spokenTarget.word);
+                if (gamePhase === "PLAYING" && !paused && !shopOpen && !minerTutorialStep && round === spokenRound && targetWordObj === spokenTarget) speakWord(spokenTarget.word);
             }, 450);
             setTimeout(() => {
-                if (gamePhase === "PLAYING" && !paused && round === spokenRound && targetWordObj === spokenTarget) speakWord(spokenTarget.word);
+                if (gamePhase === "PLAYING" && !paused && !shopOpen && !minerTutorialStep && round === spokenRound && targetWordObj === spokenTarget) speakWord(spokenTarget.word);
             }, 3000);
         }
     }
@@ -1393,7 +1698,8 @@
     }
 
     function shoot() {
-        if (gamePhase !== "PLAYING" || paused || guideOpen || cartDrag || pendingNextRoundTimer !== null) return;
+        if (gamePhase !== "PLAYING" || paused || guideOpen || shopOpen || cartDrag || pendingNextRoundTimer !== null) return;
+        if (minerTutorialStep && (minerTutorialStep !== 2 || state !== "IDLE")) return;
         if (state === "SHOOTING") {
             state = "RETRACTING";
             setStatus("收回中");
@@ -1435,12 +1741,12 @@
 
     function update() {
         if (gamePhase === "PLAYING" && !paused && matchMedia("(orientation:portrait)").matches) openSettings();
-        if (paused) { lastFrameTime = performance.now(); return; }
+        if (paused || shopOpen) { lastFrameTime = performance.now(); return; }
         const now = performance.now();
         const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
         lastFrameTime = now;
         const timeScale = dt * 60;
-        if (pendingNextRoundTimer !== null && gamePhase === "PLAYING") {
+        if (pendingNextRoundTimer !== null && gamePhase === "PLAYING" && minerTutorialStep === 0) {
             pendingNextRoundTimer -= dt;
             if (pendingNextRoundTimer <= 0) { pendingNextRoundTimer = null; initLevel(true); }
         }
@@ -1454,23 +1760,26 @@
         });
 
         if (gamePhase === "PLAYING") {
-            timeLeft -= dt;
-            if (timeLeft <= 0) {
-                finishGame();
-                return;
+            if (minerTutorialStep === 0) {
+                timeLeft -= dt;
+                if (timeLeft <= 0) {
+                    finishGame();
+                    return;
+                }
+                GameRuntime.text(timeLeftEl,formatTime(timeLeft));
             }
-            GameRuntime.text(timeLeftEl,formatTime(timeLeft));
         } else {
             return;
         }
 
         updateCartPosition(dt);
+        if (minerTutorialStep === 3) return;
 
         // 回收速度／角度異常也不讓鉤子永久卡住；被抓的物件放回礦坑，可重新作答。
         if (state === "SHOOTING" || state === "RETRACTING") {
             hookSeconds += dt;
             // 安全網涵蓋最遠距離的大金塊，避免正常的慢速回收被當成卡住。
-            const hookTimeout = MAX_HOOK_LENGTH / (hookSpeed * 60) * (1 + 1 / MIN_GOLD_PULL_FACTOR) + 2;
+            const hookTimeout = MAX_HOOK_LENGTH / (hookSpeed * 60) * (1 + 1 / MIN_GOLD_PULL_FACTOR) + MIN_CAUGHT_RETURN_SECONDS + 2;
             if (!Number.isFinite(hookLength) || !Number.isFinite(angle) || hookSeconds > hookTimeout) {
                 if (caughtItem) caughtItem.active = true;
                 caughtItem = null;
@@ -1478,11 +1787,14 @@
                 angle = 0;
                 state = "IDLE";
                 hookSeconds = 0;
+                caughtReturnSeconds = caughtPullSpeed = 0;
                 setMessage("鉤子已收回，可以再放鉤", "info", 120);
+                updateReleaseButton();
             }
         }
 
         if (state === "IDLE") {
+            if (minerTutorialStep > 0) { angle = 0; return; }
             if (pendingNextRoundTimer === null) idleSeconds += dt;
             angle += angleSpeed * angleDir * timeScale;
             const limit = Math.PI / 2.65;
@@ -1506,7 +1818,7 @@
                 const dist = Math.hypot(tip.x - item.x, tip.y - item.y);
                 if (dist <= item.radius + 18) {
                     if (item.type === "rock") {
-                        rockCount += 1;
+                        if (minerTutorialStep === 0) rockCount += 1;
                         item.bump = 28;
                         item.bumpAngle = Math.atan2(item.y - tip.y, item.x - tip.x);
                         caughtItem = null;
@@ -1515,9 +1827,15 @@
                     } else {
                         item.active = false;
                         caughtItem = item;
+                        const factor = item.type === "bomb" ? 0.45
+                            : Number.isFinite(item.pullFactor) ? Math.max(MIN_GOLD_PULL_FACTOR, item.pullFactor) : 0.5;
+                        caughtReturnSeconds = MIN_CAUGHT_RETURN_SECONDS;
+                        caughtPullSpeed = Math.min(hookSpeed * factor,
+                            Math.max(0, hookLength - defaultHookLength) / (MIN_CAUGHT_RETURN_SECONDS * 60));
                         addSparkles(item.x, item.y, item.type === "gold" ? "gold" : "dust", 12);
                     }
                     state = "RETRACTING";
+                    if (caughtItem && minerTutorialStep > 0) onMinerTutorialCatch();
                     setStatus(caughtItem?.type === "gold" ? `${caughtItem.sizeLabel}回收中` : "收回中");
                     updateHud();
                     break;
@@ -1529,13 +1847,13 @@
         if (state === "RETRACTING") {
             let speed = hookSpeed * 1.05;
             if (caughtItem) {
-                if (caughtItem.type === "gold") speed = hookSpeed * (Number.isFinite(caughtItem.pullFactor) ? Math.max(MIN_GOLD_PULL_FACTOR, caughtItem.pullFactor) : 0.5);
-                if (caughtItem.type === "bomb") speed = hookSpeed * 0.75;
+                speed = caughtPullSpeed;
+                caughtReturnSeconds = Math.max(0, caughtReturnSeconds - dt);
             }
 
-            hookLength -= speed * timeScale;
+            hookLength = Math.max(defaultHookLength, hookLength - speed * timeScale);
 
-            if (hookLength <= defaultHookLength) {
+            if (hookLength <= defaultHookLength && (!caughtItem || caughtReturnSeconds <= 0)) {
                 hookLength = defaultHookLength;
                 hookSeconds = 0;
                 if (caughtItem) {
@@ -1550,6 +1868,7 @@
     }
 
     function handleCaughtItem(item) {
+        if (minerTutorialStep > 0 || shopOpen || gamePhase !== "PLAYING") return;
         const isCorrect = item.type === "gold" && item.word === targetWordObj.word;
         let shouldAdvanceRound = false;
 
@@ -1562,6 +1881,7 @@
         } else if (isCorrect) {
             RoundReview.correct();
             correctCount += 1;
+            supplyCoins += 1;
             score += CORRECT_POINTS + Math.min(streak * 3, 12);
             streak += 1;
             bestStreak = Math.max(bestStreak, streak);
@@ -1579,6 +1899,8 @@
 
         updateHud();
         caughtItem = null;
+        caughtReturnSeconds = caughtPullSpeed = 0;
+        updateReleaseButton();
 
         if (isCorrect) maybeLevelUp();
 
@@ -2273,7 +2595,7 @@
         const ratio = Math.max(0, Math.min(1, (score - prev) / span));
         const remain = Math.max(0, goal - score);
         const isLast = level >= LEVELS.length;
-        const compact = progressEl.clientWidth < 280;
+        const compact = !minerPhone && progressEl.clientWidth < 280;
         progressFillEl.style.width = (ratio * 100).toFixed(1) + "%";
         progressLabelEl.textContent = remain > 0
             ? (compact ? `差 ${remain} 分` : (isLast ? `再得 ${remain} 分 → 🏆 全破` : `再得 ${remain} 分 → 第 ${level + 1} 關`))
@@ -2304,6 +2626,7 @@
 
     function loop() {
         update();
+        if (minerTutorialCompleteAt && !paused && gamePhase === "PLAYING" && performance.now() >= minerTutorialCompleteAt) finishMinerTutorial();
         draw();
     }
 
@@ -2339,7 +2662,8 @@
     }
 
     function beginCartDrag(event) {
-        if (gamePhase !== "PLAYING" || paused || guideOpen || cartDrag || event.button !== 0) return;
+        if (gamePhase !== "PLAYING" || paused || guideOpen || shopOpen || cartDrag || event.button !== 0) return;
+        if (minerTutorialStep > 1) return;
         const point = canvasPoint(event);
         cartClickSuppressed = false;
         cartDrag = { id:event.pointerId, element:event.currentTarget, startX:event.clientX,
@@ -2351,6 +2675,7 @@
         if (!cartDrag || event.pointerId !== cartDrag.id) return;
         if (Math.abs(event.clientX-cartDrag.startX) > 5) cartDrag.moved = true;
         if (!cartDrag.moved) return;
+        phoneDragHintSeen = true;
         cartClickSuppressed = true;
         cartDrag.x = Math.max(CART_MIN_X, Math.min(CART_MAX_X, canvasPoint(event).x+cartDrag.offsetX));
         cartSpeechBtn.classList.add("is-dragging");
@@ -2363,6 +2688,7 @@
         cartDrag = null;
         cartSpeechBtn.classList.remove("is-dragging");
         if (drag.element.hasPointerCapture?.(drag.id)) drag.element.releasePointerCapture(drag.id);
+        if (drag.moved && event.type === "pointerup") onMinerTutorialDrag();
     }
 
     cartSpeechBtn.addEventListener("pointerdown", beginCartDrag);
@@ -2372,7 +2698,7 @@
     }
     cartSpeechBtn.addEventListener("click", () => {
         if (cartClickSuppressed) { cartClickSuppressed = false; return; }
-        if (gamePhase === "PLAYING" && !paused && !guideOpen && currentQ === "word" && targetWordObj) {
+        if (gamePhase === "PLAYING" && !paused && !guideOpen && !shopOpen && currentQ === "word" && targetWordObj) {
             primeSpeech();
             speakWord(targetWordObj.word);
         }
@@ -2412,13 +2738,21 @@
     function beginGame() {
         primeSpeech();
         clampMode();
+        minerTutorialStep = 0; minerTutorialCompleteAt = 0; tutorialEl.hidden = true;
         startGame();
+        if (minerPhone && !minerTutorialSeen) startMinerTutorial();
     }
     startBtn.addEventListener("click", beginGame);
+    releaseBtn.addEventListener("click", releaseCaughtItem);
+    document.getElementById("miner-tutorial-skip").addEventListener("click", finishMinerTutorial);
+    document.getElementById("miner-tutorial-replay").addEventListener("click", () => {
+        if (gamePhase === "PLAYING") return;
+        closeGuide(); primeSpeech(); clampMode(); startGame(); startMinerTutorial();
+    });
 
     /* 上方車子／繩子可以拖曳；只有礦坑區域的點擊才發射或收回。 */
     canvas.addEventListener("pointerdown", (event) => {
-        if (paused || guideOpen) return;
+        if (paused || guideOpen || shopOpen) return;
         if (event.button !== 0) return;
         if (canvasPoint(event).y <= 118) beginCartDrag(event);
         else shoot();
@@ -2428,25 +2762,32 @@
     let paused = false, guideOpen = false;
     const pauseEl = document.getElementById("miner-pause");
     function openSettings() {
-        if (paused) return;
+        if (paused || shopOpen) return;
         paused = true;
+        tutorialEl.hidden = true;
         resetMovement();
         syncCartSpeechButton();
         pauseEl.classList.remove("hidden");
         stopBgm();
+        updateReleaseButton();
     }
     function closeSettings() {
-        if (!paused || matchMedia("(orientation:portrait)").matches) return;
+        if (!paused || shopOpen || matchMedia("(orientation:portrait)").matches) return;
         paused = false;
         lastFrameTime = performance.now();
         pauseEl.classList.add("hidden");
+        tutorialEl.hidden = !minerTutorialStep;
+        updateControls();
         if (gamePhase === "PLAYING") startBgm();
+        updateReleaseButton();
     }
     function togglePause() {
         if (paused) closeSettings();
         else openSettings();
     }
     function returnToMainMenu() {
+        minerTutorialStep = 0; minerTutorialCompleteAt = 0; tutorialEl.hidden = true;
+        hideMinerShop();
         pendingNextRoundTimer = null;
         paused = false;
         pauseEl.classList.add("hidden");
@@ -2454,6 +2795,7 @@
         gamePhase = "READY";
         state = "IDLE";
         caughtItem = null;
+        caughtReturnSeconds = caughtPullSpeed = 0;
         resetMovement();
         updateHud();
         updateControls();
@@ -2471,7 +2813,7 @@
 
     function bindMoveButton(button, direction) {
         button.addEventListener("pointerdown", (event) => {
-            if (gamePhase !== "PLAYING" || paused || guideOpen || event.button !== 0) return;
+            if (gamePhase !== "PLAYING" || paused || guideOpen || shopOpen || event.button !== 0) return;
             event.preventDefault();
             movePointers.set(event.pointerId, direction);
             syncMovementInput();
@@ -2495,15 +2837,17 @@
     window.addEventListener("blur", resetMovement);
 
     window.addEventListener("keydown", (event) => {
+        if (shopOpen) return;
         if (guideOpen) {
             if (event.code === "Space" || event.code === "Enter" || event.code === "Escape") closeGuide();
             event.preventDefault(); return;
         }
         if (event.code === "Escape") { event.preventDefault(); togglePause(); return; }
         if (paused) { event.preventDefault(); return; }
+        if (event.code === "KeyX") { event.preventDefault(); if (!event.repeat) releaseCaughtItem(); return; }
         if (["ArrowLeft", "KeyA", "ArrowRight", "KeyD"].includes(event.code)) {
             event.preventDefault();
-            if (gamePhase === "PLAYING") { moveKeys.add(event.code); syncMovementInput(); }
+            if (gamePhase === "PLAYING" && minerTutorialStep === 0) { moveKeys.add(event.code); syncMovementInput(); }
         }
         if (event.code === "Space") {
             event.preventDefault();
@@ -2535,6 +2879,9 @@
         const scale = Math.max(0, Math.min(stage.clientWidth / canvas.width, stage.clientHeight / canvas.height));
         canvas.style.width = `${canvas.width * scale}px`;
         canvas.style.height = `${canvas.height * scale}px`;
+        stage.style.setProperty("--miner-canvas-width", `${canvas.width * scale}px`);
+        stage.style.setProperty("--miner-canvas-inset-x", `${(stage.clientWidth - canvas.width * scale) / 2}px`);
+        stage.style.setProperty("--miner-canvas-inset-y", `${(stage.clientHeight - canvas.height * scale) / 2}px`);
         cartCanvasRect=canvas.getBoundingClientRect();
         resetMovement();
         syncCartSpeechButton();
@@ -2561,6 +2908,7 @@
     document.addEventListener("dblclick", e => e.preventDefault(), { passive: false });
     let lastTouchEnd = 0;
     document.addEventListener("touchend", e => {
+        if (e.target.closest("button, a, input, select, textarea")) return;
         const now = Date.now();
         if (now - lastTouchEnd < 320) e.preventDefault();
         lastTouchEnd = now;
