@@ -617,13 +617,16 @@
     #miner-drag-cues span:last-child { right:0; }
     #miner-tutorial { position:fixed; inset:0; z-index:70; pointer-events:none; }
     #miner-tutorial[hidden] { display:none; }
-    .miner-tutorial-card { position:absolute; left:50%; bottom:calc(66px + env(safe-area-inset-bottom)); transform:translateX(-50%);
-        width:min(430px,calc(100vw - 32px)); padding:10px 12px; border:2px solid #ffe27a; border-radius:14px;
-        background:rgba(31,20,10,.96); color:var(--cream); box-shadow:0 6px 24px #0008; pointer-events:auto;
-        display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px 12px; }
+    .miner-tutorial-card { position:absolute; left:calc(12px + env(safe-area-inset-left)); bottom:calc(48px + env(safe-area-inset-bottom));
+        width:min(330px,calc(100vw - 92px)); padding:9px 11px; border:1px solid #ffe27a; border-radius:12px;
+        background:rgba(31,20,10,.9); color:var(--cream); box-shadow:0 4px 16px #0006; pointer-events:none;
+        display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px 8px; }
     #miner-tutorial-step { color:#ffe27a; font-size:12px; font-weight:800; }
-    #miner-tutorial-text { margin:3px 0 0; font-size:14px; line-height:1.4; }
-    #miner-tutorial-skip { min-height:44px; padding:0 12px; font-size:13px; touch-action:manipulation; }
+    #miner-tutorial-checklist { list-style:none; margin:4px 0 0; padding:0; font-size:14px; line-height:1.6; }
+    #miner-tutorial-checklist li { display:flex; gap:7px; align-items:center; }
+    #miner-tutorial-checklist .is-done { color:#aff3b3; }
+    .miner-tutorial-check { width:15px; text-align:center; font-weight:900; }
+    #miner-tutorial-skip { min-width:44px; min-height:44px; padding:0 8px; font-size:13px; touch-action:manipulation; pointer-events:auto; }
     #miner-tutorial-replay { display:none; }
     .miner-phone #miner-tutorial-replay { display:inline-block; }
     .miner-phone .miner-desktop-help { display:none; }
@@ -725,8 +728,14 @@
     <div id="miner-drag-cues" aria-hidden="true"><span>◀</span><span>▶</span></div>
     <div id="miner-tutorial" hidden>
         <div class="miner-tutorial-card">
-            <div role="status" aria-live="polite"><div id="miner-tutorial-step"></div><p id="miner-tutorial-text"></p></div>
-            <button id="miner-tutorial-skip" type="button">略過教學</button>
+            <div><div id="miner-tutorial-step" role="status" aria-live="polite"></div>
+                <ul id="miner-tutorial-checklist">
+                    <li data-action="shoot"><span class="miner-tutorial-check" aria-hidden="true">○</span><span>點礦坑，發射鉤子</span></li>
+                    <li data-action="release"><span class="miner-tutorial-check" aria-hidden="true">○</span><span>點右下角，試試脫鉤</span></li>
+                    <li data-action="drag"><span class="miner-tutorial-check" aria-hidden="true">○</span><span>按住礦車，左右拖動</span></li>
+                </ul>
+            </div>
+            <button id="miner-tutorial-skip" type="button" aria-label="略過操作教學">略過</button>
         </div>
     </div>
     <div id="miner-data-status" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"><span id="status"></span></div>
@@ -823,6 +832,7 @@
     const tutorialEl = document.getElementById("miner-tutorial");
     let minerTutorialStep = 0;
     let minerTutorialCompleteAt = 0;
+    const minerTutorialActions = new Set();
     let phoneDragHintSeen = false;
     let minerTutorialSeen = false;
     try { minerTutorialSeen = localStorage.getItem("minerPhoneTutorialV1") === "1"; } catch(e) {}
@@ -833,37 +843,42 @@
     function setMinerTutorialStep(step) {
         minerTutorialStep = step;
         tutorialEl.hidden = !step || paused;
-        const instructions = ["", "按住礦車，往左或右拖動看看。", "點一下礦坑，鉤住正下方的示範金塊。", "按右下角的脫鉤圖示，把金塊放開。", "放開成功！金塊留在原地，準備開始挖礦。"];
-        document.getElementById("miner-tutorial-step").textContent = `操作練習 ${Math.min(step,3)} / 3・不計時、不扣道具`;
-        document.getElementById("miner-tutorial-text").textContent = instructions[step] || "";
+        const count = minerTutorialActions.size;
+        document.getElementById("miner-tutorial-step").textContent = count === 3
+            ? "都試過了，開始挖礦！" : `自由試試 ${count} / 3・不計時、不扣道具`;
+        document.querySelectorAll("#miner-tutorial-checklist li").forEach(item => {
+            const done = minerTutorialActions.has(item.dataset.action);
+            item.classList.toggle("is-done", done);
+            item.querySelector(".miner-tutorial-check").textContent = done ? "✓" : "○";
+            item.setAttribute("aria-label", `${done ? "已完成" : "尚未嘗試"}：${item.lastElementChild.textContent}`);
+        });
         updateReleaseButton();
         syncCartSpeechButton();
+    }
+
+    function markMinerTutorialAction(action) {
+        if (!minerTutorialStep || minerTutorialActions.has(action)) return;
+        minerTutorialActions.add(action);
+        if (minerTutorialActions.size === 3) minerTutorialCompleteAt = performance.now() + 500;
+        setMinerTutorialStep(1);
     }
 
     function startMinerTutorial() {
         if (!minerPhone || gamePhase !== "PLAYING") return;
         resetMovement();
         minerTutorialCompleteAt = 0;
+        minerTutorialActions.clear();
         pendingNextRoundTimer = null;
         angle = 0; hookLength = defaultHookLength; state = "IDLE";
         caughtItem = null; hookSeconds = 0;
-        items = [{...makeGoldItem(targetWordObj, 0, currentA), x:origin.x, y:270, active:true, spin:0, bump:0, wobble:0}];
+        caughtReturnSeconds = caughtPullSpeed = 0;
+        items = [];
         message.timer = 0;
         phoneDragHintSeen = false;
         setMinerTutorialStep(1);
     }
 
-    function onMinerTutorialDrag() {
-        if (minerTutorialStep !== 1) return;
-        cartVelocity = 0;
-        items[0].x = origin.x;
-        angle = 0;
-        setMinerTutorialStep(2);
-    }
-
-    function onMinerTutorialCatch() {
-        if (minerTutorialStep === 2) setMinerTutorialStep(3);
-    }
+    function onMinerTutorialDrag() { markMinerTutorialAction("drag"); }
 
     function finishMinerTutorial() {
         if (!minerTutorialStep) return;
@@ -878,10 +893,7 @@
         settingsBtn.focus({preventScroll:true});
     }
 
-    function onMinerTutorialRelease() {
-        setMinerTutorialStep(4);
-        minerTutorialCompleteAt = performance.now() + 900;
-    }
+    function onMinerTutorialRelease() { markMinerTutorialAction("release"); }
 
     // 進度與脫鉤按鈕保留可操作空間，生成／放回物件都不能遮住它們。
     function isMinerItemPositionAllowed(item, x, y) {
@@ -926,8 +938,8 @@
     const BOMB_PENALTY = 10;
     const CART_SPEED = 430;
     const CART_MIN_X = 155;
-    const CART_MAX_X = canvas.width - 155;
-    const MAX_HOOK_LENGTH = Math.hypot(canvas.width, canvas.height);
+    let CART_MAX_X = canvas.width - 155;
+    let MAX_HOOK_LENGTH = Math.hypot(canvas.width, canvas.height);
     const MIN_CAUGHT_RETURN_SECONDS = 0.8;
     const MAX_RELEASE_TOOLS = 3;
     const RELEASE_TOOL_COST = 2;
@@ -1264,7 +1276,7 @@
             ];
 
             return shuffle(compactSlots).map(slot => ({
-                x: slot.x + rand(-12, 12),
+                x: slot.x * (minerPhone ? canvas.width / 1080 : 1) + rand(-12, 12),
                 y: slot.y + rand(-6, 6)
             }));
         }
@@ -1299,7 +1311,7 @@
         releaseBtn.hidden = gamePhase !== "PLAYING" || shopOpen;
         GameRuntime.text(releaseCountEl, count);
         releaseBtn.disabled = gamePhase !== "PLAYING" || paused || guideOpen || shopOpen
-            || state !== "RETRACTING" || !caughtItem || (!tutorial && releaseTools <= 0);
+            || (!tutorial && (state !== "RETRACTING" || !caughtItem || releaseTools <= 0));
         releaseBtn.setAttribute("aria-label", tutorial ? "練習脫鉤，不消耗道具" : `使用脫鉤鉗，剩餘 ${count} 次`);
         releaseBtn.title = tutorial ? "練習脫鉤" : `脫鉤鉗 ×${count}（X）`;
     }
@@ -1380,8 +1392,17 @@
 
     function releaseCaughtItem() {
         const tutorial = minerTutorialStep > 0;
-        if (gamePhase !== "PLAYING" || paused || guideOpen || shopOpen || state !== "RETRACTING"
-            || !caughtItem || (!tutorial && releaseTools <= 0)) return false;
+        if (gamePhase !== "PLAYING" || paused || guideOpen || shopOpen) return false;
+        if (tutorial) {
+            caughtItem = null;
+            caughtReturnSeconds = caughtPullSpeed = hookSeconds = 0;
+            state = hookLength > defaultHookLength ? "RETRACTING" : "IDLE";
+            setStatus("已練習脫鉤");
+            onMinerTutorialRelease();
+            updateReleaseButton();
+            return true;
+        }
+        if (state !== "RETRACTING" || !caughtItem || releaseTools <= 0) return false;
         const tip = getHookTip();
         const position = findReleasePosition(caughtItem, tip.x, tip.y + caughtItem.radius + 10);
         if (!position) {
@@ -1395,11 +1416,10 @@
         caughtItem = null;
         caughtReturnSeconds = caughtPullSpeed = 0;
         hookSeconds = 0;
-        if (!tutorial) releaseTools -= 1;
+        releaseTools -= 1;
         setStatus("已脫鉤，空鉤收回中");
-        setMessage(tutorial ? "成功放開！" : `已放開，脫鉤鉗剩 ${releaseTools} 次`, "info", 130);
+        setMessage(`已放開，脫鉤鉗剩 ${releaseTools} 次`, "info", 130);
         updateReleaseButton();
-        if (tutorial) onMinerTutorialRelease();
         return true;
     }
 
@@ -1608,7 +1628,7 @@
         cartSpeechBtn.style.height = `${Math.max(44, 104 * scaleY)}px`;
         cartSpeechBtn.setAttribute("aria-label", currentQ === "word"
             ? `拖曳移動礦車，輕點重聽 ${targetWordObj.word} 的英文發音` : "拖曳移動礦車");
-        if (minerPhone && (minerTutorialStep === 1 || (!minerTutorialStep && !phoneDragHintSeen))) {
+        if (minerPhone && (minerTutorialStep ? !minerTutorialActions.has("drag") : !phoneDragHintSeen)) {
             dragCuesEl.style.display = "block";
             dragCuesEl.style.left = `${rect.left + (origin.x - 195) * scaleX}px`;
             dragCuesEl.style.top = `${rect.top + 45 * scaleY}px`;
@@ -1699,7 +1719,6 @@
 
     function shoot() {
         if (gamePhase !== "PLAYING" || paused || guideOpen || shopOpen || cartDrag || pendingNextRoundTimer !== null) return;
-        if (minerTutorialStep && (minerTutorialStep !== 2 || state !== "IDLE")) return;
         if (state === "SHOOTING") {
             state = "RETRACTING";
             setStatus("收回中");
@@ -1707,6 +1726,7 @@
             state = "SHOOTING";
             hookSeconds = 0;
             idleSeconds = 0;
+            markMinerTutorialAction("shoot");
             renderActionHint();
             setStatus("鉤子發射");
             updateControls();
@@ -1773,7 +1793,6 @@
         }
 
         updateCartPosition(dt);
-        if (minerTutorialStep === 3) return;
 
         // 回收速度／角度異常也不讓鉤子永久卡住；被抓的物件放回礦坑，可重新作答。
         if (state === "SHOOTING" || state === "RETRACTING") {
@@ -1794,7 +1813,6 @@
         }
 
         if (state === "IDLE") {
-            if (minerTutorialStep > 0) { angle = 0; return; }
             if (pendingNextRoundTimer === null) idleSeconds += dt;
             angle += angleSpeed * angleDir * timeScale;
             const limit = Math.PI / 2.65;
@@ -1835,7 +1853,6 @@
                         addSparkles(item.x, item.y, item.type === "gold" ? "gold" : "dust", 12);
                     }
                     state = "RETRACTING";
-                    if (caughtItem && minerTutorialStep > 0) onMinerTutorialCatch();
                     setStatus(caughtItem?.type === "gold" ? `${caughtItem.sizeLabel}回收中` : "收回中");
                     updateHud();
                     break;
@@ -1949,7 +1966,10 @@
         const theme = LEVEL_THEMES[level - 1] || LEVEL_THEMES[0];
         if (bgImage.complete && bgImage.naturalWidth > 0) {
             const q = bgImage.naturalWidth / 2;
-            ctx.drawImage(bgImage, q, 0, q, q, 0, 0, canvas.width, canvas.height);
+            if (minerPhone) {
+                const cropHeight = q * canvas.height / canvas.width;
+                ctx.drawImage(bgImage, q, (q - cropHeight) / 2, q, cropHeight, 0, 0, canvas.width, canvas.height);
+            } else ctx.drawImage(bgImage, q, 0, q, q, 0, 0, canvas.width, canvas.height);
         } else {
             const grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
             grd.addColorStop(0, "#2d1c15");
@@ -1962,7 +1982,7 @@
         ctx.fillStyle = theme.tint;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        const shade = ctx.createRadialGradient(canvas.width / 2, 260, 100, canvas.width / 2, 300, 740);
+        const shade = ctx.createRadialGradient(canvas.width / 2, 260, 100, canvas.width / 2, 300, minerPhone ? Math.max(740, canvas.width * .65) : 740);
         shade.addColorStop(0, theme.glow);
         shade.addColorStop(0.55, "rgba(30, 15, 8, 0.18)");
         shade.addColorStop(1, "rgba(3, 2, 1, 0.62)");
@@ -2016,6 +2036,7 @@
         ctx.strokeStyle = "#ffb12e";
         ctx.lineWidth = 4;
         [[120, 626, 242, 596], [426, 646, 528, 610], [742, 625, 884, 650]].forEach(([x1, y1, x2, y2]) => {
+            if (minerPhone) { x1 *= canvas.width / 1080; x2 *= canvas.width / 1080; }
             ctx.beginPath();
             ctx.moveTo(x1, y1);
             ctx.lineTo((x1 + x2) / 2 - 16, (y1 + y2) / 2 + 8);
@@ -2568,7 +2589,7 @@
 
     function renderActionHint() {
         if (!actionHintEl) return;
-        const visible = gamePhase === "PLAYING" && !paused && !guideOpen
+        const visible = gamePhase === "PLAYING" && !paused && !guideOpen && !minerTutorialStep
             && (state !== "IDLE" || idleSeconds >= 3);
         const hint = state === "SHOOTING" ? "再點礦坑可提早收回，礦車仍可移動"
             : state === "RETRACTING" ? (caughtItem?.type === "gold"
@@ -2663,7 +2684,6 @@
 
     function beginCartDrag(event) {
         if (gamePhase !== "PLAYING" || paused || guideOpen || shopOpen || cartDrag || event.button !== 0) return;
-        if (minerTutorialStep > 1) return;
         const point = canvasPoint(event);
         cartClickSuppressed = false;
         cartDrag = { id:event.pointerId, element:event.currentTarget, startX:event.clientX,
@@ -2847,7 +2867,7 @@
         if (event.code === "KeyX") { event.preventDefault(); if (!event.repeat) releaseCaughtItem(); return; }
         if (["ArrowLeft", "KeyA", "ArrowRight", "KeyD"].includes(event.code)) {
             event.preventDefault();
-            if (gamePhase === "PLAYING" && minerTutorialStep === 0) { moveKeys.add(event.code); syncMovementInput(); }
+            if (gamePhase === "PLAYING") { moveKeys.add(event.code); syncMovementInput(); }
         }
         if (event.code === "Space") {
             event.preventDefault();
@@ -2873,9 +2893,35 @@
     const hashLessonData = readLessonDataFromHash();
     if (hashLessonData) applyMinerData(hashLessonData);
 
-    // 用容器實際寬高計算，避免 canvas 的原始 1080 × 675 撐破 CSS grid。
+    // 手機橫向延伸礦坑寬度，物件保持等比例；桌機／平板沿用 1080 × 675。
     function fitGameCanvas() {
         const stage = canvas.parentElement;
+        if (!stage.clientWidth || !stage.clientHeight) return;
+        const nextWidth = minerPhone && matchMedia("(orientation:landscape)").matches
+            ? Math.max(1080, Math.round(canvas.height * stage.clientWidth / stage.clientHeight)) : canvas.width;
+        const widthChanged = nextWidth !== canvas.width;
+        if (widthChanged) {
+            const ratio = nextWidth / canvas.width;
+            const hookX = hookLength * Math.sin(angle), hookY = hookLength * Math.cos(angle);
+            canvas.width = nextWidth;
+            CART_MAX_X = canvas.width - CART_MIN_X;
+            MAX_HOOK_LENGTH = Math.hypot(canvas.width, canvas.height);
+            origin.x = Math.max(CART_MIN_X, Math.min(CART_MAX_X, origin.x * ratio));
+            for (const item of items) item.x *= ratio;
+            for (const particle of particles) particle.x *= ratio;
+            for (const pebble of cavePebbles) pebble.x *= ratio;
+            if (state === "SHOOTING" || state === "RETRACTING") {
+                angle = Math.atan2(hookX * ratio, hookY);
+                hookLength = Math.max(defaultHookLength, Math.hypot(hookX * ratio, hookY));
+                if (caughtItem) {
+                    const factor = caughtItem.type === "bomb" ? .45 : Math.max(MIN_GOLD_PULL_FACTOR, caughtItem.pullFactor || .5);
+                    caughtPullSpeed = Math.min(hookSpeed * factor,
+                        (hookLength - defaultHookLength) / (Math.max(caughtReturnSeconds, 1 / 60) * 60));
+                }
+            }
+            backdrop.width = canvas.width;
+            backdropKey = "";
+        }
         const scale = Math.max(0, Math.min(stage.clientWidth / canvas.width, stage.clientHeight / canvas.height));
         canvas.style.width = `${canvas.width * scale}px`;
         canvas.style.height = `${canvas.height * scale}px`;
@@ -2883,6 +2929,13 @@
         stage.style.setProperty("--miner-canvas-inset-x", `${(stage.clientWidth - canvas.width * scale) / 2}px`);
         stage.style.setProperty("--miner-canvas-inset-y", `${(stage.clientHeight - canvas.height * scale) / 2}px`);
         cartCanvasRect=canvas.getBoundingClientRect();
+        if (widthChanged) {
+            for (const item of items) {
+                if (!item.active) continue;
+                const position = findReleasePosition(item, item.x, item.y);
+                if (position) { item.x = position.x; item.y = position.y; }
+            }
+        }
         resetMovement();
         syncCartSpeechButton();
         renderProgress();
