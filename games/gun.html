@@ -1660,6 +1660,7 @@ const reloadBarEl=document.getElementById('reloadBar'),
       ammoNumEl=document.getElementById('ammoNum'),powerupEl=document.getElementById('powerup'),supplyAlertEl=document.getElementById('supplyAlert');
 
 addEventListener('keydown',e=>{
+  if(!playing||paused)return;
   key[e.code]=true;
   if(e.code==='Space'){e.preventDefault();doJump();}
   if(e.code==='KeyV'&&!e.repeat)replayQuestionWord();
@@ -1691,7 +1692,7 @@ function doDash(){
   }
 }
 function reload(){                    // 1 秒換彈：期間不能開槍，可移動
-  if(!playing||reloading||mag>=weaponCapacity()||reserve<=0)return;
+  if(!playing||paused||reloading||mag>=weaponCapacity()||reserve<=0)return;
   reloading=true;reloadT=0;reloadS1=false;reloadS2=false;
   reloadBarEl.style.display='block';reloadFillEl.style.width='0%';
 }
@@ -1894,6 +1895,7 @@ function releaseTouch(e){
   }
 }
 function resetTouchControls(){
+  for(const code of Object.keys(key)) key[code]=false;
   stickId=null;lookId=null;fireTouchId=null;stickVec={x:0,y:0};dashZoneEntered=false;fireHeld=false;
   knob.style.left='50%';knob.style.top='50%';dashBtn.classList.remove('targeted');document.getElementById('fireBtn').classList.remove('active');
 }
@@ -1941,12 +1943,14 @@ document.getElementById('reloadBtn').addEventListener('click',reload);
 document.getElementById('grenadeBtn').addEventListener('click',throwGrenade);
 
 /* ============ 主迴圈 ============ */
-let lastT=performance.now();
+let lastT=performance.now(),renderDirty=true;
 function loop(now){
   requestAnimationFrame(loop);
   const dt=Math.min(0.05,(now-lastT)/1000);lastT=now;
+  if(document.hidden)return;
   if(playing&&!paused&&matchMedia('(orientation:portrait)').matches)pauseGame();
   if(playing&&!paused){
+    renderDirty=true;
     survivalSeconds+=dt;
     if(objectiveNoticeT>0){objectiveNoticeT=Math.max(0,objectiveNoticeT-dt);if(!objectiveNoticeT)objectiveEl.classList.remove('notice');}
     fireCd=Math.max(0,fireCd-dt);grenadeCd=Math.max(0,grenadeCd-dt);dashCd=Math.max(0,dashCd-dt);dashT=Math.max(0,dashT-dt);updateDashUI();if(fireHeld)fire();slowT=Math.max(0,slowT-dt);updateCapture(dt);updateRoadsideSupply(dt);updateSurpriseSupply(dt);updateSupplyAlert(dt);updatePowerups(dt);
@@ -2110,8 +2114,11 @@ function loop(now){
     /* 雲漂移 */
     for(const c of clouds){c.position.x+=dt*1.2;if(c.position.x>150)c.position.x=-150;}
   }
-  updateHouseLabelSizes();
-  renderer.render(scene,camera);
+  if(renderDirty){
+    updateHouseLabelSizes();
+    renderer.render(scene,camera);
+    renderDirty=false;
+  }
 }
 camera.position.set(player.x,EYE,player.z);
 camera.rotation.set(0,player.yaw,0);
@@ -2136,7 +2143,7 @@ requestAnimationFrame(loop);
 
 GameRuntime.onResize(()=>{
   camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);resetTouchControls();
+  renderer.setSize(innerWidth,innerHeight);renderDirty=true;resetTouchControls();
 });
 
 try{document.getElementById('gun-listening').checked=localStorage.getItem('sgGunListening')==='1';}catch(e){}

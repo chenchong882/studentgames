@@ -490,11 +490,14 @@ const JUMP_MS = 680, SLIDE_MS = 720;
 const COMPACT_TOUCH = matchMedia('(pointer:coarse)').matches && Math.min(innerWidth, innerHeight) <= 500;
 const LOW_DETAIL = matchMedia('(pointer:coarse)').matches || (!!navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
 const THEMES = [
-  { name:'city',   deco:['🏢','🏬','🏪','🌇','🏦','🏥'] },
-  { name:'jungle', deco:['🌴','🌳','🌺','🦜','🌿','🌴'] },
-  { name:'space',  deco:['🪐','⭐','👾','🛸','☄️','🌟'] },
+  { name:'city',   pillar:'#34495e', deco:['🏢','🏬','🏪','🌇','🏦','🏥'] },
+  { name:'jungle', pillar:'#5d4023', deco:['🌴','🌳','🌺','🦜','🌿','🌴'] },
+  { name:'space',  pillar:'#241f55', deco:['🪐','⭐','👾','🛸','☄️','🌟'] },
 ];
 const $ = id => document.getElementById(id);
+function escapeRunnerText(value){
+  return String(value).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
 function shuffle(arr){
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -764,7 +767,7 @@ let state = 'idle';   // idle | play | crash | over
 const MAX_LIVES = 5;
 let score, lives, combo, passed, gateNum, gateCorrect, wrongAnswers;
 let lane, jumpStart, slideStart, speed, roadY, surviveTimer, slowUntil, themeIdx;
-let timeScale = 1, runTime = 0;
+let timeScale = 1, runTime = 0, crashRemaining = 0;
 let obstacles = [], decks = {}, sinceGate, reflexTarget, nextIn, shownHints, hudGate;
 let slideHeld = false;   // 是否正按住「下」持續滑行
 
@@ -892,9 +895,9 @@ function obRoot(type){
   const el = document.createElement('div');
   el.className = 'part ob';
   el.style.left = '0'; el.style.top = '0';
-  world.appendChild(el);
-  return { el, type, dist: SPAWN_Z, resolved: false };
+  return { el, type, dist: SPAWN_Z, resolved: false }; // 先離線組裝，完成後一次掛入場景。
 }
+function addObstacle(o){ world.appendChild(o.el); obstacles.push(o); }
 function addObHint(root, text, bottomY){
   addLabel(root, 0, bottomY, 300, 40, text, 'obHint');
 }
@@ -904,7 +907,7 @@ function spawnWall(){
     near:'repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 2px, transparent 2px 14px), repeating-linear-gradient(90deg, rgba(0,0,0,.15) 0 3px, transparent 3px 40px), linear-gradient(#c25a44,#a4452f)',
   });
   if (!shownHints.has('wall')) { shownHints.add('wall'); addObHint(o.el, '⬆️ 上滑跳過！', 70); }
-  obstacles.push(o);
+  addObstacle(o);
 }
 function spawnBeam(){
   const o = obRoot('beam');
@@ -913,7 +916,7 @@ function spawnBeam(){
   addCube(o.el,  192, 0, 16, 84, 16, '#7d7d7d');
   addCube(o.el, 0, 58, 384, 26, 20, '#ff8c1a', { near:hz, far:hz });
   if (!shownHints.has('beam')) { shownHints.add('beam'); addObHint(o.el, '⬇️ 下滑鑽過！', 100); }
-  obstacles.push(o);
+  addObstacle(o);
 }
 function spawnBlock(){
   const o = obRoot('block');
@@ -927,20 +930,20 @@ function spawnBlock(){
     shownHints.add('block');
     addObHint(o.el, (o.openLane === 0 ? '⬅️' : o.openLane === 2 ? '➡️' : '↔️') + ' 閃進空的跑道！', 104);
   }
-  obstacles.push(o);
+  addObstacle(o);
 }
 function spawnGate(){
   const o = obRoot('gate');
   const q = drawQuestion();
   o.q = q; o.answerDir = q.answerDir; o.choice = null; o.acted = false; o.slowed = false;
-  const pc = getComputedStyle(app).getPropertyValue('--pillar').trim() || '#34495e';
+  const pc = THEMES[themeIdx].pillar;
   // 門框：四根柱子 + 頂梁
   [-190, -63, 63, 190].forEach(x => addCube(o.el, x, 0, 16, 178, 16, pc));
   addCube(o.el, 0, 178, 400, 16, 16, pc);
   // 中央：滑鏟橫樑（下答案）＋上方看板（上答案）
   const hz = 'repeating-linear-gradient(45deg, #ff8c1a 0 14px, #ffd23f 14px 28px)';
   addCube(o.el, 0, 52, 122, 22, 16, '#ff8c1a', { near:hz, far:hz });
-  const gl = (i, pre, post) => q.bigOpts ? '<span class="gemoji">' + q.opts[i] + '</span>' : (pre + q.opts[i] + post);
+  const gl = (i, pre, post) => q.bigOpts ? '<span class="gemoji">' + escapeRunnerText(q.opts[i]) + '</span>' : (pre + escapeRunnerText(q.opts[i]) + post);
   o.labels = {
     up:    addLabel(o.el, 0,    132, 118, 40, gl(0, '⬆️ ', '')),
     down:  addLabel(o.el, 0,     80, 118, 40, gl(1, '⬇️ ', '')),
@@ -949,7 +952,7 @@ function spawnGate(){
   };
   // 只有第一道題目門標亮正解當教學引導，其餘門全靠聽單字判斷、不透露解答
   if (gateNum === 0) o.labels[q.answerDir].classList.add('correctHint');
-  obstacles.push(o);
+  addObstacle(o);
   refreshHud();
 }
 
@@ -1041,7 +1044,8 @@ function applyTheme(){
 /* ================= 判定 ================= */
 // 複習使用英文／中文配對，不把作答方向或圖片當成單字。
 function runnerReviewRecord(q){
-  const prompt=q.q.replace(/<[^>]*>/g,'').trim(),answer=q.opts[DIRS.indexOf(q.answerDir)];
+  const label=document.createElement('div');label.innerHTML=q.q;
+  const prompt=label.textContent.trim(),answer=q.opts[DIRS.indexOf(q.answerDir)];
   const entry=runnerPool&&runnerPool.find(w=>w.word===q.say);
   if(entry)return {prompt,answer:entry.word,meaning:entry.chinese,kind:'word'};
   const cn=prompt.match(/^「(.+)」的英文是/),en=prompt.match(/^「?([A-Za-z][A-Za-z .'-]*?)」?\s*的中文是/);
@@ -1096,6 +1100,7 @@ function resolveObstacle(o, hitTime = runTime){
 
 function crash(o){
   state = 'crash';
+  crashRemaining = 1.05;
   slowUntil = 0; timeScale = 1;
   slideHeld = false;
   clearAction();
@@ -1110,7 +1115,7 @@ function crash(o){
   if (o.type === 'gate') {
     gateNum++;
     const idx = DIRS.indexOf(o.answerDir);
-    const correctText = DIR_ICON[o.answerDir] + ' ' + o.q.opts[idx];
+    const correctText = DIR_ICON[o.answerDir] + ' ' + escapeRunnerText(o.q.opts[idx]);
     const chosenIdx = DIRS.indexOf(o.choice);
     if(o.choice)RoundReview.wrong({...runnerReviewRecord(o.q),chosen:chosenIdx>=0?o.q.opts[chosenIdx]:o.choice});
     else RoundReview.unanswered(runnerReviewRecord(o.q));
@@ -1123,12 +1128,6 @@ function crash(o){
     showToast(o.type === 'wall' ? '💥 撞牆了！要上滑跳過' :
               o.type === 'beam' ? '💥 撞到橫樑！要下滑鑽過' : '💥 撞到路障！要閃進空跑道', 1400);
   }
-  setTimeout(() => {
-    if (lives <= 0) { gameOver(); return; }
-    char.classList.remove('crashed');
-    jumpStart = -9999; slideStart = -9999;
-    state = 'play';
-  }, 1050);
 }
 
 /* ================= 主迴圈 ================= */
@@ -1138,6 +1137,14 @@ function loop(now){
   const rawDt = Math.min(now - last, 50) / 1000;
   last = now;
 
+  if (state === 'crash') {
+    crashRemaining -= rawDt;
+    if (crashRemaining <= 0) {
+      if (lives <= 0) gameOver();
+      else { char.classList.remove('crashed'); jumpStart = -9999; slideStart = -9999; state = 'play'; }
+    }
+    requestAnimationFrame(loop); return;
+  }
   if (state === 'play') {
     const frameStart = runTime;
     // 動作與障礙共用夾住掉幀後的時間；20% 思考減速仍只作用在跑道移動。
@@ -1308,7 +1315,8 @@ function startGame(){
   obstacles = [];
   score = 0; lives = MAX_LIVES; combo = 0; passed = 0;
   gateNum = 0; gateCorrect = 0; wrongAnswers = [];
-  speed = runSpeed(); roadY = 0; surviveTimer = 0; slowUntil = 0; timeScale = 1; runTime = 0;
+  speed = runSpeed(); roadY = 0; surviveTimer = 0; slowUntil = 0; timeScale = 1; runTime = 0; crashRemaining = 0;
+  paused = false; $('pauseScreen').classList.add('hidden'); last = performance.now();
   sinceGate = 0; reflexTarget = 3; nextIn = 500;
   if (runnerPool) rebuildRunnerBank();   // 套用本局選的模式與全圖檔開關
   decks = {}; shownHints = new Set(); themeIdx = -1;
@@ -1331,8 +1339,12 @@ function gameOver(){
   hideHud();
   const total = gateCorrect + wrongAnswers.length;
   const acc = total ? Math.round(gateCorrect / total * 100) : 0;
-  const best = Math.max(score, +(localStorage.getItem('wordParkour3DBest') || 0));
-  localStorage.setItem('wordParkour3DBest', best);
+  let best = score;
+  try {
+    const stored = Number(localStorage.getItem('wordParkour3DBest'));
+    if (Number.isFinite(stored)) best = Math.max(score, stored);
+    localStorage.setItem('wordParkour3DBest', best);
+  } catch(e) {} // 儲存被瀏覽器封鎖或已滿，仍須顯示本局結算。
   $('stScore').textContent = score;
   $('stPassed').textContent = passed;
   $('stAcc').textContent = acc + '%';
@@ -1358,7 +1370,7 @@ $('replayBtn').addEventListener('click', startGame);
 /* ===== 暫停 + 玩法守則 ===== */
 let paused = false, guideOpen = false;
 function togglePause(){
-  if (state !== 'play') return;
+  if (state !== 'play' && state !== 'crash') return;
   paused = !paused;
   $('pauseScreen').classList.toggle('hidden', !paused);
   if (paused) { try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){} }
@@ -1395,14 +1407,14 @@ themeIdx = -1; gateNum = 0; applyTheme();
 requestAnimationFrame(loop);
 addEventListener('visibilitychange',()=>{
   if(!document.hidden)return;
-  if(state==='play'&&!paused)togglePause(); else stopBgm();
+  if((state==='play'||state==='crash')&&!paused)togglePause(); else stopBgm();
 });
 let runnerPortrait=innerHeight>=innerWidth;
 GameRuntime.onResize(()=>{
   const portrait=innerHeight>=innerWidth;
   if(portrait===runnerPortrait)return;
   runnerPortrait=portrait;tracking=false;endSlideHold();
-  if(state==='play'&&!paused)togglePause();
+  if((state==='play'||state==='crash')&&!paused)togglePause();
 },app);
 
 /* ===== 外部單字介面：用本單元單字自動出題（與 miner/bomb 同標準）===== */
@@ -1424,6 +1436,7 @@ function normalizeRunnerWords(words){
 // 鐵則：圖片題一律「英文＋發音 → 選圖」，絕不出「看圖選字」，也絕不出「圖↔中」
 function makeRunnerBank(pool, mainTypes, sideTypes){
   if(pool.length<4) return null;
+  const picturePool=GameData.picturePool(pool), pictureWords=new Set(picturePool);
   function distract(exclude, field){
     const out=[], seen=new Set([exclude]);
     for(const w of _shuf(pool)){ const v=w[field]; if(v&&!seen.has(v)){ seen.add(v); out.push(v); } if(out.length===3) break; }
@@ -1431,14 +1444,14 @@ function makeRunnerBank(pool, mainTypes, sideTypes){
   }
   function distractEmoji(self){
     const out=[], seen=new Set([self.emoji]);
-    for(const w of _shuf(GameData.picturePool(pool))){ if(w.emoji&&!seen.has(w.emoji)){ seen.add(w.emoji); out.push(w.emoji); } if(out.length===3) break; }
+    for(const w of _shuf(picturePool)){ if(w.emoji&&!seen.has(w.emoji)){ seen.add(w.emoji); out.push(w.emoji); } if(out.length===3) break; }
     return out;
   }
   const gen = {
-    cn2en: w=>{ const d=distract(w.word,'word'); return d.length<3?null:{ q:'「'+w.chinese+'」的英文是？', opts:[w.word,...d], a:0, say:w.word }; },
-    en2cn: w=>{ const d=distract(w.chinese,'chinese'); return d.length<3?null:{ q:'「'+w.word+'」的中文是？', opts:[w.chinese,...d], a:0, say:w.word }; },
-    en2pic: w=>{ if(!GameData.picturePool(pool).includes(w)) return null; const d=distractEmoji(w); return d.length<3?null:{ q:'🔊 <b>'+w.word+'</b>　選出正確的圖片', opts:[w.emoji,...d], a:0, say:w.word, bigOpts:true }; },
-    say2pic: w=>{ if(!GameData.picturePool(pool).includes(w)) return null; const d=distractEmoji(w); return d.length<3?null:{ q:'🔊 聽聽看，選出正確的圖片', opts:[w.emoji,...d], a:0, say:w.word, bigOpts:true }; },
+    cn2en: w=>{ const d=distract(w.word,'word'); return d.length<3?null:{ q:'「'+escapeRunnerText(w.chinese)+'」的英文是？', opts:[w.word,...d], a:0, say:w.word }; },
+    en2cn: w=>{ const d=distract(w.chinese,'chinese'); return d.length<3?null:{ q:'「'+escapeRunnerText(w.word)+'」的中文是？', opts:[w.chinese,...d], a:0, say:w.word }; },
+    en2pic: w=>{ if(!pictureWords.has(w)) return null; const d=distractEmoji(w); return d.length<3?null:{ q:'🔊 <b>'+escapeRunnerText(w.word)+'</b>　選出正確的圖片', opts:[w.emoji,...d], a:0, say:w.word, bigOpts:true }; },
+    say2pic: w=>{ if(!pictureWords.has(w)) return null; const d=distractEmoji(w); return d.length<3?null:{ q:'🔊 聽聽看，選出正確的圖片', opts:[w.emoji,...d], a:0, say:w.word, bigOpts:true }; },
   };
   const build = types=>{ let out=[]; (types||[]).forEach(t=>{ if(gen[t]) out=out.concat(pool.map(gen[t]).filter(Boolean)); }); return out; };
   const main=_shuf(build(mainTypes));

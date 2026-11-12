@@ -1112,7 +1112,8 @@ class Unit{
   }
   nearestEnemy(){
     let best = null, bd = Infinity;
-    for(const e of this.enemies()){
+    for(const e of state.units){
+      if(e.side === this.side || e.hp <= 0) continue;
       const d = Math.abs(e.x - this.x);
       if(d < bd){bd = d; best = e;}
     }
@@ -1176,6 +1177,7 @@ function initState(stageIndex, progress){
     lastPassiveGold:now,
     lastEnemySpawn:now,
     quizLocked:false,
+    questionDelay:0,
     // ── 等級系統 ──
     power:progress.power,                 // 跨關保留
     levels:{ ...progress.levels },        // 各兵種獨立等級 1~5
@@ -1841,12 +1843,16 @@ function loop(ts){
   if(battleViewDirty && state && paused) drawBattleFrame(pauseStart);
   if(paused){ requestAnimationFrame(loop); return; }   // 暫停：保持排程但不推進
   if(!state || state.phase !== 'playing') return;
-  const dt = ts - lastTime;
+  const dt = Math.max(0, Math.min(50, ts - lastTime));
   lastTime = ts;
   const now = Date.now();
   const elapsed = (now - state.startMs) / 1000;
   state.timeLeft = Math.max(0, state.stage.durationSec - Math.floor(elapsed));
   state.cameraShake = Math.max(0, state.cameraShake - dt);
+  if(state.questionDelay > 0){
+    state.questionDelay = Math.max(0, state.questionDelay - dt);
+    if(state.questionDelay === 0) loadQuestion();
+  }
 
   updateEnemyTier(elapsed);
   maybeSpawnBoss(elapsed);
@@ -1934,6 +1940,12 @@ function resumeGame(){
     state.startMs += gap;
     state.lastPassiveGold += gap;
     state.lastEnemySpawn += gap;
+    for(const u of state.units){
+      if(u.lastAttack) u.lastAttack += gap;
+      if(u.attackFlash) u.attackFlash += gap;
+    }
+    for(const effect of state.effects) effect.born += gap;
+    for(const label of state.floats) label.born += gap;
   }
   lastTime = performance.now();
   if(state && state.phase === 'playing') startBgm();
@@ -2206,7 +2218,7 @@ function loadQuestion(){
 }
 
 function checkAnswer(chosen, btn){
-  if(!state || state.quizLocked || state.phase !== 'playing') return;
+  if(!state || paused || state.quizLocked || state.phase !== 'playing') return;
   state.quizLocked = true;
   const btns = document.querySelectorAll('.opt-btn');
   btns.forEach(b => b.onclick = null);
@@ -2251,7 +2263,7 @@ function checkAnswer(chosen, btn){
       state.floats.push({ x:450, y:145, text:'+'+gained+' 金', color:'#4cc864', life:900, born:Date.now() });
     }
     fb.className = 'fb-correct';
-    setTimeout(loadQuestion, 760);
+    state.questionDelay = 760;
   } else {
     RoundReview.wrong({chosen:currentQuestion.opts[chosen]});
     RoundReview.endQuestion();
@@ -2264,7 +2276,7 @@ function checkAnswer(chosen, btn){
     if(state.boss) bossOnWrong();
     fb.textContent = applyWrongPenalty();
     fb.className = 'fb-wrong';
-    setTimeout(loadQuestion, 980);
+    state.questionDelay = 980;
   }
   updateHUD();
 }
@@ -2440,9 +2452,10 @@ function setAllPic(on){ allPic=on; try{ localStorage.setItem('sgAllPic',on?'1':'
 document.getElementById('allpic-mix').addEventListener('click',()=>setAllPic(false));
 document.getElementById('allpic-only').addEventListener('click',()=>setAllPic(true));
 addEventListener('visibilitychange',()=>{
+  if(document.hidden && state && state.phase === 'playing') pauseGame();
   if(!bgmAudio)return;
   if(document.hidden){ try{bgmAudio.pause();}catch(e){} }
-  else if(state&&state.phase==='playing'){ const p=bgmAudio.play(); if(p&&p.catch)p.catch(()=>{}); }
+  else if(state&&state.phase==='playing'&&!paused){ const p=bgmAudio.play(); if(p&&p.catch)p.catch(()=>{}); }
 });
 
 /* 暫停後的返回確認面板：記住目前單字，返回時帶回主機 */

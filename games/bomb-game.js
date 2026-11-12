@@ -852,6 +852,34 @@ const HOUSE_PALETTE = [
   { wall:'#ce93d8', roof:'#6a1b9a', win:'rgba(255,240,140,0.9)' },
 ];
 
+// 房子答案整題不變；快取字牌與 emoji，避免每幀量字和重做彩色字形。
+const houseLabelSprites = new Map();
+if(document.fonts)document.fonts.ready.then(()=>{houseLabelSprites.clear();_renderDirty=true;});
+function houseLabelSprite(label, picture, hinted, wrong) {
+  const dpr=GameRuntime.pixelRatio(),key=JSON.stringify([label,picture,hinted,wrong,dpr]);
+  if(houseLabelSprites.has(key))return houseLabelSprites.get(key);
+  const layer=document.createElement('canvas'),g=layer.getContext('2d');
+  const font=picture?'30px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",Arial'
+    :"bold 13px 'Arial Rounded MT Bold', Arial, 'Noto Sans TC', sans-serif";
+  g.font=font;
+  const labelWidth=g.measureText(label).width+(picture?0:18);
+  const width=Math.ceil(Math.max(picture?44:0,labelWidth)+64),height=(picture?44:24)+64;
+  layer.width=Math.ceil(width*dpr);layer.height=Math.ceil(height*dpr);
+  g.setTransform(dpr,0,0,dpr,width*dpr/2,height*dpr/2);
+  g.font=font;g.textAlign='center';g.textBaseline='middle';
+  if(hinted){g.shadowColor='#00FF88';g.shadowBlur=22;}
+  else if(wrong){g.shadowColor='#FF3333';g.shadowBlur=20;}
+  if(picture){g.fillStyle='#111';g.fillText(label,0,0);}
+  else {
+    g.fillStyle=hinted?'rgba(100,255,150,0.92)':wrong?'rgba(255,120,120,0.92)':'rgba(255,255,255,0.92)';
+    roundRect(g,-labelWidth/2,-12,labelWidth,24,8);g.fill();
+    g.fillStyle='#111';g.fillText(label,0,0);
+  }
+  const sprite={canvas:layer,width,height};
+  if(houseLabelSprites.size>=96)houseLabelSprites.clear();
+  houseLabelSprites.set(key,sprite);return sprite;
+}
+
 class House {
   constructor(x, groundY, word, index) {
     this.x = x; this.groundY = groundY;
@@ -1038,42 +1066,8 @@ class House {
     const zh = qt === 'en2cn' ? chineseForWord(this.word) : '';
     const label = zh || this.word;
 
-    // Glow / flash (reactive only)
-    if (isHinted) {
-      c.shadowColor = '#00FF88'; c.shadowBlur = 22;
-    } else if (isWrong) {
-      c.shadowColor = '#FF3333'; c.shadowBlur = 20;
-    }
-
-    if (emoji) {
-      // Picture-matching mode: show the image, no English text to read.
-      c.font = '30px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",Arial';
-      c.textAlign = 'center';
-      c.textBaseline = 'middle';
-      c.fillText(emoji, this.x, lY);
-    } else {
-      // No gold highlight for the target — every label looks the same so the
-      // player must read (or listen) to find the right one. Green = hint after
-      // repeated misses, red = just answered wrong; both are reactive feedback.
-      c.font = `bold 13px 'Arial Rounded MT Bold', Arial, 'Noto Sans TC', sans-serif`;
-      const tw  = c.measureText(label).width;
-      const pad = 9;
-      const lw  = tw + pad * 2;
-      const lh  = 24;
-      const lx  = this.x - lw/2;
-      const ly  = lY - lh/2;
-
-      c.fillStyle = isHinted ? 'rgba(100,255,150,0.92)'
-                  : isWrong  ? 'rgba(255,120,120,0.92)'
-                  :            'rgba(255,255,255,0.92)';
-      roundRect(c, lx, ly, lw, lh, 8);
-      c.fill();
-
-      c.fillStyle  = '#111';
-      c.textAlign  = 'center';
-      c.textBaseline = 'middle';
-      c.fillText(label, this.x, lY);
-    }
+    const sprite = houseLabelSprite(emoji || label, !!emoji, isHinted, isWrong);
+    c.drawImage(sprite.canvas, this.x-sprite.width/2, lY-sprite.height/2, sprite.width, sprite.height);
     c.shadowBlur = 0;
 
     // Wrong bubble
@@ -1084,7 +1078,7 @@ class House {
       c.fillStyle = 'rgba(255,60,60,0.92)';
       roundRect(c, this.x - 40, lY - 40, 80, 24, 8);
       c.fill();
-      c.fillStyle = 'white'; c.font = 'bold 13px Arial';
+      c.fillStyle = 'white'; c.font = 'bold 13px Arial'; c.textAlign='center'; c.textBaseline='middle';
       c.fillText('❌ Wrong!', this.x, lY - 29);
       c.restore();
     }
@@ -1137,16 +1131,17 @@ class Explosion {
       c.beginPath(); c.arc(this.x, this.y, this.shockR, 0, Math.PI*2); c.stroke();
       c.restore();
     }
+    c.save();
     this.pts.forEach(p => {
-      c.save(); c.globalAlpha = p.life;
+      c.globalAlpha = p.life;
       if (p.debris) {
         c.fillStyle = p.col; c.fillRect(p.x-p.sz/2, p.y-p.sz/2, p.sz, p.sz);
       } else {
         const r=p.sz*p.life;
         c.drawImage(explosionGlow(p.col),p.x-r,p.y-r,r*2,r*2);
       }
-      c.restore();
     });
+    c.restore();
   }
 }
 
@@ -1533,7 +1528,8 @@ function drawHUD(c, game) {
   // ── CENTER: Level label + theme（同一行：主題名排在 Level 右邊，不蓋住 Level 與進度格）──
   const lv = LEVELS[game.lvIdx];
   const levelTxt = `Level ${game.lvIdx+1}`;
-  const fullTheme = lv ? lv.themeZH : '🏆 Complete!';
+  const questionLabel = game.qType==='en2pic'?'📷 圖片配對':game.qType==='match'?'🔊 聽音找字':'📚 中英互選';
+  const fullTheme = lv ? (bombWordPool ? lv.themeZH : `${questionLabel} ${game.lvIdx+1}`) : '🏆 Complete!';
   c.textBaseline='middle'; c.textAlign='left';
   c.font='bold 16px Arial';
   const lvW = c.measureText(levelTxt).width;
@@ -2048,7 +2044,7 @@ class Game {
     if (this.phase === 'playing' || this.phase === 'levelClear') {
       this._prevPhase = this.phase;
       this.phase = 'paused';
-      joystick.reset(); for (const key in keys) keys[key] = false;
+      resetGameInput();
       Audio.stopBgm();
     } else if (this.phase === 'paused') {
       if (window.matchMedia('(orientation: portrait)').matches) return;
@@ -2689,6 +2685,7 @@ function handleStart(touches) {
 canvas.addEventListener('touchstart', e => { e.preventDefault(); handleStart(e.changedTouches); }, {passive:false});
 canvas.addEventListener('touchmove',  e => { e.preventDefault(); for(const t of e.changedTouches) joystick.move(t); }, {passive:false});
 canvas.addEventListener('touchend',   e => { e.preventDefault(); Audio.unlockSpeech(); for(const t of e.changedTouches){ joystick.end(t); bombButton.release(t); } }, {passive:false});
+canvas.addEventListener('touchcancel', e => { for(const t of e.changedTouches){ joystick.end(t); bombButton.release(t); } });
 
 // Mouse fallback (desktop testing)
 let mDown=false;
@@ -2701,7 +2698,7 @@ canvas.addEventListener('mousemove', e => {
   if (!mDown) return;
   joystick.move({clientX:e.clientX, clientY:e.clientY, identifier:0});
 });
-canvas.addEventListener('mouseup', e => {
+window.addEventListener('mouseup', e => {
   mDown=false;
   joystick.end({identifier:0});
   bombButton.release({identifier:0});
@@ -2731,6 +2728,15 @@ window.addEventListener('keydown', e => {
       (game.phase === 'playing' || game.phase === 'paused')) game.togglePause();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
+function resetGameInput() {
+  mDown=false; joystick.reset(); bombButton.tid=null; bombButton.pressed=0;
+  for (const key in keys) keys[key]=false;
+}
+function pauseOnFocusLoss() {
+  resetGameInput();
+  if(game.phase==='playing'||game.phase==='levelClear')game.togglePause();
+}
+window.addEventListener('blur', pauseOnFocusLoss);
 
 window.addEventListener('message', event => {
   if (event.source !== window.parent && event.origin !== window.location.origin) return;
@@ -2798,7 +2804,7 @@ const _speechOverlay = (() => {
 const _STEP = 1000 / 60;
 const portraitView=window.matchMedia('(orientation: portrait)');
 let _lastT = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-let _acc = 0;
+let _acc = 0, _lastDrawPhase = '';
 function loop(now) {
   if (now === undefined) now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
   let dt = now - _lastT;
@@ -2809,13 +2815,16 @@ function loop(now) {
   while (_acc >= _STEP && steps < 5) { game.update(); _acc -= _STEP; steps++; }
   if (steps === 5) _acc = 0;       // 補不完就放棄積欠，別陷入死亡螺旋
   // 高更新率裝置略過邏輯尚未前進的畫面；一般 60 Hz 保留每幀，避免時間戳誤差造成跳幀。
-  if(steps>0||dt>=_STEP*.75||_renderDirty){game.draw(ctx);_speechOverlay();_renderDirty=false;}
+  const frozen=game.phase==='paused'||game.phase==='gameOver';
+  if((!frozen&&(steps>0||dt>=_STEP*.75))||_renderDirty||game.phase!==_lastDrawPhase){
+    game.draw(ctx);_speechOverlay();_renderDirty=false;_lastDrawPhase=game.phase;
+  }
   requestAnimationFrame(loop);
 }
 
 resizeCanvas();
 loop();
-document.addEventListener('visibilitychange',()=>{ if(document.hidden&&game&&game.phase==='playing')game.togglePause(); });
+document.addEventListener('visibilitychange',()=>{ if(document.hidden)pauseOnFocusLoss(); });
 
 /* 暫停後的返回確認面板：記住目前單字，返回時帶回主機 */
 (function(){

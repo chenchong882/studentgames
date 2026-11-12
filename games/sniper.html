@@ -400,6 +400,7 @@ const rand = (a,b)=> a + Math.random()*(b-a);
 const randi = (a,b)=> Math.floor(rand(a,b+1));
 const pick = a => a[Math.floor(Math.random()*a.length)];
 const clamp = (v,a,b)=> v<a?a:(v>b?b:v);
+const escapeIntel = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=randi(0,i); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function wordsConflict(a,b){
   const ak=String(a&&a.word||'').toLowerCase(), bk=String(b&&b.word||'').toLowerCase();
@@ -811,17 +812,17 @@ function renderIntel(){
   const sb = document.getElementById('intel-speak');
   if(sb) sb.style.display = (intelMode==='en2cn' || intelMode==='en2pic') ? 'inline-flex' : 'none';
   if(intelMode === 'cloze'){
-    const html = answer.example.replace('{W}', '<span class="blank">______</span>');
+    const html = escapeIntel(answer.example).replace(/\{W\}/g, '<span class="blank">______</span>');
     el.innerHTML = html + ` <span class="desktop-detail" style="color:#94a3b8">（填入空格的字＝你的目標）</span>`;
   } else if(intelMode === 'en2cn'){
-    el.innerHTML = `<span class="desktop-detail">Target: </span><span class="phone-only phone-prompt">找中文</span><span class="blank">${answer.word}</span>` +
+    el.innerHTML = `<span class="desktop-detail">Target: </span><span class="phone-only phone-prompt">找中文</span><span class="blank">${escapeIntel(answer.word)}</span>` +
       ` <span class="desktop-detail" style="color:#94a3b8">— 狙殺這個單字「中文意思」所在樓層的目標</span>`;
   } else if(intelMode === 'en2pic'){
-    el.innerHTML = `<span class="desktop-detail">Target: </span><span class="phone-only phone-prompt">找圖片</span><span class="blank">${answer.word}</span>` +
+    el.innerHTML = `<span class="desktop-detail">Target: </span><span class="phone-only phone-prompt">找圖片</span><span class="blank">${escapeIntel(answer.word)}</span>` +
       ` <span class="desktop-detail" style="color:#94a3b8">— 狙殺對應「圖片」所在樓層的目標</span>`;
   } else {
-    el.innerHTML = `<span class="desktop-detail">Target: the word meaning </span><span class="phone-only phone-prompt">找英文</span><span class="blank">「${answer.meaning}」</span>` +
-      (answer.pos ? ` <span class="desktop-detail" style="color:#94a3b8">(${answer.pos})</span>` : '') +
+    el.innerHTML = `<span class="desktop-detail">Target: the word meaning </span><span class="phone-only phone-prompt">找英文</span><span class="blank">「${escapeIntel(answer.meaning)}」</span>` +
+      (answer.pos ? ` <span class="desktop-detail" style="color:#94a3b8">(${escapeIntel(answer.pos)})</span>` : '') +
       ` <span class="desktop-detail" style="color:#94a3b8">— 狙殺該英文單字所在樓層的目標</span>`;
   }
 }
@@ -1465,6 +1466,7 @@ function drawRoofRaid(){
 }
 
 function drawWallSegment(mat, x, y, w, h){
+  if(x+w < -8 || x > VW+8 || y+h < -8 || y > VH+8) return;
   ctx.save();
   if(mat === MAT.WINDOW){
     // 玻璃: 大致透明, 露出室內的人

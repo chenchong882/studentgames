@@ -684,9 +684,13 @@ function collectMats(g){
   const a=[];g.traverse(o=>{if(o.isMesh&&o.material.emissive)a.push(o.material);});
   return a;
 }
+const sharedGeometries=new Set();
 function removeObj(g){
   scene.remove(g);
-  g.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose();}});
+  g.traverse(o=>{
+    if(o.isMesh){if(!sharedGeometries.has(o.geometry))o.geometry.dispose();o.material.dispose();}
+    else if(o.isSprite)o.material.dispose(); // Sprite 材質獨立，SOFT / QTEX 貼圖共用，不在這裡釋放。
+  });
 }
 function spawnDino(){
   const e=elapsed;
@@ -1329,6 +1333,7 @@ function updateLightBeams(dt){
 
 /* ============ 射擊 ============ */
 const shellGeo=new THREE.SphereGeometry(0.16,6,5);
+sharedGeometries.add(shellGeo);
 const shellMat=new THREE.MeshBasicMaterial({color:0xffd27a});
 function fire(){
   const tip=tipObj.getWorldPosition(_v1.clone());
@@ -1593,6 +1598,7 @@ function updPtero(p,dt){
   }
 }
 const boltGeo=new THREE.CylinderGeometry(0.1,0.1,1.8,5);
+sharedGeometries.add(boltGeo);
 boltGeo.rotateX(Math.PI/2);
 const boltMat=new THREE.MeshBasicMaterial({color:0x77ff77});
 function updUFO(u,dt){
@@ -2284,7 +2290,7 @@ window.DBG_SIGNS=()=>round?JSON.stringify(round.items.map(it=>{
     sx:Math.round((v.x*0.5+0.5)*innerWidth),sy:Math.round((-v.y*0.5+0.5)*innerHeight),
     onScreen:v.z<1&&Math.abs(v.x)<0.95&&Math.abs(v.y)<0.95};
 })):'null';
-let last=performance.now();
+let last=performance.now(),lastPausedRender=0;
 function loop(now){
   if(state==='play'&&!paused&&matchMedia('(orientation:portrait)').matches)togglePause();
   const dt=Math.min(0.033,(now-last)/1000);last=now;
@@ -2293,7 +2299,8 @@ function loop(now){
     updCamera(dt);
     if(state!=='menu')updHUD();
   }
-  renderer.render(scene,camera);
+  // 暫停畫面沒有遊戲更新；僅低頻重繪背景，保留旋轉螢幕後的畫面更新。
+  if(!paused||now-lastPausedRender>=250){renderer.render(scene,camera);lastPausedRender=now;}
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);

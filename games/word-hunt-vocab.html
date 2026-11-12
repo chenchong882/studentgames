@@ -240,6 +240,8 @@
         let seconds = 0;
         let timerId = null;
         let dragging = false;
+        let activePointerId = null;
+        let dragGridRect = null;
         let startCell = null;
         let activeLine = null;
         let activeSelection = null;
@@ -429,11 +431,16 @@
             return `${'★'.repeat(stars)}<span class="empty">${'☆'.repeat(5 - stars)}</span>`;
         }
 
+        function gridRectForSelection() {
+            if (!dragging) return grid.getBoundingClientRect();
+            return dragGridRect || (dragGridRect = grid.getBoundingClientRect());
+        }
+
         function cellCenter(row, col) {
-            const cell = grid.querySelector(`[data-row="${row}"][data-col="${col}"]`);
-            const cellRect = cell.getBoundingClientRect();
-            const gridRect = grid.getBoundingClientRect();
-            return { x: cellRect.left - gridRect.left + cellRect.width / 2, y: cellRect.top - gridRect.top + cellRect.height / 2, width: cellRect.width, height: cellRect.height };
+            // 9 × 9 等分棋盤以格線計算，不讀取正在縮放動畫中的字母尺寸。
+            const rect = gridRectForSelection();
+            const width = rect.width / GRID_SIZE, height = rect.height / GRID_SIZE;
+            return { x: (col + .5) * width, y: (row + .5) * height, width, height };
         }
 
         function addLine(color, opacity = .58) {
@@ -462,7 +469,7 @@
 
         function snappedSelection(event) {
             const start = cellCenter(startCell.row, startCell.col);
-            const rect = grid.getBoundingClientRect();
+            const rect = gridRectForSelection();
             const dx = event.clientX - rect.left - start.x;
             const dy = event.clientY - rect.top - start.y;
             if (Math.abs(dx) < 2 && Math.abs(dy) < 2) return { end: { x: start.x, y: start.y }, row: startCell.row, col: startCell.col };
@@ -548,10 +555,12 @@
 
         function onPointerDown(event) {
             const cell = event.target.closest('.cell');
-            if (!cell || timerId === null) return;
+            if (!cell || timerId === null || dragging || (event.pointerType === 'mouse' && event.button !== 0)) return;
             event.preventDefault();
             window.getSelection()?.removeAllRanges();
             dragging = true;
+            activePointerId = event.pointerId;
+            dragGridRect = grid.getBoundingClientRect();
             startCell = { row: Number(cell.dataset.row), col: Number(cell.dataset.col) };
             activeLine = addLine(RIBBON_COLORS[foundWords.size % RIBBON_COLORS.length]);
             activeSelection = { row: startCell.row, col: startCell.col, end: cellCenter(startCell.row, startCell.col) };
@@ -560,7 +569,7 @@
         }
 
         function onPointerMove(event) {
-            if (!dragging) return;
+            if (!dragging || event.pointerId !== activePointerId) return;
             event.preventDefault();
             activeSelection = snappedSelection(event);
             const from = cellCenter(startCell.row, startCell.col);
@@ -568,20 +577,26 @@
         }
 
         function onPointerEnd(event) {
-            if (!dragging) return;
+            if (!dragging || event.pointerId !== activePointerId) return;
             event.preventDefault();
-            dragging = false;
-            if (grid.hasPointerCapture(event.pointerId)) grid.releasePointerCapture(event.pointerId);
             activeSelection = snappedSelection(event);
+            dragging = false;
+            activePointerId = null;
+            dragGridRect = null;
+            if (grid.hasPointerCapture(event.pointerId)) grid.releasePointerCapture(event.pointerId);
             const placement = selectedPlacement(activeSelection);
             if (placement && !foundWords.has(placement.word)) markFound(placement);
             else flashWrong(activeSelection);
             startCell = null;
         }
 
-        function onPointerCancel() {
-            if (!dragging) return;
+        function onPointerCancel(event) {
+            if (!dragging || (event && event.pointerId !== activePointerId)) return;
+            const pointerId = activePointerId;
             dragging = false;
+            activePointerId = null;
+            dragGridRect = null;
+            if (grid.hasPointerCapture(pointerId)) grid.releasePointerCapture(pointerId);
             activeLine?.remove();
             activeLine = null;
             startCell = null;
@@ -671,6 +686,7 @@
         function pauseGame() {
             if (paused || timerId === null) return;
             paused = true;
+            hintOverlay.hidden = true;
             onPointerCancel();
             stopTimer();
             grid.classList.add('locked');
@@ -827,6 +843,7 @@
         grid.addEventListener('pointermove', onPointerMove);
         grid.addEventListener('pointerup', onPointerEnd);
         grid.addEventListener('pointercancel', onPointerCancel);
+        grid.addEventListener('lostpointercapture', onPointerCancel);
         grid.addEventListener('touchstart', (event) => event.preventDefault(), { passive: false });
         ['selectstart', 'dragstart', 'contextmenu'].forEach((eventName) => grid.addEventListener(eventName, (event) => event.preventDefault()));
         pauseButton.addEventListener('click', pauseGame);
@@ -843,6 +860,7 @@
             }
         });
         window.addEventListener('resize', () => {
+            dragGridRect = null;
             ribbons.querySelectorAll('line[data-start-row]').forEach((line) => {
                 const from = cellCenter(Number(line.dataset.startRow), Number(line.dataset.startCol));
                 const to = cellCenter(Number(line.dataset.endRow), Number(line.dataset.endCol));
@@ -854,6 +872,9 @@
                 drawLine(activeLine, from, to, from.width * .76);
             }
         });
+        window.addEventListener('scroll', () => { dragGridRect = null; }, true);
+        document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+        window.addEventListener('blur', pauseGame);
         window.addEventListener('message', (event) => {
             if (event.data?.type === 'WORD_HUNT_DATA') applyWordHuntData(event.data.payload);
         });

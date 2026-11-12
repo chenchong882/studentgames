@@ -511,7 +511,7 @@ const CAM_H        = 15;     // 攝影機高度（世界單位）
 const canvas = document.getElementById("scene");
 const ctx = canvas.getContext("2d");
 let W = 0, H = 0, DPR = 1;
-let horizonY = 0, focal = 0;
+let horizonY = 0, focal = 0, sceneTime = 0;
 
 function resize() {
   DPR = GameRuntime.pixelRatio();
@@ -524,6 +524,7 @@ function resize() {
     for(const p of [...game.particles,...game.splashes]){p.x*=sx;p.y*=sy;}
     dragId=null;shipLabelsDirty=true;
   }
+  if(oldW)for(const ship of game.ships)ship.labelLayout=null; // 字型載入或版面重排時重算字卡。
   const width=Math.round(W*DPR),height=Math.round(H*DPR);
   if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -718,6 +719,7 @@ function showToast(text, color) {
 }
 
 /* ════════════════ 回合 / 關卡產生 ════════════════ */
+function hasSentenceCloze(word) { return typeof word.example === 'string' && word.example.includes('{W}'); }
 function conditionKeysForLevel(lv) {
   return ["word"];
 }
@@ -767,7 +769,7 @@ function newRound() {
     flag:  pick(flags),
   };
   game.target = target;
-  const withSentence = document.getElementById('ship-sentences').checked && target.word.example && Math.random() < 0.5;
+  const withSentence = document.getElementById('ship-sentences').checked && hasSentenceCloze(target.word) && Math.random() < 0.5;
   game.qType = wantPic ? "en2pic" : withSentence ? "sentence" : (Math.random() < 0.5 ? "cn2en" : "en2cn");
   RoundReview.begin({prompt:game.qType==="sentence"?target.word.example.replace("{W}","＿＿＿"):(game.qType==="cn2en"?target.word.meaning:target.word.word),answer:target.word.word,meaning:target.word.meaning});
 
@@ -902,9 +904,9 @@ function shipWorldX(ship, now) {
 }
 
 function shipScreenRect(ship) {
-  const p = project(shipWorldX(ship, performance.now()), ship.z);
+  const p = project(shipWorldX(ship, sceneTime), ship.z);
   const u = p.s * 1.65;
-  const bob = Math.sin(performance.now() / 600 + ship.bobPhase) * u * 0.25;
+  const bob = Math.sin(sceneTime / 600 + ship.bobPhase) * u * 0.25;
   const y = p.waterY + bob + ship.sinking * u * 5;
   return { x: p.sx, y, u, left: p.sx - 6.2 * u, right: p.sx + 6.2 * u, top: y - 7.5 * u, bottom: y + 1.6 * u };
 }
@@ -1999,13 +2001,18 @@ function drawShipLabels() {
       const picture = game.qType === "en2pic";
       const text = picture ? ship.word.emoji : (game.qType === "en2cn" && !ship.isEscort ? ship.word.meaning : ship.word.word);
       ctx.font = picture ? '28px sans-serif' : '700 16px Arial, "Noto Sans TC", sans-serif';
-      const lines = []; let line = '';
-      for (const ch of String(text)) {
-        if (line && ctx.measureText(line + ch).width > width - 16) { lines.push(line); line = ''; }
-        line += ch;
+      // 答案與欄寬不變時沿用換行結果，避免每幀對每個字重做文字測量。
+      let layout = ship.labelLayout;
+      if (!layout || layout.text !== text || layout.width !== width || layout.font !== ctx.font) {
+        const lines = []; let line = '';
+        for (const ch of String(text)) {
+          if (line && ctx.measureText(line + ch).width > width - 16) { lines.push(line); line = ''; }
+          line += ch;
+        }
+        lines.push(line);
+        layout = ship.labelLayout = { text, width, font:ctx.font, lines, height:Math.max(66, lines.length * (picture ? 30 : 20) + 36) };
       }
-      lines.push(line);
-      return { ship, picture, lines, height:Math.max(66, lines.length * (picture ? 30 : 20) + 36) };
+      return { ship, picture, lines:layout.lines, height:layout.height };
     });
     const height = Math.max(...items.map(item => item.height));
     items.forEach((item, col) => {
@@ -2275,12 +2282,13 @@ function tick(now) {
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
 
+  if (game.state !== "paused") sceneTime += dt * 1000;
   if (game.state === "playing") {
     advanceGameActions(dt);
     if (game.state === "playing") update(dt);
   }
 
-  render(now, dt);
+  render(sceneTime, dt);
 }
 
 function update(dt) {
@@ -2339,7 +2347,7 @@ function render(now, dt) {
   ctx.save();
 
   // 鏡頭震動
-  if (game.shakeT > 0) {
+  if (game.state === "playing" && game.shakeT > 0) {
     const sh = game.shakeT * 14;
     ctx.translate(rand(-sh, sh), rand(-sh, sh));
   }
@@ -2366,7 +2374,7 @@ function render(now, dt) {
 
   // ── 螢幕空間圖層 ──
   ctx.save();
-  if (game.shakeT > 0) {
+  if (game.state === "playing" && game.shakeT > 0) {
     const sh = game.shakeT * 10;
     ctx.translate(rand(-sh, sh), rand(-sh, sh));
   }
@@ -2380,7 +2388,7 @@ function render(now, dt) {
     drawThreatWarning(now);
     drawThreatTelegraph();
   }
-  drawDmgArc(dt);
+  drawDmgArc(game.state === "playing" ? dt : 0);
   ctx.restore();
 }
 
@@ -2458,8 +2466,8 @@ GameSetup.register({
   advanced:['#ship-advanced'],
   syncExtra:type=>{
     const input=document.getElementById('ship-sentences');
-    input.disabled=type==='picture'||!wordBank.some(w=>w.example);
-    document.getElementById('ship-sentence-note').textContent=input.disabled?'需選文字／混合練習，且題庫含例句。':'勾選後，部分文字題會以例句填空出題。';
+    input.disabled=type==='picture'||!wordBank.some(hasSentenceCloze);
+    document.getElementById('ship-sentence-note').textContent=input.disabled?'需選文字／混合練習，且題庫含可用的填空例句。':'勾選後，部分文字題會以例句填空出題。';
   },
   hasPictures:hasPicBank, count:()=>wordBank.length, getDifficulty:()=>selectedShipMode, setDifficulty:selectShipMode,
   hints:{simple:'BOSS 較慢，敵方狙擊手不會反擊。',hard:'BOSS 較快，敵方狙擊手會反擊。'}

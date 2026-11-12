@@ -1759,8 +1759,9 @@
         }
     }
 
+    const minerPortrait = matchMedia("(orientation:portrait)");
     function update() {
-        if (gamePhase === "PLAYING" && !paused && matchMedia("(orientation:portrait)").matches) openSettings();
+        if (gamePhase === "PLAYING" && !paused && minerPortrait.matches) openSettings();
         if (paused || shopOpen) { lastFrameTime = performance.now(); return; }
         const now = performance.now();
         const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
@@ -2481,13 +2482,20 @@
         ctx.restore();
     }
 
+    // 題目與字牌一幀不會換字；快取排版，避免每幀反覆縮字、量字。
+    const labelFontCache = new Map(), labelLayoutCache = new Map();
+    if (document.fonts) document.fonts.ready.then(() => { labelFontCache.clear(); labelLayoutCache.clear(); });
     function fitLabelFont(text, maxWidth, maxSize, minSize) {
+        const key = JSON.stringify([String(text), maxWidth, maxSize, minSize]);
+        if (labelFontCache.has(key)) return labelFontCache.get(key);
         let size = maxSize;
         while (size > minSize) {
             ctx.font = `900 ${size}px Arial, "Noto Sans TC", sans-serif`;
             if (ctx.measureText(String(text)).width <= maxWidth) break;
             size -= 1;
         }
+        if (labelFontCache.size >= 256) labelFontCache.clear();
+        labelFontCache.set(key, size);
         return size;
     }
 
@@ -2530,13 +2538,21 @@
         const maxLines = compact ? 2 : 1;
         const paddingX = compact ? 22 : 14;
 
-        const fontSize = fitLabelFont(text, maxLabelWidth - paddingX * 2, maxFontSize, minFontSize);
-        ctx.font = `900 ${fontSize}px Arial, "Noto Sans TC", sans-serif`;
-        const lines = wrapLabelText(text, maxLabelWidth - paddingX * 2, maxLines);
-        const lineHeight = fontSize * 1.05;
-        const measuredWidth = Math.max(...lines.map(line => ctx.measureText(line).width), 0);
-        const w = Math.max(minLabelWidth, Math.min(maxLabelWidth, measuredWidth + paddingX * 2));
-        const h = Math.max(compact ? 46 : 30, lines.length * lineHeight + (compact ? 16 : 10));
+        const layoutKey = JSON.stringify([String(text), radius, compact]);
+        let layout = labelLayoutCache.get(layoutKey);
+        if (!layout) {
+            const fontSize = fitLabelFont(text, maxLabelWidth - paddingX * 2, maxFontSize, minFontSize);
+            ctx.font = `900 ${fontSize}px Arial, "Noto Sans TC", sans-serif`;
+            const lines = wrapLabelText(text, maxLabelWidth - paddingX * 2, maxLines);
+            const lineHeight = fontSize * 1.05;
+            const measuredWidth = Math.max(...lines.map(line => ctx.measureText(line).width), 0);
+            const w = Math.max(minLabelWidth, Math.min(maxLabelWidth, measuredWidth + paddingX * 2));
+            const h = Math.max(compact ? 46 : 30, lines.length * lineHeight + (compact ? 16 : 10));
+            layout = { fontSize, lines, lineHeight, w, h };
+            if (labelLayoutCache.size >= 256) labelLayoutCache.clear();
+            labelLayoutCache.set(layoutKey, layout);
+        }
+        const { fontSize, lines, lineHeight, w, h } = layout;
 
         roundRect(-w / 2, -h / 2, w, h, 7);
         ctx.fillStyle = "rgba(255, 248, 217, 0.92)";
