@@ -180,6 +180,26 @@
     .skillBtn{width:72px;height:62px}.skillBtn .si{font-size:21px}.skillBtn .cd{font-size:20px}
   }
   @media(max-height:420px){#dashZone{bottom:200px;width:48px;height:48px;}}
+  /* 橫放手機也可能寬於 700px；觸控 HUD 與操控採同一判斷，左右欄替中央積分留空間。 */
+  body.tank-touch{--tank-top:max(8px,env(safe-area-inset-top,0px));
+    --tank-left:max(8px,env(safe-area-inset-left,0px));--tank-right:max(6px,env(safe-area-inset-right,0px));
+    --tank-stats-width:clamp(116px,16vw,156px);--tank-threat-width:clamp(112px,15vw,148px);}
+  body.tank-touch #hud{top:var(--tank-top);left:var(--tank-left);width:var(--tank-stats-width);min-width:0;
+    box-sizing:border-box;padding:7px 9px;font-size:12px;}
+  body.tank-touch #hud .row{margin:3px 0;gap:8px;}
+  body.tank-touch #hud .lab{letter-spacing:0;}
+  body.tank-touch #armorBar{height:6px;margin:4px 0 5px;}
+  body.tank-touch .hudEn,body.tank-touch #threatHud .lab,body.tank-touch #hint,body.tank-touch #fx:empty{display:none;}
+  body.tank-touch[data-sg-game="tank"] #threatHud{top:var(--tank-top);right:calc(var(--tank-right) + 56px);
+    width:var(--tank-threat-width);min-width:0;max-width:none;box-sizing:border-box;padding:8px 9px;font-size:12px;}
+  body.tank-touch #threatHud .row{justify-content:flex-end;margin:3px 0;white-space:nowrap;}
+  body.tank-touch #fx{font-size:11px;line-height:1.5;}
+  body.tank-touch #btnPause{top:var(--tank-top) !important;right:var(--tank-right) !important;}
+  body.tank-touch #tankProgress{top:var(--tank-top);left:calc(var(--tank-left) + var(--tank-stats-width) + 12px);
+    right:calc(var(--tank-right) + 56px + var(--tank-threat-width) + 12px);width:auto;transform:none;}
+  body.tank-touch #tankProgress .ph{font-size:12px;gap:8px;white-space:nowrap;}
+  body.tank-touch #wordPrompt{top:calc(var(--tank-top) + 66px);max-width:52vw;padding:7px 13px;}
+  body.tank-touch #wordPrompt .q{font-size:20px;}
   #tankRotateWarning{display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;
     padding:32px;background:rgba(8,12,20,.98);color:#ffe9a8;text-align:center;font:800 21px/1.6 -apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;cursor:auto;}
   #tankRotateWarning .rotateIcon{font-size:64px;line-height:1;margin-bottom:18px;animation:tankRotate 1.5s ease-in-out infinite alternate;}
@@ -196,17 +216,17 @@
 <body>
 <div id="tankRotateWarning" role="status"><div><div class="rotateIcon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div></div>
 <div id="hud" class="hidden">
-  <div class="row"><span class="lab">裝甲 ARMOR</span></div>
+  <div class="row"><span class="lab">裝甲<span class="hudEn"> ARMOR</span></span></div>
   <div id="armorBar"><div id="armorFill"></div></div>
-  <div class="row"><span class="lab">得分 SCORE</span><span class="val" id="vScore">0</span></div>
-  <div class="row"><span class="lab">擊殺 KILLS</span><span class="val" id="vKills">0</span></div>
+  <div class="row"><span class="lab">得分<span class="hudEn"> SCORE</span></span><span class="val" id="vScore">0</span></div>
+  <div class="row"><span class="lab">擊殺<span class="hudEn"> KILLS</span></span><span class="val" id="vKills">0</span></div>
 </div>
 <div id="threatHud" class="hidden">
   <div class="row"><span class="lab">威脅 THREAT</span><span class="val" id="vThreat" style="color:#ffb454">—</span></div>
   <div id="fx"></div>
 </div>
 <div id="tankProgress" class="hidden">
-  <div class="ph"><span>坦克積分 TANK POINTS</span><span id="progressText">0 / 1,000</span></div>
+  <div class="ph"><span>坦克積分<span class="hudEn"> TANK POINTS</span></span><span id="progressText">0 / 1,000</span></div>
   <div id="progressTrack"><div id="progressFill"></div>
     <span class="stageMark" id="stage1">💨 1,000</span><span class="stageMark" id="stage2">⚙️ 3,000</span><span class="stageMark" id="stage3">⚡ 6,000</span>
   </div>
@@ -2153,7 +2173,8 @@ addEventListener('mousedown',e=>{
 });
 addEventListener('mouseup',()=>mouse.down=false);
 /* ====== 觸控操控（平板 / 手機）：左側固定方向盤（可選浮動）+ 右半轉砲管(開砲鍵按住開砲＋微調、空白處滑動大幅快轉) ====== */
-const IS_TOUCH = matchMedia('(pointer:coarse)').matches || ('ontouchstart' in window);
+const IS_TOUCH = GameRuntime.touch;
+document.body.classList.toggle('tank-touch',IS_TOUCH);
 const stickEl=document.getElementById('moveStick'), knobEl=document.getElementById('moveKnob');
 const fireEl=document.getElementById('fireBtn');
 const STICK_R=58;          // 方向盤可拉半徑(px)
