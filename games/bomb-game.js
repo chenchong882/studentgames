@@ -1990,7 +1990,7 @@ class Game {
     this.streak      = 0;  // 連續答對數（答錯歸零），用於連擊加分
     this.totalCorrect= 0;  // 整局答對總題數（給結算等級基準用）
     this.perfectScore= 0;  // 完美基準分：每題滿分＋完美連擊＋過關獎勵的理論上限
-    this.questionFrames = 0; this.nextTargetFrames = 0;
+    this.questionFrames = 0; this.nextTargetPending = false;
     this.qStartT     = 0;  // 本題開始計時的時間戳（performance.now）
     this.endless     = false; // 按過「繼續」後 = true，之後打完不再跳結算
     this.levelClearT = 0;  // countdown before moving to next level
@@ -2102,7 +2102,7 @@ class Game {
       if (this.endless) { this._reshuffleRound(); return this._loadLevel(); }
       this.phase = 'victory'; clearInterval(this._timerInterval); Audio.stopBgm(); this._initVictoryConfetti(); RoundReview.show('📚 炸彈英文本局學習回顧',{stars:computeStars(this)}); return;
     }
-    this.nextTargetFrames = 0;
+    this.nextTargetPending = false;
     this.wordsLeft = [...lv.words];
     this.solvedCount = 0;
     // 留最後兩間不打：5 間打掉 3 間就通關，避免剩兩間時答案太好猜。
@@ -2174,7 +2174,7 @@ class Game {
 
   // ── Drop Bomb ──────────────────────────
   dropBomb() {
-    if (this.phase !== 'playing' || this.nextTargetFrames > 0) return;
+    if (this.phase !== 'playing' || this.nextTargetPending) return;
     if (this.plane.hidden || this.planeRespawnT > 0) return;
     if (this.bombsLeft <= 0) {
       this._float(this.plane.x, this.plane.y - 40, '💣 No bombs!', '#FF8800', 20);
@@ -2250,17 +2250,13 @@ class Game {
       return;
     }
     if (this.phase !== 'playing') return;
-    if (this.nextTargetFrames > 0) {
-      // 換題等待仍讓倒塌、爆炸與加分文字播放；飛機／敵人暫停，保留原本的安全讀題時間。
-      this.houses.forEach(h=>h.update());
-      this._updateFeedback();
-      bombButton.update();
-      this.nextTargetFrames--;
-      if (!this.nextTargetFrames) {
-        this.bombs = [];
-        if (this.solvedCount >= this.clearGoal) this._levelClear(); else this._nextTarget();
-      }
-      return;
+    if (this.nextTargetPending) {
+      // 答對後下一步就換題，讓飛行與爆炸動畫連續；舊炸彈不可命中新題。
+      this.nextTargetPending = false;
+      this.bombs = [];
+      if (this.solvedCount >= this.clearGoal) { this._levelClear(); return; }
+      this._nextTarget();
+      if (this.phase !== 'playing') return;
     }
     this.questionFrames++;
 
@@ -2304,7 +2300,7 @@ class Game {
       // House collision
       let hit = false;
       for (const h of this.houses) {
-        if (this.nextTargetFrames > 0 || h.destroyed || !h.checkHit(b)) continue;
+        if (this.nextTargetPending || h.destroyed || !h.checkHit(b)) continue;
         // Hit a house!
         b.active = false;
         this.exps.push(new Explosion(b.x, h.y + h.height/2, true));
@@ -2330,7 +2326,7 @@ class Game {
           Audio.success();
           this.wordsLeft = this.wordsLeft.filter(w => w !== h.word);
           this.solvedCount++;
-          this.nextTargetFrames = 54;
+          this.nextTargetPending = true;
         } else {
           // ❌ WRONG
           RoundReview.wrong({chosen:h.word});
