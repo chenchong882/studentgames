@@ -136,6 +136,27 @@
   #phone-portrait-guide svg { flex:none; width:44px; height:64px; color:#fbbf24; }
   #phone-portrait-guide h2 { margin:0; font-size:24px; color:#fbbf24; }
   #phone-portrait-guide p { margin:0; max-width:460px; font-size:16px; line-height:1.6; }
+  #training-materials { padding-top:8px; border-top:1px solid #64748b; color:#fde68a; font-size:14px; }
+  #answer-review-overlay { z-index:140; padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left)); background:rgba(3,7,18,.96); touch-action:pan-y; }
+  .answer-review-card { flex:none; width:min(520px,100%); max-height:100%; overflow-y:auto; overscroll-behavior:contain; padding:18px; border:1px solid #64748b; border-radius:18px; background:#0f172a; text-align:left; }
+  #answer-review-title { margin:0; font-size:24px; color:#f8fafc; }
+  #answer-review-status { margin:6px 0 14px; color:#cbd5e1; font-size:14px; }
+  .answer-comparison { margin-top:12px; padding:14px; border:2px solid; border-radius:12px; }
+  .answer-correct { border-color:#34d399; background:#062c24; color:#a7f3d0; }
+  .answer-wrong { border-color:#f87171; background:#3b141d; color:#fecaca; }
+  .answer-comparison h3 { margin:0 0 8px; font-size:16px; }
+  .answer-comparison .review-prompt { margin:0 0 10px; color:inherit; font-size:15px; line-height:1.5; overflow-wrap:anywhere; }
+  .answer-target { display:flex; align-items:center; gap:14px; }
+  .answer-picture { flex:none; font-size:56px; line-height:1.2; }
+  .answer-picture[hidden] { display:none; }
+  .answer-target-text { min-width:0; display:flex; flex-direction:column; gap:4px; overflow-wrap:anywhere; }
+  .answer-target-text strong { font-size:clamp(20px,5vw,28px); line-height:1.2; }
+  .answer-target-text span { color:#f8fafc; font-size:18px; line-height:1.5; }
+  #answer-review-speak { margin-top:12px; min-height:44px; padding:8px 14px; border:1px solid #6ee7b7; border-radius:9px; color:#d1fae5; background:#064e3b; font-family:inherit; font-size:15px; font-weight:700; line-height:1.4; cursor:pointer; touch-action:manipulation; }
+  .answer-review-actions { position:sticky; bottom:-18px; margin-bottom:-18px; padding:14px 0 18px; background:#0f172a; }
+  #answer-review-next { width:100%; min-height:48px; margin:0; border-radius:12px; touch-action:manipulation; }
+  #answer-review-overlay button:focus-visible { outline:3px solid #fff; outline-offset:3px; }
+  #answer-review-overlay button:active { filter:brightness(.9); }
   .help { margin-top: 22px; font-size: 13px; color: #94a3b8; line-height: 1.9; max-width: 480px; }
   .help kbd { background: rgba(255,255,255,0.12); border-radius: 4px; padding: 1px 7px; font-size: 12px; }
   .help .row { display: none; }
@@ -229,7 +250,7 @@
   <button class="pad-btn" id="fire-btn" type="button" disabled><span class="ico">🔫</span><span>開火</span></button>
 </div>
 <div class="mission-panel" id="roof-panel" hidden><p id="roof-title" role="timer" aria-live="off"></p><p id="roof-help">擊倒屋頂敵人！逾時扣 1 顆生命</p></div>
-<div class="mission-panel" id="training-panel" hidden><p id="training-help"></p><button id="training-skip" type="button">略過練習，開始任務</button></div>
+<div class="mission-panel" id="training-panel" hidden><p id="training-help"></p><p id="training-materials"><b>棕色木板、玻璃：普通彈可打穿。</b><br>灰色石牆：會擋住普通彈。</p><button id="training-skip" type="button">略過練習，開始任務</button></div>
 
 <div id="toast"></div>
 
@@ -247,6 +268,7 @@
         簡單模式每層最多 2 段石牆，目標較慢、窗戶較多；第 4、7 關的屋頂事件後可免費選一項：接下來 3 關每關普通彈 +1，或恢復 1 顆生命。困難模式保留付費商店。<br>
         簡單模式第 4、7 關後會發生屋頂緊急事件；困難模式第 3 關後可能在答題中遇到，每局最多 2 次，期間暫停英文計時。<br>
         屋頂敵人出現後須在 <b>10 秒內擊倒</b>，逾時扣 1 顆生命；使用獨立緊急彈藥，收鏡不會解除危機。<br><br>
+        <b>棕色木板、玻璃可用普通彈打穿</b>；灰色石牆會擋普通彈。看到目標走進木板後，仍可瞄準射擊。<br>
         <div class="help">
           <div class="row phone">📱 <b>手機直向玩</b>：點大樓或按 🔭 開鏡、拖曳微調，另一指按 🔫 開火、🔭 收鏡。</div>
           <div class="row tablet">📲 <b>平板</b>：點想看的位置開鏡，拖曳微調，按開火射擊。</div>
@@ -329,6 +351,24 @@
   <div class="game-pause-actions">
     <button class="btn" id="resume-btn">繼續遊戲</button>
     <button class="btn pick-btn" id="pause-menu-btn">← 返回遊戲選單</button>
+  </div>
+</div>
+
+<div class="overlay hide" id="answer-review-overlay" role="dialog" aria-modal="true" aria-labelledby="answer-review-title" aria-describedby="answer-review-status">
+  <div class="answer-review-card">
+    <h2 id="answer-review-title" tabindex="-1">這題選錯了</h2>
+    <p id="answer-review-status"></p>
+    <section class="answer-comparison answer-correct" aria-labelledby="answer-correct-title">
+      <h3 id="answer-correct-title">✓ 正確答案：應該選這個</h3>
+      <p class="review-prompt" id="answer-review-prompt"></p>
+      <div class="answer-target"><span class="answer-picture" id="answer-correct-picture" aria-hidden="true" hidden></span><div class="answer-target-text"><strong id="answer-correct-word"></strong><span id="answer-correct-meaning"></span></div></div>
+      <button id="answer-review-speak" type="button">再聽一次正確單字</button>
+    </section>
+    <section class="answer-comparison answer-wrong" aria-labelledby="answer-wrong-title">
+      <h3 id="answer-wrong-title">✗ 你剛剛選的：這題答錯</h3>
+      <div class="answer-target"><span class="answer-picture" id="answer-wrong-picture" aria-hidden="true" hidden></span><div class="answer-target-text"><strong id="answer-wrong-word"></strong><span id="answer-wrong-meaning"></span></div></div>
+    </section>
+    <div class="answer-review-actions"><button class="btn" id="answer-review-next" type="button">進入下一關</button></div>
   </div>
 </div>
 
@@ -536,7 +576,7 @@ function worldToScreen(wx, wy){
 }
 
 /* ---------- 遊戲狀態 ---------- */
-let state = 'menu'; // menu | playing | raid | raid-result | killcam | feedback | paused | supply | shop | over
+let state = 'menu'; // menu | playing | raid | raid-result | killcam | answer-review | feedback | paused | supply | shop | over
 let pausedFrom = 'playing', pauseStarted = 0;
 let WB = null;      // word bank
 let roundNo = 0, score = 0, money = 0, combo = 0;
@@ -560,6 +600,7 @@ let wind = 0;           // 風速(世界x偏移/單位)，前期為0
 let intelMode = 'cloze'; // cloze | hint
 let lastT = 0;
 let feedbackUntil = 0;
+let answerReview = null; // 答錯時快照題目與兩個選項，確認後才換題
 const MAX_ROUNDS = 10;
 let answerOrder = [], answerCounts = new Map(), reviewQueue = [];
 let shotsThisRound = 0, roundSettled = false, practiceOnly = false;
@@ -721,6 +762,7 @@ function pickRoundType(){
   return GameSetup.usePicture(WB.hasPic) ? 'en2pic' : (Math.random()<0.5?'cn2en':'en2cn');
 }
 function startRound(){
+  clearAnswerReview();
   roundNo++;
   if(roundNo > MAX_ROUNDS){ endGame(); return; }
 
@@ -969,11 +1011,14 @@ function tryFire(){
       enterKillcam(target,true);
     }else{
       settleQuestion('wrong',target.word.word);combo=0;
+      answerReview={correct:{...answer},chosen:{...target.word},type:roundType,round:roundNo,
+        prompt:roundType==='cloze'?answer.example.replace(/\{W\}/g,'＿＿＿'):roundType==='cn2en'?answer.meaning:answer.word};
       setMissionNote('判讀錯誤：你選了 '+target.word.word+'（'+target.word.meaning+'）；正解 '+answer.word+'（'+answer.meaning+'）。');
       enterKillcam(target,false);
     }
   }else{
-    showToast(blocked?(mode==='simple'?'石牆擋住了，等目標走到窗戶再射擊。':'石牆擋住了：等窗戶，或切換穿甲彈。'):'射偏了，再調整準心。',blocked?'#94a3b8':'#fbbf24');
+    if(blocked)setMissionNote('石牆擋住普通彈；棕色木板、玻璃可以打穿。'+(mode==='hard'?'也可選用穿甲彈。':''));
+    showToast(blocked?'石牆擋住了！木板、玻璃才可用普通彈打穿。':'射偏了，再調整準心。',blocked?'#94a3b8':'#fbbf24');
     if(ammo<=0&&apStock<=0)loseRound('彈藥耗盡');
     else{
       triggerSpotted();
@@ -1008,6 +1053,55 @@ function enterKillcam(f, success){
   document.getElementById('fire-btn').disabled = true;
 }
 
+/* ---------- 答錯對照：先看正解，再由學生決定何時繼續 ---------- */
+function clearAnswerReview(){
+  answerReview=null;
+  document.getElementById('answer-review-overlay').classList.add('hide');
+}
+function showAnswerReview(){
+  if(!answerReview)return;
+  state='answer-review';feedbackUntil=0;clearTouches();stopBgm();
+  const review=answerReview;
+  document.getElementById('fire-btn').disabled=true;
+  document.getElementById('pause-btn').style.display='none';
+  document.getElementById('toast').style.opacity='0';
+  GameRuntime.text(document.getElementById('answer-review-status'),`第 ${review.round} 關 · `+(practiceOnly?'續練不扣機會':lives>0?`剩餘 ${lives} 次機會`:'機會已用完')+'。看清楚差別後，再按下方按鈕。');
+  const promptLabel=review.type==='en2cn'||review.type==='en2pic'?'剛剛聽到的字：':'剛剛的題目：';
+  GameRuntime.text(document.getElementById('answer-review-prompt'),promptLabel+review.prompt);
+  for(const [key,word] of [['correct',review.correct],['wrong',review.chosen]]){
+    GameRuntime.text(document.getElementById('answer-'+key+'-word'),word.word);
+    GameRuntime.text(document.getElementById('answer-'+key+'-meaning'),word.meaning);
+    const picture=document.getElementById('answer-'+key+'-picture');
+    picture.textContent=review.type==='en2pic'?(word.emoji||''):'';
+    picture.hidden=!picture.textContent;
+  }
+  document.getElementById('answer-review-speak').hidden=!('speechSynthesis' in window);
+  GameRuntime.text(document.getElementById('answer-review-next'),lives<=0&&!practiceOnly?'查看本局結果':roundNo>=MAX_ROUNDS?'完成本局':'進入下一關');
+  const overlay=document.getElementById('answer-review-overlay');
+  overlay.classList.remove('hide');
+  overlay.querySelector('.answer-review-card').scrollTop=0;
+  document.getElementById('answer-review-title').focus();
+}
+document.getElementById('answer-review-speak').addEventListener('click',()=>{
+  if(state==='answer-review'&&answerReview&&!isPhoneLandscape())speakWord(answerReview.correct.word);
+});
+document.getElementById('answer-review-next').addEventListener('click',()=>{
+  if(state!=='answer-review'||!answerReview||isPhoneLandscape())return;
+  clearAnswerReview();state='feedback';
+  if(lives<=0&&!practiceOnly){failGame('judge');return;}
+  if(roundNo<MAX_ROUNDS)startBgm();
+  document.getElementById('pause-btn').style.display='block';
+  advance();
+});
+document.getElementById('answer-review-overlay').addEventListener('keydown',e=>{
+  e.stopPropagation();
+  if(e.key!=='Tab')return;
+  const buttons=Array.from(e.currentTarget.querySelectorAll('button')).filter(b=>!b.hidden&&!b.disabled);
+  const first=buttons[0],last=buttons[buttons.length-1],active=document.activeElement;
+  if(e.shiftKey&&(active===first||!buttons.includes(active))){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&(active===last||!buttons.includes(active))){e.preventDefault();first.focus();}
+});
+
 /* ---------- 計時/輸入更新 ---------- */
 function ammoIcon(empty){
   return `<svg class="ammo-round${empty?' empty':''}" viewBox="0 0 16 32" aria-hidden="true" focusable="false" stroke-width="1.2" stroke-linejoin="round">
@@ -1041,8 +1135,10 @@ function updateHUD(){
   apButton.setAttribute('aria-pressed',String(apSelected));
   GameRuntime.text(apButton,(apSelected?'已選穿甲':'穿甲彈')+' ×'+apStock);
   document.getElementById('fire-btn').disabled=!inputActive()||!scoped||scopeBlend<0.8||!!tutorial||(roofRaid?roofRaid.ammo<=0:(apSelected?apStock<=0:ammo<=0));
-  const sightY=cam.y-shake.y/Math.max(zoom,0.1),fi=Math.floor((sightY-BY)/FLOOR_H),floor=floorsData[fi];
-  GameRuntime.text(document.getElementById('scope-readout'),roofRaid?'屋頂敵人 · 緊急彈藥':sightY<BY?'屋頂':floor?`${FLOORS-fi} 樓 · ${floor.display}`:'');
+  const sightX=cam.x-shake.x/Math.max(zoom,0.1),sightY=cam.y-shake.y/Math.max(zoom,0.1),fi=Math.floor((sightY-BY)/FLOOR_H),floor=floorsData[fi];
+  const material=floor&&sightX>=BX&&sightX<=BX+BW?segMatAt(floor,sightX):null;
+  const wallHint=material===MAT.WOOD?'木板可打穿':material===MAT.WINDOW?'玻璃可打穿':material===MAT.STONE?(apSelected?'石牆：可用穿甲彈':'石牆會擋普通彈'):'';
+  GameRuntime.text(document.getElementById('scope-readout'),roofRaid?'屋頂敵人 · 緊急彈藥':sightY<BY?'屋頂':floor?`${FLOORS-fi} 樓 · ${floor.display}`+(wallHint?' · '+wallHint:''):'');
   const lr = document.getElementById('lives-row');   // 兩模式共用 3 次機會池, 都顯示
   lr.style.display = 'flex';
   GameRuntime.text(document.getElementById('lives'), '❤️'.repeat(Math.max(0,lives)) + '🖤'.repeat(Math.max(0,MAX_LIVES-lives)));
@@ -1122,10 +1218,9 @@ function loop(t){
     cinematic += (1 - cinematic) * Math.min(1, rawdt*4);
     if(performance.now() > killUntil){
       targetTimeScale = 1; killTarget = null;
-      if(!killSuccess){                                      // 打錯人: 扣 1 次機會, 用完才失敗
+      if(!killSuccess){                                      // 打錯人: 扣 1 次機會，先看比較，再繼續或結算
         if(!practiceOnly)lives--; updateHUD();
-        if(lives <= 0&&!practiceOnly){ failGame('judge'); }
-        else {state='feedback';feedbackUntil=performance.now()+2400;}
+        showAnswerReview();
       }
       else { state = 'feedback'; feedbackUntil = performance.now() + 650; }
     }
@@ -2030,6 +2125,7 @@ function startGame(m){
   if(isPhoneLandscape()){syncPhoneOrientation();return;}
   WB = buildWordBank();
   if (!GameData.ready()) return;
+  clearAnswerReview();
   unlockSpeech();   // 真實按鈕點擊：解鎖 iOS 發音
   RoundReview.reset();
   startBgm();
@@ -2057,6 +2153,7 @@ function startGame(m){
   updateHUD();
 }
 function finishOverlay(title){
+  clearAnswerReview();
   stopBgm();
   roofRaid=null;roofResume=null;roofDelay=-1;tutorial=null;
   document.getElementById('roof-panel').hidden=true;
@@ -2293,6 +2390,7 @@ function resumeGame(){
   startBgm();
 }
 function returnToMainMenu(){
+  clearAnswerReview();
   stopBgm();
   state = 'menu';
   roofRaid=null;roofResume=null;roofDelay=-1;tutorial=null;
