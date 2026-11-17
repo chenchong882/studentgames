@@ -47,8 +47,11 @@
 #sg-review-modal .sg-coach-bubble{position:absolute;width:min(310px,calc(100% - 24px));max-height:calc(100% - 24px);overflow-y:auto;padding:13px 16px 8px;border:2px solid #ffcf65;border-radius:15px;background:#fffaf1;color:#263d37;box-shadow:0 6px 24px #0005;pointer-events:auto}
 #sg-review-modal .sg-coach-arrow{position:absolute;width:12px;height:12px;background:#ffcf65;transform:rotate(45deg)}
 #sg-review-modal .sg-coach-note{font-size:16px;font-weight:800;line-height:1.6;overflow-wrap:anywhere}
-#sg-review-modal .sg-coach-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 8px;margin-top:4px}
-#sg-review-modal .sg-coach-bubble .sg-review-action.secondary{width:auto;min-height:44px;padding:6px 8px;border:0;color:#52614e;font-size:13px;text-decoration:underline}
+#sg-review-modal .sg-coach-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:8px}
+#sg-review-modal .sg-coach-bubble .sg-review-action{width:auto;min-height:44px;padding:8px 12px;font-size:14px;box-shadow:none}
+#sg-review-modal .sg-coach-bubble .sg-review-action.secondary{border:0;color:#52614e}
+#sg-review-modal .sg-review-tools{display:flex;justify-content:flex-end;margin-bottom:10px}
+#sg-review-modal .sg-review-tools .sg-review-action{width:auto;min-height:44px;padding:8px 12px}
 #sg-review-modal .sg-next-step{padding:10px 12px;border-radius:10px;background:#e9f3df;color:#1d5939;font-size:14px;font-weight:800;overflow-wrap:anywhere}
 #sg-review-modal .sg-speech-actions{display:flex;justify-content:center;margin:10px 0}
 #sg-review-modal .sg-speech-actions .sg-review-action{width:auto;min-height:44px;padding:8px 14px;color:#263d37;border-color:#9bad91}
