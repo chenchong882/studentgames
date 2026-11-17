@@ -46,7 +46,7 @@ function resizeCanvas() {
     for (const tree of game.trees) { tree.x *= sx; tree.groundY = H * CFG.GROUND_RATIO; }
     for (const item of [game.plane, game.crate, ...game.bombs, ...game.missiles, ...game.shells, ...game.floats]) {
       if (!item) continue;
-      item.x *= sx; item.y *= sy;
+      item.x *= sx; item.y *= sy; rememberMotion(item);
     }
     game.exps = []; game.plane.trail = [];
     if (game.phase === 'playing' || game.phase === 'levelClear') game.togglePause();
@@ -559,6 +559,23 @@ function lerpAngle(a, b, t) {
 // ══════════════════════════════════════════
 //  PLANE
 // ══════════════════════════════════════════
+// 只平滑顯示位置，碰撞／速度仍由固定 60 Hz 邏輯決定。
+function rememberMotion(item) { item.prevX=item.x; item.prevY=item.y; }
+function rememberGameMotion(game) {
+  rememberMotion(game.plane);
+  for(const b of game.bombs)rememberMotion(b);
+  for(const m of game.missiles)rememberMotion(m);
+  for(const shell of game.shells)rememberMotion(shell);
+  if(game.crate)rememberMotion(game.crate);
+}
+function offsetMotion(c,item,alpha) {
+  if(item.prevX===undefined||item.prevY===undefined)return;
+  c.translate((item.prevX-item.x)*(1-alpha),(item.prevY-item.y)*(1-alpha));
+}
+function drawMoving(c,item,alpha) {
+  c.save();offsetMotion(c,item,alpha);item.draw(c);c.restore();
+}
+
 class Plane {
   constructor() {
     this.x = 0; this.y = 0;
@@ -577,6 +594,7 @@ class Plane {
     this.angle = 0; this.shaking = 0; this.invincible = 0;
     this.hidden = false;
     this.trail = [];
+    rememberMotion(this);
   }
 
   respawnFromSky() {
@@ -588,6 +606,7 @@ class Plane {
     this.shaking = 0;
     this.hidden = false;
     this.trail = [];
+    rememberMotion(this);
   }
 
   update(joy) {
@@ -636,8 +655,8 @@ class Plane {
       this.y = botLimit;
       this.vy = hitGround ? -clamp(Math.abs(this.vy) * 0.75, 2.6, 4.8) : Math.min(0, this.vy);
     }
-    if (this.x >  W + 70) { this.x = -70; this.trail = []; }
-    if (this.x < -70)     { this.x =  W + 70; this.trail = []; }
+    if (this.x >  W + 70) { this.x = -70; this.trail = []; rememberMotion(this); }
+    if (this.x < -70)     { this.x =  W + 70; this.trail = []; rememberMotion(this); }
 
     // Trail
     this.trail.push({ x: this.x, y: this.y });
@@ -1446,7 +1465,6 @@ function drawBackground(c, level) {
   c.fillStyle = sky; c.fillRect(0, 0, W, gY);
 
   // Clouds
-  cloudT += 0.25;
   cloudDefs.forEach(cl => {
     const cx = ((cl.x + cloudT*cl.spd) % (W+250)) - 125;
     c.save(); c.fillStyle = 'rgba(255,255,255,0.82)';
@@ -1476,14 +1494,14 @@ function drawBackground(c, level) {
 // ══════════════════════════════════════════
 //  TRAJECTORY PREVIEW
 // ══════════════════════════════════════════
-function drawTrajectory(c, plane, difficulty) {
+function drawTrajectory(c, plane, difficulty, alpha=1) {
   const steps  = difficulty==='easy' ? CFG.TRAJ_STEPS_EASY : CFG.TRAJ_STEPS_HARD;
-  const alpha  = difficulty==='easy' ? 0.72 : 0.40;
+  const opacity = difficulty==='easy' ? 0.72 : 0.40;
   const gY     = H * CFG.GROUND_RATIO;
   let px=plane.x, py=plane.y, pvx=plane.vx*0.55, pvy=plane.vy+0.4;
 
-  c.save();
-  c.strokeStyle=`rgba(255,255,80,${alpha})`; c.lineWidth=2; c.setLineDash([6,5]);
+  c.save();offsetMotion(c,plane,alpha);
+  c.strokeStyle=`rgba(255,255,80,${opacity})`; c.lineWidth=2; c.setLineDash([6,5]);
   c.beginPath(); c.moveTo(px, py);
   let lx=px, ly=py;
   for (let i=0; i<steps; i++) {
@@ -1494,7 +1512,7 @@ function drawTrajectory(c, plane, difficulty) {
   c.stroke(); c.setLineDash([]);
 
   // Landing marker
-  c.strokeStyle=`rgba(255,100,80,${alpha})`; c.lineWidth=2.5;
+  c.strokeStyle=`rgba(255,100,80,${opacity})`; c.lineWidth=2.5;
   c.beginPath(); c.moveTo(lx-9,ly-9); c.lineTo(lx+9,ly+9);
   c.moveTo(lx+9,ly-9); c.lineTo(lx-9,ly+9); c.stroke();
   c.restore();
@@ -1580,6 +1598,24 @@ function drawHUD(c, game) {
 
   c.restore();
 }
+// 低彈量文字與光暈只畫一次；每幀只調整光暈透明度，保留紅框脈動。
+const bombCountSprites=new Map();
+function bombCountSprite(count){
+  const dpr=GameRuntime.pixelRatio(),key=`${count}:${dpr}`;
+  if(bombCountSprites.has(key))return bombCountSprites.get(key);
+  const width=190,height=102;
+  const makeLayer=glow=>{
+    const layer=document.createElement('canvas');layer.width=Math.round(width*dpr);layer.height=Math.round(height*dpr);
+    const g=layer.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+    g.textAlign='center';g.font='bold 17px Arial';g.fillStyle='white';g.textBaseline='middle';
+    if(glow){g.shadowColor='#ff3030';g.shadowBlur=20;}
+    g.fillText(`💣 剩餘 ${count}`,width/2,height/2+1);
+    return layer;
+  };
+  const sprite={text:makeLayer(false),glow:makeLayer(true),width,height};
+  if(bombCountSprites.size>=4)bombCountSprites.clear();
+  bombCountSprites.set(key,sprite);return sprite;
+}
 function drawBombCount(c,game){
   c.save();
   const bombW=126, bombH=38, bombX=W-SAFE_R-bombW-68, bombY=6;
@@ -1590,10 +1626,15 @@ function drawBombCount(c,game){
   roundRect(c,bombX,bombY,bombW,bombH,9);c.fill();
   c.strokeStyle=bombLow?`rgba(255,60,60,${0.6+bombPulse*0.4})`:(bombEmpty?'#ff4a4a':'rgba(255,210,40,.85)');
   c.lineWidth=bombLow?3:2;roundRect(c,bombX,bombY,bombW,bombH,9);c.stroke();
-  if(bombLow){c.shadowColor='#ff3030';c.shadowBlur=8+bombPulse*12;}
-  c.textAlign='center';c.font='bold 17px Arial';c.fillStyle='white';c.textBaseline='middle';
-  c.fillText(`💣 剩餘 ${game.bombsLeft}`,bombX+bombW/2,bombY+bombH/2+1);
-  c.shadowBlur=0;
+  if(bombLow){
+    const sprite=bombCountSprite(game.bombsLeft),x=bombX+(bombW-sprite.width)/2,y=bombY+(bombH-sprite.height)/2;
+    const alpha=c.globalAlpha;c.globalAlpha=alpha*(0.4+bombPulse*0.6);
+    c.drawImage(sprite.glow,x,y,sprite.width,sprite.height);c.globalAlpha=alpha;
+    c.drawImage(sprite.text,x,y,sprite.width,sprite.height);
+  } else {
+    c.textAlign='center';c.font='bold 17px Arial';c.fillStyle='white';c.textBaseline='middle';
+    c.fillText(`💣 剩餘 ${game.bombsLeft}`,bombX+bombW/2,bombY+bombH/2+1);
+  }
 
   c.restore();
 }
@@ -1626,7 +1667,7 @@ function drawWordPanel(c, game) {
 // 小型透明圖層重用文字／emoji，不在每一幀重新排字；換題、旋轉、字型載入都會失效。
 const hudLayer=document.createElement('canvas');
 let hudLayerKey='';
-if(document.fonts)document.fonts.ready.then(()=>{hudLayerKey='';});
+if(document.fonts)document.fonts.ready.then(()=>{hudLayerKey='';bombCountSprites.clear();});
 function drawGameHUD(c,game){
   const dpr=GameRuntime.pixelRatio(),height=Math.max(110,50+SAFE_T);
   const key=JSON.stringify([W,height,dpr,SAFE_L,SAFE_R,SAFE_T,game.score,game.lives,game.lvIdx,
@@ -2049,6 +2090,7 @@ class Game {
     } else if (this.phase === 'paused') {
       if (window.matchMedia('(orientation: portrait)').matches) return;
       this.phase = this._prevPhase;
+      rememberGameMotion(this);
       Audio.startBgm();
     }
   }
@@ -2117,6 +2159,7 @@ class Game {
     this._crateCooldown = 150;
     this._hardAutoMissileT = Math.floor(lerp(200, 340, Math.random()));
     this._buildScene(lv.words);
+    rememberGameMotion(this);
     this._nextTarget();            // pick + read aloud the first target of the level
   }
 
@@ -2259,6 +2302,9 @@ class Game {
       if (this.phase !== 'playing') return;
     }
     this.questionFrames++;
+
+    // 每個邏輯步保留前一位置；120 Hz 與時間戳抖動只影響繪圖，不改玩法。
+    rememberGameMotion(this);
 
     let planeEvent = null;
     if (this.planeRespawnT > 0) {
@@ -2544,7 +2590,8 @@ class Game {
   // ══════════════════════════════════════
   //  DRAW
   // ══════════════════════════════════════
-  draw(c) {
+  draw(c,alpha=1) {
+    if(this.phase!=='playing')alpha=1;
     const receipt = document.getElementById("lesson-load-receipt");
     if (receipt && receipt.hidden !== (this.phase !== "menu")) receipt.hidden = this.phase !== "menu";
     c.clearRect(0,0,W,H);
@@ -2559,7 +2606,7 @@ class Game {
 
     // Trajectory preview
     if (this.phase === 'playing' || this.phase === 'levelClear' || this.phase === 'paused') {
-      if (!this.plane.hidden) drawTrajectory(c, this.plane, this.difficulty);
+      if (!this.plane.hidden) drawTrajectory(c, this.plane, this.difficulty, alpha);
     }
 
     // Houses
@@ -2569,19 +2616,19 @@ class Game {
     this.exps.forEach(e => e.draw(c));
 
     // Bombs
-    this.bombs.forEach(b => b.draw(c));
+    this.bombs.forEach(b => drawMoving(c,b,alpha));
 
     // Supply crate
-    if (this.crate) this.crate.draw(c);
+    if (this.crate) drawMoving(c,this.crate,alpha);
 
     // Missiles
-    this.missiles.forEach(m => m.draw(c));
+    this.missiles.forEach(m => drawMoving(c,m,alpha));
 
     // Shells (turret fire)
-    this.shells.forEach(s => s.draw(c));
+    this.shells.forEach(s => drawMoving(c,s,alpha));
 
     // Plane
-    this.plane.draw(c);
+    drawMoving(c,this.plane,alpha);
 
     // Floats
     this.floats.forEach(f => f.draw(c));
@@ -2796,13 +2843,14 @@ const _speechOverlay = (() => {
 //  MAIN LOOP
 // ══════════════════════════════════════════
 // 固定步長累加器：邏輯恆定跑 60 次/秒，不管畫面幾 fps。
-// 手機掉幀時一幀補跑多步，120Hz 平板則隔幀才更新——三邊速度因此一致。
+// 手機掉幀時補跑多步；繪圖按累加器餘額補中間位置，避免時間戳誤差造成停一格、跳兩格。
 const _STEP = 1000 / 60;
 const portraitView=window.matchMedia('(orientation: portrait)');
 let _lastT = (typeof performance !== 'undefined' ? performance.now() : Date.now());
 let _acc = 0, _lastDrawPhase = '';
 function loop(now) {
   if (now === undefined) now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  now=Math.max(now,_lastT);
   let dt = now - _lastT;
   _lastT = now;
   if (dt > 250) dt = 250;          // 切分頁回來/卡頓時夾住，避免一次補太多步
@@ -2810,10 +2858,10 @@ function loop(now) {
   let steps = 0;
   while (_acc >= _STEP && steps < 5) { game.update(); _acc -= _STEP; steps++; }
   if (steps === 5) _acc = 0;       // 補不完就放棄積欠，別陷入死亡螺旋
-  // 高更新率裝置略過邏輯尚未前進的畫面；一般 60 Hz 保留每幀，避免時間戳誤差造成跳幀。
   const frozen=game.phase==='paused'||game.phase==='gameOver';
-  if((!frozen&&(steps>0||dt>=_STEP*.75))||_renderDirty||game.phase!==_lastDrawPhase){
-    game.draw(ctx);_speechOverlay();_renderDirty=false;_lastDrawPhase=game.phase;
+  if(!frozen||_renderDirty||game.phase!==_lastDrawPhase){
+    if(!frozen)cloudT+=dt/_STEP*0.25;
+    game.draw(ctx,Math.max(0,Math.min(1,_acc/_STEP)));_speechOverlay();_renderDirty=false;_lastDrawPhase=game.phase;
   }
   requestAnimationFrame(loop);
 }
