@@ -47,8 +47,17 @@
   .ammo-round.empty .bullet-shine { display:none; }
   #ammo-perks:empty { display:none; }
   #phone-ammo-icon .ammo-round { width:10px; height:23px; margin-right:4px; }
-  #scope-readout { display:none; color:#bae6fd; font-size:14px; line-height:1.4; margin-top:4px; overflow-wrap:anywhere; }
-  body.scoped #scope-readout { display:block; }
+  #scope-readout { position:fixed; left:50%; bottom:calc(50% + clamp(72px,20vmin,140px)); transform:translateX(-50%); z-index:4;
+    width:clamp(220px,24vmin,280px); max-width:calc(100vw - 32px); padding:9px 12px; border:1px solid rgba(148,181,203,.35); border-radius:5px;
+    background:rgba(8,18,29,.82); box-shadow:0 3px 12px rgba(0,0,0,.2); color:#d2e0eb; text-align:center; line-height:1.4; overflow-wrap:anywhere; }
+  #scope-readout[hidden], #scope-readout-material[hidden] { display:none; }
+  #scope-readout, #scope-readout *, #scope-readout::before, #scope-readout::after { pointer-events:none; }
+  #scope-readout::before, #scope-readout::after { content:''; position:absolute; width:10px; height:8px; border-color:rgba(171,203,222,.65); border-style:solid; }
+  #scope-readout::before { top:-3px; left:-3px; border-width:1px 0 0 1px; }
+  #scope-readout::after { right:-3px; bottom:-3px; border-width:0 1px 1px 0; }
+  #scope-readout-target { display:block; font-size:14px; font-weight:600; }
+  #scope-readout-material { display:block; margin-top:4px; color:#a6becf; font-size:12px; letter-spacing:.02em; }
+  .scope-readout-stem { position:absolute; top:100%; left:50%; width:1px; height:18px; background:linear-gradient(#94b5cb99,#94b5cb22); }
   #mission-note { color:#fde68a; font-size:14px; line-height:1.5; margin-top:4px; overflow-wrap:anywhere; }
   #mission-note:empty { display:none; }
   #ap-btn { pointer-events:auto; min-width:96px; min-height:48px; padding:9px 14px; border:2px solid #64748b; border-radius:12px; color:#e2e8f0; background:#172033; font-family:inherit; font-size:14px; font-weight:700; align-self:center; }
@@ -191,7 +200,7 @@
     #intel-speak { grid-column:2; grid-row:1; width:44px; height:44px; }
     #intel .sentence { grid-column:1; grid-row:1; font-size:16px; line-height:1.4; margin:0; }
     #intel .sentence .blank { padding:0 2px; border-bottom:0; }
-    #scope-readout, #mission-note { grid-column:1 / -1; font-size:13px; margin:0; }
+    #mission-note { grid-column:1 / -1; font-size:13px; margin:0; }
     #ap-btn { min-width:88px; padding:8px; font-size:12px; }
     .phone-prompt { color:#cbd5e1; font-size:12px; margin-right:6px; }
     #controls { padding:10px calc(14px + env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left)); }
@@ -205,6 +214,9 @@
     #intel { width:calc(100% - 60px); }
   }
   @media(max-height:600px) and (orientation:landscape) {
+    body.dev-tablet #scope-readout { bottom:calc(50% + 52px); width:210px; padding:7px 10px; }
+    body.dev-tablet #scope-readout-target { font-size:13px; }
+    body.dev-tablet .scope-readout-stem { height:12px; }
     .mission-panel { bottom:calc(6px + env(safe-area-inset-bottom)); width:min(560px,calc(100% - 196px)); padding:6px 10px; font-size:12px; line-height:1.3; }
     .mission-panel p { margin-bottom:4px; }
     .mission-panel button { padding:5px 10px; }
@@ -218,6 +230,7 @@
 </head>
 <body>
 <div id="stage"><canvas id="cv"></canvas></div>
+<div id="scope-readout" aria-label="瞄準位置與材質" hidden><span id="scope-readout-target"></span><span id="scope-readout-material"></span><span class="scope-readout-stem" aria-hidden="true"></span></div>
 <div id="phone-portrait-guide" role="status" hidden>
   <svg viewBox="0 0 44 64" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><rect x="6" y="2" width="32" height="60" rx="6"/><path d="M17 8h10M19 55h6" stroke-linecap="round"/></svg>
   <h2>請把手機轉直來玩</h2>
@@ -231,7 +244,6 @@
   <div id="intel">
     <div class="label" style="display:flex;align-items:center;gap:8px"><span class="desktop-detail">暗殺情報 / INTEL</span> <button id="intel-speak" type="button" aria-label="重聽發音"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15 8a5 5 0 0 1 0 8M18 5a9 9 0 0 1 0 14"/></svg></button></div>
     <div class="sentence" id="intel-text">—</div>
-    <div id="scope-readout"></div>
     <div id="mission-note" role="status"></div>
   </div>
   <div id="stats">
@@ -1135,10 +1147,6 @@ function updateHUD(){
   apButton.setAttribute('aria-pressed',String(apSelected));
   GameRuntime.text(apButton,(apSelected?'已選穿甲':'穿甲彈')+' ×'+apStock);
   document.getElementById('fire-btn').disabled=!inputActive()||!scoped||scopeBlend<0.8||!!tutorial||(roofRaid?roofRaid.ammo<=0:(apSelected?apStock<=0:ammo<=0));
-  const sightX=cam.x-shake.x/Math.max(zoom,0.1),sightY=cam.y-shake.y/Math.max(zoom,0.1),fi=Math.floor((sightY-BY)/FLOOR_H),floor=floorsData[fi];
-  const material=floor&&sightX>=BX&&sightX<=BX+BW?segMatAt(floor,sightX):null;
-  const wallHint=material===MAT.WOOD?'木板可打穿':material===MAT.WINDOW?'玻璃可打穿':material===MAT.STONE?(apSelected?'石牆：可用穿甲彈':'石牆會擋普通彈'):'';
-  GameRuntime.text(document.getElementById('scope-readout'),roofRaid?'屋頂敵人 · 緊急彈藥':sightY<BY?'屋頂':floor?`${FLOORS-fi} 樓 · ${floor.display}`+(wallHint?' · '+wallHint:''):'');
   const lr = document.getElementById('lives-row');   // 兩模式共用 3 次機會池, 都顯示
   lr.style.display = 'flex';
   GameRuntime.text(document.getElementById('lives'), '❤️'.repeat(Math.max(0,lives)) + '🖤'.repeat(Math.max(0,MAX_LIVES-lives)));
@@ -1150,6 +1158,20 @@ function updateHUD(){
   const bar=document.getElementById('timerbar'),value=String(Math.round(pct));
   bar.style.visibility=roofRaid||roofResume||tutorial?'hidden':'visible';
   if(bar.getAttribute('aria-valuenow')!==value)bar.setAttribute('aria-valuenow',value);
+}
+
+// 鏡內小框跟著本幀相機與後座更新；只描述準心所在樓層，不提示答案對錯。
+const scopeReadout=document.getElementById('scope-readout'),scopeReadoutTarget=document.getElementById('scope-readout-target'),scopeReadoutMaterial=document.getElementById('scope-readout-material');
+function updateScopeReadout(){
+  const hidden=!(scoped&&inputActive()&&scopeBlend>=0.8);
+  if(scopeReadout.hidden!==hidden)scopeReadout.hidden=hidden;
+  if(hidden)return;
+  const sightX=cam.x-shake.x/Math.max(zoom,0.1),sightY=cam.y-shake.y/Math.max(zoom,0.1),fi=Math.floor((sightY-BY)/FLOOR_H),floor=floorsData[fi];
+  const material=floor&&sightX>=BX&&sightX<=BX+BW?segMatAt(floor,sightX):null;
+  const wallHint=roofRaid?'緊急彈藥':material===MAT.WOOD?'木板可打穿':material===MAT.WINDOW?'玻璃可打穿':material===MAT.STONE?(apSelected?'石牆：可用穿甲彈':'石牆會擋普通彈'):'';
+  GameRuntime.text(scopeReadoutTarget,roofRaid?'屋頂敵人':sightY<BY?'屋頂':floor?`${FLOORS-fi} 樓 · ${floor.display}`:'未對準樓層');
+  GameRuntime.text(scopeReadoutMaterial,wallHint);
+  if(scopeReadoutMaterial.hidden!==!wallHint)scopeReadoutMaterial.hidden=!wallHint;
 }
 
 /* ---------- 主迴圈 ---------- */
@@ -1245,6 +1267,7 @@ function loop(t){
 
   // 開鏡淡入 / 蹲掩體淡出 的過場混合
   scopeBlend += ((scoped?1:0) - scopeBlend) * Math.min(1, rawdt*9);
+  updateScopeReadout();
 
   render();
   requestAnimationFrame(loop);
@@ -2450,6 +2473,18 @@ document.getElementById('theme-chips').addEventListener('click',()=>setTimeout((
 // 收起額外設定，主畫面保留一致的兩組選項。
 document.getElementById('sniper-advanced').append(document.getElementById('open-settings'), document.getElementById('theme-pick'));
 document.getElementById('theme-pick').style.width='100%';
+
+// 實機排查專用；一般遊戲不載入診斷程式，也不收集紀錄。
+if(new URLSearchParams(location.search).get('debugControls')==='1'){
+  const debugScript=document.createElement('script');
+  debugScript.src='sniper-controls-debug.js';
+  debugScript.onload=()=>window.initSniperControlsDebug(()=>({
+    state,DEVICE,scoped,scopeBlend:Number(scopeBlend.toFixed(3)),tutorial:!!tutorial,ammo,
+    fireDisabled:document.getElementById('fire-btn').disabled,scopeDisabled:document.getElementById('scope-btn').disabled,
+    inputActive:inputActive(),phoneLandscape:isPhoneLandscape(),frameAge:Math.round(performance.now()-lastT),audioState:actx?actx.state:'not-created'
+  }));
+  document.head.appendChild(debugScript);
+}
 
 </script>
 </body>
