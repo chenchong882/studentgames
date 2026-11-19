@@ -76,7 +76,8 @@
       const ctx=heldContext;heldContext=null;
       if(ctx&&ctx.state!=='closed'){try{const p=ctx.resume();if(p&&p.catch)p.catch(()=>{});}catch(e){}}
     }
-    function speak(word){
+    function speak(word,fallbackOnly){
+      if(!fallbackOnly&&window.WordAudio&&WordAudio.play(word,{fallback:()=>speak(word,true)}))return;
       if(!synth||!word)return;
       const token=++generation;clearTimeout(timer);
       try{
@@ -95,6 +96,7 @@
       }catch(e){utterance=null;restore();}
     }
     return {speak,dispose(){
+      if(window.WordAudio)WordAudio.stop();
       generation++;if(synth){synth.removeEventListener('voiceschanged',loadVoices);if(utterance&&(synth.speaking||synth.pending))synth.cancel();}
       utterance=null;restore();
     }};

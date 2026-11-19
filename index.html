@@ -297,9 +297,11 @@
         </a>
       </div>
     </section>
-    <p class="note">選「系統主題單字」可複選練習主題；選「本次段考單字」則需由學生教材頁進入。記憶翻牌使用獨立題庫，<span id="memory-game-note">會在新分頁開啟</span>。</p>
+    <p class="note">選「系統主題單字」可複選練習主題；選「本次段考單字」則需由學生教材頁進入。記憶翻牌使用獨立題庫，<span id="memory-game-note">會在新分頁開啟</span>。內建單字發音使用 AI 合成語音。</p>
   </main>
   <script src="./data/wordbank.js"></script>
+  <script src="./data/word-audio-manifest.js"></script>
+  <script src="./games/word-audio.js"></script>
   <script src="./assets/practice-set.js"></script>
   <script>
   (function(){
@@ -474,6 +476,16 @@
     const vocabTitle = document.getElementById('vocab-preview-title');
     let vocabOpen = false;
     let previewVoices = [];
+    let previewSpeechPrimed = false;
+
+    function primePreviewSpeech(){
+      if(previewSpeechPrimed||!('speechSynthesis' in window))return;
+      try{
+        const synth=window.speechSynthesis;
+        if(!synth.speaking&&!synth.pending){const warm=new SpeechSynthesisUtterance(' ');warm.lang='en-US';warm.volume=0;synth.speak(warm);}
+        previewSpeechPrimed=true;
+      }catch(e){}
+    }
 
     function loadPreviewVoices(){
       try { previewVoices = window.speechSynthesis.getVoices() || []; } catch(e){ previewVoices = []; }
@@ -482,7 +494,8 @@
       loadPreviewVoices();
       try { window.speechSynthesis.addEventListener('voiceschanged', loadPreviewVoices); } catch(e){ window.speechSynthesis.onvoiceschanged = loadPreviewVoices; }
     }
-    function speakPreviewWord(word){
+    function speakPreviewWord(word,fallbackOnly){
+      if(!fallbackOnly&&window.WordAudio&&WordAudio.play(word,{fallback:()=>speakPreviewWord(word,true)})){primePreviewSpeech();return;}
       if(!word || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return;
       try {
         const synth = window.speechSynthesis;
@@ -526,6 +539,7 @@
     }
 
     vocabToggleBtn.addEventListener('click', () => {
+      primePreviewSpeech();
       vocabOpen = !vocabOpen;
       vocabPreview.style.display = vocabOpen ? '' : 'none';
       vocabToggleBtn.textContent = vocabOpen ? '收起單字' : '預覽單字';

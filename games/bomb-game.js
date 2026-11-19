@@ -372,24 +372,27 @@ const Audio = (() => {
   let speechUnlocked = false;
   let speechGen = 0;   // 世代 token：連續換題時只有「最新的字」負責恢復音效，避免 race
   function unlockSpeech() {
+    if (window.WordAudio) WordAudio.unlock();
     if (speechUnlocked || !('speechSynthesis' in window)) return;
     speechUnlocked = true;
     try {
       window.speechSynthesis.resume();
       const u = new SpeechSynthesisUtterance(' ');
+      u.lang = 'en-US';
       u.volume = 0;
       window.speechSynthesis.speak(u);
     } catch (e) {}
   }
 
-  function speak(word) {
+  function speak(word, fallbackOnly) {
+    if (!fallbackOnly && window.WordAudio && WordAudio.play(word, {fallback: () => speak(word, true)})) return;
     if (!('speechSynthesis' in window)) return;
     const text = speechTextFor(word);
     if (!text) return;
     const voice = pickEnglishVoice();
     const msg = new SpeechSynthesisUtterance(text);
     if (voice) msg.voice = voice;
-    msg.lang  = voice?.lang || 'en-US';
+    msg.lang  = 'en-US';
     msg.rate  = 0.82;
     msg.pitch = 1;
 
@@ -2083,6 +2086,7 @@ class Game {
   // ── Pause / Resume ─────────────────────
   togglePause() {
     if (this.phase === 'playing' || this.phase === 'levelClear') {
+      if (window.WordAudio) WordAudio.stop();
       this._prevPhase = this.phase;
       this.phase = 'paused';
       resetGameInput();
@@ -2096,6 +2100,7 @@ class Game {
   }
 
   returnToMenu() {
+    if (window.WordAudio) WordAudio.stop();
     clearInterval(this._timerInterval);
     Audio.stopBgm();
     this.phase = 'menu';
@@ -2138,6 +2143,7 @@ class Game {
   }
 
   _loadLevel() {
+    if (window.WordAudio) WordAudio.stop();
     const lv = LEVELS[this.lvIdx];
     if (!lv) {
       // 無限模式：打完題庫全部關卡就重洗接著玩，不再跳結算
@@ -2197,6 +2203,7 @@ class Game {
   }
 
   _nextTarget() {
+    if (window.WordAudio) WordAudio.stop();
     if (this.wordsLeft.length === 0) { this._levelClear(); return; }
     const i = Math.floor(Math.random() * this.wordsLeft.length);
     this.targetWord = this.wordsLeft[i];
@@ -2210,7 +2217,7 @@ class Game {
       const questionStartedAt = this.qStartT;
       const questionWord = this.targetWord;
       setTimeout(() => {
-        if (this.phase === 'playing' && this.qStartT === questionStartedAt && this.targetWord === questionWord) Audio.speak(questionWord);
+        if (this.phase === 'playing' && this.qStartT === questionStartedAt && this.targetWord === questionWord && !(window.WordAudio && WordAudio.isPlaying())) Audio.speak(questionWord);
       }, 3000);
     }
   }
@@ -2238,6 +2245,7 @@ class Game {
 
   // ── Level Clear ────────────────────────
   _levelClear() {
+    if (window.WordAudio) WordAudio.stop();
     const bonus = 50;            // 過關固定獎勵（快慢已反映在每題速度分上）
     this.score += bonus;
     this.perfectScore += bonus;  // 完美基準同步加，等級換算才準
@@ -2266,7 +2274,7 @@ class Game {
     this.plane.invincible = 110;
     this.plane.shake();
     Audio.hit();
-    if (this.lives <= 0) { this.phase = 'gameOver'; clearInterval(this._timerInterval); Audio.stopBgm(); RoundReview.show('📚 炸彈英文本局學習回顧',{stars:computeStars(this)}); }
+    if (this.lives <= 0) { if (window.WordAudio) WordAudio.stop(); this.phase = 'gameOver'; clearInterval(this._timerInterval); Audio.stopBgm(); RoundReview.show('📚 炸彈英文本局學習回顧',{stars:computeStars(this)}); }
   }
 
   // ── Float Text ─────────────────────────

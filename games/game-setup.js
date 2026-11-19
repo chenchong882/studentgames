@@ -25,6 +25,7 @@ window.GameSetup = (() => {
     const panel = document.createElement('section'); panel.className = 'sg-setup'; panel.setAttribute('aria-label', '遊戲設定');
     (config.host ? document.querySelector(config.host) : start.parentElement).insertBefore(panel, config.host ? document.querySelector(config.before || config.start) : start);
     const receipt = document.createElement('p'); receipt.className = 'sg-course'; panel.append(receipt);
+    if(window.WordAudio){const note=document.createElement('p');note.className='sg-note';note.textContent='內建單字發音使用 AI 合成語音。';panel.append(note);}
     const typeButtons = [], difficultyButtons = [];
     const typeNote = document.createElement('p'); typeNote.className = 'sg-note'; typeNote.id = 'sg-type-note'; typeNote.setAttribute('role', 'status');
     function group(label) {

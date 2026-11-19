@@ -369,6 +369,8 @@
 </div>
 <div id="quiz"><div id="quizCard"><div id="quizTitle">🔐 逃生門驗證</div><div id="quizPrompt"></div><div id="quizChoices"></div></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script src="../data/word-audio-manifest.js"></script>
+<script src="word-audio.js"></script>
 <script src="round-review.js"></script>
 <script>
 'use strict';
@@ -478,7 +480,8 @@ try{speechSynthesis.addEventListener('voiceschanged',refreshVoices);}catch(e){}
 function pickEnglishVoice(){
   return voices.find(x=>/^en[-_]?US/i.test(x.lang))||voices.find(x=>/^en/i.test(x.lang))||null;
 }
-function speakWord(word){
+function speakWord(word,fallbackOnly){
+  if(!fallbackOnly&&window.WordAudio&&WordAudio.play(word,{fallback:()=>speakWord(word,true)}))return;
   if(!word||!('speechSynthesis' in window))return;
   const token=++speechToken, ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||
     (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -486,7 +489,7 @@ function speakWord(word){
     const s=speechSynthesis;if(s.speaking||s.pending)s.cancel();
     if(ios&&AC&&AC.state==='running')AC.suspend();
     const u=new SpeechSynthesisUtterance(word);activeUtterance=u;
-    const v=pickEnglishVoice();if(v)u.voice=v;u.lang=(v&&v.lang)||'en-US';u.rate=.85;u.pitch=1;
+    const v=pickEnglishVoice();if(v)u.voice=v;u.lang='en-US';u.rate=.85;u.pitch=1;
     const restore=()=>{if(token!==speechToken)return;if(ios&&AC&&AC.state==='suspended')AC.resume();};
     u.onend=restore;u.onerror=restore;s.speak(u);setTimeout(restore,3500);
   }catch(e){if(ios&&AC&&AC.state==='suspended')AC.resume();}
@@ -494,7 +497,7 @@ function speakWord(word){
 function speakQuestionTwice(word){
   const question=targetWord;
   speakWord(word);
-  setTimeout(()=>{if(playing&&!paused&&captureActive&&targetWord===question)speakWord(word);},3000);
+  setTimeout(()=>{if(playing&&!paused&&captureActive&&targetWord===question&&!(window.WordAudio&&WordAudio.isPlaying()))speakWord(word);},3000);
 }
 
 /* ============ 像素材質（canvas 產生，無外部圖檔） ============ */
@@ -1322,6 +1325,7 @@ function assignHouseAnswers(){
   houseWordEl.style.display='none';houseWordEl.textContent='';questionTimerEl.textContent=compactHud.matches?QUESTION_SECONDS+' 秒':'剩餘 '+QUESTION_SECONDS+' 秒';
 }
 function setQuestion(say=true){
+  if(window.WordAudio)WordAudio.stop();
   const words=questionWords(),pool=words.filter(w=>wordKey(w)!==wordKey(targetWord));targetWord=(pool.length?pool:words)[(rnd((pool.length?pool:words).length))|0];
   RoundReview.begin({prompt:roundUsesPic?targetWord.word:targetWord.chinese,answer:targetWord.word,meaning:targetWord.chinese});
   if(roundUsesPic)questionEl.textContent='🔊 題目：'+targetWord.word;
@@ -1480,6 +1484,7 @@ function updateBossHud(g){
 }
 function completeWave(reward){
   if(wave>=7)return;
+  if(window.WordAudio)WordAudio.stop();
   roundTransition=true;transitionT=.65;captureActive=false;captureHudEl.style.display='none';waveEl.textContent='✅ 第 '+wave+' 波守住了！';showObjective('🎁 '+reward+' ・ 下一波立刻開始');
 }
 function onBossDefeated(){
@@ -1507,6 +1512,7 @@ function openGateQuiz(){
   };box.appendChild(b);}document.getElementById('quiz').classList.add('show');
 }
 function winGame(){
+  if(window.WordAudio)WordAudio.stop();
   gameWon=true;playing=false;resetTouchControls();clearEnemyArrows();stopBgm();waveEl.textContent='🎉 成功逃生！';
   if(document.pointerLockElement===renderer.domElement)document.exitPointerLock();
   document.getElementById('btnPause').classList.add('hidden');
@@ -1741,6 +1747,7 @@ function hurt(amount,from){
   document.getElementById('hpFill').style.width=hp+'%';sndHurt();
   const f=document.getElementById('damageFlash');f.classList.remove('show');void f.offsetWidth;f.classList.add('show');
   if(hp<=0){
+    if(window.WordAudio)WordAudio.stop();
     playing=false;paused=true;resetTouchControls();clearEnemyArrows();stopBgm();
     if(document.pointerLockElement===renderer.domElement)document.exitPointerLock();
     document.getElementById('btnPause').classList.add('hidden');
@@ -1823,7 +1830,8 @@ function startGame(){
   if (!GameData.ready()) return;
   ensureAudio();
   RoundReview.reset();
-  try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}
+  if(window.WordAudio)WordAudio.unlock();
+  try{const u=new SpeechSynthesisUtterance(' ');u.lang='en-US';u.volume=0;speechSynthesis.speak(u);}catch(e){}
   overlay.classList.add('hidden');
   if(!playing){
     document.getElementById('modePanel').classList.add('hidden');document.getElementById('modeHint').classList.add('hidden');
@@ -1914,6 +1922,7 @@ function updStick(t,allowDash){
 const pauseOverlay=document.getElementById('pauseOverlay');
 function pauseGame(){
   if(!playing||paused)return;
+  if(window.WordAudio)WordAudio.stop();
   paused=true;resetTouchControls();stopBgm();
   document.getElementById('pauseCombat').textContent='第 '+wave+' 波 ・ 擊殺 '+kills+' ・ COMBO ×'+combo;
   document.getElementById('pauseWeapon').textContent=weaponName()+' ・ '+document.getElementById('weaponProgress').title;
@@ -1927,6 +1936,7 @@ function resumeGame(){
   if(!isTouch)renderer.domElement.requestPointerLock();
 }
 function returnToMainMenu(){
+  if(window.WordAudio)WordAudio.stop();
   stopBgm();
   const hash=LESSON_RAW?'#lessonData='+encodeURIComponent(LESSON_RAW):'';
   const target=location.pathname+location.search+hash;

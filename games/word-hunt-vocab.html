@@ -103,6 +103,8 @@
 <script src="lesson-data.js"></script>
 <script src="game-setup.js"></script>
 <script src="game-runtime.js"></script>
+<script src="../data/word-audio-manifest.js"></script>
+<script src="word-audio.js"></script>
 </head>
 <body>
     <main class="shell">
@@ -254,6 +256,18 @@
         let englishVoice = null;
         let activeUtterance = null;
         let activeSpeechCard = null;
+        let speechPrimed = false;
+
+        function primeWordSpeech() {
+            if (speechPrimed || !speech) return;
+            try {
+                if (!speech.speaking && !speech.pending) {
+                    const warm = new SpeechSynthesisUtterance(' ');
+                    warm.lang = 'en-US'; warm.volume = 0; speech.speak(warm);
+                }
+                speechPrimed = true;
+            } catch (e) {}
+        }
 
         function cacheEnglishVoice() {
             if (!speech) return;
@@ -261,7 +275,35 @@
             englishVoice = voices.find((voice) => /^en-US$/i.test(voice.lang)) || voices.find((voice) => /^en\b/i.test(voice.lang)) || null;
         }
 
-        function speakWord(word, card) {
+        function stopWordSpeech() {
+            if (window.WordAudio) WordAudio.stop();
+            if (speech && (speech.speaking || speech.pending)) speech.cancel();
+            activeSpeechCard?.classList.remove('speaking');
+            activeSpeechCard = null;
+            activeUtterance = null;
+        }
+
+        function speakWord(word, card, fallbackOnly) {
+            if (!fallbackOnly && window.WordAudio) {
+                stopWordSpeech();
+                const recorded = WordAudio.play(word, {
+                    fallback: () => speakWord(word, card, true),
+                    onend: () => {
+                        if (activeSpeechCard === card) {
+                            card.classList.remove('speaking');
+                            activeSpeechCard = null;
+                        }
+                    }
+                });
+                if (recorded) {
+                    primeWordSpeech();
+                    if (WordAudio.isPlaying()) {
+                        activeSpeechCard = card;
+                        card.classList.add('speaking');
+                    }
+                    return;
+                }
+            }
             if (!speech || typeof SpeechSynthesisUtterance === 'undefined') {
                 setFeedback('這台裝置不支援單字發音。', 'bad');
                 return;
@@ -685,6 +727,7 @@
 
         function pauseGame() {
             if (paused || timerId === null) return;
+            stopWordSpeech();
             paused = true;
             hintOverlay.hidden = true;
             onPointerCancel();
@@ -703,6 +746,7 @@
         }
 
         function beginLevel(index) {
+            stopWordSpeech();
             const setup=document.querySelector(".sg-setup"); if(setup)setup.hidden=true;
             levelIndex = index;
             paused = false;
@@ -725,6 +769,7 @@
         }
 
         function finishLevel() {
+            stopWordSpeech();
             stopTimer();
             clearHint();
             hintOverlay.hidden = true;
@@ -791,6 +836,7 @@
             hintsRemaining = MAX_HINTS;
             selectedHintWord = null;
             beginLevel(0);
+            primeWordSpeech();
         }
 
         function applyWordHuntData(data) {

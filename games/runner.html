@@ -430,6 +430,8 @@
   </div>
 </div>
 
+<script src="../data/word-audio-manifest.js"></script>
+<script src="word-audio.js"></script>
 <script src="round-review.js"></script>
 <script>
 'use strict';
@@ -579,33 +581,36 @@ if ('speechSynthesis' in window){ loadVoices(); window.speechSynthesis.onvoicesc
 function pickEnVoice(){
   return _voices.find(v=>/^en[-_]?US/i.test(v.lang)) || _voices.find(v=>/^en/i.test(v.lang)) || null;
 }
-function speakWord(word){
+function speakWord(word,fallbackOnly){
+  if(!fallbackOnly&&window.WordAudio&&WordAudio.play(word,{fallback:()=>speakWord(word,true)}))return;
   if (!('speechSynthesis' in window) || !word) return;
+  try{ ac && ac.suspend && ac.suspend(); }catch(e){}
   try{
     const u = new SpeechSynthesisUtterance(String(word));
     const v = pickEnVoice(); if (v) u.voice = v;
-    u.lang = (v && v.lang) || 'en-US'; u.rate = 0.85; u.pitch = 1;
-    window.speechSynthesis.cancel();
+    u.lang = 'en-US'; u.rate = 0.85; u.pitch = 1;
+    if(window.speechSynthesis.speaking || window.speechSynthesis.pending) window.speechSynthesis.cancel();
     window.speechSynthesis.speak(u);
   }catch(e){}
 }
 // iOS：speechSynthesis 需由真實按鈕點擊解鎖一次（開始／再玩按鈕觸發）
 function unlockSpeech(){
+  if(window.WordAudio)WordAudio.unlock();
   if (!('speechSynthesis' in window)) return;
-  try{ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); }catch(e){}
+  try{ const u = new SpeechSynthesisUtterance(' '); u.lang = 'en-US'; u.volume = 0; window.speechSynthesis.speak(u); }catch(e){}
 }
 // 題目門接近時：反覆唸出單字，答完即停。唸字時 suspend AudioContext，讓出 iOS 音訊工作階段
 function startGateSpeech(o){
   if (o.spoke || !o.q || !o.q.say) return;
   o.spoke = true;
-  try{ ac && ac.suspend && ac.suspend(); }catch(e){}
   speakWord(o.q.say);
   o.speakTimer = setInterval(()=>{
     if (o.resolved || state !== 'play'){ clearInterval(o.speakTimer); o.speakTimer = null; return; }
-    if (!paused) speakWord(o.q.say);
+    if (!paused && !(window.WordAudio && WordAudio.isPlaying())) speakWord(o.q.say);
   }, 1500);
 }
 function stopGateSpeech(o){
+  if(window.WordAudio)WordAudio.stop();
   if (o && o.speakTimer){ clearInterval(o.speakTimer); o.speakTimer = null; }
   try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
   try{ ac && ac.resume && ac.resume(); }catch(e){}
@@ -1333,6 +1338,7 @@ function startGame(){
 }
 
 function gameOver(){
+  if(window.WordAudio)WordAudio.stop();
   state = 'over';
   stopBgm();
   try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
@@ -1373,10 +1379,11 @@ function togglePause(){
   if (state !== 'play' && state !== 'crash') return;
   paused = !paused;
   $('pauseScreen').classList.toggle('hidden', !paused);
-  if (paused) { try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){} }
+  if (paused) { if(window.WordAudio)WordAudio.stop(); try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){} }
   duckBgm(paused);
 }
 function returnToMainMenu(){
+  if(window.WordAudio)WordAudio.stop();
   obstacles.forEach(o => { stopGateSpeech(o); o.el.remove(); });
   obstacles = [];
   paused = false;

@@ -313,6 +313,8 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script src="../data/word-audio-manifest.js"></script>
+<script src="word-audio.js"></script>
 <script src="round-review.js"></script>
 <script>
 'use strict';
@@ -842,6 +844,7 @@ let aimYaw=0, aimPitch=0;
 let touchMove={x:0,y:0,mag:0,boost:false,active:false};
 
 function resetGame(){
+  if(window.WordAudio)WordAudio.stop();
   RoundReview.reset();
   endRound();closeQuiz();
   wordQueue=[];missedList=[];lastRoundEntry=null;roundCD=8;
@@ -876,10 +879,12 @@ function startGame(){
   document.getElementById('skillDock').classList.remove('hidden');
   document.getElementById('btnPause').classList.remove('hidden');
   if(IS_TOUCH){document.getElementById('touchUI').classList.remove('hidden');refreshTouchRects();}
+  if(window.WordAudio)WordAudio.unlock();
   speakWord(' ');                 // 用開始手勢解鎖 iOS 發音（英→中、英→圖回合自動唸才有聲）
   startBgm();                     // 所有模式都由開始按鈕的真實 click 啟動背景音樂
 }
 function gameOver(reason){
+  if(window.WordAudio)WordAudio.stop();
   window.lastOver={reason,at:elapsed};
   overReason=reason;state='over';overT=0;best=Math.max(best,score);
   paused=false;document.getElementById('pauseOverlay').classList.add('hidden');stopBgm();
@@ -1150,7 +1155,8 @@ function disposeLabel(sp){
   scene.remove(sp);sp.material.map.dispose();sp.material.dispose();
 }
 // 唸單字：唸前暫停 AudioContext 讓出 iOS 音訊工作階段（否則 speechSynthesis 在 iOS 上沒聲），唸完再 resume
-function speakWord(t){
+function speakWord(t,fallbackOnly){
+  if(!fallbackOnly&&String(t||'').trim()&&window.WordAudio&&WordAudio.play(t,{fallback:()=>speakWord(t,true)}))return;
   try{
     const synth=window.speechSynthesis; if(!synth)return;
     if(synth.speaking||synth.pending)synth.cancel();
@@ -1226,12 +1232,13 @@ function startRound(){
     document.getElementById('promptSpeakBtn').disabled=false;
     speakWord(entry.en);
     const thisRound=round;
-    setTimeout(()=>{if(state==='play'&&!paused&&round===thisRound)speakWord(entry.en);},3000);
+    setTimeout(()=>{if(state==='play'&&!paused&&round===thisRound&&!(window.WordAudio&&WordAudio.isPlaying()))speakWord(entry.en);},3000);
   }
   return true;
 }
 function endRound(){
   if(!round)return;
+  if(window.WordAudio)WordAudio.stop();
   for(const it of round.items){disposeLabel(it.sp);if(it.beam)removeObj(it.beam);}
   lastRoundEntry=round.entry;
   round=null;roundCD=rnd(9,14);
@@ -2048,12 +2055,13 @@ function togglePause(){
   if(paused&&matchMedia('(orientation:portrait)').matches)return;
   paused=!paused;
   document.getElementById('pauseOverlay').classList.toggle('hidden',!paused);
-  if(paused){mouse.down=false;for(const k in keys)keys[k]=false;stopBgm();setThreatGlow(null,0);
+  if(paused){if(window.WordAudio)WordAudio.stop();mouse.down=false;for(const k in keys)keys[k]=false;stopBgm();setThreatGlow(null,0);
     try{const s=window.speechSynthesis;if(s&&(s.speaking||s.pending))s.cancel();}catch(e){}}
   else{if(AC&&AC.state==='suspended')AC.resume();startBgm();last=performance.now();
   }
 }
 function returnToMainMenu(){
+  if(window.WordAudio)WordAudio.stop();
   paused=false;state='menu';stopBgm();endRound();closeQuiz();resetTouch();
   document.getElementById('pauseOverlay').classList.add('hidden');
   document.getElementById('hud').classList.add('hidden');

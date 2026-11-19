@@ -450,6 +450,8 @@
   </div>
 </div>
 
+<script src="../data/word-audio-manifest.js"></script>
+<script src="word-audio.js"></script>
 <script src="round-review.js"></script>
 <script>
 "use strict";
@@ -673,7 +675,8 @@ const sfx = {
    2) 唸字時 suspend AudioContext 讓出 iOS 音訊工作階段，onend/onerror resume，
       世代 token 防連續換題 race＋setTimeout 安全網。BGM 走 HTMLAudio 不受影響。 */
 let _speakGen = 0;
-function speakWord(word){
+function speakWord(word,fallbackOnly){
+  if(!fallbackOnly&&window.WordAudio&&WordAudio.play(word,{fallback:()=>speakWord(word,true)}))return;
   if(!('speechSynthesis' in window) || !word) return;
   const gen = ++_speakGen;
   try{
@@ -692,8 +695,9 @@ function speakWord(word){
   }catch(e){}
 }
 function unlockSpeech(){
+  if(window.WordAudio)WordAudio.unlock();
   if(!('speechSynthesis' in window)) return;
-  try{ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); }catch(e){}
+  try{ const u = new SpeechSynthesisUtterance(' '); u.lang = 'en-US'; u.volume = 0; window.speechSynthesis.speak(u); }catch(e){}
 }
 
 /* ════════════════ 三模式共用判定 ════════════════ */
@@ -752,6 +756,7 @@ function startRoundCommon() {
 }
 
 function newRound() {
+  if(window.WordAudio)WordAudio.stop();
   const lv = game.level;
   startRoundCommon();
 
@@ -852,7 +857,7 @@ function updateQuestionUI() {
     speakWord(t.word.word);
     const questionType = game.qType;
     afterGameTime(() => {
-      if (game.state === "playing" && !game.boss && !game.roundEnding && game.target === t && game.qType === questionType) speakWord(t.word.word);
+      if (game.state === "playing" && !game.boss && !game.roundEnding && game.target === t && game.qType === questionType && !(window.WordAudio && WordAudio.isPlaying())) speakWord(t.word.word);
     }, 3000);
   } else if (game.qType === "en2cn") {
     title = "擊沉「中文意思」正確的船";
@@ -860,7 +865,7 @@ function updateQuestionUI() {
     speakWord(t.word.word);
     const questionType = game.qType;
     afterGameTime(() => {
-      if (game.state === "playing" && !game.boss && !game.roundEnding && game.target === t && game.qType === questionType) speakWord(t.word.word);
+      if (game.state === "playing" && !game.boss && !game.roundEnding && game.target === t && game.qType === questionType && !(window.WordAudio && WordAudio.isPlaying())) speakWord(t.word.word);
     }, 3000);
   } else {
     title = `擊沉符合條件的船（${t.word.pos}）`;
@@ -1058,6 +1063,7 @@ function shipStars() {
 }
 
 function gameOver() {
+  if(window.WordAudio)WordAudio.stop();
   gameActions = [];
   stopBgm();
   game.state = "over";
@@ -1071,6 +1077,7 @@ function gameOver() {
 }
 
 function winGame() {
+  if(window.WordAudio)WordAudio.stop();
   gameActions = [];
   stopBgm();
   game.state = "win";
@@ -1104,6 +1111,7 @@ function spawnWinConfetti() {
 /* ════════════════ 暫停 ════════════════ */
 function togglePause() {
   if (game.state === "playing") {
+    if(window.WordAudio)WordAudio.stop();
     game.state = "paused";
     stopBgm();
     $("pause-screen").classList.remove("hidden");
@@ -1115,6 +1123,7 @@ function togglePause() {
   }
 }
 function backToMenu() {
+  if(window.WordAudio)WordAudio.stop();
   gameActions = [];
   stopBgm();
   game.state = "menu";
@@ -1503,7 +1512,7 @@ function spawnBossWave() {
   ], false);
   speakWord(targetWord.word);
   afterGameTime(() => {
-    if (game.state === "playing" && game.boss === b && b.clue === targetWord && !game.roundEnding) speakWord(targetWord.word);
+    if (game.state === "playing" && game.boss === b && b.clue === targetWord && !game.roundEnding && !(window.WordAudio && WordAudio.isPlaying())) speakWord(targetWord.word);
   }, 3000);
   skyQ.classList.remove("hidden");
 }

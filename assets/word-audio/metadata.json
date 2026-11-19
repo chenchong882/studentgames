@@ -1,0 +1,4080 @@
+{
+  "model": "gpt-4o-mini-tts-2025-12-15",
+  "voice": "marin",
+  "speed": 0.9,
+  "instructions": "Speak only the provided English word or phrase, exactly once. Use a natural General American accent and the warm, clear voice of a patient English teacher. Speak slightly more slowly than ordinary conversation, while keeping natural rhythm and word stress. Keep vowels natural; do not stretch sounds, split syllables, spell letters, whisper, sing, or add an introduction. For a multiword phrase, say it as one naturally connected phrase. No music, sound effects, translations, examples, or commentary.",
+  "settings_sha256": "2846f13695bb7fa62228013adb0b0b5cd40cf9ba65da25891118d23604af33cb",
+  "version": "marin-0.9-v1",
+  "ai_generated": true,
+  "word_count": 380,
+  "format": "mp3",
+  "bitrate_kbps": 128,
+  "duration_seconds": 717.944,
+  "total_bytes": 12004048,
+  "source": "data/wordbank.js / WORD_BANK.getWords()",
+  "files": [
+    {
+      "word": "blanket",
+      "chinese": "毯子",
+      "sentence": "She put a warm blanket over her legs before going to sleep.",
+      "slug": "blanket",
+      "seconds": 1.2053,
+      "bytes": 20780,
+      "peak_dbfs": -9.91,
+      "sha256": "fad959c20bdd8d08b2acf07fedf7884197614f78c4bb0bee26ad8c8e3504c7f9"
+    },
+    {
+      "word": "scientist",
+      "chinese": "科學家",
+      "sentence": "The scientist did an experiment in the laboratory.",
+      "slug": "scientist",
+      "seconds": 1.496,
+      "bytes": 25388,
+      "peak_dbfs": -10.03,
+      "sha256": "47ff723ecd7540992e8dfb54097d1dcb1b0cde70b30e1d5b0fb6301fa01576e6"
+    },
+    {
+      "word": "mirror",
+      "chinese": "鏡子",
+      "sentence": "She looked in the mirror before she left the house.",
+      "slug": "mirror",
+      "seconds": 1.2693,
+      "bytes": 21548,
+      "peak_dbfs": -9.94,
+      "sha256": "c050a58e44b05eec219f01347150c7fdc8635fee4641619916b0769bb9331fca"
+    },
+    {
+      "word": "cousin",
+      "chinese": "表／堂兄弟姊妹",
+      "sentence": "My cousin came to my house to play after school.",
+      "slug": "cousin",
+      "seconds": 0.9311,
+      "bytes": 16172,
+      "peak_dbfs": -7.65,
+      "sha256": "a5dec4ae818928c78b6f9950f462361b74c024d07d10b8e93fb613b6535e271e"
+    },
+    {
+      "word": "backpack",
+      "chinese": "背包",
+      "sentence": "She carried her books in the backpack on her back.",
+      "slug": "backpack",
+      "seconds": 2.4838,
+      "bytes": 41132,
+      "peak_dbfs": -5.81,
+      "sha256": "bce07267db3fff99782a71e6a4fdb437405552d46ae5f8a1c253ac2440231b9a"
+    },
+    {
+      "word": "crayons",
+      "chinese": "蠟筆",
+      "sentence": "The children used colorful crayons to draw a picture.",
+      "slug": "crayons",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -9.0,
+      "sha256": "feec049ebd97fb51072d073418266c6edd14107bad2ec91995f23e13b701ac7d"
+    },
+    {
+      "word": "scissors",
+      "chinese": "剪刀",
+      "sentence": "She used scissors to cut the paper into small pieces.",
+      "slug": "scissors",
+      "seconds": 1.1968,
+      "bytes": 20396,
+      "peak_dbfs": -10.67,
+      "sha256": "56280994ef1b3264ce2c461b595478a5ea118a8560f55e78604a47ea58368c54"
+    },
+    {
+      "word": "puzzle",
+      "chinese": "拼圖",
+      "sentence": "We put the pieces together to finish the puzzle.",
+      "slug": "puzzle",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -10.67,
+      "sha256": "06502068031081c1490cc7372aa06c577d3933dac0b2b4d960a57c1981d7d0fe"
+    },
+    {
+      "word": "firefighter",
+      "chinese": "消防員",
+      "sentence": "The firefighter quickly put out the fire.",
+      "slug": "firefighter",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -7.91,
+      "sha256": "7af8116665a28c0a68c896c97c69ba5e4d794a4e0e651d5cf795038fe30697a7"
+    },
+    {
+      "word": "mountain",
+      "chinese": "山",
+      "sentence": "We could see the tall mountain from our window.",
+      "slug": "mountain",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -6.97,
+      "sha256": "1b14f9843012919e4eb55c7fa5616036224db46a1e74b19886636a5e2da6c945"
+    },
+    {
+      "word": "spaghetti",
+      "chinese": "義大利麵",
+      "sentence": "Dad cooked spaghetti with tomato sauce for dinner.",
+      "slug": "spaghetti",
+      "seconds": 1.2053,
+      "bytes": 20780,
+      "peak_dbfs": -9.81,
+      "sha256": "7a6f980dfb35f366ff3072d8bdf1182ec5f1355fd0a68f8264be5fd7a6097388"
+    },
+    {
+      "word": "cookie",
+      "chinese": "餅乾",
+      "sentence": "I ate a chocolate chip cookie after lunch.",
+      "slug": "cookie",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -6.73,
+      "sha256": "dc5843e992109f75110352886a9d2cb5ab5765ade2d333787ffd0fe1cd1dcd43"
+    },
+    {
+      "word": "egg",
+      "chinese": "蛋",
+      "sentence": "She cracked an egg into the bowl.",
+      "slug": "egg",
+      "seconds": 1.4293,
+      "bytes": 24236,
+      "peak_dbfs": -8.89,
+      "sha256": "df9a6c00d0efcc038c82be3750b0e96942246cc650c2aaa65ef86c32de595c24"
+    },
+    {
+      "word": "sandwich",
+      "chinese": "三明治",
+      "sentence": "I made a cheese sandwich for my lunch.",
+      "slug": "sandwich",
+      "seconds": 1.376,
+      "bytes": 23468,
+      "peak_dbfs": -11.51,
+      "sha256": "0c2fcd9e5fd0884189853515afb6a59ef0633b990e8333539d972f7c6b55c178"
+    },
+    {
+      "word": "lemonade",
+      "chinese": "檸檬水",
+      "sentence": "We drank cold lemonade on a hot day.",
+      "slug": "lemonade",
+      "seconds": 2.4838,
+      "bytes": 41132,
+      "peak_dbfs": -7.7,
+      "sha256": "f4a85b1386d4ea3fb441e0a2460a6172888beee6f06202cf2e0a11c70c94824f"
+    },
+    {
+      "word": "hospital",
+      "chinese": "醫院",
+      "sentence": "The doctor works at the hospital.",
+      "slug": "hospital",
+      "seconds": 2.2076,
+      "bytes": 36524,
+      "peak_dbfs": -7.53,
+      "sha256": "4560a8e5fc071d60a689018739169cad6e84a4d97e2c4e11943ff350df32d774"
+    },
+    {
+      "word": "bakery",
+      "chinese": "麵包店",
+      "sentence": "We bought fresh bread from the bakery.",
+      "slug": "bakery",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -9.87,
+      "sha256": "abf482b71dbd213893db1bfe050ce6d246912db03e7a68b251bb821220bc6007"
+    },
+    {
+      "word": "police station",
+      "chinese": "警察局",
+      "sentence": "The police officers work at the police station.",
+      "slug": "police-station",
+      "seconds": 1.8339,
+      "bytes": 30764,
+      "peak_dbfs": -9.71,
+      "sha256": "3ac508d2bf8d8332d932d81720020cad28bc2765f547ce4e2828bc9530dd6475"
+    },
+    {
+      "word": "museum",
+      "chinese": "博物館",
+      "sentence": "We saw old paintings and statues at the museum.",
+      "slug": "museum",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -9.91,
+      "sha256": "9099f9c7879443402b8a49bbd35c129af0f7c9c31194d1fc03f30b8eac8b2691"
+    },
+    {
+      "word": "library",
+      "chinese": "圖書館",
+      "sentence": "I borrowed a book from the library.",
+      "slug": "library",
+      "seconds": 2.666,
+      "bytes": 44204,
+      "peak_dbfs": -6.57,
+      "sha256": "3c48dc417fa6238af3f6d5c3d23876d2e91e6e6c8dd865a8e01cf767dc8353b3"
+    },
+    {
+      "word": "subway",
+      "chinese": "捷運",
+      "sentence": "We took the subway to the city.",
+      "slug": "subway",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -8.24,
+      "sha256": "371db6259f5d1b40b72ef01890db4d7652601639de164360bf0218f4f28e9c72"
+    },
+    {
+      "word": "rocket",
+      "chinese": "火箭",
+      "sentence": "The rocket flew high into space.",
+      "slug": "rocket",
+      "seconds": 0.9411,
+      "bytes": 16556,
+      "peak_dbfs": -10.91,
+      "sha256": "d83f2268c0e9152eacfd3c79bff8df9c9a60b7aa7f5bac6c2800e8c0b58c1a7e"
+    },
+    {
+      "word": "flashlight",
+      "chinese": "手電筒",
+      "sentence": "He used a flashlight to see in the dark.",
+      "slug": "flashlight",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -9.17,
+      "sha256": "c66830bab90e02ff2fd0a83d8b163fa79b1233e5b817822b8866e8af1bb88980"
+    },
+    {
+      "word": "notebook",
+      "chinese": "筆記本",
+      "sentence": "I wrote my homework in my notebook before class.",
+      "slug": "notebook",
+      "seconds": 2.0579,
+      "bytes": 34220,
+      "peak_dbfs": -8.98,
+      "sha256": "24013f33848ef8dade049fbc5786861ba344bf5f1adea14c1adb5b7ba9cc124e"
+    },
+    {
+      "word": "paintbrush",
+      "chinese": "畫筆",
+      "sentence": "She used a paintbrush to paint a blue sky.",
+      "slug": "paintbrush",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -14.16,
+      "sha256": "ec5c7d92416ea1c62d2b342ad4db2807326e6c63043ba2aeed22ed3521ba1920"
+    },
+    {
+      "word": "magician",
+      "chinese": "魔術師",
+      "sentence": "The magician pulled a rabbit out of a hat.",
+      "slug": "magician",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -9.68,
+      "sha256": "a7276032970284138e09876adbf44594d377d250c296823c2c7b85c69f317cba"
+    },
+    {
+      "word": "basket",
+      "chinese": "籃子",
+      "sentence": "She put the apples in a basket.",
+      "slug": "basket",
+      "seconds": 0.9384,
+      "bytes": 16556,
+      "peak_dbfs": -3.77,
+      "sha256": "edd82cd05e3469a227d2630679ec66ebb6d9d9a5afefc76d55e1481bd9608889"
+    },
+    {
+      "word": "ticket",
+      "chinese": "車票",
+      "sentence": "She showed her ticket before getting on the train.",
+      "slug": "ticket",
+      "seconds": 1.2693,
+      "bytes": 21548,
+      "peak_dbfs": -8.3,
+      "sha256": "d6bc3f1b243d9fc10ef78cb597c5ed162c038bf190b9da246c4bea23ce3ca754"
+    },
+    {
+      "word": "castle",
+      "chinese": "城堡",
+      "sentence": "The king lived in a large castle.",
+      "slug": "castle",
+      "seconds": 1.046,
+      "bytes": 18092,
+      "peak_dbfs": -13.28,
+      "sha256": "6bee8cd4f92f561d0f5cb1acc4584fdf3f48439e9f1676665c471225253b075f"
+    },
+    {
+      "word": "traffic light",
+      "chinese": "紅綠燈",
+      "sentence": "The traffic light turned green, so the cars started moving.",
+      "slug": "traffic-light",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -8.53,
+      "sha256": "c4a4b47be0364bcc8b740c75d29c42343932bdd6971adbe6605f7532c4adf49f"
+    },
+    {
+      "word": "sofa",
+      "chinese": "沙發",
+      "sentence": "We sat on the sofa and watched TV together.",
+      "slug": "sofa",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -9.42,
+      "sha256": "0db37033bba5e88388702b3283822ac09c9ca71c6df683ec7cd14d775b1a9eeb"
+    },
+    {
+      "word": "alarm clock",
+      "chinese": "鬧鐘",
+      "sentence": "My alarm clock wakes me up at seven every morning.",
+      "slug": "alarm-clock",
+      "seconds": 1.994,
+      "bytes": 33452,
+      "peak_dbfs": -8.95,
+      "sha256": "ba421cbaa656a2c253d4b443ebd1c3af6bf41c7d0dbafdd24707768a78b999b1"
+    },
+    {
+      "word": "bathtub",
+      "chinese": "浴缸",
+      "sentence": "The baby played with a toy boat in the bathtub.",
+      "slug": "bathtub",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -8.74,
+      "sha256": "0e848aa6fda41695e2a440e361d9f3bc92e0dcbdb70f9e243b4558984de911f0"
+    },
+    {
+      "word": "shower",
+      "chinese": "淋浴設備",
+      "sentence": "Dad takes a quick shower before breakfast.",
+      "slug": "shower",
+      "seconds": 2.2607,
+      "bytes": 37676,
+      "peak_dbfs": -9.72,
+      "sha256": "4434531df64480ec06708eda6858fb547082eff872a058d313f14a9d35b4ca0f"
+    },
+    {
+      "word": "toilet",
+      "chinese": "馬桶",
+      "sentence": "Please flush the toilet after you use it.",
+      "slug": "toilet",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -8.56,
+      "sha256": "5eb5fff9c5698a4a1ffcb17d494ee2a8861413349e8380dc2e54a4e038861152"
+    },
+    {
+      "word": "toilet paper",
+      "chinese": "衛生紙",
+      "sentence": "We need a new roll of toilet paper in the bathroom.",
+      "slug": "toilet-paper",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -8.85,
+      "sha256": "d6173758c44800e3e6e4cd6413750a0839fa220cc8d6369ccebdc961e3691f0a"
+    },
+    {
+      "word": "fan",
+      "chinese": "扇子",
+      "sentence": "She used a fan to keep cool on the hot day.",
+      "slug": "fan",
+      "seconds": 1.4293,
+      "bytes": 24236,
+      "peak_dbfs": -9.16,
+      "sha256": "02f30c15fe83eb957c85396fd06a5bca89b04b38ec8dd6cad4122a507991c617"
+    },
+    {
+      "word": "radio",
+      "chinese": "收音機",
+      "sentence": "Grandpa listens to the news on the radio.",
+      "slug": "radio",
+      "seconds": 1.0453,
+      "bytes": 18092,
+      "peak_dbfs": -5.16,
+      "sha256": "dcb1e15861e2d1a1e37ff7b4ee79ab27d2c502e9938c6cad4d9d67f51de35d48"
+    },
+    {
+      "word": "telephone",
+      "chinese": "電話",
+      "sentence": "The telephone rang while we were eating dinner.",
+      "slug": "telephone",
+      "seconds": 2.4838,
+      "bytes": 41132,
+      "peak_dbfs": -7.92,
+      "sha256": "f19dbdc989617ca0688c0bda3958456ed17c2525a2f8bce7321d9245aaec8afe"
+    },
+    {
+      "word": "bell",
+      "chinese": "鈴鐺",
+      "sentence": "She rang the bell to call everyone inside.",
+      "slug": "bell",
+      "seconds": 1.4827,
+      "bytes": 25004,
+      "peak_dbfs": -4.1,
+      "sha256": "4046710c625711c3149030b0d111435c4a759d92b5e8df5e421763cf34eb9c9b"
+    },
+    {
+      "word": "candle",
+      "chinese": "蠟燭",
+      "sentence": "Mom lit a candle when the lights went out.",
+      "slug": "candle",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -9.82,
+      "sha256": "110079e86a4f62ebf023659761d17cd8bf5fe14ab3533163974fa99dace299bd"
+    },
+    {
+      "word": "trash can",
+      "chinese": "垃圾桶",
+      "sentence": "Please put the empty bottle in the trash can.",
+      "slug": "trash-can",
+      "seconds": 1.994,
+      "bytes": 33452,
+      "peak_dbfs": -9.32,
+      "sha256": "50eda9239105bf8a5385c8065992cc4e3c58813b1c1e0cd38a47aadb08176d9f"
+    },
+    {
+      "word": "toolbox",
+      "chinese": "工具箱",
+      "sentence": "Dad keeps all his tools in a red toolbox.",
+      "slug": "toolbox",
+      "seconds": 1.339,
+      "bytes": 22700,
+      "peak_dbfs": -7.06,
+      "sha256": "c13b1e965bc9caea8b6f68b9d383d2028d47832dddb56e8b00dc8a1916fdb4ec"
+    },
+    {
+      "word": "hammer",
+      "chinese": "鐵鎚",
+      "sentence": "He used a hammer to drive the nail into the wood.",
+      "slug": "hammer",
+      "seconds": 2.0579,
+      "bytes": 34220,
+      "peak_dbfs": -14.03,
+      "sha256": "633129db202a4916e61c876fad34cc17d7cfc9243523257c7724268ba30054e7"
+    },
+    {
+      "word": "screwdriver",
+      "chinese": "螺絲起子",
+      "sentence": "She tightened the loose screw with a screwdriver.",
+      "slug": "screwdriver",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -9.3,
+      "sha256": "f5ed94aee5eb71b595791c215ddb8a3c3a71720f63b4a570684747471641ef74"
+    },
+    {
+      "word": "wrench",
+      "chinese": "扳手",
+      "sentence": "The plumber used a wrench to turn the pipe.",
+      "slug": "wrench",
+      "seconds": 1.4827,
+      "bytes": 25004,
+      "peak_dbfs": -10.13,
+      "sha256": "b1dc3f7a917e47d0f4ff643e79a37ecb363acbb2c8a9cea6c179f619fb38888b"
+    },
+    {
+      "word": "saw",
+      "chinese": "鋸子",
+      "sentence": "He cut the wooden board with a saw.",
+      "slug": "saw",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -10.95,
+      "sha256": "c7ef93e20b0eb12af9657bf2fdb0860fa41dadb5840904c39eb2dc37566dbdc5"
+    },
+    {
+      "word": "ladder",
+      "chinese": "梯子",
+      "sentence": "Dad climbed the ladder to fix the roof.",
+      "slug": "ladder",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -8.57,
+      "sha256": "9b49c277897bcaba78c7c05171f37d7e0e4004410f12fc21b73b217bb858a562"
+    },
+    {
+      "word": "plunger",
+      "chinese": "馬桶吸盤",
+      "sentence": "He used a plunger to clear the blocked toilet.",
+      "slug": "plunger",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -11.22,
+      "sha256": "d1776d3af1b2d16781a8023cccf19acf3fbb2504487af98d8414535632560cdc"
+    },
+    {
+      "word": "razor",
+      "chinese": "刮鬍刀",
+      "sentence": "Dad uses a razor to shave his face.",
+      "slug": "razor",
+      "seconds": 2.6108,
+      "bytes": 43052,
+      "peak_dbfs": -11.05,
+      "sha256": "f0b057c586364213bcd5fa661270bc700b5a7b765c2430da2714effa1b009c5a"
+    },
+    {
+      "word": "comb",
+      "chinese": "梳子",
+      "sentence": "She used a comb to make her hair neat.",
+      "slug": "comb",
+      "seconds": 1.3227,
+      "bytes": 22700,
+      "peak_dbfs": -11.96,
+      "sha256": "490fb64c6fa1cc1696e42c57e2738f49d105d9c7b8593aad062cdba2a619758f"
+    },
+    {
+      "word": "lotion",
+      "chinese": "乳液",
+      "sentence": "She put some lotion on her dry hands.",
+      "slug": "lotion",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -9.03,
+      "sha256": "d1216b33005ecedfbc4578d59768b092ef0a77af78d702fdabe7dcf4d22dc317"
+    },
+    {
+      "word": "safety pin",
+      "chinese": "安全別針",
+      "sentence": "Mom used a safety pin to hold the cloth together.",
+      "slug": "safety-pin",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -8.77,
+      "sha256": "e0fb2494f93e9476d950949ea1c427e6a5911a3fa69fd66cbe92e92ddbd1c2c9"
+    },
+    {
+      "word": "hook",
+      "chinese": "掛鉤",
+      "sentence": "He hung his coat on the hook by the door.",
+      "slug": "hook",
+      "seconds": 0.6825,
+      "bytes": 12332,
+      "peak_dbfs": -11.77,
+      "sha256": "55f6fc1b49199a95cfba864e107be5c91daaa1f4c7d6217e9d38f806ffc7b8da"
+    },
+    {
+      "word": "fire extinguisher",
+      "chinese": "滅火器",
+      "sentence": "Use the fire extinguisher to put out a small fire.",
+      "slug": "fire-extinguisher",
+      "seconds": 2.4838,
+      "bytes": 41132,
+      "peak_dbfs": -5.93,
+      "sha256": "26dc111835cef0680c886cea2d7287d986cb0fd0b921026c8c804ec20c897061"
+    },
+    {
+      "word": "electric plug",
+      "chinese": "插頭",
+      "sentence": "He pushed the electric plug into the wall socket.",
+      "slug": "electric-plug",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -9.97,
+      "sha256": "275bdab6854c1b9e2af24841ef842ae149acc4592fd1fe155965265bbf5283a5"
+    },
+    {
+      "word": "houseplant",
+      "chinese": "室內盆栽",
+      "sentence": "The green houseplant sits beside the sunny window.",
+      "slug": "houseplant",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -10.05,
+      "sha256": "65c4c8c72d5f35573b58bc4fb83f284024e7b2a3a5af67b88ad432e99cb8beec"
+    },
+    {
+      "word": "sewing needle",
+      "chinese": "縫衣針",
+      "sentence": "Grandma used a sewing needle to repair the shirt.",
+      "slug": "sewing-needle",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -8.46,
+      "sha256": "13de29ed09068afde8ab2b094b3621e7fabc17af48eb4d4a34ce18e53df0e015"
+    },
+    {
+      "word": "mailbox",
+      "chinese": "信箱",
+      "sentence": "The mail carrier put a letter in our mailbox.",
+      "slug": "mailbox",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -11.1,
+      "sha256": "de729c9da322afd917ebd8b89de4d8791ad861ded830c9e35fc8cfff58c67517"
+    },
+    {
+      "word": "lock",
+      "chinese": "鎖",
+      "sentence": "She put a lock on the gate to keep it closed.",
+      "slug": "lock",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -9.11,
+      "sha256": "bbb09851b2b400d28a6f48d7e494fb4d3ecd131faa659e2a51e299b826d8fbfd"
+    },
+    {
+      "word": "airport",
+      "chinese": "機場",
+      "sentence": "We got to the airport two hours early before our flight.",
+      "slug": "airport",
+      "seconds": 3.4845,
+      "bytes": 57260,
+      "peak_dbfs": -8.01,
+      "sha256": "19ebc66f91a4d021c463b855d981cacd426ec2d3769cd4bc7571c5fec8a6c358"
+    },
+    {
+      "word": "school",
+      "chinese": "學校",
+      "sentence": "The children walked to school together every morning.",
+      "slug": "school",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -8.82,
+      "sha256": "61ec1bbbf02910567a776215d4ac00262de960d7cdd429bb272293fe6cd24ee0"
+    },
+    {
+      "word": "lighthouse",
+      "chinese": "燈塔",
+      "sentence": "The tall lighthouse flashed its bright light to help ships stay safe.",
+      "slug": "lighthouse",
+      "seconds": 1.3733,
+      "bytes": 23468,
+      "peak_dbfs": -11.73,
+      "sha256": "bf4ed2817870bdf30d2517c339e5cce5e78f3a46b0bf08c3410620952d6e9d62"
+    },
+    {
+      "word": "bridge",
+      "chinese": "橋",
+      "sentence": "We walked across the long bridge over the river.",
+      "slug": "bridge",
+      "seconds": 2.0579,
+      "bytes": 34220,
+      "peak_dbfs": -8.24,
+      "sha256": "d7844886b785c170e2b226af51f061342e7f887719b995e63d26e9e9a2ef0dd4"
+    },
+    {
+      "word": "fountain",
+      "chinese": "噴水池",
+      "sentence": "Children threw coins into the fountain in the park and made wishes.",
+      "slug": "fountain",
+      "seconds": 1.8339,
+      "bytes": 30764,
+      "peak_dbfs": -7.91,
+      "sha256": "20123703a0853cd54d89a1a6adf721ec711ce4fa3a67c79dd42697c8849b7d66"
+    },
+    {
+      "word": "playground",
+      "chinese": "遊樂場",
+      "sentence": "The kids ran to the playground after school to play on the swings.",
+      "slug": "playground",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -8.46,
+      "sha256": "cfa95d70dba04797b14cf3cbbf0c2dd131128f8e408edc5a949cbc80865b9636"
+    },
+    {
+      "word": "stadium",
+      "chinese": "體育場",
+      "sentence": "Many fans cheered inside the big stadium when their team scored.",
+      "slug": "stadium",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -9.19,
+      "sha256": "aebb2d894a0f7fef17642c0c9e37d6b6bbcca56675617c7c8744a8b37760dcee"
+    },
+    {
+      "word": "aquarium",
+      "chinese": "水族館",
+      "sentence": "We saw colorful fish and sharks at the aquarium.",
+      "slug": "aquarium",
+      "seconds": 2.3245,
+      "bytes": 38444,
+      "peak_dbfs": -10.88,
+      "sha256": "91b0fa66eb79a009db465566c841ba12b10c7d63293136400036a3c85489f568"
+    },
+    {
+      "word": "pharmacy",
+      "chinese": "藥局",
+      "sentence": "Mom went to the pharmacy to buy medicine for my cold.",
+      "slug": "pharmacy",
+      "seconds": 2.9415,
+      "bytes": 48428,
+      "peak_dbfs": -5.69,
+      "sha256": "536f80f1ac203415b99a40f84cfc532255a72a67fcf1f6bc5512bcbd45f04893"
+    },
+    {
+      "word": "restaurant",
+      "chinese": "餐廳",
+      "sentence": "We ate dinner at a restaurant near the beach.",
+      "slug": "restaurant",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -3.68,
+      "sha256": "01e2e3c617e086cb79e973fcad8b671650f5975dd045e2b23a7397a3c0858bc9"
+    },
+    {
+      "word": "bookstore",
+      "chinese": "書店",
+      "sentence": "She looked for a good book to read at the bookstore.",
+      "slug": "bookstore",
+      "seconds": 1.2053,
+      "bytes": 20780,
+      "peak_dbfs": -7.23,
+      "sha256": "db1e4f695f00ca3f5323d8d85bebb0d0c0bca192d652567df77f12e064e12000"
+    },
+    {
+      "word": "train station",
+      "chinese": "火車站",
+      "sentence": "We waited at the train station for the train to come.",
+      "slug": "train-station",
+      "seconds": 2.9948,
+      "bytes": 49196,
+      "peak_dbfs": -11.48,
+      "sha256": "45b4998b017c2475e7b2438046bb168f1a20983ab125a92e63929c3231f736e6"
+    },
+    {
+      "word": "home",
+      "chinese": "家",
+      "sentence": "After school, I walked home with my friends.",
+      "slug": "home",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -6.74,
+      "sha256": "d1c4337661631394c3ece2e8ee3d1d4854a80449970c31392ee4c804a3ce68c8"
+    },
+    {
+      "word": "parking lot",
+      "chinese": "停車場",
+      "sentence": "Dad drove around the parking lot to find a space for the car.",
+      "slug": "parking-lot",
+      "seconds": 1.6,
+      "bytes": 26924,
+      "peak_dbfs": -6.51,
+      "sha256": "a08cab091c07b7bc33db8f9b913b2023c3710a330c84d10681db1ae3f494808e"
+    },
+    {
+      "word": "bus stop",
+      "chinese": "公車站",
+      "sentence": "I waited at the bus stop for the bus to come.",
+      "slug": "bus-stop",
+      "seconds": 1.8339,
+      "bytes": 30764,
+      "peak_dbfs": -5.32,
+      "sha256": "eea3dc396040ca50dac9778db5f34114b18e13a04b86aacee0e33f9dae6bedb5"
+    },
+    {
+      "word": "crosswalk",
+      "chinese": "斑馬線",
+      "sentence": "Wait for the green light before you walk across the crosswalk.",
+      "slug": "crosswalk",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -6.79,
+      "sha256": "fc0cb007bd1e8ab597c19a31ca2cfdd0238ecc7d33cd88de67d149b01dcc6c06"
+    },
+    {
+      "word": "ferry",
+      "chinese": "渡輪",
+      "sentence": "The ferry carried people and cars across the water.",
+      "slug": "ferry",
+      "seconds": 1.4293,
+      "bytes": 24236,
+      "peak_dbfs": -7.65,
+      "sha256": "5e5c755ed4acfdba5edfeac912f32a700c502a306573d36fde5305521bec4bf0"
+    },
+    {
+      "word": "hotel",
+      "chinese": "旅館",
+      "sentence": "We stayed at a hotel near the beach.",
+      "slug": "hotel",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -10.83,
+      "sha256": "a8648a2f9801e158d38fe30164f3a4e56ab081fa5290fab18d9ced6eda7a11eb"
+    },
+    {
+      "word": "road",
+      "chinese": "道路",
+      "sentence": "We drove down the long road to the beach.",
+      "slug": "road",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -9.14,
+      "sha256": "12455809f6dabe30a2d9898883faf4a33dd677eb428c65f7380972993f4e33a7"
+    },
+    {
+      "word": "store",
+      "chinese": "商店",
+      "sentence": "Mom went to the store to buy milk.",
+      "slug": "store",
+      "seconds": 2.6108,
+      "bytes": 43052,
+      "peak_dbfs": -7.74,
+      "sha256": "15f0541fa0e10a89387151d146d03e63a8e04dd79b0a97b85ca7b172958002fe"
+    },
+    {
+      "word": "gas station",
+      "chinese": "加油站",
+      "sentence": "Dad stopped at the gas station to put gas in the car.",
+      "slug": "gas-station",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -8.53,
+      "sha256": "d0848a67eebf4e4c259705c2fb9269103b2652ba8e81dffed6bf684a654eefe3"
+    },
+    {
+      "word": "market",
+      "chinese": "市場",
+      "sentence": "Mom went to the market early in the morning to buy fresh food.",
+      "slug": "market",
+      "seconds": 2.2076,
+      "bytes": 36524,
+      "peak_dbfs": -11.73,
+      "sha256": "2efebb5518764ff3a356f2d82cae4b9572449cade46bfb269e00f567273dd969"
+    },
+    {
+      "word": "factory",
+      "chinese": "工廠",
+      "sentence": "Big machines in the factory make hundreds of toys every day.",
+      "slug": "factory",
+      "seconds": 0.8732,
+      "bytes": 15404,
+      "peak_dbfs": -5.09,
+      "sha256": "1550eddc14c9d0e6ca9c32c78e21dd3dd372593177f1c1a1ff15f54ae37436d8"
+    },
+    {
+      "word": "post office",
+      "chinese": "郵局",
+      "sentence": "She went to the post office to send a card to her grandma.",
+      "slug": "post-office",
+      "seconds": 2.6108,
+      "bytes": 43052,
+      "peak_dbfs": -5.97,
+      "sha256": "f1547abd626f29d824459cd6e0fc5e8e0d7d3a96d186e20c23cd698a6cb6b3f9"
+    },
+    {
+      "word": "clinic",
+      "chinese": "診所",
+      "sentence": "The doctor at the clinic looked at my throat and said I was sick.",
+      "slug": "clinic",
+      "seconds": 2.0579,
+      "bytes": 34220,
+      "peak_dbfs": -10.79,
+      "sha256": "6cb1cf8d836a5613f90dd155ede9fe4e397cd39f721b047e909bae61d4c6fa42"
+    },
+    {
+      "word": "temple",
+      "chinese": "廟宇",
+      "sentence": "We took off our shoes before going into the temple to pray.",
+      "slug": "temple",
+      "seconds": 2.6108,
+      "bytes": 43052,
+      "peak_dbfs": -10.52,
+      "sha256": "e9d317a5a5314a9e4a4c75d3cd4b0431b9829949b0852cc11801e393440b39dc"
+    },
+    {
+      "word": "garden",
+      "chinese": "花園",
+      "sentence": "Grandma grows flowers in her beautiful garden behind the house.",
+      "slug": "garden",
+      "seconds": 1.152,
+      "bytes": 19628,
+      "peak_dbfs": -6.76,
+      "sha256": "44ca3291d63cf5dc2cb8d018283254833c4ccd00fff030e6b1e73e06ecd001b1"
+    },
+    {
+      "word": "campground",
+      "chinese": "露營地",
+      "sentence": "Our family put up tents at the campground and sat around the fire.",
+      "slug": "campground",
+      "seconds": 1.14,
+      "bytes": 19628,
+      "peak_dbfs": -9.63,
+      "sha256": "0fe2f1cbfbbab54c6afc07ae55365e4d08afdf0f9cea69237b038aba2763f7bb"
+    },
+    {
+      "word": "noodles",
+      "chinese": "麵條",
+      "sentence": "I ate hot noodles with soup for lunch.",
+      "slug": "noodles",
+      "seconds": 2.378,
+      "bytes": 39596,
+      "peak_dbfs": -10.87,
+      "sha256": "dfaef650104dd7cb40ec8e51db3a54873953827ca0387572ec45399e3d95255c"
+    },
+    {
+      "word": "pancake",
+      "chinese": "鬆餅",
+      "sentence": "Mom made a flat round pancake on the hot pan and put syrup on top.",
+      "slug": "pancake",
+      "seconds": 3.8258,
+      "bytes": 62636,
+      "peak_dbfs": -0.09,
+      "sha256": "0061c8e6035e1499f21da01317c0580f69b972173d01459fba18bd9d9166e25c"
+    },
+    {
+      "word": "dumpling",
+      "chinese": "水餃",
+      "sentence": "Mom made dumpling and dropped them into hot water to cook.",
+      "slug": "dumpling",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -8.76,
+      "sha256": "f0243756c3e53f1f22c846021bd1746c1972d11537091ceba3e1ca65615c2b4a"
+    },
+    {
+      "word": "popcorn",
+      "chinese": "爆米花",
+      "sentence": "We ate popcorn together while watching a movie.",
+      "slug": "popcorn",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -8.61,
+      "sha256": "44a562871db138fc7d2d100724eee8a590faccef8aea48875ff83c47861f04b5"
+    },
+    {
+      "word": "cupcake",
+      "chinese": "杯子蛋糕",
+      "sentence": "Each small cupcake had one birthday candle on top.",
+      "slug": "cupcake",
+      "seconds": 1.376,
+      "bytes": 23468,
+      "peak_dbfs": -8.65,
+      "sha256": "bd3633c9958e7f02811f090d391842f5f127c102df21d9d671b78d9dd98faca8"
+    },
+    {
+      "word": "watermelon",
+      "chinese": "西瓜",
+      "sentence": "The big watermelon is green outside and red inside.",
+      "slug": "watermelon",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -5.97,
+      "sha256": "93afd53410db593347a4b95f4631292d00489e3eee965440a3990e98284a61e6"
+    },
+    {
+      "word": "pineapple",
+      "chinese": "鳳梨",
+      "sentence": "The pineapple has a spiky top and is yellow and sweet inside.",
+      "slug": "pineapple",
+      "seconds": 2.4838,
+      "bytes": 41132,
+      "peak_dbfs": -11.1,
+      "sha256": "42d1ea964e8c4357000f54516e7ee810678b8b0ef641afcd1c444e8c811ec6b4"
+    },
+    {
+      "word": "coconut",
+      "chinese": "椰子",
+      "sentence": "We made a hole in the coconut and drank the milk inside.",
+      "slug": "coconut",
+      "seconds": 1.0987,
+      "bytes": 18860,
+      "peak_dbfs": -6.18,
+      "sha256": "457f57b8dbc4c946d9fc5a778b2d60f8daa028d4ca354c97bff9b2169d8cb7f0"
+    },
+    {
+      "word": "avocado",
+      "chinese": "酪梨",
+      "sentence": "She put the soft green avocado on her bread.",
+      "slug": "avocado",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -8.35,
+      "sha256": "94f3c9ae52fd27356e4ff87b3e485279483fc92ffcf48620b0698bfe47f280a4"
+    },
+    {
+      "word": "mushroom",
+      "chinese": "蘑菇",
+      "sentence": "Mom put mushroom in the soup to make it taste better.",
+      "slug": "mushroom",
+      "seconds": 1.1029,
+      "bytes": 18860,
+      "peak_dbfs": -8.9,
+      "sha256": "ce714a75673ec7e589caf5754793d5b04243e7d98776780d31d31b8901c9e8a0"
+    },
+    {
+      "word": "cereal",
+      "chinese": "麥片",
+      "sentence": "I eat cereal with cold milk every morning before school.",
+      "slug": "cereal",
+      "seconds": 1.4293,
+      "bytes": 24236,
+      "peak_dbfs": -11.0,
+      "sha256": "50f6204f82b12a3e98f67e15c62d12ba5443b8abdce993d8d4033104f04e4090"
+    },
+    {
+      "word": "honey",
+      "chinese": "蜂蜜",
+      "sentence": "She put golden honey on her bread to make it sweet.",
+      "slug": "honey",
+      "seconds": 5.1674,
+      "bytes": 84140,
+      "peak_dbfs": -8.13,
+      "sha256": "8732adf4a729b93f81423de84d2acfc1a0773af27ba400ef9313af9095b7633d"
+    },
+    {
+      "word": "jam",
+      "chinese": "果醬",
+      "sentence": "He put strawberry jam on his toast with a knife.",
+      "slug": "jam",
+      "seconds": 1.2693,
+      "bytes": 21548,
+      "peak_dbfs": -9.31,
+      "sha256": "62f0afcaa4e73f47e49a09aa06aff65065eb5e97de94165431c6cee77fb1f2c5"
+    },
+    {
+      "word": "smoothie",
+      "chinese": "冰沙",
+      "sentence": "She put bananas and ice in a machine and made a pink smoothie.",
+      "slug": "smoothie",
+      "seconds": 3.378,
+      "bytes": 55340,
+      "peak_dbfs": -11.48,
+      "sha256": "7286c6aeb9538347c824f316368b44cf1fa3d8af61170efc28de6c8869d3836e"
+    },
+    {
+      "word": "sushi",
+      "chinese": "壽司",
+      "sentence": "We ate fresh sushi at the Japanese restaurant.",
+      "slug": "sushi",
+      "seconds": 2.9948,
+      "bytes": 49196,
+      "peak_dbfs": -8.41,
+      "sha256": "ef107619e29ce7633c561868a56b64f1169f756ec281c71916e4887fe80d7548"
+    },
+    {
+      "word": "waffle",
+      "chinese": "格子鬆餅",
+      "sentence": "She pressed batter in a special iron to make a crispy square waffle for breakfast.",
+      "slug": "waffle",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -4.06,
+      "sha256": "2f3af300164906eb4e29917e6fbe063f11c4e72ff6dd6f1c8c2f20d5b7d77209"
+    },
+    {
+      "word": "pretzel",
+      "chinese": "椒鹽脆餅",
+      "sentence": "I ate a salty pretzel that was twisted into a knot shape.",
+      "slug": "pretzel",
+      "seconds": 2.2076,
+      "bytes": 36524,
+      "peak_dbfs": -7.79,
+      "sha256": "9495fa535072e5a4d477a6ede976a6e70a759ba1e79d7d0ed57ea23eef0b55f6"
+    },
+    {
+      "word": "taco",
+      "chinese": "塔可",
+      "sentence": "She put beef, cheese, and lettuce in a crunchy shell taco.",
+      "slug": "taco",
+      "seconds": 1.3227,
+      "bytes": 22700,
+      "peak_dbfs": -9.43,
+      "sha256": "00c80c4c0a000d94509cad717a60cbc3c2f20e81d21b317607f49e315fab8082"
+    },
+    {
+      "word": "burrito",
+      "chinese": "墨西哥捲餅",
+      "sentence": "He made a burrito by wrapping rice and beans in a big flat bread.",
+      "slug": "burrito",
+      "seconds": 2.666,
+      "bytes": 44204,
+      "peak_dbfs": -4.38,
+      "sha256": "89272dc9d4fa5f8495e13dcedcd6b561ad4b25d747d4a8a0297ea7dace72a3c9"
+    },
+    {
+      "word": "donut",
+      "chinese": "甜甜圈",
+      "sentence": "The donut was round with a hole in the middle.",
+      "slug": "donut",
+      "seconds": 1.2053,
+      "bytes": 20780,
+      "peak_dbfs": -7.67,
+      "sha256": "5f90e2d81629c7b88beabd9ebe20dd8a1dcef669232c690e984ffda81e48f225"
+    },
+    {
+      "word": "croissant",
+      "chinese": "可頌",
+      "sentence": "He ate a soft, curved croissant from the bakery for breakfast.",
+      "slug": "croissant",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -9.34,
+      "sha256": "77ffdd734852d164dd3a3b18e36a4c2118dd0fb182e638420d9fff6becb5f362"
+    },
+    {
+      "word": "bagel",
+      "chinese": "貝果",
+      "sentence": "She cut the round bagel in half and put cream cheese on it.",
+      "slug": "bagel",
+      "seconds": 1.8339,
+      "bytes": 30764,
+      "peak_dbfs": -8.89,
+      "sha256": "7678587dec2007beea0dee8b970c00d761fdeafd2900f906f22f55418763e6ed"
+    },
+    {
+      "word": "soup",
+      "chinese": "湯",
+      "sentence": "Mom made hot soup to warm us up on a cold day.",
+      "slug": "soup",
+      "seconds": 2.4838,
+      "bytes": 41132,
+      "peak_dbfs": -11.05,
+      "sha256": "4a7441b0701881bcb731f0b46a91b1ee9f8df37aa95dc6f5d198f48647374962"
+    },
+    {
+      "word": "yogurt",
+      "chinese": "優格",
+      "sentence": "She ate yogurt with a spoon for breakfast.",
+      "slug": "yogurt",
+      "seconds": 2.666,
+      "bytes": 44204,
+      "peak_dbfs": -8.14,
+      "sha256": "cb29c36e3ea6e8f4eae505aca55590b48ac8c6dfb8847b3375d6bac36829884f"
+    },
+    {
+      "word": "pudding",
+      "chinese": "布丁",
+      "sentence": "Grandma put the chocolate pudding cups in the fridge to cool down.",
+      "slug": "pudding",
+      "seconds": 2.7175,
+      "bytes": 44972,
+      "peak_dbfs": -10.3,
+      "sha256": "98958149ae6095477438026105dd0e790eab930eaa45cdfe195ed3cbb11b9c4d"
+    },
+    {
+      "word": "juice",
+      "chinese": "果汁",
+      "sentence": "She drank a box of orange juice with her breakfast.",
+      "slug": "juice",
+      "seconds": 1.994,
+      "bytes": 33452,
+      "peak_dbfs": -11.36,
+      "sha256": "d9a401b99057895b98657ea03fb0b7b52e296002cb7113b74eccf03789528f6c"
+    },
+    {
+      "word": "tea pot",
+      "chinese": "茶壺",
+      "sentence": "She poured hot water into the tea pot to make tea.",
+      "slug": "tea-pot",
+      "seconds": 2.6108,
+      "bytes": 43052,
+      "peak_dbfs": -11.06,
+      "sha256": "ed19a3adf63e18117246ba9548d5f6466be2d5fd8d32cbd70ac7c2de45f6352d"
+    },
+    {
+      "word": "coffee",
+      "chinese": "咖啡",
+      "sentence": "Dad drinks a cup of coffee every morning.",
+      "slug": "coffee",
+      "seconds": 2.3245,
+      "bytes": 38444,
+      "peak_dbfs": -11.79,
+      "sha256": "608c15a9cdc1f12bde3dd925f34752f6d91a58d14c76488253bb5ae41a8e76f4"
+    },
+    {
+      "word": "salad",
+      "chinese": "沙拉",
+      "sentence": "The chef made a salad with lettuce, tomatoes, and cucumbers.",
+      "slug": "salad",
+      "seconds": 1.0132,
+      "bytes": 17708,
+      "peak_dbfs": -9.69,
+      "sha256": "916bbb02193e1927ebd2205da7a28e15740d41b2a877685cd798571d31b02a42"
+    },
+    {
+      "word": "spice jar",
+      "chinese": "香料罐",
+      "sentence": "She shook the spice jar over the soup to add more flavor.",
+      "slug": "spice-jar",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -7.22,
+      "sha256": "73fc60c3f328ea244531d725e3d100d2c8db33a87e6dfaa3c201d498ad347a54"
+    },
+    {
+      "word": "marker",
+      "chinese": "麥克筆",
+      "sentence": "She drew on the whiteboard with a thick red marker.",
+      "slug": "marker",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -6.48,
+      "sha256": "958fbf45449bfd210edfc3d95742ac055fa0349a118e1368d391424b51877396"
+    },
+    {
+      "word": "ruler",
+      "chinese": "尺",
+      "sentence": "He used a ruler to draw a perfectly straight line on the paper.",
+      "slug": "ruler",
+      "seconds": 2.4307,
+      "bytes": 40364,
+      "peak_dbfs": -11.82,
+      "sha256": "e4e68b87773cd8594bbe2cf6473dded3149a2df411d5e5e3c15c9bbc849d76ca"
+    },
+    {
+      "word": "clay",
+      "chinese": "黏土",
+      "sentence": "The children shaped the soft clay into little animals in art class.",
+      "slug": "clay",
+      "seconds": 2.4307,
+      "bytes": 40364,
+      "peak_dbfs": -8.85,
+      "sha256": "dbc6aaafdc1bd9fa214c36dd57016028e9bd38983d193f561270195f6ef4c7ed"
+    },
+    {
+      "word": "locker",
+      "chinese": "置物櫃",
+      "sentence": "He opened his locker to get his books for class.",
+      "slug": "locker",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -7.82,
+      "sha256": "dcb6f55fbd65cd4a2564beac3e2383e1ae33deedc67b3a06aa9b645391783ac0"
+    },
+    {
+      "word": "chalkboard",
+      "chinese": "黑板",
+      "sentence": "The teacher wrote new words on the chalkboard for us to copy down.",
+      "slug": "chalkboard",
+      "seconds": 1.376,
+      "bytes": 23468,
+      "peak_dbfs": -8.45,
+      "sha256": "d571a510d2ed59b2af769084694b6d0bbf0b93c5fe61f3c764dea95aa02e8029"
+    },
+    {
+      "word": "globe",
+      "chinese": "地球儀",
+      "sentence": "She spun the globe and pointed to the country we were studying.",
+      "slug": "globe",
+      "seconds": 2.8882,
+      "bytes": 47660,
+      "peak_dbfs": -10.79,
+      "sha256": "73720e1bfb1c73a5fb7df6139b8064dcfc2b997bc5ad81a5b877b75d0fdc5341"
+    },
+    {
+      "word": "violin",
+      "chinese": "小提琴",
+      "sentence": "She held the violin under her chin and played a soft song.",
+      "slug": "violin",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -6.28,
+      "sha256": "95019f190c8ba046dc7fbe646fce32fbcac62c052b99242ff3c51458b309a7e7"
+    },
+    {
+      "word": "drum",
+      "chinese": "鼓",
+      "sentence": "The boy hit the drum loudly with his sticks.",
+      "slug": "drum",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -10.72,
+      "sha256": "28e3e06cc69aac7c42b95108696c66a526eba5bc7f7f1b63face7466d3e59021"
+    },
+    {
+      "word": "guitar",
+      "chinese": "吉他",
+      "sentence": "He played the guitar by the campfire and everyone sang along.",
+      "slug": "guitar",
+      "seconds": 1.376,
+      "bytes": 23468,
+      "peak_dbfs": -8.17,
+      "sha256": "1471d86fdff73bbca4a14c2e2f802760316096966911858eb0c2f0f0516397b4"
+    },
+    {
+      "word": "keyboard",
+      "chinese": "鍵盤",
+      "sentence": "She sat at the keyboard and pressed the keys to play a song.",
+      "slug": "keyboard",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -7.15,
+      "sha256": "05cbe88d92876e740149833ccebac664e0611176db1ece37974c1637555d5f5a"
+    },
+    {
+      "word": "trophy",
+      "chinese": "獎盃",
+      "sentence": "The winning team held up the golden trophy and everyone cheered.",
+      "slug": "trophy",
+      "seconds": 2.378,
+      "bytes": 39596,
+      "peak_dbfs": -9.42,
+      "sha256": "ffc763b2e999e545ef8fdfb795fb0dc6544baf155a89070cd00e3a4f6a6be577"
+    },
+    {
+      "word": "camera",
+      "chinese": "相機",
+      "sentence": "The teacher used a camera to take a photo of the class project.",
+      "slug": "camera",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -9.88,
+      "sha256": "1597ed83336d7788a1701a91f10eb1bd796f6d2393f981910c21784e27142b96"
+    },
+    {
+      "word": "printer",
+      "chinese": "印表機",
+      "sentence": "She clicked print and walked to the printer to pick up her paper.",
+      "slug": "printer",
+      "seconds": 1.2053,
+      "bytes": 20780,
+      "peak_dbfs": -8.47,
+      "sha256": "3f5777de176fb4d4f32a4d8f231afe9739fb92a9e7bb04cfa4e15594887faa33"
+    },
+    {
+      "word": "paper clip",
+      "chinese": "迴紋針",
+      "sentence": "He used a small paper clip to hold all the pages together.",
+      "slug": "paper-clip",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -9.4,
+      "sha256": "a462d2d86c92895a9696b2f17a31c207dc5cd6f76c5b595048daeecd5223c4de"
+    },
+    {
+      "word": "folder",
+      "chinese": "資料夾",
+      "sentence": "She kept all her worksheets inside a blue folder.",
+      "slug": "folder",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -10.0,
+      "sha256": "6b9de6b56f06fac2d1a89ce4473bb26b10f2e9ccebff43c41d375fb644bb337d"
+    },
+    {
+      "word": "clipboard",
+      "chinese": "寫字板",
+      "sentence": "The coach held a clipboard and wrote down each player's score.",
+      "slug": "clipboard",
+      "seconds": 1.3227,
+      "bytes": 22700,
+      "peak_dbfs": -8.91,
+      "sha256": "fc3a36d5dda9ce405bdb76dc2971ed4d8c24f9dc375f97b584829da355a3cb8e"
+    },
+    {
+      "word": "easel",
+      "chinese": "畫架",
+      "sentence": "The artist put a canvas on the easel and started to paint.",
+      "slug": "easel",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -10.58,
+      "sha256": "104d6bd402d60a22f41d1a4d4d6550e6952f91284d92853af5b88ea7a65d9dbd"
+    },
+    {
+      "word": "music",
+      "chinese": "音樂",
+      "sentence": "We listened to music in class.",
+      "slug": "music",
+      "seconds": 0.8365,
+      "bytes": 14636,
+      "peak_dbfs": -8.6,
+      "sha256": "0d99f1918e521508e6ae50052fc3873c0a96079102f594b4d7ccc2c9a961d761"
+    },
+    {
+      "word": "projector",
+      "chinese": "投影機",
+      "sentence": "The teacher turned on the projector and a video appeared on the wall.",
+      "slug": "projector",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -8.37,
+      "sha256": "c4c51cbbf8fe63cd6adc6b4c6f9083a5f1a03fe43fef4839d0bb57f51e7942f2"
+    },
+    {
+      "word": "tablet",
+      "chinese": "平板",
+      "sentence": "Each student got a tablet to draw and write on the screen.",
+      "slug": "tablet",
+      "seconds": 1.096,
+      "bytes": 18860,
+      "peak_dbfs": -12.14,
+      "sha256": "c13fd54c54b369c2672c25a615026d6abe6a689ff546c8178ce287eec76cc9ec"
+    },
+    {
+      "word": "laptop",
+      "chinese": "筆電",
+      "sentence": "She opened her laptop and started typing her report.",
+      "slug": "laptop",
+      "seconds": 2.378,
+      "bytes": 39596,
+      "peak_dbfs": -10.54,
+      "sha256": "6d256de196ecc70df744e8003e46aa0e91d9bdb7c21b3d1845c32df7e84435a6"
+    },
+    {
+      "word": "badge",
+      "chinese": "名牌",
+      "sentence": "Every visitor had to wear a badge with their name on it.",
+      "slug": "badge",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -10.1,
+      "sha256": "a295addbcf1e32ebc691bf4324da7e3b6895446fbe59eaf1ac4d1b72c09b4706"
+    },
+    {
+      "word": "test tube",
+      "chinese": "試管",
+      "sentence": "The students poured liquid into the thin glass test tube and watched it change color.",
+      "slug": "test-tube",
+      "seconds": 2.5476,
+      "bytes": 42284,
+      "peak_dbfs": -9.4,
+      "sha256": "8d2e68bd267ec08f856bb20a048ee6e20831508b83b8ba3163186d4498cfae19"
+    },
+    {
+      "word": "pencil",
+      "chinese": "鉛筆",
+      "sentence": "She used a sharp pencil to write her name on the paper.",
+      "slug": "pencil",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -12.98,
+      "sha256": "66dc243e8d692e243d3140cf8e88ff986e9d93892a7aba6d2922e4a2b1797c2b"
+    },
+    {
+      "word": "megaphone",
+      "chinese": "擴音器",
+      "sentence": "The principal used a megaphone so all the students outside could hear her.",
+      "slug": "megaphone",
+      "seconds": 1.3227,
+      "bytes": 22700,
+      "peak_dbfs": -8.93,
+      "sha256": "81cec94ebaf242f39667d830c723403451195f0c9c7e0ff5c52c67145d80bea3"
+    },
+    {
+      "word": "lion",
+      "chinese": "獅子",
+      "sentence": "The lion shook its thick mane and roared very loud to scare other animals away.",
+      "slug": "lion",
+      "seconds": 2.8882,
+      "bytes": 47660,
+      "peak_dbfs": -11.95,
+      "sha256": "9e19e2ecfd26d891552174cd0a6ccd6bdb9a76e0b24cdce21575dc369938400a"
+    },
+    {
+      "word": "tiger",
+      "chinese": "老虎",
+      "sentence": "The tiger has orange fur with black stripes and lives in the jungle.",
+      "slug": "tiger",
+      "seconds": 1.3227,
+      "bytes": 22700,
+      "peak_dbfs": -13.35,
+      "sha256": "071f903007b9a189567f163be307069f6cbedde296b6d78d8c1d0c158c4c8394"
+    },
+    {
+      "word": "elephant",
+      "chinese": "大象",
+      "sentence": "The elephant used its long trunk to pick up fruit from the tree.",
+      "slug": "elephant",
+      "seconds": 0.9813,
+      "bytes": 16940,
+      "peak_dbfs": -9.93,
+      "sha256": "e04e79d3090a2119c325ef6b1b10e1f9a6a8e850a3b7e2b808b55c23554dbdf6"
+    },
+    {
+      "word": "monkey",
+      "chinese": "猴子",
+      "sentence": "The monkey grabbed a banana and swung to the next tree.",
+      "slug": "monkey",
+      "seconds": 0.8978,
+      "bytes": 15788,
+      "peak_dbfs": -8.89,
+      "sha256": "c16f4526d6b2fafdf392a61122042c587f0c46b8bb4aacbf1a9e751aa452b611"
+    },
+    {
+      "word": "panda",
+      "chinese": "熊貓",
+      "sentence": "The black and white panda sat and ate bamboo all day.",
+      "slug": "panda",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -12.87,
+      "sha256": "45034a2a034f15c891383d04fb48370fb786515152e5a1fc71ba0efff4102d6d"
+    },
+    {
+      "word": "zebra",
+      "chinese": "斑馬",
+      "sentence": "The zebra looks like a horse with black and white stripes all over its body.",
+      "slug": "zebra",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -8.64,
+      "sha256": "a109f3e8be4d0c587a55e6f3a943bc782ea490087bbbb26aece8b08d5ea219ee"
+    },
+    {
+      "word": "giraffe",
+      "chinese": "長頸鹿",
+      "sentence": "The giraffe has a very long neck to reach leaves at the top of tall trees.",
+      "slug": "giraffe",
+      "seconds": 2.3245,
+      "bytes": 38444,
+      "peak_dbfs": -10.82,
+      "sha256": "b6543662bf7ff49ca217921226563507b1515fe61ba365e4450a4f8e2c8998aa"
+    },
+    {
+      "word": "kangaroo",
+      "chinese": "袋鼠",
+      "sentence": "The baby kangaroo sat inside its mother's front pocket and looked around.",
+      "slug": "kangaroo",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -11.47,
+      "sha256": "60b74ce46d62e1b67b01f3f824ed992ee4468c0134574fbd8ee5fb930b0d6cea"
+    },
+    {
+      "word": "koala",
+      "chinese": "無尾熊",
+      "sentence": "The sleepy koala hugged a tree and slowly chewed on its leaves.",
+      "slug": "koala",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -13.01,
+      "sha256": "502d901eb0f7f806a9efbc2351b77097e94308a88547dc915537bd5a2b2f3b3a"
+    },
+    {
+      "word": "rabbit",
+      "chinese": "兔子",
+      "sentence": "The white rabbit hopped around the garden and wiggled its long ears.",
+      "slug": "rabbit",
+      "seconds": 4.3265,
+      "bytes": 70700,
+      "peak_dbfs": -7.11,
+      "sha256": "6afd8363b0ddea2d99baaa409eae5661115deac1d7dee437badb6aa328144949"
+    },
+    {
+      "word": "squirrel",
+      "chinese": "松鼠",
+      "sentence": "The squirrel picked up a nut and hid it under the leaves.",
+      "slug": "squirrel",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -10.25,
+      "sha256": "67534c44b1fed21f4edcb8136cfa48a3b767b354b1a7d45f4778530a1b47a1f5"
+    },
+    {
+      "word": "hedgehog",
+      "chinese": "刺蝟",
+      "sentence": "When scared, the hedgehog curled up into a ball of sharp spines.",
+      "slug": "hedgehog",
+      "seconds": 1.3227,
+      "bytes": 22700,
+      "peak_dbfs": -9.75,
+      "sha256": "65a4f7b93d25cbb3e173b5f076333e1e0ba164d490a2d06a8271d97905054441"
+    },
+    {
+      "word": "wolf",
+      "chinese": "狼",
+      "sentence": "The wolf howled at the full moon at the top of the hill.",
+      "slug": "wolf",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -9.12,
+      "sha256": "e844233e743d2534cdee2b2fdda86507a3d5a40767f1c64e11594698eebf190b"
+    },
+    {
+      "word": "fox",
+      "chinese": "狐狸",
+      "sentence": "The clever fox crept into the farmer's garden to steal food.",
+      "slug": "fox",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -9.05,
+      "sha256": "56a22842a89bdd74211b9232c14306c1aa56440c9c4b376da41ed3ed45304f94"
+    },
+    {
+      "word": "bear",
+      "chinese": "熊",
+      "sentence": "The big brown bear stood in the river and caught a fish with its paw.",
+      "slug": "bear",
+      "seconds": 0.896,
+      "bytes": 15788,
+      "peak_dbfs": -8.05,
+      "sha256": "140d8e464e3fa2fc7af6031378c8bf1e947d88f207f1b09eb2b0a4327337f5d3"
+    },
+    {
+      "word": "polar bear",
+      "chinese": "北極熊",
+      "sentence": "The white polar bear lives in the cold Arctic snow and ice.",
+      "slug": "polar-bear",
+      "seconds": 2.2607,
+      "bytes": 37676,
+      "peak_dbfs": -8.29,
+      "sha256": "914b6ac6e29b9331dbc2d89c0e6b7fb4b7dfccaf0424fe453ec2c290d865b1f6"
+    },
+    {
+      "word": "deer",
+      "chinese": "鹿",
+      "sentence": "The deer looked at us with its big brown eyes in the forest.",
+      "slug": "deer",
+      "seconds": 2.378,
+      "bytes": 39596,
+      "peak_dbfs": -9.17,
+      "sha256": "9564548aa0b82046f7cd8adbbb855b75d01fb120f82977c4f01c6596fbc4af3c"
+    },
+    {
+      "word": "horse",
+      "chinese": "馬",
+      "sentence": "The horse galloped fast across the open field with a rider on its back.",
+      "slug": "horse",
+      "seconds": 2.378,
+      "bytes": 39596,
+      "peak_dbfs": -8.68,
+      "sha256": "388b59309a788cbe3261bc8e25a3b00193e9cd6d9c3ec3b45d23c2bcc77086d4"
+    },
+    {
+      "word": "cow",
+      "chinese": "牛",
+      "sentence": "The farmer put a bucket under the large black-and-white cow and got fresh milk every morning.",
+      "slug": "cow",
+      "seconds": 1.2053,
+      "bytes": 20780,
+      "peak_dbfs": -8.24,
+      "sha256": "aa37f0887dc36107d0fddfd17ad5a2e1f7407eb5ae42cc493682dfb6d33d3504"
+    },
+    {
+      "word": "pig",
+      "chinese": "豬",
+      "sentence": "The pink pig rolled happily in the mud and made a loud oinking sound.",
+      "slug": "pig",
+      "seconds": 0.7965,
+      "bytes": 14252,
+      "peak_dbfs": -11.3,
+      "sha256": "a648b96e4c41a216d571d4035b116c10fd4db3382a56e3d1dcc01d4fbd83dbf9"
+    },
+    {
+      "word": "sheep",
+      "chinese": "羊",
+      "sentence": "The sheep has soft, thick, white wool all over its body.",
+      "slug": "sheep",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -9.51,
+      "sha256": "0a67fc67bcbf63d2b8431efa46b4b34d1c26c56fb2db901dc57e6023a7ea7b1a"
+    },
+    {
+      "word": "goat",
+      "chinese": "山羊",
+      "sentence": "The goat climbed up the steep rocky hill without falling.",
+      "slug": "goat",
+      "seconds": 1.6,
+      "bytes": 26924,
+      "peak_dbfs": -9.24,
+      "sha256": "52261e3e871dc7fbd6edcc64ff562d80970ea0248be7af8d3f0a70c94288062f"
+    },
+    {
+      "word": "camel",
+      "chinese": "駱駝",
+      "sentence": "People ride the camel in the desert because it can go days without water.",
+      "slug": "camel",
+      "seconds": 1.2693,
+      "bytes": 21548,
+      "peak_dbfs": -9.42,
+      "sha256": "9f4d494ee2c60b2a6a2b72bcbf3217e26000ec950b3f9dbafd30f9adbb550198"
+    },
+    {
+      "word": "llama",
+      "chinese": "駱馬",
+      "sentence": "The llama has a long neck and soft, fluffy wool.",
+      "slug": "llama",
+      "seconds": 1.2053,
+      "bytes": 20780,
+      "peak_dbfs": -10.82,
+      "sha256": "f9e51feba701d4948ff72e71239d2620cae169c397c2ab080a518ff3a72d3c95"
+    },
+    {
+      "word": "hippopotamus",
+      "chinese": "河馬",
+      "sentence": "The big hippopotamus opened its huge mouth wide in the river.",
+      "slug": "hippopotamus",
+      "seconds": 2.2607,
+      "bytes": 37676,
+      "peak_dbfs": -5.83,
+      "sha256": "01273069432d359becbaff62c282039bd92d4d677aa11026cae7915659b5f05e"
+    },
+    {
+      "word": "rhinoceros",
+      "chinese": "犀牛",
+      "sentence": "The gray rhinoceros has a big sharp horn on its nose.",
+      "slug": "rhinoceros",
+      "seconds": 1.994,
+      "bytes": 33452,
+      "peak_dbfs": -11.75,
+      "sha256": "f030075904ece1ac63fd45b72d0e653d6422503db49a536c367d6990f02b4a95"
+    },
+    {
+      "word": "gorilla",
+      "chinese": "大猩猩",
+      "sentence": "The large gorilla beat its chest with both fists and let out a big roar.",
+      "slug": "gorilla",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -8.14,
+      "sha256": "1f013988b2bdcbacae819b3f2af8c9d9ce4a3e748ceac2918e5949a0b5a20e60"
+    },
+    {
+      "word": "raccoon",
+      "chinese": "浣熊",
+      "sentence": "The raccoon washed its food in the water with its small black paws.",
+      "slug": "raccoon",
+      "seconds": 1.8339,
+      "bytes": 30764,
+      "peak_dbfs": -6.03,
+      "sha256": "0f643dca2515b17e19fc29a13efc10ccdbf6dba08a28530ad028f90b708c3b10"
+    },
+    {
+      "word": "otter",
+      "chinese": "水獺",
+      "sentence": "The otter floated on its back in the river and held food on its tummy.",
+      "slug": "otter",
+      "seconds": 0.8213,
+      "bytes": 14636,
+      "peak_dbfs": -5.87,
+      "sha256": "13cc8b04c242aaa1cc2b2c288c6ba5405679ded2b59e5b2a9acac398b9394787"
+    },
+    {
+      "word": "bat",
+      "chinese": "蝙蝠",
+      "sentence": "The bat flew out of the cave at night to catch insects.",
+      "slug": "bat",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -3.23,
+      "sha256": "3b1e747668a640bf5f1a83969b5d2478443f58b451d82a959bec9d2b7a7ecf13"
+    },
+    {
+      "word": "fish",
+      "chinese": "魚",
+      "sentence": "He watched the little fish swim in circles in a glass bowl.",
+      "slug": "fish",
+      "seconds": 1.8339,
+      "bytes": 30764,
+      "peak_dbfs": -10.59,
+      "sha256": "6cfaf030b4c0cd974707b5a5c89075bf1a804fb585b527ebf24511d29f22b8a5"
+    },
+    {
+      "word": "mermaid",
+      "chinese": "美人魚",
+      "sentence": "In the story, a kind mermaid swam under the sea.",
+      "slug": "mermaid",
+      "seconds": 1.3227,
+      "bytes": 22700,
+      "peak_dbfs": -6.28,
+      "sha256": "c2a48f10cdf94fea0dc91057e02ceeec4c69840b30aa19714ecff57a0d267ea6"
+    },
+    {
+      "word": "blowfish",
+      "chinese": "河豚",
+      "sentence": "When scared, the blowfish puffed up its body into a round, spiky ball.",
+      "slug": "blowfish",
+      "seconds": 2.6108,
+      "bytes": 43052,
+      "peak_dbfs": -8.84,
+      "sha256": "a9462012869bd36753b779ca4f3b7f3f19fcccd323f7f2067e5f1da263a5eca9"
+    },
+    {
+      "word": "shark",
+      "chinese": "鯊魚",
+      "sentence": "The shark swam around the boat with its big fin above the water.",
+      "slug": "shark",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -8.99,
+      "sha256": "8dbf619e36b006e0e0f6c217047b43641890ec2e0d0a1286159d12a0e0210b95"
+    },
+    {
+      "word": "dolphin",
+      "chinese": "海豚",
+      "sentence": "The dolphin jumped out of the water and spun in the air.",
+      "slug": "dolphin",
+      "seconds": 1.2693,
+      "bytes": 21548,
+      "peak_dbfs": -8.4,
+      "sha256": "8f2a4d0fdc541707c4b4bef0dfd4cbec6d9b207c0905723c12951d115cfe2097"
+    },
+    {
+      "word": "whale",
+      "chinese": "鯨魚",
+      "sentence": "The giant whale sprayed water from the hole on top of its head.",
+      "slug": "whale",
+      "seconds": 1.6,
+      "bytes": 26924,
+      "peak_dbfs": -5.89,
+      "sha256": "dc3dca3c089f6642965efde87c2a977d6858033d91d07177923f33e1090e0abd"
+    },
+    {
+      "word": "octopus",
+      "chinese": "章魚",
+      "sentence": "The octopus has eight arms and used them to grab a crab.",
+      "slug": "octopus",
+      "seconds": 1.4,
+      "bytes": 23852,
+      "peak_dbfs": -8.45,
+      "sha256": "85fb811094f214cc4915786adeb63a1d201894178ec423a6e93471b860ba9d1c"
+    },
+    {
+      "word": "squid",
+      "chinese": "魷魚",
+      "sentence": "The long thin squid squirted dark ink and shot backward to escape the shark.",
+      "slug": "squid",
+      "seconds": 1.994,
+      "bytes": 33452,
+      "peak_dbfs": -9.15,
+      "sha256": "f74f5f2bae85f1558f379f296b6a64ef0a1092607109649026c6651b18729edb"
+    },
+    {
+      "word": "crab",
+      "chinese": "螃蟹",
+      "sentence": "The red crab walked sideways across the sand and hid under a rock.",
+      "slug": "crab",
+      "seconds": 1.4827,
+      "bytes": 25004,
+      "peak_dbfs": -8.3,
+      "sha256": "4b869e72faf8156959cc3d27c22471e0ca20a994dc1fd695611bca4243122c4e"
+    },
+    {
+      "word": "lobster",
+      "chinese": "龍蝦",
+      "sentence": "The chef picked up the large lobster with two big claws and put it into a pot of hot water.",
+      "slug": "lobster",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -11.88,
+      "sha256": "5a856035cf62b04dc315694ca9aebefe3bb7de2a9617a58ae3977c1be26264e6"
+    },
+    {
+      "word": "shrimp",
+      "chinese": "蝦子",
+      "sentence": "She peeled the shell off each small shrimp before cooking them.",
+      "slug": "shrimp",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -10.98,
+      "sha256": "82d9629324101f13de51607909477efdba874b7fbcced9a6197eef3149d5ee56"
+    },
+    {
+      "word": "oyster",
+      "chinese": "牡蠣",
+      "sentence": "She opened the oyster shell to see if there was a pearl inside.",
+      "slug": "oyster",
+      "seconds": 1.4293,
+      "bytes": 24236,
+      "peak_dbfs": -10.72,
+      "sha256": "6ed35a0150ddcfce3e2e4f7865a1f0b6e8a76386a03d437e3a6483720fe4f3b1"
+    },
+    {
+      "word": "turtle",
+      "chinese": "海龜",
+      "sentence": "The turtle slowly walked up the sandy beach at night to lay eggs.",
+      "slug": "turtle",
+      "seconds": 1.6,
+      "bytes": 26924,
+      "peak_dbfs": -6.03,
+      "sha256": "0a942377ef65e21f7baed307aa5347b07895bce7d5fab86c0da468d650211f2e"
+    },
+    {
+      "word": "seal",
+      "chinese": "海豹",
+      "sentence": "The seal clapped its fins and balanced a ball on its nose.",
+      "slug": "seal",
+      "seconds": 2.9415,
+      "bytes": 48428,
+      "peak_dbfs": -10.12,
+      "sha256": "2f1e204c69dea96f501f06036763a49fa178331ee84b3cbfa9594cdfa11906bb"
+    },
+    {
+      "word": "jellyfish",
+      "chinese": "水母",
+      "sentence": "The see-through jellyfish floated slowly through the water with long arms.",
+      "slug": "jellyfish",
+      "seconds": 1.202,
+      "bytes": 20780,
+      "peak_dbfs": -6.45,
+      "sha256": "59f3d3a34ecb8b5626bedbb31ab50c70d02ae3084b6b1c8495f727ce64457cc5"
+    },
+    {
+      "word": "coral",
+      "chinese": "珊瑚",
+      "sentence": "The colorful coral grows on the sea floor and is home to many fish.",
+      "slug": "coral",
+      "seconds": 2.8882,
+      "bytes": 47660,
+      "peak_dbfs": -10.53,
+      "sha256": "21087885e11d81ef175a081af4e484091653ecd3496783c57dd0fcd34d22eb79"
+    },
+    {
+      "word": "seashell",
+      "chinese": "貝殼",
+      "sentence": "She picked up a pretty seashell from the sand at the beach.",
+      "slug": "seashell",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -10.29,
+      "sha256": "ec5610d514cd6bd0c8ea7fa236594aed7544d8dfbabf51c20c1a7d4baa5a83cf"
+    },
+    {
+      "word": "wave",
+      "chinese": "海浪",
+      "sentence": "The big wave crashed onto the beach and got our feet wet.",
+      "slug": "wave",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -6.1,
+      "sha256": "06164aba8d56f694eb74b5f1267d8be4213f20a5823f9229203f61188ee60255"
+    },
+    {
+      "word": "beach",
+      "chinese": "海灘",
+      "sentence": "We played in the sand and built a big sandcastle at the beach.",
+      "slug": "beach",
+      "seconds": 3.1018,
+      "bytes": 51116,
+      "peak_dbfs": -12.09,
+      "sha256": "7e22cd8999876d2f38fa48357a209b01e7d8063828e35e2596f037517a7df04a"
+    },
+    {
+      "word": "island",
+      "chinese": "島嶼",
+      "sentence": "The tiny island in the ocean had only one palm tree on it.",
+      "slug": "island",
+      "seconds": 1.376,
+      "bytes": 23468,
+      "peak_dbfs": -9.38,
+      "sha256": "2401113f0b5e1b254ad6a65cfd307b293e3a499bc04dfc1c5c2e2651df33b1e4"
+    },
+    {
+      "word": "anchor",
+      "chinese": "錨",
+      "sentence": "The captain dropped the heavy anchor to stop the boat from moving.",
+      "slug": "anchor",
+      "seconds": 1.8339,
+      "bytes": 30764,
+      "peak_dbfs": -8.64,
+      "sha256": "68109788c4db1bac2cc088829e6303f532a6f2b27dba78e59f8660acb9ec32fc"
+    },
+    {
+      "word": "sailboat",
+      "chinese": "帆船",
+      "sentence": "The wind pushed the sailboat by its white sail.",
+      "slug": "sailboat",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -12.84,
+      "sha256": "1044487cecc104bd9d4448c5bf999c6edd622280d0b9a7a388a95a5058bec234"
+    },
+    {
+      "word": "surfing",
+      "chinese": "衝浪",
+      "sentence": "He stood on a board and rode the big wave to the shore while surfing.",
+      "slug": "surfing",
+      "seconds": 1.2053,
+      "bytes": 20780,
+      "peak_dbfs": -7.19,
+      "sha256": "fab2588b9d32cef8b5f8afdc32236a2478f1c13100345f087994948521e73cbd"
+    },
+    {
+      "word": "snorkel mask",
+      "chinese": "潛水鏡",
+      "sentence": "She put on her snorkel mask to look at fish under the water.",
+      "slug": "snorkel-mask",
+      "seconds": 2.378,
+      "bytes": 39596,
+      "peak_dbfs": -7.3,
+      "sha256": "5b9bbbebadff071ec5617a51c1a4d8911c25144c40a07ebbf945bd269b07ca03"
+    },
+    {
+      "word": "lifebuoy",
+      "chinese": "救生圈",
+      "sentence": "The sailor threw the orange lifebuoy to the person who fell into the water.",
+      "slug": "lifebuoy",
+      "seconds": 1.994,
+      "bytes": 33452,
+      "peak_dbfs": -7.95,
+      "sha256": "7d2df24d6985adf628b14275c3027d8e617760208a5f5e4b80274b0387fb9aa7"
+    },
+    {
+      "word": "swimming",
+      "chinese": "游泳",
+      "sentence": "She goes swimming in the pool every morning to stay healthy.",
+      "slug": "swimming",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -11.62,
+      "sha256": "4b9cb3df16c9b6798b2be194f1b814d4d8e044bc6baf984c63f16cf9cebe4715"
+    },
+    {
+      "word": "penguin",
+      "chinese": "企鵝",
+      "sentence": "The black and white penguin slid on the ice and jumped into the sea.",
+      "slug": "penguin",
+      "seconds": 1.376,
+      "bytes": 23468,
+      "peak_dbfs": -10.02,
+      "sha256": "170cc7dc5f20cbc584b564b9056b146638ab39d25fc2750ec1da586c9c46d115"
+    },
+    {
+      "word": "duck",
+      "chinese": "鴨子",
+      "sentence": "The mother duck walked with her baby ducklings right behind her.",
+      "slug": "duck",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -4.54,
+      "sha256": "c1661e6088d0d24a00f45ebb8817e1a68fc87e41ea4426ecbac5091127c8293f"
+    },
+    {
+      "word": "swan",
+      "chinese": "天鵝",
+      "sentence": "The white swan glided quietly across the still pond.",
+      "slug": "swan",
+      "seconds": 1.4293,
+      "bytes": 24236,
+      "peak_dbfs": -12.5,
+      "sha256": "11dcc7c3ad16a251acbd57ed9187987fb0c9ad9aa06d9e9988bfd475d514e758"
+    },
+    {
+      "word": "flamingo",
+      "chinese": "紅鶴",
+      "sentence": "The tall pink flamingo stood on one leg in the water.",
+      "slug": "flamingo",
+      "seconds": 2.2076,
+      "bytes": 36524,
+      "peak_dbfs": -10.17,
+      "sha256": "087ee83aadb35c7767fa89dd51793df90a5ceec5bd804d51bfc721f52b8711f7"
+    },
+    {
+      "word": "apple",
+      "chinese": "蘋果",
+      "sentence": "She bit into the red apple and it was sweet and crunchy.",
+      "slug": "apple",
+      "seconds": 1.3227,
+      "bytes": 22700,
+      "peak_dbfs": -4.3,
+      "sha256": "ee76de8d7e6b313ee4efa498ddd5dbcf55866908b1f7de051f8e9d58147cff66"
+    },
+    {
+      "word": "pear",
+      "chinese": "梨子",
+      "sentence": "The pear is wide at the bottom and thin at the top.",
+      "slug": "pear",
+      "seconds": 1.8339,
+      "bytes": 30764,
+      "peak_dbfs": -11.83,
+      "sha256": "999ff75e0d96453f47312d74be25a075a0630f308837b2c07cff678eed9d6982"
+    },
+    {
+      "word": "orange",
+      "chinese": "橘子",
+      "sentence": "She peeled the orange and shared the pieces with her friends.",
+      "slug": "orange",
+      "seconds": 2.5476,
+      "bytes": 42284,
+      "peak_dbfs": -9.22,
+      "sha256": "73d343ba146df431ca745e593bcb3b34b1c37fead81bf30afa2e6f539b6eb5cc"
+    },
+    {
+      "word": "banana",
+      "chinese": "香蕉",
+      "sentence": "He slipped on a banana peel that someone left on the ground.",
+      "slug": "banana",
+      "seconds": 2.4307,
+      "bytes": 40364,
+      "peak_dbfs": -9.06,
+      "sha256": "11f698f6d16bb2634ac9229caa6e2ce9188428b9100d966d6731993951802ca4"
+    },
+    {
+      "word": "grapes",
+      "chinese": "葡萄",
+      "sentence": "She ate the purple grapes one by one from the bunch.",
+      "slug": "grapes",
+      "seconds": 0.9782,
+      "bytes": 16940,
+      "peak_dbfs": -10.36,
+      "sha256": "59389aec462a1c543b35a0ec36b2e8febc458df38dbadf1e03cbed2958b940c1"
+    },
+    {
+      "word": "strawberry",
+      "chinese": "草莓",
+      "sentence": "She dipped the small red heart-shaped strawberry into chocolate.",
+      "slug": "strawberry",
+      "seconds": 1.1122,
+      "bytes": 19244,
+      "peak_dbfs": -7.98,
+      "sha256": "555eeb832ff41c05017f1af1edb3470f6882a4fa3c960c877ada144f3b9d0d7c"
+    },
+    {
+      "word": "blueberry",
+      "chinese": "藍莓",
+      "sentence": "She put a handful of small dark blueberry on top of her yogurt.",
+      "slug": "blueberry",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -11.58,
+      "sha256": "2f3ade732504bbad725bc94a32e925431737aca932aeb9e3f8b665b19f64f2d5"
+    },
+    {
+      "word": "cherry",
+      "chinese": "櫻桃",
+      "sentence": "The small red cherry has one hard pit inside.",
+      "slug": "cherry",
+      "seconds": 3.8792,
+      "bytes": 63404,
+      "peak_dbfs": -9.33,
+      "sha256": "a7316adc1a45175c68087870501ab3ccb4e0ed2e4931280de39432c17d80b46c"
+    },
+    {
+      "word": "peach",
+      "chinese": "桃子",
+      "sentence": "The peach had soft fuzzy skin and sweet juice inside.",
+      "slug": "peach",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -11.1,
+      "sha256": "44c789d9da614917ccd05a60508c9e310a3e97012c371915ff62ff1b7f16b26f"
+    },
+    {
+      "word": "mango",
+      "chinese": "芒果",
+      "sentence": "She cut the mango open and scooped out the sweet yellow inside.",
+      "slug": "mango",
+      "seconds": 2.7708,
+      "bytes": 45740,
+      "peak_dbfs": -8.45,
+      "sha256": "698da8701e874216ad823723800c92fa4f7fa566e876413e0a071ddec64b5db8"
+    },
+    {
+      "word": "kiwi",
+      "chinese": "奇異果",
+      "sentence": "She cut the small brown kiwi in half and the inside was bright green.",
+      "slug": "kiwi",
+      "seconds": 1.4293,
+      "bytes": 24236,
+      "peak_dbfs": -14.01,
+      "sha256": "63e2be506483d7aa7d8858699fbe7f16f8a4ff6c6e85df2797dc6ad6f1fafeaf"
+    },
+    {
+      "word": "lemon",
+      "chinese": "檸檬",
+      "sentence": "She squeezed a lemon into her water to make it sour.",
+      "slug": "lemon",
+      "seconds": 1.6,
+      "bytes": 26924,
+      "peak_dbfs": -10.82,
+      "sha256": "63592d1ffb6d1a145a2dccf602127f47d37fa6cd2ddde439aff4f80bd1862a84"
+    },
+    {
+      "word": "melon",
+      "chinese": "哈密瓜",
+      "sentence": "The farmer cut open the big melon and it was sweet and orange inside.",
+      "slug": "melon",
+      "seconds": 1.6,
+      "bytes": 26924,
+      "peak_dbfs": -7.26,
+      "sha256": "f2bb741621728e614d9ac411df3d3b0936bd6df0aa9951084a154d19fc651796"
+    },
+    {
+      "word": "tomato",
+      "chinese": "番茄",
+      "sentence": "The red tomato has many small seeds inside.",
+      "slug": "tomato",
+      "seconds": 2.4307,
+      "bytes": 40364,
+      "peak_dbfs": -13.7,
+      "sha256": "c086c6039a008ac6786f450d9a2820c82e9c5b04632218ff451dfe6b7ce97dd6"
+    },
+    {
+      "word": "eggplant",
+      "chinese": "茄子",
+      "sentence": "Mom cooked the long purple eggplant with garlic for dinner.",
+      "slug": "eggplant",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -11.23,
+      "sha256": "383a7723831ffd064f0adf68a4895dfc56e7f76aacad19cfbc93675da784bc87"
+    },
+    {
+      "word": "broccoli",
+      "chinese": "花椰菜",
+      "sentence": "He didn't want to eat the broccoli because it looked like tiny green trees.",
+      "slug": "broccoli",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -6.01,
+      "sha256": "47ea95bf602f216d96cd3b6d1ff8b604aae64a381d9abd4e499b79a59ea66ce0"
+    },
+    {
+      "word": "leafy greens",
+      "chinese": "青菜",
+      "sentence": "The leafy greens are green leaves that we cook for dinner.",
+      "slug": "leafy-greens",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -8.89,
+      "sha256": "26497e9d7fc9656816904db17b5c427c022b6c8ebbb7cf096a9f6d79c6179add"
+    },
+    {
+      "word": "cucumber",
+      "chinese": "黃瓜",
+      "sentence": "She sliced the cool green cucumber into thin rounds.",
+      "slug": "cucumber",
+      "seconds": 1.2053,
+      "bytes": 20780,
+      "peak_dbfs": -10.58,
+      "sha256": "d673b9afbd5bd238a0c3ad6ffa5d3097a26b24f144026da8c28836a550633221"
+    },
+    {
+      "word": "corn",
+      "chinese": "玉米",
+      "sentence": "We ate yellow corn on the cob at the park.",
+      "slug": "corn",
+      "seconds": 1.0453,
+      "bytes": 18092,
+      "peak_dbfs": -9.37,
+      "sha256": "662330791738668130bf2e3a037833f8b79b9de6122eb67ef8fedc3445c1de05"
+    },
+    {
+      "word": "carrot",
+      "chinese": "紅蘿蔔",
+      "sentence": "The rabbit ate the long orange carrot until almost nothing was left.",
+      "slug": "carrot",
+      "seconds": 1.0453,
+      "bytes": 18092,
+      "peak_dbfs": -7.07,
+      "sha256": "2cae8952bce823c9e62307a70382f2cfa76df312c4d593024f4b5e20978b2b72"
+    },
+    {
+      "word": "garlic",
+      "chinese": "大蒜",
+      "sentence": "Dad fried small white pieces of garlic in the pan and the whole kitchen smelled wonderful.",
+      "slug": "garlic",
+      "seconds": 1.2693,
+      "bytes": 21548,
+      "peak_dbfs": -7.02,
+      "sha256": "7892ea55137b327a00bea36b47e717425fbfb80deb6c1dd83503633f77b8f347"
+    },
+    {
+      "word": "onion",
+      "chinese": "洋蔥",
+      "sentence": "Her eyes filled with tears when she cut the onion on the board.",
+      "slug": "onion",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -10.91,
+      "sha256": "b63586b6f18aaa6cf9084ab9b3e0be0497cccb65e09b49b6656f6f7227a5a38b"
+    },
+    {
+      "word": "potato",
+      "chinese": "馬鈴薯",
+      "sentence": "We made French fries from the potato.",
+      "slug": "potato",
+      "seconds": 2.6108,
+      "bytes": 43052,
+      "peak_dbfs": -10.31,
+      "sha256": "cd5f717d7e8b86a0959f5ce0c055f518ec1b05421e4572662eed77f7619495d9"
+    },
+    {
+      "word": "sweet potato",
+      "chinese": "地瓜",
+      "sentence": "Mom baked the orange sweet potato in the oven until it was soft and sweet.",
+      "slug": "sweet-potato",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -8.88,
+      "sha256": "bcb2f32c5f432f15adb58735852985f9f475b6d7dc80000f7d2d0535b33110ff"
+    },
+    {
+      "word": "beans",
+      "chinese": "豆子",
+      "sentence": "She put small round beans in a pot of water and cooked them to make a warm soup.",
+      "slug": "beans",
+      "seconds": 1.2693,
+      "bytes": 21548,
+      "peak_dbfs": -9.15,
+      "sha256": "3adb72328047413a76f274f792e46e7b8b4a8045c41f99c393291ce916210adf"
+    },
+    {
+      "word": "chestnut",
+      "chinese": "栗子",
+      "sentence": "We roasted the chestnut over the fire until the shell cracked open.",
+      "slug": "chestnut",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -7.17,
+      "sha256": "dbd7233e98c2ced4c473d3b875a460ef502290ffc35ad423f80e7a9d1251fd7f"
+    },
+    {
+      "word": "bell pepper",
+      "chinese": "甜椒",
+      "sentence": "She cut the big colorful bell pepper into wide strips and put them in the pan.",
+      "slug": "bell-pepper",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -8.44,
+      "sha256": "a55805202a13bcfa2a17a496ad75e30aa01f414571c1f546514d746d6f10a67e"
+    },
+    {
+      "word": "olive",
+      "chinese": "橄欖",
+      "sentence": "She put a green olive on top of her pizza.",
+      "slug": "olive",
+      "seconds": 2.8348,
+      "bytes": 46892,
+      "peak_dbfs": -12.58,
+      "sha256": "9a8177847eb207b725bc0a0a61436e933389faee1a350a6164230a6e2649da40"
+    },
+    {
+      "word": "ginger",
+      "chinese": "薑",
+      "sentence": "Mom added sliced brown ginger root to the soup to give it a warm slightly spicy flavor.",
+      "slug": "ginger",
+      "seconds": 1.4827,
+      "bytes": 25004,
+      "peak_dbfs": -9.35,
+      "sha256": "296ff901ae3bfd06206a5f8b6a797571c1760706f6fa067eb8d8402b23fe2513"
+    },
+    {
+      "word": "hot pepper",
+      "chinese": "辣椒",
+      "sentence": "He ate too much hot pepper and his mouth felt like it was on fire.",
+      "slug": "hot-pepper",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -9.84,
+      "sha256": "79db620654e1ed8054ea7a923da5bf5b9ea9c71d85e3ce44b5c7d681e72b71e5"
+    },
+    {
+      "word": "umbrella",
+      "chinese": "雨傘",
+      "sentence": "She opened her umbrella and walked out into the rain.",
+      "slug": "umbrella",
+      "seconds": 1.6,
+      "bytes": 26924,
+      "peak_dbfs": -8.4,
+      "sha256": "9a99404bd5569503bcb2ae7eb2b91eaf77f55c920ec44db9f5c27f0c66e78c26"
+    },
+    {
+      "word": "cloud",
+      "chinese": "雲",
+      "sentence": "A big white cloud floated slowly across the blue sky.",
+      "slug": "cloud",
+      "seconds": 0.8722,
+      "bytes": 15404,
+      "peak_dbfs": -7.52,
+      "sha256": "e96f4b896ad3bae886767458d7823966422ab67a906f6ab7f4abcb4140e4ffa9"
+    },
+    {
+      "word": "earth",
+      "chinese": "地球",
+      "sentence": "From space, astronauts can see the whole blue and green earth.",
+      "slug": "earth",
+      "seconds": 1.0453,
+      "bytes": 18092,
+      "peak_dbfs": -6.23,
+      "sha256": "479dffce5b4443fb5b4af361ca09e3abbf8ce594d1a31823105a2a7422edb946"
+    },
+    {
+      "word": "rain",
+      "chinese": "下雨",
+      "sentence": "We stayed inside all day because the heavy rain did not stop.",
+      "slug": "rain",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -9.44,
+      "sha256": "697cc2b199dee466dacbf4ab63c18c241622e79a0ee248857389a74cc1453ab8"
+    },
+    {
+      "word": "thunderstorm",
+      "chinese": "雷雨",
+      "sentence": "The loud thunder and bright flashes of the thunderstorm woke everyone up at night.",
+      "slug": "thunderstorm",
+      "seconds": 1.994,
+      "bytes": 33452,
+      "peak_dbfs": -11.84,
+      "sha256": "9098633353e87d90d1968716197cc18ffc15ddf134a2f98e600c1d33fe09b394"
+    },
+    {
+      "word": "lightning",
+      "chinese": "閃電",
+      "sentence": "A bright flash of lightning lit up the whole sky for just a moment.",
+      "slug": "lightning",
+      "seconds": 2.2607,
+      "bytes": 37676,
+      "peak_dbfs": -7.18,
+      "sha256": "8ac7eda69bc4b8918527d14e7948cc7d54edaba304e69960523b3db82afe9326"
+    },
+    {
+      "word": "snow",
+      "chinese": "雪",
+      "sentence": "The children ran outside to play in the fresh white snow.",
+      "slug": "snow",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -11.23,
+      "sha256": "5c2fe72434ff0bdabe594103acdd7efe8e796f735e941bfc629e25c408af34ef"
+    },
+    {
+      "word": "snowman",
+      "chinese": "雪人",
+      "sentence": "We rolled three big balls of snow and stacked them up to build a snowman in the yard.",
+      "slug": "snowman",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -11.11,
+      "sha256": "e443e12271dbb5bfce50620a9a9d2249aacebcd0dfafa9ae33220704db691e1d"
+    },
+    {
+      "word": "rainbow",
+      "chinese": "彩虹",
+      "sentence": "After the rain stopped, a beautiful rainbow with seven colors appeared in the sky.",
+      "slug": "rainbow",
+      "seconds": 2.8882,
+      "bytes": 47660,
+      "peak_dbfs": -5.45,
+      "sha256": "f30e0a05e296cfb1f3dc94cc07da8060f5bfdef70401faf12fdc7e4039c4c636"
+    },
+    {
+      "word": "wind",
+      "chinese": "風",
+      "sentence": "The strong wind blew my hat off my head and it flew down the street.",
+      "slug": "wind",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -10.48,
+      "sha256": "10b7aa5d884919953c914331dadb74ea8fd711f02e5a60b05cec462392955ec0"
+    },
+    {
+      "word": "tornado",
+      "chinese": "龍捲風",
+      "sentence": "The powerful tornado spun so fast that it lifted a car right off the ground.",
+      "slug": "tornado",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -9.85,
+      "sha256": "a5d62f3d6b1ec8f9b0c728287e7987aad4a304d816cfb80fa59b77fdc2b0e29d"
+    },
+    {
+      "word": "fog",
+      "chinese": "霧",
+      "sentence": "The fog was so thick this morning that we could not see the houses across the street.",
+      "slug": "fog",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -9.28,
+      "sha256": "87db8b3469dc934d70212cbadbe476c5c13a3e369031c748dc259e9c3d155973"
+    },
+    {
+      "word": "water",
+      "chinese": "水",
+      "sentence": "Please drink some water after you run.",
+      "slug": "water",
+      "seconds": 2.378,
+      "bytes": 39596,
+      "peak_dbfs": -8.0,
+      "sha256": "e4fcf086afb63e6f4a04c4f54b2b6e93d8222b8c951d535c1407c136a15570dc"
+    },
+    {
+      "word": "star",
+      "chinese": "星星",
+      "sentence": "We could see hundreds of stars shining in the clear night sky.",
+      "slug": "star",
+      "seconds": 1.6,
+      "bytes": 26924,
+      "peak_dbfs": -9.3,
+      "sha256": "0123746837abd5ec50756e680879879bd4a277e0144b3a4ea2a9dbcb6e4caa21"
+    },
+    {
+      "word": "sun",
+      "chinese": "太陽",
+      "sentence": "The bright sun came out from behind the clouds and made everything warm.",
+      "slug": "sun",
+      "seconds": 2.4307,
+      "bytes": 40364,
+      "peak_dbfs": -9.68,
+      "sha256": "43d96d3cd7e39c3a978ba08c77373776f83f923e50e90d2bf2cfe3c35bd5ad15"
+    },
+    {
+      "word": "comet",
+      "chinese": "彗星",
+      "sentence": "The comet has a long tail and travels around the sun.",
+      "slug": "comet",
+      "seconds": 2.0579,
+      "bytes": 34220,
+      "peak_dbfs": -8.96,
+      "sha256": "217e337ad16f01f2d42f9a52ecaae55c645b2a606d3bb96b68229e1a258bb00b"
+    },
+    {
+      "word": "moon",
+      "chinese": "月亮",
+      "sentence": "The moon was bright in the night sky.",
+      "slug": "moon",
+      "seconds": 1.0923,
+      "bytes": 18860,
+      "peak_dbfs": -10.18,
+      "sha256": "453614262eb6f5f9796e404ee28c795b70c356f923f7441931849555d5ad10f5"
+    },
+    {
+      "word": "astronaut",
+      "chinese": "太空人",
+      "sentence": "The astronaut travelled into space in a rocket.",
+      "slug": "astronaut",
+      "seconds": 2.9415,
+      "bytes": 48428,
+      "peak_dbfs": -8.43,
+      "sha256": "936f7cbd665dd18d779487fd636f29334c6c1680b1455ffa2d390efe8eace914"
+    },
+    {
+      "word": "satellite",
+      "chinese": "人造衛星",
+      "sentence": "The satellite sends pictures of Earth from space.",
+      "slug": "satellite",
+      "seconds": 1.8339,
+      "bytes": 30764,
+      "peak_dbfs": -8.89,
+      "sha256": "e0787e7862143440cc595a6aaaa73d3e751a1bbb2f1f32b3e03a4fadcae9dbfa"
+    },
+    {
+      "word": "sunrise",
+      "chinese": "日出",
+      "sentence": "We woke up early to watch the sunrise turn the sky pink and orange.",
+      "slug": "sunrise",
+      "seconds": 2.6108,
+      "bytes": 43052,
+      "peak_dbfs": -12.09,
+      "sha256": "2c1f428a9a9f2da8eeba25b612d5c65e327601e52a96f7a0fe6e2ff0040e62be"
+    },
+    {
+      "word": "sunset",
+      "chinese": "日落",
+      "sentence": "We sat on the beach and watched the sunset turn the sky red and gold.",
+      "slug": "sunset",
+      "seconds": 2.6108,
+      "bytes": 43052,
+      "peak_dbfs": -9.85,
+      "sha256": "032bb253cffa369bd62d89945e764f58a5bc3e56378c6ac36c6d7aae62168ed9"
+    },
+    {
+      "word": "hot",
+      "chinese": "炎熱的",
+      "sentence": "It is very hot today, so drink plenty of water.",
+      "slug": "hot",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -9.99,
+      "sha256": "579bb26b079e0e3b0a0f8337523f40cc89c2e5512a23916af2bd15f3df7cb349"
+    },
+    {
+      "word": "planet",
+      "chinese": "星球",
+      "sentence": "Earth is the planet where we live, and it travels around the sun.",
+      "slug": "planet",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -11.92,
+      "sha256": "a4e909e63d77d2615dacaa77b090adcd3ac2d15912e7050599fcf4c90b5f30dd"
+    },
+    {
+      "word": "storm",
+      "chinese": "暴風雨",
+      "sentence": "The storm brought strong wind and heavy rain.",
+      "slug": "storm",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -10.28,
+      "sha256": "ef421b003a3d4d31bdedd07e6b43fc50854cc7b93b6e8a52b437d97a1cf8748a"
+    },
+    {
+      "word": "ice",
+      "chinese": "冰塊",
+      "sentence": "The pond was covered in a thin layer of ice after the very cold night.",
+      "slug": "ice",
+      "seconds": 1.8339,
+      "bytes": 30764,
+      "peak_dbfs": -10.22,
+      "sha256": "af2ab547aded224106eb4a454e6273e28db36a070512cbe9fda585fbeb20ba4b"
+    },
+    {
+      "word": "rainy day",
+      "chinese": "下雨天",
+      "sentence": "It was a rainy day, so we stayed inside and played games.",
+      "slug": "rainy-day",
+      "seconds": 1.6462,
+      "bytes": 27692,
+      "peak_dbfs": -10.55,
+      "sha256": "cf490d51d122f8914ba59ac72be76494025a2b6b2130afb155a4d26d798ba1d4"
+    },
+    {
+      "word": "cloudy",
+      "chinese": "多雲的",
+      "sentence": "It was cloudy today, so we could not see the blue sky.",
+      "slug": "cloudy",
+      "seconds": 1.6,
+      "bytes": 26924,
+      "peak_dbfs": -9.86,
+      "sha256": "a7afaa28830cfbf2f24adba2edb66d33da560ea2ac243fbf8cd183492deb0a6c"
+    },
+    {
+      "word": "night sky",
+      "chinese": "夜空",
+      "sentence": "We looked up at the stars in the dark night sky.",
+      "slug": "night-sky",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -8.43,
+      "sha256": "27956d55022bda13f17e8a4c3afe43ad8df7ea8a34d4a3abb92b614f50183f10"
+    },
+    {
+      "word": "shooting star",
+      "chinese": "流星",
+      "sentence": "She closed her eyes and made a wish the moment she saw a shooting star fly across the sky.",
+      "slug": "shooting-star",
+      "seconds": 2.4838,
+      "bytes": 41132,
+      "peak_dbfs": -10.4,
+      "sha256": "851159df5aa73b4d536eeed9cb178162ea99b180b40f2cf98426866e8582ed22"
+    },
+    {
+      "word": "cold",
+      "chinese": "寒冷的",
+      "sentence": "It was very cold outside, so I wore a warm coat.",
+      "slug": "cold",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -13.46,
+      "sha256": "148315245483d497cfbf4dd71553bfe2e481bb1a78184fd69a6e0ca021657767"
+    },
+    {
+      "word": "car",
+      "chinese": "汽車",
+      "sentence": "Dad drove the car to work and parked it in the garage.",
+      "slug": "car",
+      "seconds": 1.6,
+      "bytes": 26924,
+      "peak_dbfs": -9.64,
+      "sha256": "d45ad341ea6b1088d79105fcff0edf18484ea823b1850b00b32015cc6acc065f"
+    },
+    {
+      "word": "police car",
+      "chinese": "警車",
+      "sentence": "The police car turned on its lights and siren and rushed to catch a thief.",
+      "slug": "police-car",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -11.07,
+      "sha256": "f645273a7980e439f464321ffd0735463846136b5c8014c67cbb38e398fb803b"
+    },
+    {
+      "word": "ambulance",
+      "chinese": "救護車",
+      "sentence": "The ambulance rushed the hurt person to the hospital with its lights flashing.",
+      "slug": "ambulance",
+      "seconds": 2.4307,
+      "bytes": 40364,
+      "peak_dbfs": -10.61,
+      "sha256": "f78c65e2dd917aa5e4c7e8644da1e929d2e18471af6cf20d9eb5cef155311e3d"
+    },
+    {
+      "word": "fire truck",
+      "chinese": "消防車",
+      "sentence": "The big red fire truck raced to the burning house to put out the fire.",
+      "slug": "fire-truck",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -8.01,
+      "sha256": "f52c90f88cde9d92a755b3948a42f7962485d8dbba038450969279ca5e4a73fb"
+    },
+    {
+      "word": "bus",
+      "chinese": "公車",
+      "sentence": "Every morning I take the school bus and sit next to my best friend.",
+      "slug": "bus",
+      "seconds": 1.0453,
+      "bytes": 18092,
+      "peak_dbfs": -4.03,
+      "sha256": "d843bded26bf6664d6999044eee13f61096145954c1c0af9343e1897f82f9135"
+    },
+    {
+      "word": "van",
+      "chinese": "廂型車",
+      "sentence": "The van has extra seats for a large family.",
+      "slug": "van",
+      "seconds": 0.9305,
+      "bytes": 16172,
+      "peak_dbfs": -7.67,
+      "sha256": "099e340c96d2db663662a5ebcb919fa5c11ae43e18cf369784a58fe366e7c7ca"
+    },
+    {
+      "word": "bicycle",
+      "chinese": "腳踏車",
+      "sentence": "She locked her bicycle to the fence and walked into the store.",
+      "slug": "bicycle",
+      "seconds": 0.9218,
+      "bytes": 16172,
+      "peak_dbfs": -3.8,
+      "sha256": "adb4772282b20ed4b04d6eadaafcd8b789dc76ac54073aad8ec898a9567b4879"
+    },
+    {
+      "word": "truck",
+      "chinese": "卡車",
+      "sentence": "The big truck carried boxes of food from the farm to the market.",
+      "slug": "truck",
+      "seconds": 0.877,
+      "bytes": 15404,
+      "peak_dbfs": -9.12,
+      "sha256": "bad0d77163c1114c25884c3f03aab95344583f02bbbf0cb789b88a060c97d87f"
+    },
+    {
+      "word": "tractor",
+      "chinese": "拖拉機",
+      "sentence": "The farmer drove the tractor slowly across the field to dig up the soil.",
+      "slug": "tractor",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -10.77,
+      "sha256": "f5964486f86df517be52ed9245cd0575fbfa06d1051bedcd98a6d7b2e89526fa"
+    },
+    {
+      "word": "motorcycle",
+      "chinese": "摩托車",
+      "sentence": "The motorcycle has two wheels and a loud engine.",
+      "slug": "motorcycle",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -10.93,
+      "sha256": "c9d59bfdf6a1bedb11361f9fb761668de683f140d48f07732225e18b66f44209"
+    },
+    {
+      "word": "scooter",
+      "chinese": "滑板車",
+      "sentence": "She pushed her scooter with one foot on the sidewalk.",
+      "slug": "scooter",
+      "seconds": 2.4838,
+      "bytes": 41132,
+      "peak_dbfs": -7.38,
+      "sha256": "ccafd61c0c08c45e2b4ca378ea11e7865892f982fc58335452e8b3f12ac8a16c"
+    },
+    {
+      "word": "skateboard",
+      "chinese": "滑板",
+      "sentence": "My brother stood on his skateboard and rolled down the hill.",
+      "slug": "skateboard",
+      "seconds": 2.7708,
+      "bytes": 45740,
+      "peak_dbfs": -11.52,
+      "sha256": "0297c3848b9372f07eeffcc7c9da304330c4ff5a34cee6898048711a8b45ff3a"
+    },
+    {
+      "word": "train",
+      "chinese": "火車",
+      "sentence": "The train stopped at many stations on the way.",
+      "slug": "train",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -11.24,
+      "sha256": "d826700efb69e6546bb1cebcb94a2099f62e0bfa61418d36c911ea199989546f"
+    },
+    {
+      "word": "high speed train",
+      "chinese": "高鐵",
+      "sentence": "The high speed train travels very fast between cities.",
+      "slug": "high-speed-train",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -6.12,
+      "sha256": "06fb17e2751bbfcea189df7f2f16a736022d546a1c5a11fa21a74072677731b9"
+    },
+    {
+      "word": "airplane",
+      "chinese": "飛機",
+      "sentence": "The big airplane ran fast on the runway and then flew up into the sky.",
+      "slug": "airplane",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -9.27,
+      "sha256": "77d164b3ba7e4fc1fab82c7f92e667c00f0b11a4e1b997a70594a7e2026631c2"
+    },
+    {
+      "word": "helicopter",
+      "chinese": "直升機",
+      "sentence": "The helicopter stayed in the air above the city and filmed everything below.",
+      "slug": "helicopter",
+      "seconds": 1.3227,
+      "bytes": 22700,
+      "peak_dbfs": -8.39,
+      "sha256": "10de477806123aa5c8d93fd38e7419bd070f8bd8ec343102a9a807d5655ff81d"
+    },
+    {
+      "word": "parachute",
+      "chinese": "降落傘",
+      "sentence": "He jumped from the plane and pulled the string to open his parachute.",
+      "slug": "parachute",
+      "seconds": 2.8882,
+      "bytes": 47660,
+      "peak_dbfs": -13.39,
+      "sha256": "a28504c67e2ec0017a4b3ae928f88cea69f13cccf49f006bb63576fca8c06478"
+    },
+    {
+      "word": "taxi",
+      "chinese": "計程車",
+      "sentence": "She paid the driver of the taxi after the ride.",
+      "slug": "taxi",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -8.26,
+      "sha256": "9e68c531e351f7e49ce8035faa10010d3ef53957c2fefd3ffaebae103a6b481e"
+    },
+    {
+      "word": "canoe",
+      "chinese": "獨木舟",
+      "sentence": "We used paddles to move the narrow canoe down the calm river.",
+      "slug": "canoe",
+      "seconds": 1.4827,
+      "bytes": 25004,
+      "peak_dbfs": -10.39,
+      "sha256": "2e413e1543ce7e8a95948c6190f86b97b01fecf8216c9fd76fef348260b02b80"
+    },
+    {
+      "word": "boat",
+      "chinese": "船",
+      "sentence": "The boat moved quickly across the lake.",
+      "slug": "boat",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -4.84,
+      "sha256": "cbe5c321adb979e380ae13a31480d0ab8ae51a6d52e7406944cb1f9f85b26057"
+    },
+    {
+      "word": "ship",
+      "chinese": "船",
+      "sentence": "The huge ship carried many big boxes of goods across the ocean.",
+      "slug": "ship",
+      "seconds": 2.3245,
+      "bytes": 38444,
+      "peak_dbfs": -8.74,
+      "sha256": "47ba30a662fb3cf069f1987049ee1b2337b43930a1d7820e14bfd49e55d0a3a4"
+    },
+    {
+      "word": "map",
+      "chinese": "地圖",
+      "sentence": "We used a map to find our way to the museum.",
+      "slug": "map",
+      "seconds": 2.2076,
+      "bytes": 36524,
+      "peak_dbfs": -9.21,
+      "sha256": "340278ae93d524bb6f7aa430118aaf459f4178835a851bf74b90c973ad54d9d5"
+    },
+    {
+      "word": "race car",
+      "chinese": "賽車",
+      "sentence": "The red race car drove around the track very fast.",
+      "slug": "race-car",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -8.45,
+      "sha256": "b64aa9d37d568934358ace5f9b02d2260b27ea306460814d7ef2c7c51dd54401"
+    },
+    {
+      "word": "cable car",
+      "chinese": "纜車",
+      "sentence": "We rode the cable car up the mountain to see the view from the top.",
+      "slug": "cable-car",
+      "seconds": 4.1664,
+      "bytes": 68012,
+      "peak_dbfs": -9.91,
+      "sha256": "be9d8a5eb1d94def0ecf2858c2aeba5a42722182e0736025f297ed4b2de7ba61"
+    },
+    {
+      "word": "sled",
+      "chinese": "雪橇",
+      "sentence": "The children sat on the sled and slid all the way down the snowy hill.",
+      "slug": "sled",
+      "seconds": 1.2053,
+      "bytes": 20780,
+      "peak_dbfs": -11.37,
+      "sha256": "9ae1f0cd39430359667cbba0ea33769b0e7c355c923954d16945b32ba883f81f"
+    },
+    {
+      "word": "wheel",
+      "chinese": "輪子",
+      "sentence": "The car could not move because one wheel went flat.",
+      "slug": "wheel",
+      "seconds": 1.4293,
+      "bytes": 24236,
+      "peak_dbfs": -10.34,
+      "sha256": "a6891d419a2c577bb0db6a3a08055f6bc42876fcd0e20717fa9597939864f528"
+    },
+    {
+      "word": "construction sign",
+      "chinese": "施工標誌",
+      "sentence": "The road was blocked by an orange construction sign so we had to go a different way.",
+      "slug": "construction-sign",
+      "seconds": 2.2076,
+      "bytes": 36524,
+      "peak_dbfs": -9.47,
+      "sha256": "f098b1a4ad43404fad8c0e54d23f76c6079dde6c027a066b960482217b8436a6"
+    },
+    {
+      "word": "t-shirt",
+      "chinese": "T恤",
+      "sentence": "He put on a green t-shirt with a dinosaur on the front.",
+      "slug": "t-shirt",
+      "seconds": 1.6,
+      "bytes": 26924,
+      "peak_dbfs": -12.97,
+      "sha256": "f42febed652a4cf9e6743b21b9baf45dcca1cc7b4e9deb745007d2245c6b32a8"
+    },
+    {
+      "word": "pants",
+      "chinese": "長褲",
+      "sentence": "She rolled up her long pants before walking in the water.",
+      "slug": "pants",
+      "seconds": 1.2053,
+      "bytes": 20780,
+      "peak_dbfs": -9.75,
+      "sha256": "d1aae1778e0abf5c495ace3500af223582909f7f1a6fc30c33f34523b5534f73"
+    },
+    {
+      "word": "jacket",
+      "chinese": "外套",
+      "sentence": "She zipped up her jacket and walked out into the cold.",
+      "slug": "jacket",
+      "seconds": 1.2693,
+      "bytes": 21548,
+      "peak_dbfs": -7.54,
+      "sha256": "ba691fe14e8b14e04349b37ad3ee4904f4717946fff6b3e11984297a879eeee8"
+    },
+    {
+      "word": "dress",
+      "chinese": "洋裝",
+      "sentence": "She wore a pink dress to the party.",
+      "slug": "dress",
+      "seconds": 1.1466,
+      "bytes": 19628,
+      "peak_dbfs": -9.72,
+      "sha256": "25031ba16dabac80dcac6f756b31daa6785f36207ec72aa2c97261948c8895b6"
+    },
+    {
+      "word": "shorts",
+      "chinese": "短褲",
+      "sentence": "He put on his shorts to play outside in the hot sun.",
+      "slug": "shorts",
+      "seconds": 1.994,
+      "bytes": 33452,
+      "peak_dbfs": -8.24,
+      "sha256": "00ec193b0ed62218733e89ae333bd3baa012577f10bdb96609ba4c894397991e"
+    },
+    {
+      "word": "socks",
+      "chinese": "襪子",
+      "sentence": "She put on her warm socks before going to bed.",
+      "slug": "socks",
+      "seconds": 1.8339,
+      "bytes": 30764,
+      "peak_dbfs": -10.6,
+      "sha256": "e5582451ff5cb4094b1db662b46c8677068fb0f73656b52f2a14ce11aedb1c05"
+    },
+    {
+      "word": "gloves",
+      "chinese": "手套",
+      "sentence": "She wore gloves to keep her hands warm in the snow.",
+      "slug": "gloves",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -9.7,
+      "sha256": "f610df525a69dc37c7be87d4ca83933f632158f6842eb104343557aecf3832ea"
+    },
+    {
+      "word": "scarf",
+      "chinese": "圍巾",
+      "sentence": "She wrapped a scarf around her neck to stay warm.",
+      "slug": "scarf",
+      "seconds": 1.3227,
+      "bytes": 22700,
+      "peak_dbfs": -5.79,
+      "sha256": "70613c7cc997047c3395172293386c44128e71050a8dd4f1883346154575491b"
+    },
+    {
+      "word": "cap",
+      "chinese": "棒球帽",
+      "sentence": "He wore a blue cap with his favorite team's logo on the front.",
+      "slug": "cap",
+      "seconds": 2.4307,
+      "bytes": 40364,
+      "peak_dbfs": -9.94,
+      "sha256": "28f5f46c09fb970b743feefd701613f227b87bc4a89cc2238c09a5ebb5e264fb"
+    },
+    {
+      "word": "top hat",
+      "chinese": "大禮帽",
+      "sentence": "The magician pulled a rabbit out of his tall black top hat.",
+      "slug": "top-hat",
+      "seconds": 2.3245,
+      "bytes": 38444,
+      "peak_dbfs": -9.99,
+      "sha256": "ab5deafe2b08f3b73f724c180eb1570f28333d2aa6817fc6a2e43234c68f51c0"
+    },
+    {
+      "word": "crown",
+      "chinese": "皇冠",
+      "sentence": "The princess put on her golden crown at the royal ceremony.",
+      "slug": "crown",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -5.58,
+      "sha256": "1e3ebfe96c8adb2e0d8bafb05877cc02ad87951942b291d9f53b304deadc7df1"
+    },
+    {
+      "word": "necktie",
+      "chinese": "領帶",
+      "sentence": "Dad wore a necktie to his meeting at work.",
+      "slug": "necktie",
+      "seconds": 1.0987,
+      "bytes": 18860,
+      "peak_dbfs": -4.4,
+      "sha256": "427ede538b43e6a1be4fff200204943a3b8b66e89d3b8002a69da12d3255d833"
+    },
+    {
+      "word": "shoes",
+      "chinese": "鞋子",
+      "sentence": "She put on her brown leather shoes before going to school.",
+      "slug": "shoes",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -11.0,
+      "sha256": "d5264b998f8ca4fd58179176f5cf399c64a3b7b0652e0e1ccde9f18cdaa843dd"
+    },
+    {
+      "word": "sneakers",
+      "chinese": "運動鞋",
+      "sentence": "He wore his white sneakers to run and play sports.",
+      "slug": "sneakers",
+      "seconds": 2.6108,
+      "bytes": 43052,
+      "peak_dbfs": -11.18,
+      "sha256": "0c74b8760e8032a30143624d149ddd3868be4e839d2ea86207d64df5e7df496b"
+    },
+    {
+      "word": "boots",
+      "chinese": "靴子",
+      "sentence": "She wore boots to walk through the mud without getting wet.",
+      "slug": "boots",
+      "seconds": 1.6,
+      "bytes": 26924,
+      "peak_dbfs": -11.56,
+      "sha256": "5b9c6e21e738c1c1d57b3c8fb7f7d62147f7156b2aa8654cd5d9268e8ee460df"
+    },
+    {
+      "word": "high heels",
+      "chinese": "高跟鞋",
+      "sentence": "She wore tall high heels to the party and had to walk slowly.",
+      "slug": "high-heels",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -7.81,
+      "sha256": "2ab73554f2d19ae0410d97038e2ee74a4a5b2bb02668337f181d2b7980fcb9db"
+    },
+    {
+      "word": "sandals",
+      "chinese": "涼鞋",
+      "sentence": "She wore sandals to the beach in summer.",
+      "slug": "sandals",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -11.11,
+      "sha256": "798e2ac2ef0effa92e359dfd92b1005c0e981be209b7e4339beb800f3a8c0efd"
+    },
+    {
+      "word": "ballet shoes",
+      "chinese": "芭蕾舞鞋",
+      "sentence": "The dancer wore pink ballet shoes to practice dancing.",
+      "slug": "ballet-shoes",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -9.78,
+      "sha256": "9855d249ef964d02c9c3baf165338273c2dc62ff53c4da666c055e96fc25e00a"
+    },
+    {
+      "word": "graduation cap",
+      "chinese": "學士帽",
+      "sentence": "She threw her square graduation cap into the air when she finished school.",
+      "slug": "graduation-cap",
+      "seconds": 1.562,
+      "bytes": 26540,
+      "peak_dbfs": -9.25,
+      "sha256": "bdc4e1bbb7d320d4cfa25d8091fd7b5042c9e79240721ca8d68dbb8908f6a61e"
+    },
+    {
+      "word": "swimsuit",
+      "chinese": "泳衣",
+      "sentence": "She put on her one-piece swimsuit and jumped into the pool for swimming practice.",
+      "slug": "swimsuit",
+      "seconds": 1.736,
+      "bytes": 29228,
+      "peak_dbfs": -9.94,
+      "sha256": "4a86a5e4f49d66d74379a63b048bf062bb77c6f812718d70ead88d6201051193"
+    },
+    {
+      "word": "bikini",
+      "chinese": "比基尼",
+      "sentence": "She wore a colorful bikini with a separate top piece and a bottom piece at the beach.",
+      "slug": "bikini",
+      "seconds": 1.994,
+      "bytes": 33452,
+      "peak_dbfs": -13.59,
+      "sha256": "63b1a9b5ae0f6c0037cc2ff0fa21582d5ec8b3b58c8dd5708aa256123f159eeb"
+    },
+    {
+      "word": "kimono",
+      "chinese": "和服",
+      "sentence": "She wore a beautiful kimono to the festival in Japan.",
+      "slug": "kimono",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -11.51,
+      "sha256": "7b548b505da9b75721953777667d68bf05f28da91e3c43215458ebb89376386b"
+    },
+    {
+      "word": "mask",
+      "chinese": "口罩",
+      "sentence": "He wore a mask because he had a cold.",
+      "slug": "mask",
+      "seconds": 1.4293,
+      "bytes": 24236,
+      "peak_dbfs": -7.35,
+      "sha256": "1b7179d11d3a3e89370a05e8e034e3fa48c9bfb75634888b54896c6396ea9f56"
+    },
+    {
+      "word": "handbag",
+      "chinese": "手提包",
+      "sentence": "She carried her phone and wallet in one handbag.",
+      "slug": "handbag",
+      "seconds": 2.666,
+      "bytes": 44204,
+      "peak_dbfs": -10.56,
+      "sha256": "15c449afb8020aa771994044b9a5d4a32b86fb0543c34e0015d8573700feb7b8"
+    },
+    {
+      "word": "glasses",
+      "chinese": "眼鏡",
+      "sentence": "He put on his glasses to read the words on the board.",
+      "slug": "glasses",
+      "seconds": 2.7708,
+      "bytes": 45740,
+      "peak_dbfs": -9.66,
+      "sha256": "11850453960f0f03a30efe5ee075014d2effbbaec2e410ea7182cb6141df3efe"
+    },
+    {
+      "word": "sunglasses",
+      "chinese": "太陽眼鏡",
+      "sentence": "She put on her dark sunglasses because the sun was too bright.",
+      "slug": "sunglasses",
+      "seconds": 2.5476,
+      "bytes": 42284,
+      "peak_dbfs": -6.98,
+      "sha256": "bd552e912fb363cafa65f98615f8a296d6026c6ce644e3321718c01742a62afa"
+    },
+    {
+      "word": "ring",
+      "chinese": "戒指",
+      "sentence": "She put a golden ring on her finger.",
+      "slug": "ring",
+      "seconds": 2.0579,
+      "bytes": 34220,
+      "peak_dbfs": -11.99,
+      "sha256": "1e79b6bf9e78feb341f9aadbd809fe9a179f70675a2b86eae0248a83e1c20f98"
+    },
+    {
+      "word": "diamond",
+      "chinese": "鑽石",
+      "sentence": "The diamond on her ring was very bright and shiny.",
+      "slug": "diamond",
+      "seconds": 1.3227,
+      "bytes": 22700,
+      "peak_dbfs": -6.0,
+      "sha256": "0865adde0652be3d9be6931bb48e97a32a14e5a6c521d743e66dea40f19a1adc"
+    },
+    {
+      "word": "lipstick",
+      "chinese": "口紅",
+      "sentence": "She put red lipstick on her lips before the photo.",
+      "slug": "lipstick",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -10.77,
+      "sha256": "aaf11fdf4bcd789ca13a86bccdee6b8050b4b2d435a971f4107245167ff2711a"
+    },
+    {
+      "word": "nail polish",
+      "chinese": "指甲油",
+      "sentence": "She painted each fingernail a different color with nail polish.",
+      "slug": "nail-polish",
+      "seconds": 2.378,
+      "bytes": 39596,
+      "peak_dbfs": -10.91,
+      "sha256": "08338dcc38297547f3b8c658ad6674803699e8d69bfff0594bafcf247e5c99be"
+    },
+    {
+      "word": "soccer ball",
+      "chinese": "足球",
+      "sentence": "He kicked the soccer ball into the net and scored a goal.",
+      "slug": "soccer-ball",
+      "seconds": 2.5476,
+      "bytes": 42284,
+      "peak_dbfs": -9.18,
+      "sha256": "5819b7eaf8d55228acbf79c0c678daeac4ae2dc02803e5d195e15969a84a3693"
+    },
+    {
+      "word": "basketball",
+      "chinese": "籃球",
+      "sentence": "She threw the basketball up high and it went right through the hoop.",
+      "slug": "basketball",
+      "seconds": 3.038,
+      "bytes": 49964,
+      "peak_dbfs": -9.16,
+      "sha256": "09c7c233e392649c9d12b6083bf9147d0984c5dec3bc5080dc52fa08e2005abc"
+    },
+    {
+      "word": "football",
+      "chinese": "美式足球",
+      "sentence": "He caught the football and ran fast to score a touchdown.",
+      "slug": "football",
+      "seconds": 1.4827,
+      "bytes": 25004,
+      "peak_dbfs": -8.29,
+      "sha256": "a92ea47db0c3f7564ba757fe099624cca215a24da04375366ad1516d12a26595"
+    },
+    {
+      "word": "baseball",
+      "chinese": "棒球",
+      "sentence": "The white baseball has red stitches around it.",
+      "slug": "baseball",
+      "seconds": 1.4827,
+      "bytes": 25004,
+      "peak_dbfs": -7.94,
+      "sha256": "951d1e7b2d9da51eca535ae6a6f8e0e120c8051fbf4b85c57be7ee2f0986cad7"
+    },
+    {
+      "word": "softball",
+      "chinese": "壘球",
+      "sentence": "She threw the big yellow softball underhand and the batter missed.",
+      "slug": "softball",
+      "seconds": 2.4838,
+      "bytes": 41132,
+      "peak_dbfs": -10.25,
+      "sha256": "080ebe1d2111e647d4fa9a15d827d1304e14d202761fc2acedd3b07b0776a3a8"
+    },
+    {
+      "word": "tennis",
+      "chinese": "網球",
+      "sentence": "She used a racket to hit the ball over the net in tennis.",
+      "slug": "tennis",
+      "seconds": 2.6108,
+      "bytes": 43052,
+      "peak_dbfs": -12.69,
+      "sha256": "0819f294b4312c0c137083ead520f3d3bca17cdb661a084dec19adf119d4432c"
+    },
+    {
+      "word": "volleyball",
+      "chinese": "排球",
+      "sentence": "They played volleyball on the beach and hit the ball over the net.",
+      "slug": "volleyball",
+      "seconds": 1.3227,
+      "bytes": 22700,
+      "peak_dbfs": -6.62,
+      "sha256": "962210d6368a46caf444b4a6d228c9e85e808a0043407a39bc66dc1381433ebc"
+    },
+    {
+      "word": "rugby",
+      "chinese": "橄欖球",
+      "sentence": "In rugby, players hold the oval ball and run to score.",
+      "slug": "rugby",
+      "seconds": 2.8348,
+      "bytes": 46892,
+      "peak_dbfs": -7.02,
+      "sha256": "15174841e1d6f54f9b1e4a4616db228f5bfe59d35cb76def17f90b9e2dd1ee9d"
+    },
+    {
+      "word": "frisbee",
+      "chinese": "飛盤",
+      "sentence": "They threw the frisbee back and forth at the park.",
+      "slug": "frisbee",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -9.13,
+      "sha256": "6c9bbab3c03263c3a78f0a35de429968f46ad86d94e39c41106402ac51cc4015"
+    },
+    {
+      "word": "billiards",
+      "chinese": "撞球",
+      "sentence": "He used a long stick to hit the ball into the pocket in billiards.",
+      "slug": "billiards",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -8.54,
+      "sha256": "c698003459293a8d734463c512f3d8e6d4e504c98ea49002db75e015ed9577ad"
+    },
+    {
+      "word": "ping pong",
+      "chinese": "桌球",
+      "sentence": "They hit a small white ball back and forth on a table in ping pong.",
+      "slug": "ping-pong",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -12.93,
+      "sha256": "bac093162ca46e2aa9427a907c0d34b9c64d7a061f3a7ea20075592021ae3330"
+    },
+    {
+      "word": "badminton",
+      "chinese": "羽毛球",
+      "sentence": "She hit the small feathered shuttlecock over the net in badminton.",
+      "slug": "badminton",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -8.71,
+      "sha256": "f0b0a1d15b21f827d3729f5abee679e3bd80f056f423dedd7d94752a20bb1572"
+    },
+    {
+      "word": "running",
+      "chinese": "跑步",
+      "sentence": "She goes running in the park every morning.",
+      "slug": "running",
+      "seconds": 2.4307,
+      "bytes": 40364,
+      "peak_dbfs": -7.45,
+      "sha256": "0840d8e9f4fe6f69c2bffd6f147c0fb129ac91fc663ad60df1c223fc916844ec"
+    },
+    {
+      "word": "dancing",
+      "chinese": "跳舞",
+      "sentence": "The children enjoyed dancing to the music.",
+      "slug": "dancing",
+      "seconds": 2.666,
+      "bytes": 44204,
+      "peak_dbfs": -7.16,
+      "sha256": "08903d3be66f737231ce22c95f364ec63512c8ad6f78a403593fe0b698b8c3c0"
+    },
+    {
+      "word": "bowling",
+      "chinese": "保齡球",
+      "sentence": "We went bowling and tried to knock down all the pins.",
+      "slug": "bowling",
+      "seconds": 2.9415,
+      "bytes": 48428,
+      "peak_dbfs": -9.4,
+      "sha256": "0bf211c2360e588a0181cd7531019f1fedc0f87d2dc6aa46207794b3fce76d14"
+    },
+    {
+      "word": "golf",
+      "chinese": "高爾夫",
+      "sentence": "He swung a club and hit the small white ball toward the hole in golf.",
+      "slug": "golf",
+      "seconds": 1.8339,
+      "bytes": 30764,
+      "peak_dbfs": -5.46,
+      "sha256": "90169dda83a2cec627d7867d7dd0342911649ccb747c78174f8f9efa882d0b57"
+    },
+    {
+      "word": "archery",
+      "chinese": "射箭",
+      "sentence": "She pulled back the bow and shot an arrow at the target in archery.",
+      "slug": "archery",
+      "seconds": 1.0987,
+      "bytes": 18860,
+      "peak_dbfs": -7.72,
+      "sha256": "270e94a189ca3db72ae2035df252d5c8df1b41a11d32fe0878bbeaf161a6018a"
+    },
+    {
+      "word": "fishing",
+      "chinese": "釣魚",
+      "sentence": "He sat by the river and waited for a fish to bite while fishing.",
+      "slug": "fishing",
+      "seconds": 2.7708,
+      "bytes": 45740,
+      "peak_dbfs": -8.54,
+      "sha256": "b7cb8635faa0f4a296ea0b38deff54b2f21e4b157f12cd9655e0e49acdc84e9f"
+    },
+    {
+      "word": "boxing",
+      "chinese": "拳擊",
+      "sentence": "He wore big gloves and punched the bag during boxing practice.",
+      "slug": "boxing",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -5.9,
+      "sha256": "41ffe727ecc3a8a028663b4e63668df2ee0a52c77f42a820437542ab6bef77d9"
+    },
+    {
+      "word": "martial arts",
+      "chinese": "武術",
+      "sentence": "She bowed to her teacher before the martial arts class started.",
+      "slug": "martial-arts",
+      "seconds": 2.378,
+      "bytes": 39596,
+      "peak_dbfs": -9.9,
+      "sha256": "5e141d82adfde85514db0220446b7cd4b8147c844456e2d6f56fd3e99499656f"
+    },
+    {
+      "word": "roller skate",
+      "chinese": "直排輪",
+      "sentence": "She put on one roller skate and then the other before practice.",
+      "slug": "roller-skate",
+      "seconds": 2.7708,
+      "bytes": 45740,
+      "peak_dbfs": -11.18,
+      "sha256": "e19a1e1f5496fb13ffd3f4227081608ec2c03820421fd2ad97af8ff5d351f6ff"
+    },
+    {
+      "word": "skiing",
+      "chinese": "滑雪",
+      "sentence": "She went down the snowy hill with two long boards on her feet while skiing.",
+      "slug": "skiing",
+      "seconds": 5.2207,
+      "bytes": 84908,
+      "peak_dbfs": -4.86,
+      "sha256": "c578378cdc6bce2c7ea87bccb95f2a4e644678eb3afbaa5cb9a3707152e019fc"
+    },
+    {
+      "word": "snowboarding",
+      "chinese": "滑雪板",
+      "sentence": "He slid down the snow hill standing sideways on one wide board while snowboarding.",
+      "slug": "snowboarding",
+      "seconds": 2.9415,
+      "bytes": 48428,
+      "peak_dbfs": -8.86,
+      "sha256": "ad0b7496f22348ab68eb969bb9c3b4f4e0999530243b7c69e58819e409bf851a"
+    },
+    {
+      "word": "ice skating",
+      "chinese": "滑冰",
+      "sentence": "She glided on the frozen pond with blades on her shoes while ice skating.",
+      "slug": "ice-skating",
+      "seconds": 1.665,
+      "bytes": 28076,
+      "peak_dbfs": -10.33,
+      "sha256": "cbade3e2283c8c8fc05d57031e46f8a597d89f52ae165e1bd2c68b2810e6a097"
+    },
+    {
+      "word": "weightlifting",
+      "chinese": "舉重",
+      "sentence": "He used both hands to lift the heavy bar above his head in weightlifting.",
+      "slug": "weightlifting",
+      "seconds": 1.8873,
+      "bytes": 31532,
+      "peak_dbfs": -9.74,
+      "sha256": "e8f975810e53fee5e6d9cafca1101c146001c4e52fef6f53206bca5123850e4a"
+    },
+    {
+      "word": "gymnastics",
+      "chinese": "體操",
+      "sentence": "She did flips and cartwheels across the mat during gymnastics.",
+      "slug": "gymnastics",
+      "seconds": 2.6108,
+      "bytes": 43052,
+      "peak_dbfs": -10.08,
+      "sha256": "b08cf87172009e5ff518fa998bddb478dc1e9b3d80802a32f546444d6ba2bd68"
+    },
+    {
+      "word": "wrestling",
+      "chinese": "摔角",
+      "sentence": "The two boys grabbed each other and tried to push the other down in wrestling.",
+      "slug": "wrestling",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -8.31,
+      "sha256": "4dc7103ce63bbb3ce7b00c6b0e80c48ea1efc26dd0770d4d6326c44580a75acc"
+    },
+    {
+      "word": "rowing",
+      "chinese": "划船",
+      "sentence": "They sat in a long boat and pulled the oars to move it forward in rowing.",
+      "slug": "rowing",
+      "seconds": 2.5476,
+      "bytes": 42284,
+      "peak_dbfs": -8.78,
+      "sha256": "019a12033a4fa02fd5451ed3cf52e7b70370e009ce0109c72375433059feb948"
+    },
+    {
+      "word": "climbing",
+      "chinese": "攀岩",
+      "sentence": "She used her hands and feet to go up the tall rock wall during climbing.",
+      "slug": "climbing",
+      "seconds": 1.1119,
+      "bytes": 19244,
+      "peak_dbfs": -11.74,
+      "sha256": "e344e3141148a723a82c17b45d61bc94d92bb9505c0cef8913f3ef62bb90727a"
+    },
+    {
+      "word": "cycling",
+      "chinese": "騎自行車",
+      "sentence": "She wore a helmet and rode her bike along the path during cycling.",
+      "slug": "cycling",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -8.41,
+      "sha256": "fe5c28e55bf6bfddcf7233049244b78a4b940295811086a84af601def12e18bd"
+    },
+    {
+      "word": "ant",
+      "chinese": "螞蟻",
+      "sentence": "A long line of ant carried food across the ground.",
+      "slug": "ant",
+      "seconds": 1.4827,
+      "bytes": 25004,
+      "peak_dbfs": -4.33,
+      "sha256": "7c4219d1593ddb06713b02b602e59b435553832e9e760bba13433be343fe034d"
+    },
+    {
+      "word": "bee",
+      "chinese": "蜜蜂",
+      "sentence": "The yellow and black bee flew from flower to flower.",
+      "slug": "bee",
+      "seconds": 1.4827,
+      "bytes": 25004,
+      "peak_dbfs": -8.69,
+      "sha256": "36ae379227978deaf1db550ff67ef058b89067b54719658213d29338112d530e"
+    },
+    {
+      "word": "butterfly",
+      "chinese": "蝴蝶",
+      "sentence": "The colorful butterfly landed softly on my hand.",
+      "slug": "butterfly",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -9.16,
+      "sha256": "e94e7b9f2526b8ebe05b6a9ade77bbcf66d9b0435c603a431cb53f0c9c1ef71f"
+    },
+    {
+      "word": "caterpillar",
+      "chinese": "毛毛蟲",
+      "sentence": "The fuzzy green caterpillar crawled slowly along a branch.",
+      "slug": "caterpillar",
+      "seconds": 1.5467,
+      "bytes": 26156,
+      "peak_dbfs": -7.97,
+      "sha256": "4d90c85a2b1e676340e82114ec07bb3d8401daeaf421138ff0cbb9e59fb1c425"
+    },
+    {
+      "word": "ladybug",
+      "chinese": "瓢蟲",
+      "sentence": "The tiny red ladybug with black spots crawled up my arm.",
+      "slug": "ladybug",
+      "seconds": 2.378,
+      "bytes": 39596,
+      "peak_dbfs": -10.9,
+      "sha256": "80351728573d1476760a575846af16b57b4248e7e9dbc2824c920f3c7bce18de"
+    },
+    {
+      "word": "snail",
+      "chinese": "蝸牛",
+      "sentence": "The snail moved very slowly and left a shiny wet trail.",
+      "slug": "snail",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -9.17,
+      "sha256": "411ed999c3e36d8702fbdfc53070f4eb4d7b3f0c776362429035092e9f3fcc2d"
+    },
+    {
+      "word": "spider",
+      "chinese": "蜘蛛",
+      "sentence": "The spider made a round web and waited in the middle for bugs.",
+      "slug": "spider",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -7.71,
+      "sha256": "d8e4e14acc095f35b8470f2799cef9867004b26b6730f75af403d80fd821362d"
+    },
+    {
+      "word": "spider web",
+      "chinese": "蜘蛛網",
+      "sentence": "The spider web sparkled in the sun after the morning rain.",
+      "slug": "spider-web",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -9.34,
+      "sha256": "c198c20dcccdc125112eb6a66cd9cec01e469c36c4990a3d7f7677d675836ad0"
+    },
+    {
+      "word": "scorpion",
+      "chinese": "蠍子",
+      "sentence": "We always checked our shoes for a scorpion before putting them on.",
+      "slug": "scorpion",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -9.98,
+      "sha256": "cdb4e553d9fcf91e3e20efc9f3344861efc0fccf401c3896f3a06a6037611cb8"
+    },
+    {
+      "word": "mosquito",
+      "chinese": "蚊子",
+      "sentence": "The mosquito bit my arm at night and made it itch.",
+      "slug": "mosquito",
+      "seconds": 1.152,
+      "bytes": 19628,
+      "peak_dbfs": -8.91,
+      "sha256": "cbcc84c7c76f6e201359ff401293824b8a128f8e62a374297914e83889d8c878"
+    },
+    {
+      "word": "fly",
+      "chinese": "蒼蠅",
+      "sentence": "A fly kept landing on our food at the picnic.",
+      "slug": "fly",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -10.39,
+      "sha256": "db4dc4332926d63f3124ca0e2e17a7ef34ba7a5338d54658373b9deec408464a"
+    },
+    {
+      "word": "cricket",
+      "chinese": "蟋蟀",
+      "sentence": "The cricket made a loud chirping sound outside my window all night.",
+      "slug": "cricket",
+      "seconds": 1.2693,
+      "bytes": 21548,
+      "peak_dbfs": -6.1,
+      "sha256": "dc840b843cd991d8d85b06c101705c2f22c918da1a74fd5e736120e9ec077691"
+    },
+    {
+      "word": "cockroach",
+      "chinese": "蟑螂",
+      "sentence": "Mom screamed when she saw a big brown cockroach in the kitchen.",
+      "slug": "cockroach",
+      "seconds": 2.5476,
+      "bytes": 42284,
+      "peak_dbfs": -9.36,
+      "sha256": "5f95d32d399008a08ba9d98705bb8312b94641455deb010ca49b32fe3b6e2aa2"
+    },
+    {
+      "word": "beetle",
+      "chinese": "甲蟲",
+      "sentence": "The shiny dark beetle crawled slowly over the log.",
+      "slug": "beetle",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -8.01,
+      "sha256": "8c925d4e5201542c9f73f355c311b993a0a63b95e987abe40d5223285e5c2c72"
+    },
+    {
+      "word": "worm",
+      "chinese": "蚯蚓",
+      "sentence": "After the rain, worms came out of the soil and moved across the path.",
+      "slug": "worm",
+      "seconds": 1.0987,
+      "bytes": 18860,
+      "peak_dbfs": -7.61,
+      "sha256": "4a432daf402a2e03e9e49da80e3b52d2aa6d2187d1a3ccd60a2c406c5daf1cea"
+    },
+    {
+      "word": "lizard",
+      "chinese": "蜥蜴",
+      "sentence": "The tiny lizard sat on the sunny wall and caught a fly with its tongue.",
+      "slug": "lizard",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -7.69,
+      "sha256": "a835588916d638c208fcaad69db3bbcd5d40e0595e574da8d2721a73be21d0cd"
+    },
+    {
+      "word": "frog",
+      "chinese": "青蛙",
+      "sentence": "The green frog jumped from one leaf to the next in the pond.",
+      "slug": "frog",
+      "seconds": 0.8933,
+      "bytes": 15788,
+      "peak_dbfs": -9.14,
+      "sha256": "8614a1eb547584cf7221cf9d527d8ed7c6267348880d31d63c5b7a68269a9c40"
+    },
+    {
+      "word": "snake",
+      "chinese": "蛇",
+      "sentence": "The long snake moved quietly through the tall grass.",
+      "slug": "snake",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -5.78,
+      "sha256": "afaa80a9cfee894c7cacd8d9f569e24e284ab0e51b87e29a6b9046cd810e12a8"
+    },
+    {
+      "word": "crocodile",
+      "chinese": "鱷魚",
+      "sentence": "The big crocodile opened its huge mouth and waited in the river.",
+      "slug": "crocodile",
+      "seconds": 2.1545,
+      "bytes": 35756,
+      "peak_dbfs": -7.71,
+      "sha256": "7d49192bd121a876fd9d59373250e45005bd89df99390bda654cf798cace52be"
+    },
+    {
+      "word": "mouse",
+      "chinese": "老鼠",
+      "sentence": "The tiny gray mouse ate a piece of cheese in the corner.",
+      "slug": "mouse",
+      "seconds": 1.4293,
+      "bytes": 24236,
+      "peak_dbfs": -10.0,
+      "sha256": "86881d3a7eb48a86f191d8e5b0ba882f010b86ad58c5e9b2f3c9073cd3388509"
+    },
+    {
+      "word": "rat",
+      "chinese": "大鼠",
+      "sentence": "The large dark rat ran along the wall and went through a small hole.",
+      "slug": "rat",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -7.77,
+      "sha256": "539763df5c6352bf3ddd165b64b24b3ec8d61de98f3b277ab39aa0d073d8747c"
+    },
+    {
+      "word": "hamster",
+      "chinese": "倉鼠",
+      "sentence": "My pet hamster ran on its little wheel all night long.",
+      "slug": "hamster",
+      "seconds": 1.6533,
+      "bytes": 27692,
+      "peak_dbfs": -9.02,
+      "sha256": "a458e0c81ea985a62645a28f75652966749dd09567dfade2ad50534a0c681cc0"
+    },
+    {
+      "word": "chick",
+      "chinese": "小雞",
+      "sentence": "The tiny yellow chick stayed close to its mother.",
+      "slug": "chick",
+      "seconds": 2.1113,
+      "bytes": 34988,
+      "peak_dbfs": -10.05,
+      "sha256": "ff150ebf062ac5207114143df37ec9a994707c1ba42542648a1d4f19a6dd55f9"
+    },
+    {
+      "word": "chicken",
+      "chinese": "雞",
+      "sentence": "The chicken ran around the yard and made a loud clucking sound.",
+      "slug": "chicken",
+      "seconds": 1.4827,
+      "bytes": 25004,
+      "peak_dbfs": -12.02,
+      "sha256": "0cc325452bd18f432d88261d915088853163b580ef46de75edf58c33b3b12225"
+    },
+    {
+      "word": "rooster",
+      "chinese": "公雞",
+      "sentence": "The rooster crowed every morning at sunrise to wake everyone up.",
+      "slug": "rooster",
+      "seconds": 2.7708,
+      "bytes": 45740,
+      "peak_dbfs": -7.55,
+      "sha256": "1062ac4c4b2c2e5d981a6d430eb4258629f1684f31f8ee8127c89b7c4c83821a"
+    },
+    {
+      "word": "turkey",
+      "chinese": "火雞",
+      "sentence": "The big brown turkey puffed up its chest feathers and made a loud gobbling sound.",
+      "slug": "turkey",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -10.3,
+      "sha256": "026766c33f010f67c24c1c20dd247e8942e8a7c7ed6f8d4a57ef25a608740c6a"
+    },
+    {
+      "word": "peacock",
+      "chinese": "孔雀",
+      "sentence": "The peacock opened its big beautiful tail feathers for everyone to see.",
+      "slug": "peacock",
+      "seconds": 0.9436,
+      "bytes": 16556,
+      "peak_dbfs": -11.6,
+      "sha256": "60b1778b9273cb509286d5f8afd4a3743ee1ad0794c0fe1de3390541bb2c8d60"
+    },
+    {
+      "word": "owl",
+      "chinese": "貓頭鷹",
+      "sentence": "The owl slept during the day and came out to hunt at night.",
+      "slug": "owl",
+      "seconds": 1.7166,
+      "bytes": 28844,
+      "peak_dbfs": -8.43,
+      "sha256": "f0f26e98aca16b27302a03c12b51f6475cd59adf2532bf667dce00b1a4dc231e"
+    },
+    {
+      "word": "parrot",
+      "chinese": "鸚鵡",
+      "sentence": "The colorful parrot copied every word its owner said.",
+      "slug": "parrot",
+      "seconds": 1.9406,
+      "bytes": 32300,
+      "peak_dbfs": -6.89,
+      "sha256": "1b722505e45de31e20285c23e4630b8abb2f5edb09d4e0e43cfa900cf890e9ca"
+    },
+    {
+      "word": "bird",
+      "chinese": "鳥",
+      "sentence": "A small brown bird sang a cheerful song on the windowsill.",
+      "slug": "bird",
+      "seconds": 1.77,
+      "bytes": 29612,
+      "peak_dbfs": -7.43,
+      "sha256": "fbd11440cac3fd1a225df1817a653c0dc35f5ff00650d4d21fdfd9b68a673ebb"
+    }
+  ],
+  "quality_processing": {
+    "approved_sample_files_reused_unchanged": 10,
+    "new_speech_requests": 372,
+    "regenerated_words": [
+      "taxi",
+      "map"
+    ],
+    "words_checked_in_independent_transcription_batches": 380,
+    "words_checked_with_audio_understanding": 380,
+    "repeated_speech_or_tail_sound_effects_removed": 27,
+    "silence_only_head_tail_trims": 8,
+    "kept_speech_rate": 0.9,
+    "changes": [
+      {
+        "word_slug": "basket",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 0.9383750000000001,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "bear",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 0.896,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "bicycle",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 0.9217920000000001,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "climbing",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 1.111958,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "cloud",
+        "kept_from_seconds": 0.609333,
+        "kept_until_seconds": 1.4814999999999998,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "cousin",
+        "kept_from_seconds": 0.619542,
+        "kept_until_seconds": 1.550625,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "dress",
+        "kept_from_seconds": 0.294167,
+        "kept_until_seconds": 1.4407919999999999,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "factory",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 0.873208,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "grapes",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 0.978167,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "hook",
+        "kept_from_seconds": 0.31216700000000003,
+        "kept_until_seconds": 0.994667,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "jellyfish",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 1.2017499999999999,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "lighthouse",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 1.3732499999999999,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "monkey",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 0.897792,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "moon",
+        "kept_from_seconds": 0.299,
+        "kept_until_seconds": 1.3913749999999998,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "mushroom",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 1.102917,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "music",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 0.836542,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "peacock",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 0.943625,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "pig",
+        "kept_from_seconds": 0.177,
+        "kept_until_seconds": 0.9735,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "rocket",
+        "kept_from_seconds": 0.199583,
+        "kept_until_seconds": 1.1406669999999999,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "salad",
+        "kept_from_seconds": 0.13729200000000003,
+        "kept_until_seconds": 1.1504999999999999,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "scissors",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 1.196875,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "strawberry",
+        "kept_from_seconds": 0.23920800000000003,
+        "kept_until_seconds": 1.351375,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "tablet",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 1.096042,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "truck",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 0.877,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "van",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 0.9305,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "rainy-day",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 1.646167,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": true
+      },
+      {
+        "word_slug": "frog",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 0.893333,
+        "reason": "Audio inspection confirmed repeated speech or later sound effects; preserve the complete first pronunciation plus 150 ms of silence.",
+        "internal_phrase_pause_preserved": false
+      },
+      {
+        "word_slug": "graduation-cap",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 1.561,
+        "reason": "Independent time-domain audit: only head/tail silence removed with 200 ms margins; removed signal below -56.5 dBFS."
+      },
+      {
+        "word_slug": "swimsuit",
+        "kept_from_seconds": 0.104,
+        "kept_until_seconds": 1.84,
+        "reason": "Independent time-domain audit: only head/tail silence removed with 200 ms margins; removed signal below -56.5 dBFS."
+      },
+      {
+        "word_slug": "ice-skating",
+        "kept_from_seconds": 0.445,
+        "kept_until_seconds": 2.11,
+        "reason": "Independent time-domain audit: only head/tail silence removed with 200 ms margins; removed signal below -56.5 dBFS."
+      },
+      {
+        "word_slug": "scientist",
+        "kept_from_seconds": 0.221,
+        "kept_until_seconds": 1.717,
+        "reason": "Independent time-domain audit: only head/tail silence removed with 200 ms margins; removed signal below -56.5 dBFS."
+      },
+      {
+        "word_slug": "octopus",
+        "kept_from_seconds": 0.08,
+        "kept_until_seconds": 1.48,
+        "reason": "Independent time-domain audit: only head/tail silence removed with 200 ms margins; removed signal below -56.5 dBFS."
+      },
+      {
+        "word_slug": "campground",
+        "kept_from_seconds": 0,
+        "kept_until_seconds": 1.14,
+        "reason": "Independent time-domain audit: only head/tail silence removed with 200 ms margins; removed signal below -56.5 dBFS."
+      },
+      {
+        "word_slug": "toolbox",
+        "kept_from_seconds": 0.315,
+        "kept_until_seconds": 1.654,
+        "reason": "Independent time-domain audit: only head/tail silence removed with 200 ms margins; removed signal below -56.5 dBFS."
+      },
+      {
+        "word_slug": "castle",
+        "kept_from_seconds": 0.339,
+        "kept_until_seconds": 1.385,
+        "reason": "Independent time-domain audit: only head/tail silence removed with 200 ms margins; removed signal below -56.5 dBFS."
+      }
+    ],
+    "final_ambiguous_clips_check": "music, map and approved apple were checked together as WAV: one pronunciation each, no extra music, effects, clicking or static.",
+    "review_limitations": "Automated checks cannot guarantee every phoneme or subjective naturalness; user device playback testing is still required.",
+    "audio_understanding_usage": {
+      "model": "gpt-audio-1.5",
+      "responses_with_usage": 420,
+      "input_audio_tokens": 8721,
+      "input_text_tokens": 62262,
+      "output_text_tokens": 7786,
+      "estimated_usd": 0.512587,
+      "note": "Estimate from returned token usage; excludes TTS and transcription and any requests without returned usage."
+    }
+  }
+}

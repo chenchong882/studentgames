@@ -785,6 +785,8 @@
         </div>
     </div>
 
+<script src="../data/word-audio-manifest.js"></script>
+<script src="word-audio.js"></script>
 <script src="round-review.js"></script>
 <script>
     const canvas = document.getElementById("gameCanvas");
@@ -1327,6 +1329,7 @@
     }
 
     function openMinerShop() {
+        if (window.WordAudio) WordAudio.stop();
         shopOpen = true;
         resetMovement();
         stopBgm();
@@ -1510,6 +1513,7 @@
 
     function winGame() {
         if (gamePhase === "ENDED") return;
+        if (window.WordAudio) WordAudio.stop();
         hideMinerShop();
         stopBgm();
         pendingNextRoundTimer = null;
@@ -1528,6 +1532,7 @@
 
     function finishGame() {
         if (gamePhase === "ENDED") return;
+        if (window.WordAudio) WordAudio.stop();
         hideMinerShop();
         stopBgm();
         pendingNextRoundTimer = null;
@@ -1576,6 +1581,7 @@
     /* iOS 必須由真實按鈕的 click 先「暖機」一次，speechSynthesis 才解得了鎖 */
     let speechPrimed = false;
     function primeSpeech() {
+        if (window.WordAudio) WordAudio.unlock();
         if (speechPrimed || !("speechSynthesis" in window)) return;
         try {
             const warm = new SpeechSynthesisUtterance(" ");
@@ -1586,7 +1592,8 @@
         speechPrimed = true;
     }
 
-    function speakWord(word) {
+    function speakWord(word, fallbackOnly) {
+        if (!fallbackOnly && window.WordAudio && WordAudio.play(word, {fallback: () => speakWord(word, true)})) return;
         if (!("speechSynthesis" in window)) {
             setMessage("這個瀏覽器不支援語音播放", "bad", 160);
             return;
@@ -1637,6 +1644,7 @@
     }
 
     function initLevel(autoSpeak = true) {
+        if (window.WordAudio) WordAudio.stop();
         round += 1;
         idleSeconds = 0;
         items = [];
@@ -1694,10 +1702,10 @@
             const spokenRound = round;
             const spokenTarget = targetWordObj;
             setTimeout(() => {
-                if (gamePhase === "PLAYING" && !paused && !shopOpen && !minerTutorialStep && round === spokenRound && targetWordObj === spokenTarget) speakWord(spokenTarget.word);
+                if (gamePhase === "PLAYING" && !paused && !shopOpen && !minerTutorialStep && round === spokenRound && targetWordObj === spokenTarget && !(window.WordAudio && WordAudio.isPlaying())) speakWord(spokenTarget.word);
             }, 450);
             setTimeout(() => {
-                if (gamePhase === "PLAYING" && !paused && !shopOpen && !minerTutorialStep && round === spokenRound && targetWordObj === spokenTarget) speakWord(spokenTarget.word);
+                if (gamePhase === "PLAYING" && !paused && !shopOpen && !minerTutorialStep && round === spokenRound && targetWordObj === spokenTarget && !(window.WordAudio && WordAudio.isPlaying())) speakWord(spokenTarget.word);
             }, 3000);
         }
     }
@@ -2799,6 +2807,7 @@
     const pauseEl = document.getElementById("miner-pause");
     function openSettings() {
         if (paused || shopOpen) return;
+        if (window.WordAudio) WordAudio.stop();
         paused = true;
         tutorialEl.hidden = true;
         resetMovement();
@@ -2822,6 +2831,7 @@
         else openSettings();
     }
     function returnToMainMenu() {
+        if (window.WordAudio) WordAudio.stop();
         minerTutorialStep = 0; minerTutorialCompleteAt = 0; tutorialEl.hidden = true;
         hideMinerShop();
         pendingNextRoundTimer = null;

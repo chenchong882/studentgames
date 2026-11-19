@@ -385,6 +385,8 @@
 </div>
 
 <script src="../data/wordbank.js"></script>
+<script src="../data/word-audio-manifest.js"></script>
+<script src="word-audio.js"></script>
 <script src="round-review.js"></script>
 <script>
 "use strict";
@@ -747,7 +749,8 @@ function tickSnd(urgent){
 /* ---------- 發音(命中正確時唸單字) ---------- */
 // iOS 雷: 運行中的 AudioContext 會佔走音訊工作階段, 讓 speechSynthesis 沒聲音。
 // 對策: 唸字前 suspend AudioContext, 唸完(或逾時) resume。
-function speakWord(word){
+function speakWord(word,fallbackOnly){
+  if(!fallbackOnly&&window.WordAudio&&WordAudio.play(word,{fallback:()=>speakWord(word,true)}))return;
   if(!('speechSynthesis' in window)) return;
   const resumeAudio = ()=>{ try{ if(actx && actx.state==='running') {/*keep*/} }catch(e){} };
   try{
@@ -759,12 +762,13 @@ function speakWord(word){
   msg.onend = restore; msg.onerror = restore;
   // 保險: 1.6s 後一定 resume
   setTimeout(restore, 1600);
-  try{ window.speechSynthesis.cancel(); window.speechSynthesis.speak(msg); }catch(e){ restore(); }
+  try{ if(window.speechSynthesis.speaking || window.speechSynthesis.pending)window.speechSynthesis.cancel(); window.speechSynthesis.speak(msg); }catch(e){ restore(); }
 }
 // iOS: 第一次 speak 必須由真實按鈕 click 解鎖（模式按鈕點下時呼叫）
 function unlockSpeech(){
+  if(window.WordAudio)WordAudio.unlock();
   if(!('speechSynthesis' in window)) return;
-  try{ const u = new SpeechSynthesisUtterance(' '); u.volume = 0; window.speechSynthesis.speak(u); }catch(e){}
+  try{ const u = new SpeechSynthesisUtterance(' '); u.lang = 'en-US'; u.volume = 0; window.speechSynthesis.speak(u); }catch(e){}
 }
 
 /* ---------- 出題 ---------- */
@@ -845,7 +849,7 @@ function startRound(){
   scoped = false; scopeBlend = 0; targetZoom = ZOOM_OUT; zoom = ZOOM_OUT;
   particles = []; bulletHoles = [];
   // 重置慢動作 / killcam / 反擊
-  timeScale = 1; targetTimeScale = 1; cinematic = 0; killTarget = null;
+  timeScale = 1; targetTimeScale = 1; cinematic = 0; killTarget = null; killSuccess = false;
   spotted = false; shooterIdx = -1; damageFlash = 0;
 
   const sb = document.getElementById('scope-btn');
@@ -1067,6 +1071,7 @@ function enterKillcam(f, success){
 
 /* ---------- 答錯對照：先看正解，再由學生決定何時繼續 ---------- */
 function clearAnswerReview(){
+  if(window.WordAudio)WordAudio.stop();
   answerReview=null;
   document.getElementById('answer-review-overlay').classList.add('hide');
 }
@@ -1087,7 +1092,7 @@ function showAnswerReview(){
     picture.textContent=review.type==='en2pic'?(word.emoji||''):'';
     picture.hidden=!picture.textContent;
   }
-  document.getElementById('answer-review-speak').hidden=!('speechSynthesis' in window);
+  document.getElementById('answer-review-speak').hidden=!window.WordAudio&&!('speechSynthesis' in window);
   GameRuntime.text(document.getElementById('answer-review-next'),lives<=0&&!practiceOnly?'查看本局結果':roundNo>=MAX_ROUNDS?'完成本局':'進入下一關');
   const overlay=document.getElementById('answer-review-overlay');
   overlay.classList.remove('hide');
@@ -1227,7 +1232,8 @@ function loop(t){
   }
   if(inputActive())updateHUD();
 
-  if(state === 'feedback' && performance.now() > feedbackUntil){
+  // 正確命中的錄音先唸完，再換題；暫停／離開仍會立即取消。
+  if(state === 'feedback' && performance.now() > feedbackUntil && !(killSuccess && window.WordAudio && WordAudio.isPlaying())){
     advance();
   }
   if(state==='raid-result'&&performance.now()>feedbackUntil)resumeRoofQuestion();
@@ -2388,6 +2394,7 @@ document.getElementById('shop-continue').addEventListener('click', ()=>{
 });
 function pauseGame(){
   if(!['playing','raid','raid-result','feedback','killcam'].includes(state)) return;
+  if(window.WordAudio)WordAudio.stop();
   clearTouches();
   pausedFrom = state;
   pauseStarted = performance.now();
