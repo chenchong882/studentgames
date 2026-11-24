@@ -166,6 +166,8 @@
   .answer-wrong { border-color:#f87171; background:#3b141d; color:#fecaca; }
   .answer-comparison h3 { margin:0 0 8px; font-size:16px; }
   .answer-comparison .review-prompt { margin:0 0 10px; color:inherit; font-size:15px; line-height:1.5; overflow-wrap:anywhere; }
+  #answer-correct-example { margin:10px 0 0; color:#ecfdf5; font-size:16px; line-height:1.6; overflow-wrap:anywhere; }
+  #answer-correct-example strong { color:#a7f3d0; font-weight:800; }
   .answer-target { display:flex; align-items:center; gap:14px; }
   .answer-picture { flex:none; font-size:56px; line-height:1.2; }
   .answer-picture[hidden] { display:none; }
@@ -238,6 +240,7 @@
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
 <script src="lesson-data.js"></script>
+<script src="word-example.js"></script>
 <script src="game-setup.js"></script>
 <script src="game-runtime.js"></script>
 </head>
@@ -387,6 +390,7 @@
       <h3 id="answer-correct-title">✓ 正確答案：應該選這個</h3>
       <p class="review-prompt" id="answer-review-prompt"></p>
       <div class="answer-target"><span class="answer-picture" id="answer-correct-picture" aria-hidden="true" hidden></span><div class="answer-target-text"><strong id="answer-correct-word"></strong><span id="answer-correct-meaning"></span></div></div>
+      <p id="answer-correct-example" lang="en" hidden></p>
       <button id="answer-review-speak" type="button">再聽一次正確單字</button>
     </section>
     <section class="answer-comparison answer-wrong" aria-labelledby="answer-wrong-title">
@@ -456,7 +460,8 @@ function normalizeWords(arr){
     const emoji = String((w && (w.emoji || w.sticker || w.icon)) || '').trim();
     const avoidWith = Array.isArray(w && w.avoidWith) ? w.avoidWith.map(x=>String(x).trim().toLowerCase()).filter(Boolean) : [];
     if(!word || !meaning) return;
-    out.push({ word: word.toUpperCase(), meaning, pos: pos || '單字', example, emoji, avoidWith });
+    const exampleWord = typeof w.exampleWord === 'string' && w.exampleWord.toUpperCase() === word.toUpperCase() ? w.exampleWord : word;
+    out.push({ word: word.toUpperCase(), exampleWord, meaning, pos: pos || '單字', example, emoji, avoidWith });
   });
   return GameData.uniqueWords(out);
 }
@@ -1246,6 +1251,8 @@ function showAnswerReview(){
     picture.textContent=review.type==='en2pic'?(word.emoji||''):'';
     picture.hidden=!picture.textContent;
   }
+  const example=document.getElementById('answer-correct-example');
+  example.hidden=!WordExample.render(example,{word:review.correct.exampleWord||review.correct.word.toLowerCase(),example:review.correct.example});
   document.getElementById('answer-review-speak').hidden=!window.WordAudio&&!('speechSynthesis' in window);
   GameRuntime.text(document.getElementById('answer-review-next'),lives<=0&&!practiceOnly?'查看本局結果':roundNo>=MAX_ROUNDS?'完成本局':'進入下一關');
   const overlay=document.getElementById('answer-review-overlay');

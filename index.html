@@ -102,12 +102,18 @@
     #vocab-preview { margin-top: 14px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(7,13,26,.6); }
     .vocab-preview-head { gap: 8px 14px; margin-bottom: 12px; }
     #vocab-preview-title { color: var(--text); font-size: 15px; font-weight: 800; }
-    .vocab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; max-height: 340px; overflow-y: auto; }
-    .vocab-item { width: 100%; padding: 10px 12px; cursor: pointer; text-align: left; font: inherit; line-height: 1.35; color: inherit; border: 1px solid rgba(255,255,255,.07); border-radius: 11px; background: rgba(255,255,255,.045); transition: border-color .18s ease, background .18s ease, transform .18s ease; }
-    .vocab-item:hover { transform: translateY(-1px); border-color: rgba(255,224,110,.45); background: rgba(255,224,110,.09); }
+    .vocab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); align-items: start; gap: 8px; max-height: 340px; overflow-y: auto; }
+    .vocab-card { min-width: 0; overflow-wrap: anywhere; border: 1px solid rgba(255,255,255,.12); border-radius: 11px; background: rgba(255,255,255,.045); }
+    .vocab-item { display: block; width: 100%; padding: 10px 12px; cursor: pointer; text-align: left; font: inherit; line-height: 1.35; color: inherit; border: 0; border-radius: 10px; background: transparent; }
+    .vocab-item:hover, .vocab-example summary:hover { background: rgba(255,224,110,.09); }
     .vocab-item:active { transform: scale(.98); }
-    .vocab-en { color: #ffe06e; font-size: 14px; font-weight: 900; }
-    .vocab-zh { margin-top: 3px; color: #aebbd0; font-size: 12px; }
+    .vocab-en { display: block; color: #ffe06e; font-size: 14px; font-weight: 900; }
+    .vocab-zh { display: block; margin-top: 3px; color: #aebbd0; font-size: 12px; }
+    .vocab-example { border-top: 1px solid var(--line); }
+    .vocab-example summary { min-height: 44px; padding: 11px 12px; color: var(--cyan); cursor: pointer; font-size: 14px; line-height: 22px; }
+    .vocab-example p { margin: 0; padding: 0 12px 12px; font: 16px/1.5 Arial, sans-serif; }
+    .vocab-example strong { color: var(--yellow); }
+    .vocab-card :is(button, summary):focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
     .games-section { margin-top: 48px; }
     .games-section .section-head { margin-bottom: 20px; }
     .games-count { margin-left: auto; color: var(--muted); font-size: 13px; font-weight: 800; }
@@ -357,6 +363,7 @@
   <script src="./data/word-audio-manifest.js"></script>
   <script src="./data/word-audio-profiles.js"></script>
   <script src="./games/word-audio.js"></script>
+  <script src="./games/word-example.js"></script>
   <script src="./assets/practice-set.js"></script>
   <script>
   (function(){
@@ -653,15 +660,14 @@
     }
 
     function buildVocabPreview(){
-      let words = [];
-      if(practicePicker && practicePicker.isDaily()){
-        words = practicePicker.words().map(w => ({en:w.word, zh:w.chinese, emoji:w.emoji}));
-      } else if(scope === 'lesson' && hasLesson){
-        words = lesson.data.words.map(w => ({ en: w.word||w.en||'', zh: w.chinese||w.zh||w.meaning||'', emoji: w.emoji||'' }));
-      } else if(scope === 'builtin' && window.WORD_BANK){
-        words = window.WORD_BANK.getWords(selectedThemes).map(w => ({ en: w.word||'', zh: w.chinese||'', emoji: w.emoji||'' }));
-      }
-      if(lastPreviewWord && !words.some(w => w.en === lastPreviewWord)){
+      const source = practicePicker?.isDaily() ? practicePicker.words() : practiceSource().words;
+      const words = source.filter(w => w && typeof w === 'object').map(w => ({
+        word: w.word || w.en || w.phrase || '',
+        chinese: w.chinese || w.zh || w.meaning || w.translation || w.definition || '',
+        emoji: w.emoji || w.icon || w.sticker || '',
+        sentence: w.sentence || w.example || ''
+      }));
+      if(lastPreviewWord && !words.some(w => w.word === lastPreviewWord)){
         lastPreviewWord = '';
         deviceVoice.hidden = true;
         audioStatus.textContent = '';
@@ -670,23 +676,38 @@
       vocabTitle.textContent = `共 ${words.length} 個單字・點一下可聽發音`;
       vocabGrid.innerHTML = '';
       words.forEach(w => {
-        const d = document.createElement('button');
-        d.type = 'button';
-        d.className = 'vocab-item';
-        d.title = `播放 ${w.en} 的發音`;
-        d.setAttribute('aria-label', `播放英文單字 ${w.en} 的發音`);
-        const en = document.createElement('div');
+        const card = document.createElement('div');
+        card.className = 'vocab-card';
+        const listen = document.createElement('button');
+        listen.type = 'button';
+        listen.className = 'vocab-item';
+        listen.title = `播放 ${w.word} 的發音`;
+        listen.setAttribute('aria-label', `播放英文單字 ${w.word} 的發音`);
+        const en = document.createElement('span');
         en.className = 'vocab-en';
-        en.textContent = (w.emoji ? w.emoji + ' ' : '') + w.en;
-        const zh = document.createElement('div');
+        en.lang = 'en';
+        en.textContent = (w.emoji ? w.emoji + ' ' : '') + w.word;
+        const zh = document.createElement('span');
         zh.className = 'vocab-zh';
-        zh.textContent = w.zh;
-        d.append(en, zh);
-        d.addEventListener('click', () => {
-          lastPreviewWord = w.en;
-          playPreviewClip(w.en);
+        zh.textContent = w.chinese;
+        listen.append(en, zh);
+        listen.addEventListener('click', () => {
+          lastPreviewWord = w.word;
+          playPreviewClip(w.word);
         });
-        vocabGrid.appendChild(d);
+        card.append(listen);
+        const sentence = document.createElement('p');
+        sentence.lang = 'en';
+        if(WordExample.render(sentence, w)){
+          const example = document.createElement('details');
+          example.className = 'vocab-example';
+          const toggle = document.createElement('summary');
+          toggle.textContent = '看例句';
+          toggle.setAttribute('aria-label', `看 ${w.word} 的例句`);
+          example.append(toggle, sentence);
+          card.append(example);
+        }
+        vocabGrid.appendChild(card);
       });
     }
 
