@@ -113,6 +113,7 @@
     .vocab-example summary { min-height: 44px; padding: 11px 12px; color: var(--cyan); cursor: pointer; font-size: 14px; line-height: 22px; }
     .vocab-example p { margin: 0; padding: 0 12px 12px; font: 16px/1.5 Arial, sans-serif; }
     .vocab-example strong { color: var(--yellow); }
+    .vocab-example .voice-option { margin: 0 12px 12px; }
     .vocab-card :is(button, summary):focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
     .games-section { margin-top: 48px; }
     .games-section .section-head { margin-bottom: 20px; }
@@ -212,7 +213,7 @@
           <span id="vocab-toggle-label">預覽單字</span>
         </button>
         <div class="voice-options" id="accent-options" role="group" aria-labelledby="accent-label">
-          <span class="voice-label" id="accent-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-4v14l-5-4H3zM16 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg>試聽口音</span>
+          <span class="voice-label" id="accent-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-4v14l-5-4H3zM16 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg>單字口音</span>
           <button type="button" class="voice-option" data-accent="us" aria-pressed="true">美式</button>
           <button type="button" class="voice-option" data-accent="gb" aria-pressed="false">英式</button>
           <button type="button" class="voice-option" data-accent="au" aria-pressed="false">澳式</button>
@@ -236,7 +237,7 @@
       <div id="vocab-preview" hidden>
         <div class="vocab-preview-head">
           <div id="vocab-preview-title"></div>
-          <div class="voice-options" id="voice-options" role="group" aria-label="發音聲音">
+          <div class="voice-options" id="voice-options" role="group" aria-label="單字朗讀聲音">
             <button type="button" class="voice-option" data-voice="male" aria-pressed="false">男聲</button>
             <button type="button" class="voice-option" data-voice="female" aria-pressed="true">女聲</button>
           </div>
@@ -361,13 +362,15 @@
         </a>
       </div>
     </section>
-    <p class="note">選「系統主題單字」可複選練習主題；選「本次段考單字」則需由學生教材頁進入。記憶翻牌使用獨立題庫，<span id="memory-game-note">會在新分頁開啟</span>。內建單字發音使用 AI 合成語音。</p>
+    <p class="note">選「系統主題單字」可複選練習主題；選「本次段考單字」則需由學生教材頁進入。記憶翻牌使用獨立題庫，<span id="memory-game-note">會在新分頁開啟</span>。內建單字與例句使用 AI 合成語音。單字可切換口音，例句採美式女聲。</p>
   </main>
   <script src="./data/wordbank.js"></script>
   <script src="./data/word-audio-manifest.js"></script>
   <script src="./data/word-audio-profiles.js"></script>
   <script src="./games/word-audio.js"></script>
   <script src="./games/word-example.js"></script>
+  <script src="./data/example-audio-manifest.js"></script>
+  <script src="./games/example-audio.js"></script>
   <script src="./assets/practice-set.js"></script>
   <script>
   (function(){
@@ -651,6 +654,7 @@
     function speakPracticeWord(word,fallbackOnly){
       if(!fallbackOnly&&window.WordAudio&&WordAudio.play(word,{fallback:()=>speakPracticeWord(word,true)})){primePreviewSpeech();return;}
       if(!word || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return;
+      window.ExampleAudio?.stop();
       try {
         const synth = window.speechSynthesis;
         if(synth.speaking || synth.pending) synth.cancel();
@@ -664,6 +668,7 @@
     }
 
     function buildVocabPreview(){
+      window.ExampleAudio?.stop();
       const source = practicePicker?.isDaily() ? practicePicker.words() : practiceSource().words;
       const words = source.filter(w => w && typeof w === 'object').map(w => ({
         word: w.word || w.en || w.phrase || '',
@@ -677,7 +682,7 @@
         audioStatus.textContent = '';
         if(window.WordAudio) WordAudio.stop();
       }
-      vocabTitle.textContent = `共 ${words.length} 個單字・點一下可聽發音`;
+      vocabTitle.textContent = `共 ${words.length} 個單字・點單字聽發音`;
       vocabGrid.innerHTML = '';
       words.forEach(w => {
         const card = document.createElement('div');
@@ -709,6 +714,22 @@
           toggle.textContent = '看例句';
           toggle.setAttribute('aria-label', `看 ${w.word} 的例句`);
           example.append(toggle, sentence);
+          if(window.ExampleAudio?.has(w)){
+            const playSentence = document.createElement('button');
+            playSentence.type = 'button';
+            playSentence.className = 'voice-option';
+            playSentence.textContent = '聽例句';
+            playSentence.title = `播放 ${w.word} 的美式女聲例句`;
+            playSentence.addEventListener('click', () => {
+              deviceVoice.hidden = true;
+              audioStatus.textContent = '';
+              ExampleAudio.play(w, playSentence);
+            });
+            example.addEventListener('toggle', () => {
+              if(!example.open) ExampleAudio.stop(playSentence);
+            });
+            example.append(playSentence);
+          }
           card.append(example);
         }
         vocabGrid.appendChild(card);

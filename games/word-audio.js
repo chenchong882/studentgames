@@ -59,10 +59,14 @@
       const variant=previewLibrary.profiles[profile];
       directory=variant.directory;version=variant.version;
     }
-    stop(true);
     const url=new URL(directory+filename,audioRoot);
     url.searchParams.set('v',version);
-    const entry={token:generation,url:url.href,options:options||{},timer:null};
+    return playClip(url.href,options);
+  }
+  // Word and sentence recordings share playback permission and interrupt each other.
+  function playClip(url,options,timeout=15000){
+    stop(true);
+    const entry={token:generation,url,options:options||{},timer:null};
     current=entry;
     function ownsPlayer(){return current===entry&&generation===entry.token;}
     function finish(failed){
@@ -78,7 +82,7 @@
     player.src=entry.url;
     // The chosen 0.9 speed is already rendered into the MP3. Do not slow it twice.
     player.playbackRate=1;
-    entry.timer=setTimeout(()=>finish(true),15000);
+    entry.timer=setTimeout(()=>finish(true),timeout);
     try{
       const promise=player.play();
       if(promise&&promise.catch)promise.catch(()=>finish(true));
@@ -92,5 +96,5 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden)stop(true);});
   document.addEventListener('game-data-ready',()=>stop());
   window.addEventListener('pagehide',()=>stop(true));
-  window.WordAudio={play,stop,unlock,isPlaying:()=>current!==null};
+  window.WordAudio={play,playClip,stop,unlock,isPlaying:()=>current!==null};
 })();

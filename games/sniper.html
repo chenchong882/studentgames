@@ -174,7 +174,7 @@
   .answer-target-text { min-width:0; display:flex; flex-direction:column; gap:4px; overflow-wrap:anywhere; }
   .answer-target-text strong { font-size:clamp(20px,5vw,28px); line-height:1.2; }
   .answer-target-text span { color:#f8fafc; font-size:18px; line-height:1.5; }
-  #answer-review-speak { margin-top:12px; min-height:44px; padding:8px 14px; border:1px solid #6ee7b7; border-radius:9px; color:#d1fae5; background:#064e3b; font-family:inherit; font-size:15px; font-weight:700; line-height:1.4; cursor:pointer; touch-action:manipulation; }
+  #answer-review-speak, #answer-example-speak { margin-top:12px; min-height:44px; padding:8px 14px; border:1px solid #6ee7b7; border-radius:9px; color:#d1fae5; background:#064e3b; font-family:inherit; font-size:15px; font-weight:700; line-height:1.4; cursor:pointer; touch-action:manipulation; }
   .answer-review-actions { position:sticky; bottom:-18px; margin-bottom:-18px; padding:14px 0 18px; background:#0f172a; }
   #answer-review-next { width:100%; min-height:48px; margin:0; border-radius:12px; touch-action:manipulation; }
   #answer-review-overlay button:focus-visible { outline:3px solid #fff; outline-offset:3px; }
@@ -392,6 +392,7 @@
       <div class="answer-target"><span class="answer-picture" id="answer-correct-picture" aria-hidden="true" hidden></span><div class="answer-target-text"><strong id="answer-correct-word"></strong><span id="answer-correct-meaning"></span></div></div>
       <p id="answer-correct-example" lang="en" hidden></p>
       <button id="answer-review-speak" type="button">再聽一次正確單字</button>
+      <button id="answer-example-speak" type="button" hidden>聽例句</button>
     </section>
     <section class="answer-comparison answer-wrong" aria-labelledby="answer-wrong-title">
       <h3 id="answer-wrong-title">✗ 你剛剛選的：這題答錯</h3>
@@ -404,6 +405,8 @@
 <script src="../data/wordbank.js"></script>
 <script src="../data/word-audio-manifest.js"></script>
 <script src="word-audio.js"></script>
+<script src="../data/example-audio-manifest.js"></script>
+<script src="example-audio.js"></script>
 <script src="round-review.js"></script>
 <script>
 "use strict";
@@ -423,7 +426,7 @@ const BUILTIN = [
   { word:"ARTIST",  meaning:"藝術家", pos:"名詞", example:"An {W} paints beautiful pictures in the studio." },
   { word:"FARMER",  meaning:"農夫",   pos:"名詞", example:"The {W} grows vegetables on the farm every day." },
   { word:"NURSE",   meaning:"護士",   pos:"名詞", example:"The {W} takes care of patients all night long." },
-  { word:"POLICE",  meaning:"警察",   pos:"名詞", example:"The {W} catches the thief on the busy street." },
+  { word:"POLICE",  meaning:"警察",   pos:"名詞", example:"The {W} catch the thief on the busy street." },
   { word:"SINGER",  meaning:"歌手",   pos:"名詞", example:"The {W} sings beautiful songs on the big stage." },
   { word:"WRITER",  meaning:"作家",   pos:"名詞", example:"The {W} writes interesting stories every morning." },
   { word:"DRIVER",  meaning:"司機",   pos:"名詞", example:"The {W} drives the bus around the whole city." },
@@ -840,6 +843,7 @@ function tickSnd(urgent){
 function speakWord(word,fallbackOnly){
   if(!fallbackOnly&&window.WordAudio&&WordAudio.play(word,{fallback:()=>speakWord(word,true)}))return;
   if(!('speechSynthesis' in window)) return;
+  window.ExampleAudio?.stop();
   const resumeAudio = ()=>{ try{ if(actx && actx.state==='running') {/*keep*/} }catch(e){} };
   try{
     if(actx && actx.state === 'running'){ actx.suspend(); }
@@ -1252,7 +1256,13 @@ function showAnswerReview(){
     picture.hidden=!picture.textContent;
   }
   const example=document.getElementById('answer-correct-example');
-  example.hidden=!WordExample.render(example,{word:review.correct.exampleWord||review.correct.word.toLowerCase(),example:review.correct.example});
+  const entry={word:review.correct.exampleWord||review.correct.word.toLowerCase(),example:review.correct.example};
+  example.hidden=!WordExample.render(example,entry);
+  const speakExample=document.getElementById('answer-example-speak');
+  speakExample.hidden=example.hidden||!window.ExampleAudio?.has(entry);
+  speakExample.onclick=()=>{
+    if(state==='answer-review'&&!isPhoneLandscape())ExampleAudio.play(entry,speakExample);
+  };
   document.getElementById('answer-review-speak').hidden=!window.WordAudio&&!('speechSynthesis' in window);
   GameRuntime.text(document.getElementById('answer-review-next'),lives<=0&&!practiceOnly?'查看本局結果':roundNo>=MAX_ROUNDS?'完成本局':'進入下一關');
   const overlay=document.getElementById('answer-review-overlay');

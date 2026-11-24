@@ -1,8 +1,15 @@
 /* Show a lesson sentence with its target word in bold. */
 window.WordExample = (() => {
+  const wordOf = entry => String(entry.word || entry.en || '').trim();
+  const sentenceOf = entry => String(entry.sentence || entry.example || '').trim();
+  const spellingAt = (word, position) => position === 0 ? word[0].toUpperCase() + word.slice(1) : word;
+  function text(entry) {
+    const word = wordOf(entry);
+    return word && sentenceOf(entry).replace(/\{W\}/g, (_, position) => spellingAt(word, position));
+  }
   function render(container, entry) {
-    const word = String(entry.word || entry.en || '').trim();
-    const sentence = String(entry.sentence || entry.example || '').trim();
+    const word = wordOf(entry);
+    const sentence = sentenceOf(entry);
     container.textContent = '';
     if (!sentence || !word) return false;
 
@@ -18,13 +25,12 @@ window.WordExample = (() => {
     for (const match of sentence.matchAll(pattern)) {
       const start = match.index + (match[1] || '').length;
       const strong = document.createElement('strong');
-      const spelling = match[2] || word;
-      strong.textContent = template && start === 0 ? spelling[0].toUpperCase() + spelling.slice(1) : spelling;
+      strong.textContent = match[2] || spellingAt(word, start);
       container.append(sentence.slice(cursor, start), strong);
       cursor = match.index + match[0].length;
     }
     container.append(sentence.slice(cursor));
     return true;
   }
-  return { render };
+  return { render, text };
 })();
