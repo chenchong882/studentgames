@@ -973,6 +973,123 @@ function updateZombieStatusVisual(g,u,now){
   if(frozen){s.frost.rotation.y=now*.0015;s.frostShell.material.opacity=.17+Math.sin(now*.011)*.08;s.shards.forEach((shard,i)=>shard.scale.y=.78+Math.sin(now*.012+i)*.22);}
   if(burning){s.flames.rotation.y=now*.004;s.flameBits.forEach(flame=>{const k=.74+Math.sin(now*.019+flame.userData.seed)*.28;flame.scale.set(k,1.05+Math.sin(now*.024+flame.userData.seed)*.3,k);flame.position.y=flame.userData.baseY+Math.sin(now*.017+flame.userData.seed)*.08;});}
 }
+// 同一個關節的毛色、耳朵或獠牙共用一個網格，讓整群獵犬仍能在手機上繪製。
+function dogPiece(parent,material,part,shape){
+  const positions=[],colors=[],color=new THREE.Color();
+  function triangle(a,b,c,tint){
+    positions.push(...a,...b,...c);color.setHex(tint);
+    for(let i=0;i<3;i++)colors.push(color.r,color.g,color.b);
+  }
+  // 每圈依序給中心 y、z、左右半寬、厚度，以及從這圈開始的可選毛色。
+  function tube(x,sections,tint,sides=8){
+    const rings=sections.map(([y,z,width,depth],i)=>{
+      const prev=sections[Math.max(0,i-1)],next=sections[Math.min(sections.length-1,i+1)];
+      const dy=next[0]-prev[0],dz=next[1]-prev[1],length=Math.hypot(dy,dz);
+      return Array.from({length:sides},(_,j)=>{
+        const a=j*TAU/sides,r=Math.sin(a)*depth/length;
+        return [x+Math.cos(a)*width,y+dz*r,z-dy*r];
+      });
+    });
+    const last=rings.length-1;
+    for(let j=0;j<sides;j++){
+      const k=(j+1)%sides;
+      triangle([x,sections[0][0],sections[0][1]],rings[0][k],rings[0][j],sections[0][4]??tint);
+      for(let i=0;i<last;i++){
+        const a=rings[i],b=rings[i+1],shade=sections[i][4]??tint;
+        triangle(a[j],a[k],b[j],shade);triangle(a[k],b[k],b[j],shade);
+      }
+      triangle([x,sections[last][0],sections[last][1]],rings[last][j],rings[last][k],sections[last][4]??tint);
+    }
+  }
+  shape(tube,triangle);
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geometry.computeVertexNormals();
+  const mesh=new THREE.Mesh(geometry,material);mesh.userData.part=part;parent.add(mesh);return mesh;
+}
+function buildZombieDog(g,skin,shirt,pants,face){
+  const coat=0x63534a,sable=0x373237,tan=0xb39168,collar=0xaa4d39;
+  face.map=null;
+  for(const mat of [skin,shirt,pants,face]){mat.color.setHex(0xffffff);mat.vertexColors=true;}
+  const chest=dogPiece(g,skin,'body',tube=>{
+    tube(0,[[.01,-.62,.12,.16],[.01,-.47,.22,.24],[.07,-.19,.15,.13],[.03,.06,.23,.24],[.04,.28,.255,.30],[.08,.43,.18,.23]],coat);
+    tube(0,[[.03,.29,.19,.19],[.11,.38,.17,.17],[.16,.43,.165,.165,collar],[.20,.47,.16,.16],[.22,.51,.15,.14]],sable);
+  });
+  chest.position.y=.82;
+  const head=dogPiece(chest,face,'head',(tube,triangle)=>{
+    tube(0,[[.02,-.12,.12,.13],[.08,.01,.18,.165],[.085,.17,.155,.125,tan],[.035,.235,.105,.077],[.035,.37,.08,.065,sable],[.042,.43,.079,.054,sable]],coat);
+    for(const side of [-1,1]){
+      // 三角耳有厚度；前緣的銅紅色內耳朝向玩家。
+      const a=[side*.062,.17,.12],b=[side*.19,.145,.078],tip=[side*.218,.41,-.014],back=[side*.133,.19,-.060];
+      const ear=(v1,v2,v3,tint)=>side>0?triangle(v1,v2,v3,tint):triangle(v2,v1,v3,tint);
+      ear(a,b,tip,sable);ear(b,back,tip,coat);ear(back,a,tip,coat);
+      ear([side*.096,.19,.114],[side*.173,.18,.090],[side*.201,.344,.022],collar);
+      tube(side*.138,[[.142,.115,.04,.036],[.148,.171,.048,.04],[.145,.21,.028,.025]],0xff933f,6);
+      tube(side*.074,[[-.017,.287,.022,.024],[-.078,.30,.005,.006]],0xe9d7a9,6);
+    }
+  });
+  head.position.set(0,.19,.45);
+  const jaw=dogPiece(head,shirt,'head',tube=>{
+    tube(0,[[0,-.055,.11,.055],[-.032,.03,.10,.044],[-.032,.137,.075,.027],[-.027,.215,.061,.02]],0x534043);
+  });
+  jaw.position.set(0,-.025,.16);
+  const tail=dogPiece(chest,skin,'body',tube=>{
+    tube(0,[[0,.03,.096,.093],[.045,-.14,.09,.09],[.12,-.30,.064,.065],[.22,-.44,.038,.042,sable],[.27,-.53,.01,.012]],coat,6);
+  });
+  tail.position.set(0,.07,-.53);
+  const legs=[];
+  for(const front of [true,false])for(const side of [-1,1]){
+    const upperLength=front?.415:.40,lowerLength=front?.47:.49;
+    const upper=dogPiece(chest,pants,'body',tube=>{
+      tube(0,[[.055,0,front?.10:.13,.12],[-.10,0,front?.082:.12,front?.10:.145],[-upperLength,0,.056,.057]],coat,6);
+    });
+    upper.position.set(side*(front?.177:.16),front?.01:-.015,front?.33:-.445);
+    const lower=dogPiece(upper,pants,'body',tube=>{
+      tube(0,[[.04,0,.059,.060],[-lowerLength*.52,front?0:-.085,.046,front?.052:.07,tan],[-lowerLength,0,.042,.045]],coat,6);
+    });
+    lower.position.y=-upperLength;
+    const paw=dogPiece(lower,pants,'body',tube=>{
+      tube(0,[[0,-.045,.044,.046],[-.011,.02,.060,.051],[-.018,.109,.053,.036]],sable,6);
+    });
+    paw.position.y=-lowerLength;
+    legs.push({upper,lower,paw,upperLength,lowerLength,front,offset:(front===(side===1)?0:Math.PI)+(front?0:.17)});
+  }
+  return {chest,head,jaw,tail,legs};
+}
+function poseZombieDog(rig,u){
+  const gait=u.gaitPhase,stride=u.stride,breath=Math.sin(u.poseTime*3.6+u.phase);
+  const bite=u.attackAnim/.55,impact=bite*bite,recover=Math.sin(bite*Math.PI);
+  const snarl=clamp(1-u.attackT/.25,0,1)*(1-stride);
+  const pitch=.022*Math.sin(2*gait)*stride+.045*impact;
+  rig.chest.rotation.x=pitch;
+  rig.chest.position.y=.82+.008*breath+(.016*Math.cos(2*gait)-.048)*stride-.06*impact;
+  rig.head.position.z=.45+.032*impact-.035*snarl;
+  rig.head.rotation.x=.035*breath-.065*Math.cos(2*gait)*stride+.12*impact-.14*recover;
+  rig.head.rotation.y=.045*Math.sin(u.poseTime*1.3+u.phase)*(1-stride);
+  rig.jaw.rotation.x=(.12+.10*stride+.045*breath)*(1-bite)+.32*snarl+.40*recover;
+  rig.tail.rotation.x=.10+.14*Math.sin(2*gait-.6)*stride;
+  rig.tail.rotation.y=.10*Math.sin(u.poseTime*2.1+u.phase)+.11*Math.sin(gait)*stride;
+  // 對角兩腳輪流承重；著地時腳掌往後掃，擺盪時屈肘、收飛節再向前落下。
+  const cp=Math.cos(pitch),sp=Math.sin(pitch);
+  for(const leg of rig.legs){
+    const phase=((gait+leg.offset)/TAU)%1,stance=.43;
+    let sweep,lift=0;
+    if(phase<stance)sweep=1-2*phase/stance;
+    else{
+      const swing=(phase-stance)/(1-stance);
+      sweep=2*swing*swing*(3-2*swing)-1;lift=.18*Math.sin(Math.PI*swing)*stride;
+    }
+    const hip=leg.upper.position,footZ=(leg.front?.035:-.062)+.42*sweep*stride;
+    const dz=hip.z+footZ-(hip.y*sp+hip.z*cp);
+    const drop=rig.chest.position.y+hip.y*cp-hip.z*sp-(.065+lift);
+    const a=leg.upperLength,b=leg.lowerLength,d=clamp(Math.hypot(drop,dz),Math.abs(a-b)+.001,a+b-.001);
+    const bend=leg.front?1:-1;
+    const upper=Math.atan2(-dz,drop)+bend*Math.acos(clamp((a*a+d*d-b*b)/(2*a*d),-1,1));
+    const knee=-bend*Math.acos(clamp((d*d-a*a-b*b)/(2*a*b),-1,1));
+    leg.upper.rotation.x=upper-pitch;leg.lower.rotation.x=knee;
+    leg.paw.rotation.x=-upper-knee+lift*.8;
+  }
+}
 function makeEnemyArrow(){
   const g=new THREE.Group(),shaftMat=new THREE.MeshBasicMaterial({color:0xf0c56b}),tipMat=new THREE.MeshBasicMaterial({color:0xff754b});
   const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.025,.025,.8,6),shaftMat);shaft.rotation.x=Math.PI/2;g.add(shaft);
@@ -991,7 +1108,7 @@ function clearArrowPath(x,z,tx,tz){
 }
 function shootEnemyArrow(z){
   if(!z.userData.alive)return;
-  const m=makeEnemyArrow(),origin=z.localToWorld(new THREE.Vector3(.58,1.55,.7)),target=new THREE.Vector3(player.x,player.y+1.05,player.z);
+  const m=makeEnemyArrow(),origin=z.userData.rig.arrowSocket.getWorldPosition(new THREE.Vector3()),target=new THREE.Vector3(player.x,player.y+1.05,player.z);
   const dir=target.sub(origin).normalize();m.position.copy(origin);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),dir);scene.add(m);
   enemyArrows.push({m,vx:dir.x*ENEMY_ARROW_SPEED,vy:dir.y*ENEMY_ARROW_SPEED,vz:dir.z*ENEMY_ARROW_SPEED,life:5,owner:z});
 }
@@ -1012,6 +1129,113 @@ function updateEnemyArrows(dt){
     if(gone){removeTransient(a.m);enemyArrows.splice(i,1);}
   }
 }
+const WALKER_THIGH=.50,WALKER_SHIN=.47;
+function buildUndeadWalker(g,kind,skin,shirt,pants,face){
+  const archer=kind==='archer',heavy=kind==='tank'||kind==='boss',fast=kind==='fast';
+  function joint(parent,x=0,y=0,z=0){
+    const node=new THREE.Group();node.position.set(x,y,z);parent.add(node);return node;
+  }
+  function piece(parent,geometry,material,x=0,y=0,z=0,part='body'){
+    const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.userData.part=part;parent.add(mesh);return mesh;
+  }
+  function box(parent,w,h,d,material,x,y,z,part){
+    return piece(parent,new THREE.BoxGeometry(w,h,d),material,x,y,z,part);
+  }
+  const hips=joint(g,0,.91,0),chest=joint(hips,0,.03,0),neck=joint(chest,0,.92,0);
+  const rig={hips,chest,neck,legs:[],arms:[],extraMats:[],heavy,fast};
+  if(archer){
+    shirt.color.setHex(0x4b365f);pants.color.setHex(0x302538);face.map=null;face.color.setHex(0xff593d);
+  }
+  box(chest,archer?.80:.86,1.05,.42,shirt,0,.40,0);
+  const skull=new THREE.BoxGeometry(.72,.72,.72);
+  if(!archer){
+    // 將前臉的兩個三角形排到最後，五個側面共用一筆繪製，也避免重疊貼面閃爍。
+    const indices=skull.index.array,front=skull.groups[4].start;
+    skull.setIndex([...indices.slice(0,front),...indices.slice(front+6),...indices.slice(front,front+6)]);
+    skull.clearGroups();skull.addGroup(0,30,0);skull.addGroup(30,6,1);
+  }
+  piece(neck,skull,archer?skin:[skin,face],0,.29,0,'head');
+  if(archer){
+    for(const s of [-1,1])box(neck,.13,.12,.035,face,s*.16,.33,.37,'head');
+  }
+  for(const s of [-1,1]){
+    const hip=joint(hips,s*(heavy?.235:.20),0,0),knee=joint(hip,0,-WALKER_THIGH,0),ankle=joint(knee,0,-WALKER_SHIN,0);
+    box(hip,archer?.25:.35,WALKER_THIGH,.33,pants,0,-WALKER_THIGH/2,0);
+    box(knee,archer?.20:.29,WALKER_SHIN,.26,archer?skin:pants,0,-WALKER_SHIN/2,0);
+    box(ankle,archer?.25:.32,.13,.39,pants,0,-.005,.065);
+    rig.legs.push({hip,knee,ankle});
+    const shoulder=joint(chest,s*(archer?.46:.52),.76,.015),elbow=archer?joint(chest):joint(shoulder,0,-.43,0);
+    box(shoulder,archer?.22:.29,.43,.28,shirt,0,-.215,0);
+    box(elbow,archer?.19:.25,.43,.25,skin,0,-.215,0);
+    rig.arms.push({shoulder,elbow});
+  }
+  if(archer){
+    const bow=joint(chest,.10,.67,.54);
+    const wood=new THREE.MeshLambertMaterial({color:0x99613c}),cord=new THREE.MeshLambertMaterial({color:0xeddbaf});
+    const stave=new THREE.CatmullRomCurve3([new THREE.Vector3(0,-.60,-.18),new THREE.Vector3(0,-.34,-.035),
+      new THREE.Vector3(0,0,0),new THREE.Vector3(0,.34,-.035),new THREE.Vector3(0,.60,-.18)]);
+    piece(bow,new THREE.TubeGeometry(stave,8,.04,5,false),wood);
+    rig.string=[];for(const s of [-1,1])rig.string.push(piece(bow,new THREE.CylinderGeometry(.012,.012,1,4),cord,0,s*.30,-.18));
+    rig.extraMats.push(wood,cord);rig.bow=bow;rig.arrowSocket=joint(bow,0,0,.04);rig.draw=0;
+    rig.direction=new THREE.Vector3();rig.down=new THREE.Vector3(0,-1,0);
+  }
+  return rig;
+}
+function aimWalkerArmLink(rig,joint,x,y,z){
+  const direction=rig.direction.set(x-joint.position.x,y-joint.position.y,z-joint.position.z);
+  const length=direction.length();joint.scale.y=length/.43;
+  joint.quaternion.setFromUnitVectors(rig.down,direction.multiplyScalar(1/length));
+}
+function poseWalkerBow(rig,u,dt){
+  const target=u.windup>0?Math.min(1,(.8-u.windup)*2.4):0;
+  rig.draw+=(target-rig.draw)*Math.min(1,dt*(u.windup>0?18:28));
+  const draw=rig.draw,bow=rig.bow,hold=rig.arms[1],pull=rig.arms[0];
+  bow.position.set(.10,.63+.17*draw,.54+.20*draw);
+  const nock=-.18-.50*draw,slope=-.18-nock;
+  for(let i=0;i<2;i++){
+    const strand=rig.string[i];strand.position.z=(nock-.18)*.5;
+    strand.rotation.x=(i===0?-1:1)*Math.atan2(slope,.60);strand.scale.y=Math.hypot(.60,slope);
+  }
+  hold.elbow.position.set(.42,.43+.22*draw,.28+.06*draw);
+  pull.elbow.position.set(-.37,.43+.32*draw,.26-.58*draw);
+  aimWalkerArmLink(rig,hold.shoulder,hold.elbow.position.x,hold.elbow.position.y,hold.elbow.position.z);
+  aimWalkerArmLink(rig,hold.elbow,bow.position.x,bow.position.y,bow.position.z);
+  aimWalkerArmLink(rig,pull.shoulder,pull.elbow.position.x,pull.elbow.position.y,pull.elbow.position.z);
+  aimWalkerArmLink(rig,pull.elbow,bow.position.x,bow.position.y,bow.position.z+nock);
+}
+function poseUndeadWalker(rig,u,dt){
+  const phase=u.gaitPhase,stride=u.stride,step=Math.sin(phase),armSwing=Math.cos(phase)*stride,weight=Math.cos(phase*2);
+  const breath=Math.sin(u.poseTime*2.5+u.phase),heavy=rig.heavy,fast=rig.fast;
+  const charge=u.kind==='boss'&&u.windup>0?Math.min(1,(.65-u.windup)*2.4):0;
+  const attackTime=1-u.attackAnim/.55;
+  const strike=Math.min(1,attackTime*6)*Math.min(1,u.attackAnim/.36),flinch=clamp(u.flash/.13,0,1);
+  const leadArm=u.phase<Math.PI?0:1;
+  const hipHeight=.91-(heavy?.048:.034)*weight*stride-.045*charge;
+  rig.hips.position.set(step*(heavy?.063:.038)*stride,hipHeight,0);
+  rig.chest.rotation.set((fast?.25:.13)+breath*.018+strike*.22-flinch*.17-charge*.24,
+    (heavy?.12:.22)*step*stride+strike*.18,step*stride*(heavy?.085:.05));
+  rig.neck.rotation.set(-rig.chest.rotation.x*.58+breath*.026,-rig.chest.rotation.y*.65,
+    (u.kind==='normal'?.10:.035)-rig.chest.rotation.z*.62);
+  for(let i=0;i<2;i++){
+    // 前半步腳掌著地，後半步抬膝換腳。用腳踝位置反算髖膝，轉身時關節亦保持相連。
+    const cycle=phase/TAU+i*.5,t=cycle-Math.floor(cycle),planted=t<.5;
+    const swing=planted?0:(t-.5)*2,lift=Math.sin(Math.PI*swing)*stride;
+    const reach=(heavy?.45:.48)*stride;
+    const footZ=reach*(planted?1-4*t:-Math.cos(Math.PI*swing));
+    const footY=.073+lift*(fast?.31:heavy?.13:i===0?.21:.14);
+    const a=WALKER_THIGH,b=WALKER_SHIN,drop=hipHeight-footY,distance=Math.min(a+b-.0001,Math.hypot(drop,footZ)),leg=rig.legs[i];
+    const hip=-Math.atan2(footZ,drop)-Math.acos(clamp((a*a+distance*distance-b*b)/(2*a*distance),-1,1));
+    const knee=Math.acos(clamp((distance*distance-a*a-b*b)/(2*a*b),-1,1));
+    leg.hip.rotation.x=hip;leg.knee.rotation.x=knee;leg.ankle.rotation.x=-hip-knee+.24*lift*(1-2*swing);
+    if(!rig.bow){
+      const arm=rig.arms[i],side=i===0?-1:1,lead=i===leadArm?1:.55;
+      arm.shoulder.rotation.set(-.67+side*.15-side*armSwing*(fast?.63:.34)-strike*.90*lead-charge*1.95,
+        -side*(.06+strike*.17),side*(.09+charge*.22));
+      arm.elbow.rotation.x=-.52+strike*.42*lead-charge*.36+side*step*stride*.11;
+    }
+  }
+  if(rig.bow)poseWalkerBow(rig,u,dt);
+}
 function makeZombie(x,z,kind='normal'){
   const g=new THREE.Group();
   const spec=kind==='dog'?{scale:.88,speed:1.74,damage:10,color:0x4b4038,range:.82,push:.58}:
@@ -1025,49 +1249,17 @@ function makeZombie(x,z,kind='normal'){
   const shirt=new THREE.MeshLambertMaterial({color:0x2f8f86});
   const pants=new THREE.MeshLambertMaterial({color:0x35406e});
   const face=new THREE.MeshLambertMaterial({map:TEX.zface});
-  let archerBow=null;
-  if(kind==='dog'){
-    const body=new THREE.Mesh(new THREE.BoxGeometry(1.22,.58,.54),skin);body.position.y=.62;body.userData.part='body';g.add(body);
-    const head=new THREE.Mesh(new THREE.BoxGeometry(.58,.55,.62),skin);head.position.set(0,.73,.55);head.userData.part='head';g.add(head);
-    const snout=new THREE.Mesh(new THREE.BoxGeometry(.38,.28,.36),pants);snout.position.set(0,.62,.94);snout.userData.part='head';g.add(snout);
-    for(const s of[-1,1])for(const z2 of[-.34,.34]){
-      const leg=new THREE.Mesh(new THREE.BoxGeometry(.2,.55,.2),pants);leg.position.set(s*.42,.28,z2);leg.userData.part='body';leg.userData.isDogLeg=true;g.add(leg);
-    }
-  }else if(kind==='archer'){
-    shirt.color.setHex(0x4b365f);pants.color.setHex(0x302538);
-    const head=new THREE.Mesh(new THREE.BoxGeometry(.72,.72,.72),skin);head.position.y=2.16;head.userData.part='head';g.add(head);
-    for(const s of[-1,1]){const eye=new THREE.Mesh(new THREE.BoxGeometry(.13,.12,.035),new THREE.MeshBasicMaterial({color:0xff593d}));eye.position.set(s*.16,2.2,.375);eye.userData.part='head';g.add(eye);}
-    const body=new THREE.Mesh(new THREE.BoxGeometry(.8,1.05,.4),shirt);body.position.y=1.25;body.userData.part='body';g.add(body);
-    for(const s of[-1,1]){
-      const leg=new THREE.Mesh(new THREE.BoxGeometry(.3,1,.3),skin);leg.position.set(s*.2,.5,0);leg.userData.part='body';g.add(leg);
-      const arm=new THREE.Mesh(new THREE.BoxGeometry(.25,.25,.95),skin);arm.position.set(s*.5,1.58,.48);arm.userData.part='body';arm.userData.isArm=true;g.add(arm);
-    }
-    archerBow=new THREE.Group();const bowMat=new THREE.MeshLambertMaterial({color:0x8b572f});
-    const upper=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.76,6),bowMat);upper.position.y=.32;upper.rotation.z=-.42;archerBow.add(upper);
-    const lower=new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,.76,6),bowMat);lower.position.y=-.32;lower.rotation.z=.42;archerBow.add(lower);
-    const stringGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(.16,.68,0),new THREE.Vector3(-.08,0,-.18),new THREE.Vector3(.16,-.68,0)]);
-    archerBow.add(new THREE.Line(stringGeo,new THREE.LineBasicMaterial({color:0xe9dfc0})));archerBow.position.set(.72,1.55,.52);g.add(archerBow);
-  }else{
-    const head=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.72,0.72),
-      [skin,skin,skin,skin,face,skin]);              // +z 面是臉
-    head.position.y=2.16;head.userData.part='head';g.add(head);
-    const body=new THREE.Mesh(new THREE.BoxGeometry(0.86,1.1,0.42),shirt);
-    body.position.y=1.25;body.userData.part='body';g.add(body);
-    for(const s of[-1,1]){
-      const leg=new THREE.Mesh(new THREE.BoxGeometry(0.38,1.0,0.38),pants);
-      leg.position.set(s*0.22,0.5,0);leg.userData.part='body';g.add(leg);
-      const arm=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.95),skin);
-      arm.position.set(s*0.58,1.62,0.5);arm.userData.part='body';g.add(arm);
-      arm.userData.isArm=true;
-    }
-  }
+  const model=new THREE.Group();g.add(model);
+  const rig=kind==='dog'?buildZombieDog(model,skin,shirt,pants,face):buildUndeadWalker(model,kind,skin,shirt,pants,face);
   g.position.set(x,0,z);g.rotation.y=rnd(TAU);g.scale.setScalar(spec.scale);
   g.traverse(o=>{o.userData.zomb=g;});
-  g.userData={phase:rnd(TAU),hp,maxHp:hp,alive:true,kx:0,kz:0,flash:0,deadT:0,
-    mats:[skin,shirt,pants,face],kind,speed:spec.speed,damage:spec.damage,attackT:kind==='archer'?rnd(1.8,2.6):rnd(.2,.8),
+  const phase=rnd(TAU),pose=kind==='dog'?poseZombieDog:poseUndeadWalker;
+  g.userData={model,rig,pose,phase,gaitPhase:phase,stride:0,poseTime:0,hp,maxHp:hp,alive:true,kx:0,kz:0,flash:0,deadT:0,
+    mats:[skin,shirt,pants,face,...(rig.extraMats||[])],kind,speed:spec.speed,damage:spec.damage,attackT:kind==='archer'?rnd(1.8,2.6):rnd(.2,.8),
     attackRange:spec.range,pushRadius:spec.push,bossShield:kind==='boss'?(gameMode==='hard'?4:3):0,bossShieldMax:kind==='boss'?(gameMode==='hard'?4:3):0,
     secondShield:false,bossRage:false,windup:0,enrage:0,attackAnim:0,stuckT:0,los:false,losT:0,
-    bow:archerBow,rageMats:kind==='dog'?null:[skin,shirt,face],rageBase:kind==='dog'?null:[skin.color.getHex(),shirt.color.getHex(),face.color.getHex()]};
+    rageMats:kind==='dog'?null:[skin,shirt,face],rageBase:kind==='dog'?null:[skin.color.getHex(),shirt.color.getHex(),face.color.getHex()]};
+  pose(rig,g.userData,0);
   addZombieStatusVisual(g);
   if(kind==='boss'){
     boss=g;addBossShieldVisual(g);setZombieLabel(g,'👑 BOSS 護盾 ×'+g.userData.bossShield,'#7d47b8');
@@ -1152,8 +1344,7 @@ function updateArcher(z,u,dx,dz,d,pace,dt){
   if(!los||d>22)moveZombieToward(z,dx,dz,pace,dt);else if(d<9)moveArcherAway(z,dx,dz,pace,dt);else z.rotation.y=Math.atan2(dx,dz);
   if(u.windup>0){
     u.windup-=dt*timeScale;if(u.warn){u.warn.visible=true;u.warn.material.opacity=.52+Math.sin(performance.now()*.018)*.3;}
-    if(u.bow)u.bow.position.z=.52-Math.max(0,u.windup)/.8*.12;
-    if(u.windup<=0){if(u.warn)u.warn.visible=false;if(u.bow)u.bow.position.z=.52;shootEnemyArrow(z);u.attackT=rnd(2.7,3.3);}
+    if(u.windup<=0){if(u.warn)u.warn.visible=false;shootEnemyArrow(z);u.attackT=rnd(2.7,3.3);}
   }else{
     if(u.warn)u.warn.visible=false;u.attackT-=dt*timeScale;
     if(u.attackT<=0&&los&&d<25){u.windup=.8;if(u.warn)u.warn.visible=true;}
@@ -2020,7 +2211,7 @@ function loop(now){
     for(let i=zombies.length-1;i>=0;i--){
       const z=zombies[i],u=z.userData;
       if(u.alive){
-        const p=u.phase+now*0.0016;
+        const startX=z.position.x,startZ=z.position.z,startYaw=z.rotation.y;
         const dx=player.x-z.position.x,dz=player.z-z.position.z,d=Math.hypot(dx,dz)||.001;
         if(u.freezeT)u.freezeT=Math.max(0,u.freezeT-dt);
         if(u.burnT){
@@ -2044,8 +2235,17 @@ function loop(now){
           }
         }
         if(u.enrage){u.enrage-=dt;if(u.enrage<=0){u.enrage=0;setRageVisual(z,false);}}
-        u.attackAnim=Math.max(0,u.attackAnim-dt);const grab=u.attackAnim>0?Math.sin((1-u.attackAnim/.55)*Math.PI)*1.2:0;
-        z.children.forEach((ch,ci)=>{if(ch.userData.isArm)ch.rotation.x=u.kind==='archer'&&u.windup>0?-1.05:Math.sin(p)*0.09+grab;if(ch.userData.isDogLeg)ch.rotation.x=Math.sin(p*2+ci)*.55;});
+        // 腳步跟著實際追擊距離走，撞牆、停步或被擊退時都不原地踏步。
+        const moveX=z.position.x-startX,moveZ=z.position.z-startZ,travel=Math.hypot(moveX,moveZ)/z.scale.x;
+        const targetYaw=travel===0&&d<=u.attackRange?Math.atan2(dx,dz):z.rotation.y;
+        const backpedal=u.kind==='archer'&&moveX*Math.sin(targetYaw)+moveZ*Math.cos(targetYaw)<0;
+        const turn=targetYaw-startYaw;
+        z.rotation.y=startYaw+Math.atan2(Math.sin(turn),Math.cos(turn))*Math.min(1,dt*12);
+        u.gaitPhase=(u.gaitPhase+(backpedal?-travel:travel)*Math.PI+TAU)%TAU;
+        const stride=Math.min(1,travel/Math.max(.001,dt*1.5));
+        u.stride+=(stride-u.stride)*Math.min(1,dt*12);
+        u.poseTime+=dt;u.attackAnim=Math.max(0,u.attackAnim-dt);
+        u.pose(u.rig,u,dt);
         if(u.kx||u.kz){                // 擊退（撞牆就停）
           const zx=z.position.x+u.kx*dt,zz=z.position.z+u.kz*dt;
           if(!blockedForZombie(zx,zz,Math.min(.58,(u.pushRadius||.95)*.48))){z.position.x=zx;z.position.z=zz;}
@@ -2059,7 +2259,11 @@ function loop(now){
         }
       }else{
         u.deadT+=dt;
-        z.rotation.x=-Math.min(1,u.deadT/0.5)*1.45;   // 向後倒下
+        const t=Math.min(1,u.deadT/.5),fall=t*t*(3-2*t);
+        if(u.kind==='dog'){
+          const side=u.phase<Math.PI?1:-1;
+          u.model.rotation.z=side*1.45*fall;u.model.position.set(side*.38*fall,.23*fall,0);
+        }else u.model.rotation.x=-1.45*fall;
         if(u.deadT>0.5){
           const op=Math.max(0,1-(u.deadT-0.5)/0.6);
           u.mats.forEach(m=>{m.transparent=true;m.opacity=op;});
