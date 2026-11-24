@@ -8,6 +8,7 @@ new clips still need listening or independent audio-understanding quality checks
   python3 scripts/generate-word-audio.py --words-file exam.json --dry-run
   python3 scripts/generate-word-audio.py --words-file exam.json --key-file /path/outside/repo/key.txt
   python3 scripts/generate-word-audio.py --verify-only
+  python3 scripts/generate-word-audio.py --preview-profiles --key-file /path/outside/repo/key.txt
 The selected TTS snapshot is retained for consistency with the approved samples;
 OpenAI has announced its shutdown for 2027-01-06. Existing audio files remain usable.
 """
@@ -246,8 +247,8 @@ def build_plan(raw_input, raw_builtin, registry, manifest):
     return pending, report
 
 
-def cache_identity(item):
-    context = {'settings': SETTINGS_HASH, 'word': item['word'],
+def cache_identity(item, settings_hash=SETTINGS_HASH):
+    context = {'settings': settings_hash, 'word': item['word'],
                'spoken_text': item.get('spoken_text', item['word']),
                'sentence': item.get('sentence', ''), 'meaning': item.get('chinese', ''), 'pos': item.get('pos', '')}
     return hashlib.sha256(json.dumps(context, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
@@ -262,18 +263,22 @@ console.log(JSON.stringify(words.map(w=>({word:w.word,chinese:w.chinese,sentence
     return words
 
 
+class InvalidSpeech(ValueError):
+    """The generated recording is silent, invalid, or implausibly long."""
+
+
 def check_mp3(path):
     info = json.loads(subprocess.check_output([
         'ffprobe', '-v', 'error', '-show_entries', 'format=duration:stream=codec_name,codec_type',
         '-of', 'json', str(path)]))
     duration = float(info['format']['duration'])
     if not 0.15 < duration < 15 or not any(s.get('codec_name') == 'mp3' for s in info['streams']):
-        raise RuntimeError('Invalid MP3: ' + path.name)
+        raise InvalidSpeech('Invalid MP3: ' + path.name)
     pcm = subprocess.check_output(['ffmpeg', '-v', 'error', '-i', str(path), '-f', 's16le', '-ac', '1', '-ar', '24000', '-'])
     samples = array('h', pcm)
     peak = max(map(abs, samples)) if samples else 0
     if peak < 100:
-        raise RuntimeError('Silent audio: ' + path.name)
+        raise InvalidSpeech('Silent audio: ' + path.name)
     return {'seconds': round(duration, 4), 'bytes': path.stat().st_size,
             'peak_dbfs': round(20 * math.log10(peak / 32768), 2),
             'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
@@ -287,60 +292,158 @@ def wav_from_response(payload, path):
         pcm = f.readframes(f.getnframes())
     frames = len(pcm) // (params.nchannels * params.sampwidth)
     if not 0.15 < frames / params.framerate < 15:
-        raise RuntimeError('Unexpected generated audio duration.')
+        raise InvalidSpeech('Unexpected generated audio duration.')
     # The streaming response can contain unknown-length RIFF headers.
     with wave.open(str(path), 'wb') as f:
         f.setparams(params._replace(nframes=frames))
         f.writeframes(pcm)
 
 
-def generate(item, key, cache, stop):
-    dest = DEST / (item['slug'] + '.mp3')
+def request_wav(item, key, wav, voice, style, stop):
+    context = ' Pronunciation context only, do not say this context: ' + item.get('sentence', '')
+    if item.get('chinese'):
+        context += ' Intended meaning: ' + item['chinese'] + '.'
+    if item.get('pos'):
+        context += ' Part of speech: ' + item['pos'] + '.'
+    if item['word'] == 'wind' and normalize(item.get('chinese')) in {'風', '风', 'moving air', 'wind (moving air)'}:
+        context += ' Wind means moving air, the noun pronounced /wɪnd/, rhyming with pinned, not the verb /waɪnd/.'
+    body = json.dumps({'model': MODEL, 'voice': voice, 'input': item.get('spoken_text', item['word']),
+                       'instructions': style + context, 'speed': SPEED, 'response_format': 'wav'}).encode()
+    req = urllib.request.Request('https://api.openai.com/v1/audio/speech', body,
+                                 {'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=120) as response:
+                payload = response.read()
+            partial_wav = wav.with_suffix('.partial.wav')
+            wav_from_response(payload, partial_wav)
+            partial_wav.replace(wav)
+            break
+        except urllib.error.HTTPError as exc:
+            try:
+                code = json.loads(exc.read()).get('error', {}).get('code')
+            except Exception:
+                code = None
+            if exc.code in (429, 500, 502, 503, 504) and code != 'insufficient_quota' and attempt < 3:
+                time.sleep(5 * 2 ** attempt)
+                continue
+            stop.set()
+            # Do not print server messages; they can contain key fragments.
+            raise RuntimeError(f'OpenAI HTTP {exc.code}; code={code}') from None
+        except urllib.error.URLError as exc:
+            stop.set()
+            raise RuntimeError('Network request failed: ' + type(exc.reason).__name__) from None
+
+
+def generate(item, key, cache, stop, *, dest_dir=DEST, voice=VOICE, style=STYLE, settings_hash=SETTINGS_HASH):
+    dest = dest_dir / (item['slug'] + '.mp3')
     if dest.exists():
         raise RuntimeError('Refusing to reuse or overwrite an unregistered destination: ' + dest.name)
-    wav = cache / (item['slug'] + '-' + cache_identity(item) + '.wav')
+    wav = cache / (item['slug'] + '-' + cache_identity(item, settings_hash) + '.wav')
     state = 'recovered'
-    if not wav.exists():
+    partial = dest.with_suffix('.partial.mp3')
+    for attempt in range(3):
         if stop.is_set():
             raise RuntimeError('Generation stopped after another request failed.')
-        context = ' Pronunciation context only, do not say this context: ' + item.get('sentence', '')
-        if item.get('chinese'):
-            context += ' Intended meaning: ' + item['chinese'] + '.'
-        if item.get('pos'):
-            context += ' Part of speech: ' + item['pos'] + '.'
-        if item['word'] == 'wind' and normalize(item.get('chinese')) in {'風', '风', 'moving air', 'wind (moving air)'}:
-            context += ' Wind means moving air, the noun pronounced /wɪnd/, rhyming with pinned, not the verb /waɪnd/.'
-        body = json.dumps({'model': MODEL, 'voice': VOICE, 'input': item.get('spoken_text', item['word']),
-                           'instructions': STYLE + context, 'speed': SPEED, 'response_format': 'wav'}).encode()
-        req = urllib.request.Request('https://api.openai.com/v1/audio/speech', body,
-                                     {'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
-        for attempt in range(4):
-            try:
-                with urllib.request.urlopen(req, context=ssl.create_default_context(), timeout=120) as response:
-                    payload = response.read()
-                wav_from_response(payload, wav)
+        try:
+            if not wav.exists():
+                request_wav(item, key, wav, voice, style, stop)
                 state = 'generated'
-                break
-            except urllib.error.HTTPError as exc:
-                try:
-                    code = json.loads(exc.read()).get('error', {}).get('code')
-                except Exception:
-                    code = None
-                if exc.code in (429, 500, 502, 503, 504) and code != 'insufficient_quota' and attempt < 3:
-                    time.sleep(5 * 2 ** attempt)
-                    continue
-                stop.set()
-                # Do not print server messages; they can contain key fragments.
-                raise RuntimeError(f'OpenAI HTTP {exc.code}; code={code}') from None
-            except urllib.error.URLError as exc:
-                stop.set()
-                raise RuntimeError('Network request failed: ' + type(exc.reason).__name__) from None
-    partial = dest.with_suffix('.partial.mp3')
-    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(wav), '-codec:a', 'libmp3lame',
-                    '-b:a', '128k', str(partial)], check=True)
-    stats = check_mp3(partial)
+            subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(wav), '-codec:a', 'libmp3lame',
+                            '-b:a', '128k', str(partial)], check=True)
+            stats = check_mp3(partial)
+            break
+        except InvalidSpeech:
+            wav.unlink(missing_ok=True)
+            partial.unlink(missing_ok=True)
+            if attempt == 2:
+                raise
+            print('Retrying invalid audio for ' + dest_dir.name + '/' + item['slug'], flush=True)
     partial.replace(dest)
     return {'word': item['word'], 'status': state, **stats}
+
+
+PREVIEW_ACCENTS = {
+    'us': 'natural General American',
+    'gb': 'natural contemporary standard British English (southern England)',
+    'au': 'natural General Australian English',
+    'in': 'natural educated Indian English',
+}
+PREVIEW_GENDERS = {'female': 'marin', 'male': 'cedar'}
+
+
+def build_preview_profiles(args):
+    # Only publish the profile index once every built-in word has all eight voices.
+    _, manifest, registry, errors = read_registry()
+    words, reviews, invalid = deduplicate(load_words(), 'builtin')
+    if errors or reviews or invalid or words.keys() - registry.keys():
+        raise SystemExit('Resolve built-in word and base audio registry differences first.')
+    root = DEST.parent / 'profiles'
+    cache = args.cache_dir or (Path(tempfile.gettempdir()) / 'studentgames-preview-audio')
+    profiles, jobs = {}, []
+    for accent, pronunciation in PREVIEW_ACCENTS.items():
+        for gender, voice in PREVIEW_GENDERS.items():
+            profile = accent + '-' + gender
+            if profile == 'us-female':
+                continue  # Use the original reviewed Marin library.
+            style = STYLE.replace('a natural General American accent', 'a ' + pronunciation + ' accent')
+            recipe = {'model': MODEL, 'voice': voice, 'speed': SPEED, 'instructions': style}
+            digest = hashlib.sha256(json.dumps(recipe, sort_keys=True).encode()).hexdigest()
+            folder = root / profile
+            settings_file = folder / 'settings.json'
+            if settings_file.exists():
+                if json.loads(settings_file.read_text()) != recipe:
+                    raise SystemExit('Settings differ for ' + profile)
+            elif folder.exists() and any(folder.iterdir()):
+                raise SystemExit('Cannot verify existing audio settings for ' + profile)
+            if not args.dry_run and not args.verify_only and not settings_file.exists():
+                folder.mkdir(parents=True, exist_ok=True)
+                pending_settings = settings_file.with_suffix('.partial')
+                pending_settings.write_text(json.dumps(recipe, indent=2) + '\n')
+                pending_settings.replace(settings_file)
+            profiles[profile] = {'directory': 'profiles/' + profile + '/'}
+            for name, word in words.items():
+                item = {**word, 'slug': registry[name]['slug']}
+                path = folder / manifest['words'][name]
+                if not path.is_file():
+                    jobs.append((item, folder, voice, style, digest))
+                elif args.verify_only:
+                    check_mp3(path)
+    print(f'{len(words)} unique words, {len(jobs)} missing preview MP3s.', flush=True)
+    if args.dry_run or args.verify_only:
+        return 2 if args.verify_only and jobs else 0
+    if jobs:
+        key = args.key_file.read_text().strip() if args.key_file else os.environ.get('OPENAI_API_KEY', '').strip()
+        if not key.startswith('sk-') or any(c.isspace() for c in key):
+            raise SystemExit('Supply OPENAI_API_KEY or a plain local --key-file.')
+        cache.mkdir(parents=True, exist_ok=True)
+        stop = threading.Event()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
+            tasks = [pool.submit(generate, item, key, cache, stop, dest_dir=folder, voice=voice,
+                                 style=style, settings_hash=digest) for item, folder, voice, style, digest in jobs]
+            try:
+                for count, task in enumerate(concurrent.futures.as_completed(tasks), 1):
+                    task.result()
+                    if count % 50 == 0 or count == len(tasks):
+                        print(f'{count}/{len(tasks)} saved', flush=True)
+            finally:
+                stop.set()
+                for task in tasks:
+                    task.cancel()
+    files = sorted(manifest['words'][name] for name in words)
+    for profile, entry in profiles.items():
+        # A corrected or trimmed take must invalidate browser/CDN caches as well.
+        digest = hashlib.sha256()
+        for filename in files:
+            digest.update(filename.encode())
+            digest.update(hashlib.sha256((root / profile / filename).read_bytes()).digest())
+        entry['version'] = digest.hexdigest()[:12]
+    index = {'profiles': profiles, 'files': files}
+    target = ROOT / 'data/word-audio-profiles.js'
+    partial = target.with_suffix('.partial')
+    partial.write_text('window.WORD_AUDIO_PROFILES = ' + json.dumps(index, indent=2) + ';\n')
+    partial.replace(target)
+    return 0
 
 
 def main():
@@ -350,9 +453,28 @@ def main():
     parser.add_argument('--key-file', type=Path, help='Local key file outside the repository, or use OPENAI_API_KEY.')
     parser.add_argument('--cache-dir', type=Path, help='WAV cache directory (default: system temporary directory).')
     parser.add_argument('--sample-dir', type=Path, help='Reuse matching approved samples only; unrelated sample words are ignored.')
-    parser.add_argument('--workers', type=int, default=3, choices=range(1, 5))
+    parser.add_argument('--workers', type=int, default=3, choices=range(1, 17))
+    parser.add_argument('--preview-profiles', action='store_true', help='Build all accent and voice variants for the built-in preview.')
     parser.add_argument('--verify-only', action='store_true', help='Read-only verification of registered MP3 files.')
     args = parser.parse_args()
+    if args.preview_profiles:
+        if args.words_file or args.sample_dir:
+            parser.error('--preview-profiles uses the built-in word bank.')
+        if args.dry_run or args.verify_only:
+            return build_preview_profiles(args)
+        lock_id = hashlib.sha256(str(ROOT).encode()).hexdigest()[:16]
+        with (Path(tempfile.gettempdir()) / ('studentgames-preview-' + lock_id + '.lock')).open('a') as lock:
+            try:
+                if os.name == 'nt':
+                    import msvcrt
+                    lock.seek(0)
+                    msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except (BlockingIOError, PermissionError):
+                raise SystemExit('Preview audio generation is already running for this project.') from None
+            return build_preview_profiles(args)
     try:
         metadata, manifest, registry, registry_errors = read_registry()
         builtin = load_words()

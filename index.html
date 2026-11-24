@@ -70,15 +70,38 @@
     .source-card.active .source-kicker, .source-card.active .source-desc { color: rgba(0,0,0,.64); }
     .source-card.active .source-state { color: rgba(0,0,0,.78); }
     .source-card.disabled { opacity: .52; cursor: not-allowed; }
-    .scope-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+    .scope-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 18px; }
     .scope-opts { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    .scope-btn, .vocab-toggle { min-height: 44px; cursor: pointer; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; color: #dce6f5; background: rgba(255,255,255,.04); transition: color .2s ease, border-color .2s ease, background .2s ease, transform .2s ease; }
+    .scope-btn { min-height: 44px; cursor: pointer; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; color: #dce6f5; background: rgba(255,255,255,.04); transition: color .2s ease, border-color .2s ease, background .2s ease, transform .2s ease; }
     .scope-btn { padding: 10px 17px; font-size: 14px; user-select: none; }
-    .scope-btn:hover, .vocab-toggle:hover { border-color: rgba(255,255,255,.38); background: rgba(255,255,255,.09); }
+    .scope-btn:hover { border-color: rgba(255,255,255,.38); background: rgba(255,255,255,.09); }
     .scope-btn.active { color: #142033; border-color: var(--yellow); background: var(--yellow); font-weight: 900; }
-    .vocab-toggle { padding: 9px 17px; font-size: 13px; font-weight: 800; }
+    .vocab-toggle { display: inline-flex; min-height: 54px; min-width: 185px; gap: 11px; align-items: center; padding: 12px 18px; cursor: pointer; border: 2px solid #ffde71; border-radius: 14px; color: #221a05; background: var(--yellow); font-size: 18px; font-weight: 900; transition: background .18s ease; }
+    .vocab-toggle:hover { background: #ffe587; }
+    .vocab-toggle svg, .voice-label svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .vocab-toggle::after { content: ""; width: 8px; height: 8px; margin-left: auto; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px,-1px); }
+    .vocab-toggle[aria-expanded="true"]::after { transform: rotate(225deg) translate(-1px,-1px); }
+    .voice-options, .vocab-preview-head, .accent-dialog-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .voice-label { display: inline-flex; align-items: center; gap: 6px; margin-right: 3px; color: var(--muted); font-size: 14px; font-weight: 700; }
+    .voice-label svg { width: 18px; height: 18px; }
+    .voice-option, .accent-dialog button { min-height: 44px; padding: 8px 13px; border: 1px solid #576883; border-radius: 11px; color: var(--text); background: #172237; cursor: pointer; font-size: 14px; font-weight: 700; }
+    .voice-option[aria-pressed] { position: relative; padding-left: 24px; }
+    .voice-option[aria-pressed="true"]::before { content: ""; position: absolute; left: 9px; top: 44%; width: 7px; height: 4px; border: solid currentColor; border-width: 0 0 2px 2px; transform: rotate(-45deg); }
+    .voice-option:hover, .accent-dialog button:hover { border-color: var(--cyan); }
+    .voice-option[aria-pressed="true"], .accent-dialog button[type="submit"] { color: #071d28; background: var(--cyan); border-color: var(--cyan); }
+    .voice-option:focus-visible, .accent-dialog :focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+    .vocab-audio-status, .accent-error { margin: 8px 0 0; color: var(--muted); font: 14px/1.5 Arial, "Noto Sans TC", sans-serif; overflow-wrap: anywhere; }
+    .vocab-audio-status:empty, .accent-error:empty { margin: 0; }
+    .accent-dialog { width: min(360px, calc(100% - 32px)); padding: 22px; color: var(--text); border: 1px solid #526179; border-radius: 18px; background: var(--surface-strong); box-shadow: var(--shadow); }
+    .accent-dialog::backdrop { background: rgba(3,8,18,.78); }
+    .accent-dialog h2 { margin: 0 0 16px; font-size: 21px; }
+    .accent-dialog label { display: block; margin-bottom: 6px; font-size: 15px; }
+    .accent-dialog input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #74849b; border-radius: 10px; color: var(--text); background: var(--bg); font: inherit; font-size: 16px; }
+    .accent-error { color: #ffb7ab; }
+    .accent-dialog-actions { justify-content: flex-end; margin-top: 18px; }
     #vocab-preview { margin-top: 14px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(7,13,26,.6); }
-    #vocab-preview-title { margin-bottom: 12px; color: var(--muted); font-size: 13px; font-weight: 800; }
+    .vocab-preview-head { gap: 8px 14px; margin-bottom: 12px; }
+    #vocab-preview-title { color: var(--text); font-size: 15px; font-weight: 800; }
     .vocab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; max-height: 340px; overflow-y: auto; }
     .vocab-item { width: 100%; padding: 10px 12px; cursor: pointer; text-align: left; font: inherit; line-height: 1.35; color: inherit; border: 1px solid rgba(255,255,255,.07); border-radius: 11px; background: rgba(255,255,255,.045); transition: border-color .18s ease, background .18s ease, transform .18s ease; }
     .vocab-item:hover { transform: translateY(-1px); border-color: rgba(255,224,110,.45); background: rgba(255,224,110,.09); }
@@ -130,6 +153,7 @@
       .hero-stats { width: 100%; }
       .panel { padding: 20px 14px; border-radius: 22px; }
       .source-cards, .grid { grid-template-columns: 1fr; }
+      .vocab-toggle { width: 100%; }
       .games-section { margin-top: 36px; }
       .game-card, .game-card.foundation { grid-column: auto; min-height: 210px; }
       .games-count { display: none; }
@@ -177,10 +201,40 @@
         </button>
       </div>
       <div class="scope-actions">
-        <button id="vocab-toggle-btn" class="vocab-toggle" type="button" aria-expanded="false" aria-controls="vocab-preview">預覽單字</button>
+        <button id="vocab-toggle-btn" class="vocab-toggle" type="button" aria-expanded="false" aria-controls="vocab-preview">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.5C9 3.8 5.5 3.7 2.5 4.5v14c3-.8 6.5-.7 9.5 1 3-1.7 6.5-1.8 9.5-1v-14c-3-.8-6.5-.7-9.5 1Zm0 0v14"/></svg>
+          <span id="vocab-toggle-label">預覽單字</span>
+        </button>
+        <div class="voice-options" id="accent-options" role="group" aria-labelledby="accent-label">
+          <span class="voice-label" id="accent-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-4v14l-5-4H3zM16 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg>試聽口音</span>
+          <button type="button" class="voice-option" data-accent="us" aria-pressed="true">美式</button>
+          <button type="button" class="voice-option" data-accent="gb" aria-pressed="false">英式</button>
+          <button type="button" class="voice-option" data-accent="au" aria-pressed="false">澳式</button>
+          <button type="button" class="voice-option" data-accent="in" aria-pressed="false" hidden>印度口音</button>
+        </div>
       </div>
-      <div id="vocab-preview" style="display:none">
-        <div id="vocab-preview-title"></div>
+      <p id="vocab-audio-status" class="vocab-audio-status" role="status"></p>
+      <button id="lesson-device-voice" type="button" class="voice-option" hidden>使用裝置朗讀</button>
+      <dialog id="accent-dialog" class="accent-dialog" aria-labelledby="accent-dialog-title">
+        <form id="accent-form">
+          <h2 id="accent-dialog-title">解鎖隱藏口音</h2>
+          <label for="accent-password">密碼</label>
+          <input id="accent-password" type="password" inputmode="numeric" autocomplete="off" aria-describedby="accent-error" required>
+          <p id="accent-error" class="accent-error" role="alert"></p>
+          <div class="accent-dialog-actions">
+            <button type="button" id="accent-cancel">取消</button>
+            <button type="submit">解鎖口音</button>
+          </div>
+        </form>
+      </dialog>
+      <div id="vocab-preview" hidden>
+        <div class="vocab-preview-head">
+          <div id="vocab-preview-title"></div>
+          <div class="voice-options" id="voice-options" role="group" aria-label="發音聲音">
+            <button type="button" class="voice-option" data-voice="male" aria-pressed="false">男聲</button>
+            <button type="button" class="voice-option" data-voice="female" aria-pressed="true">女聲</button>
+          </div>
+        </div>
         <div class="vocab-grid" id="vocab-grid"></div>
       </div>
       <div id="theme-section" style="display:none">
@@ -192,8 +246,8 @@
         </div>
         <div class="scope-opts" id="theme-chips"></div>
       </div>
-      <section id="practice-panel" class="practice-panel" aria-labelledby="practice-title" hidden>
-        <h2 id="practice-title">今天練多少？</h2>
+      <details id="practice-panel" class="practice-panel" hidden>
+        <summary id="practice-title">今天練多少？</summary>
         <div class="practice-modes" role="group" aria-label="練習範圍">
           <button id="practice-all" type="button" aria-pressed="true">全部單字</button>
           <button id="practice-daily" type="button" aria-pressed="false">今日 10 字</button>
@@ -243,7 +297,7 @@
           <p id="practice-card-status" class="practice-help" role="status" aria-live="polite"></p>
           <img id="practice-card-image" class="practice-card-image" alt="" hidden>
         </section>
-      </section>
+      </details>
     </section>
     <section class="games-section" aria-labelledby="game-list-title">
       <div class="section-head">
@@ -301,6 +355,7 @@
   </main>
   <script src="./data/wordbank.js"></script>
   <script src="./data/word-audio-manifest.js"></script>
+  <script src="./data/word-audio-profiles.js"></script>
   <script src="./games/word-audio.js"></script>
   <script src="./assets/practice-set.js"></script>
   <script>
@@ -474,7 +529,95 @@
     const vocabPreview = document.getElementById('vocab-preview');
     const vocabGrid = document.getElementById('vocab-grid');
     const vocabTitle = document.getElementById('vocab-preview-title');
+    const vocabToggleLabel = document.getElementById('vocab-toggle-label');
+    const audioStatus = document.getElementById('vocab-audio-status');
+    const deviceVoice = document.getElementById('lesson-device-voice');
+    const accentButtons = document.querySelectorAll('#accent-options [data-accent]');
+    const voiceButtons = document.querySelectorAll('#voice-options [data-voice]');
+    const usButton = document.querySelector('[data-accent="us"]');
+    const indiaButton = document.querySelector('[data-accent="in"]');
+    const accentDialog = document.getElementById('accent-dialog');
+    const accentPassword = document.getElementById('accent-password');
+    const accentError = document.getElementById('accent-error');
+    let accentButton = usButton;
+    let voiceButton = document.querySelector('[data-voice="female"]');
+    let lastPreviewWord = '';
+    let usClickCount = 0;
+    let firstUsClick = 0;
     let vocabOpen = false;
+
+    function playPreviewClip(word){
+      deviceVoice.hidden = true;
+      const profile = accentButton.dataset.accent + '-' + voiceButton.dataset.voice;
+      const label = accentButton.textContent + voiceButton.textContent;
+      audioStatus.textContent = label + '・' + word;
+      const fallback = () => { audioStatus.textContent = word + ' 的' + label + '音檔播放失敗，請再點一次。'; };
+      if(!window.WordAudio || !WordAudio.play(word, {profile, fallback})){
+        audioStatus.textContent = word + ' 尚無' + label + '音檔。';
+        deviceVoice.hidden = !(scope === 'lesson' && word === lastPreviewWord && 'speechSynthesis' in window);
+      }
+    }
+
+    deviceVoice.addEventListener('click', () => {
+      if(!lastPreviewWord) return;
+      audioStatus.textContent = '裝置朗讀・' + lastPreviewWord;
+      speakPracticeWord(lastPreviewWord, true);
+    });
+
+    function selectAccent(button){
+      accentButton = button;
+      accentButtons.forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+      playPreviewClip(lastPreviewWord || 'tomato');
+    }
+    voiceButtons.forEach(button => button.addEventListener('click', () => {
+      voiceButton = button;
+      voiceButtons.forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+      playPreviewClip(lastPreviewWord || 'tomato');
+    }));
+    document.addEventListener('click', event => {
+      if(!usButton.contains(event.target)) usClickCount = 0;
+    }, true);
+    accentButtons.forEach(button => button.addEventListener('click', () => {
+      if(button === usButton && indiaButton.hidden){
+        const now = performance.now();
+        if(!usClickCount || now - firstUsClick > 1200){
+          firstUsClick = now;
+          usClickCount = 0;
+        }
+        usClickCount++;
+        if(usClickCount === 2) return;
+        if(usClickCount === 3){
+          usClickCount = 0;
+          deviceVoice.hidden = true;
+          if(window.WordAudio) WordAudio.stop();
+          audioStatus.textContent = '';
+          accentPassword.value = '';
+          accentPassword.removeAttribute('aria-invalid');
+          accentError.textContent = '';
+          accentDialog.showModal();
+          accentPassword.focus();
+          return;
+        }
+      }
+      selectAccent(button);
+    }));
+    document.getElementById('accent-cancel').addEventListener('click', () => accentDialog.close());
+    accentDialog.addEventListener('close', () => (indiaButton.hidden ? usButton : indiaButton).focus());
+    document.getElementById('accent-form').addEventListener('submit', event => {
+      event.preventDefault();
+      if(accentPassword.value !== '1999'){
+        accentError.textContent = '密碼錯誤，請再試一次。';
+        accentPassword.setAttribute('aria-invalid', 'true');
+        accentPassword.focus();
+        accentPassword.select();
+        return;
+      }
+      indiaButton.hidden = false;
+      accentDialog.close();
+      selectAccent(indiaButton);
+    });
+
+    // The practice picker keeps system speech for custom lesson words without a recording.
     let previewVoices = [];
     let previewSpeechPrimed = false;
 
@@ -494,8 +637,8 @@
       loadPreviewVoices();
       try { window.speechSynthesis.addEventListener('voiceschanged', loadPreviewVoices); } catch(e){ window.speechSynthesis.onvoiceschanged = loadPreviewVoices; }
     }
-    function speakPreviewWord(word,fallbackOnly){
-      if(!fallbackOnly&&window.WordAudio&&WordAudio.play(word,{fallback:()=>speakPreviewWord(word,true)})){primePreviewSpeech();return;}
+    function speakPracticeWord(word,fallbackOnly){
+      if(!fallbackOnly&&window.WordAudio&&WordAudio.play(word,{fallback:()=>speakPracticeWord(word,true)})){primePreviewSpeech();return;}
       if(!word || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return;
       try {
         const synth = window.speechSynthesis;
@@ -518,6 +661,12 @@
       } else if(scope === 'builtin' && window.WORD_BANK){
         words = window.WORD_BANK.getWords(selectedThemes).map(w => ({ en: w.word||'', zh: w.chinese||'', emoji: w.emoji||'' }));
       }
+      if(lastPreviewWord && !words.some(w => w.en === lastPreviewWord)){
+        lastPreviewWord = '';
+        deviceVoice.hidden = true;
+        audioStatus.textContent = '';
+        if(window.WordAudio) WordAudio.stop();
+      }
       vocabTitle.textContent = `共 ${words.length} 個單字・點一下可聽發音`;
       vocabGrid.innerHTML = '';
       words.forEach(w => {
@@ -533,22 +682,30 @@
         zh.className = 'vocab-zh';
         zh.textContent = w.zh;
         d.append(en, zh);
-        d.addEventListener('click', () => speakPreviewWord(w.en));
+        d.addEventListener('click', () => {
+          lastPreviewWord = w.en;
+          playPreviewClip(w.en);
+        });
         vocabGrid.appendChild(d);
       });
     }
 
     vocabToggleBtn.addEventListener('click', () => {
-      primePreviewSpeech();
       vocabOpen = !vocabOpen;
-      vocabPreview.style.display = vocabOpen ? '' : 'none';
-      vocabToggleBtn.textContent = vocabOpen ? '收起單字' : '預覽單字';
+      vocabPreview.hidden = !vocabOpen;
+      vocabToggleLabel.textContent = vocabOpen ? '收起單字' : '預覽單字';
       vocabToggleBtn.setAttribute('aria-expanded', vocabOpen ? 'true' : 'false');
       if(vocabOpen) buildVocabPreview();
+      else {
+        lastPreviewWord = '';
+        deviceVoice.hidden = true;
+        audioStatus.textContent = '';
+        if(window.WordAudio) WordAudio.stop();
+      }
     });
 
     practicePicker = PracticeSet.create({
-      getSource:practiceSource, initial:incomingPractice, speak:speakPreviewWord,
+      getSource:practiceSource, initial:incomingPractice, speak:speakPracticeWord,
       onChange:() => {
         if(!practicePicker) return;
         const daily = practicePicker.isDaily(), raw = daily ? practicePicker.raw() : (scope === 'lesson' ? lesson.raw : builtinRaw());

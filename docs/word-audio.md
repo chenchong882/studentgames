@@ -1,6 +1,6 @@
 # 段考單字補發音
 
-共用音檔固定使用 **Marin、0.9 倍語速**。段考題庫只要英文相符，選單、遊戲和複習就會使用已發布的音檔；尚未製作的字仍可用系統朗讀。
+遊戲與複習預設播放美式 Marin 音檔，產檔語速為 0.9 倍。首頁的主題單字預覽另提供美式、英式、澳式和隱藏的印度口音，每種都可選女聲 Marin 或男聲 Cedar。重複出現在不同主題的單字共用同一份發音。段考單字若缺少所選錄音，預覽會提示，並可另外點「使用裝置朗讀」。
 
 產檔在老師的電腦上執行，完成品質核對與發布後才供學生播放。匯入題庫本身不會呼叫 OpenAI API；API key 不可放進網頁或 Git。
 
@@ -43,6 +43,16 @@ python3 scripts/generate-word-audio.py --verify-only
 ```
 
 這個唯讀檢查只核對音檔格式、時長和音量。發布前仍須聽查／獨立音訊核對是否正確、是否複讀或夾雜額外音效，再依專案規範做靜態檢查、commit、fetch 比對與 push。學生端不需要再次更改遊戲程式。
+
+## 主題單字的口音與聲線
+
+擴充主題題庫時，先用原流程補齊預設音庫，再執行下面指令。加上 `--dry-run` 可預覽缺檔數，`--verify-only` 可檢查音檔格式、時長和音量。
+
+```sh
+python3 scripts/generate-word-audio.py --preview-profiles --key-file /你的路徑/openai-api-key.txt
+```
+
+工具重用美式女聲原檔，在 `assets/word-audio/profiles/` 補齊其他七組 MP3，並於完成後更新 `data/word-audio-profiles.js`。中斷後可以用同一指令接續。
 
 ## 不同義項
 

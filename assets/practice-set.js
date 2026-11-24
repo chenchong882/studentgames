@@ -48,6 +48,7 @@ window.PracticeSet = (() => {
       try { sessionStorage.setItem(STORE, JSON.stringify(Object.fromEntries(entries))); } catch(e) {}
     }
     function message(value, focus = false) {
+      if(focus) $('panel').open = true;
       $('message').textContent = value;
       if(focus) { $('message').focus(); $('message').scrollIntoView({block:'center'}); }
     }
@@ -180,7 +181,8 @@ window.PracticeSet = (() => {
         await navigator.clipboard.writeText(link);
         message(raw() === data ? '已複製練習連結。傳給家長後，打開就會是這組單字。' : '已複製剛才的清單；目前選字已變更，請重新複製。');
       } catch(e) {
-        $('link-fallback').hidden = false; $('link').focus(); $('link').select();
+        $('link-fallback').hidden = false;
+        if($('panel').open) { $('link').focus(); $('link').select(); }
         message('請長按連結，或按 Ctrl／⌘ + C 複製。');
       } finally { $('copy').disabled = !selected.length; }
     });
@@ -212,7 +214,7 @@ window.PracticeSet = (() => {
         img.hidden = false;
         $('download').href = imageURL; $('download').download = `今日單字-${$('date').value}-${selected.length}字.png`; $('download').hidden = false;
         $('card-status').textContent = '圖片已做好，可直接截圖或下載 PNG；手機也可長按圖片儲存。內容是練習範圍，不代表已完成或已學會。';
-        img.scrollIntoView({block:'center'});
+        if($('panel').open) img.scrollIntoView({block:'center'});
       } catch(e) {
         if(token === generation) $('card-status').textContent = '圖片未能產生，請再按一次「更新圖片」。';
       } finally { $('card-update').disabled = false; }

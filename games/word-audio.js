@@ -2,7 +2,9 @@
 (function(){
   'use strict';
   const scriptURL=document.currentScript.src;
-  const baseURL=new URL('../assets/word-audio/marin/',scriptURL);
+  const audioRoot=new URL('../assets/word-audio/',scriptURL);
+  const previewLibrary=window.WORD_AUDIO_PROFILES;
+  const previewFiles=new Set(previewLibrary ? previewLibrary.files : []);
   const unlockURL=new URL('../assets/word-audio/unlock.wav',scriptURL).href;
   // Reuse one element: Safari grants playback permission to the element, not each URL.
   // Do not use bare `new Audio()`; bomb defines its own global Audio helper.
@@ -47,9 +49,19 @@
   function play(word,options){
     const manifest=window.WORD_AUDIO_MANIFEST,name=normalize(word);
     if(!name||!manifest||!Object.prototype.hasOwnProperty.call(manifest.words,name)){stop();return false;}
+    const filename=manifest.words[name];
+    const profile=options && options.profile;
+    let directory='marin/', version=manifest.version;
+    if(profile && profile!=='us-female'){
+      if(!previewLibrary || !Object.prototype.hasOwnProperty.call(previewLibrary.profiles,profile) || !previewFiles.has(filename)){
+        stop();return false;
+      }
+      const variant=previewLibrary.profiles[profile];
+      directory=variant.directory;version=variant.version;
+    }
     stop(true);
-    const url=new URL(manifest.words[name],baseURL);
-    url.searchParams.set('v',manifest.version);
+    const url=new URL(directory+filename,audioRoot);
+    url.searchParams.set('v',version);
     const entry={token:generation,url:url.href,options:options||{},timer:null};
     current=entry;
     function ownsPlayer(){return current===entry&&generation===entry.token;}

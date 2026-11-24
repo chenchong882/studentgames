@@ -1,11 +1,13 @@
-.practice-panel { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+.practice-panel { margin-top: 20px; padding-top: 8px; border-top: 1px solid var(--line); }
 .practice-panel [hidden] { display: none !important; }
-.practice-panel h2 { margin: 0 0 14px; font-size: 20px; }
+.practice-panel summary { width: fit-content; max-width: 100%; min-height: 44px; padding: 12px 6px; color: var(--muted); font-weight: 700; line-height: 1.4; cursor: pointer; }
+.practice-panel summary:hover, .practice-panel summary:active { color: var(--text); }
+.practice-panel[open] > summary { margin-bottom: 10px; }
 .practice-panel h3 { margin: 0; font-size: 20px; }
 .practice-panel button, .practice-actions a { min-height: 46px; padding: 11px 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface-strong); font: 700 15px/1.4 Arial, "Noto Sans TC", sans-serif; cursor: pointer; text-decoration: none; text-align: center; transition: background .18s ease, border-color .18s ease; }
 .practice-panel button:hover:not(:disabled), .practice-actions a:hover { border-color: var(--cyan); background: #253650; }
 .practice-panel button:disabled { opacity: .45; cursor: not-allowed; }
-.practice-panel :is(button, a, input, select, textarea):focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+.practice-panel :is(summary, button, a, input, select, textarea):focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
 .practice-modes, .practice-actions, .practice-batch { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .practice-modes button { flex: 1; max-width: 240px; }
 .practice-modes [aria-pressed="true"], .practice-panel .practice-primary { color: #102232; border-color: var(--cyan); background: var(--cyan); }

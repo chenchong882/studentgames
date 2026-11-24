@@ -1,0 +1,6 @@
+{
+  "model": "gpt-4o-mini-tts-2025-12-15",
+  "voice": "cedar",
+  "speed": 0.9,
+  "instructions": "Speak only the provided English word or phrase, exactly once. Use a natural General Australian English accent and the warm, clear voice of a patient English teacher. Speak slightly more slowly than ordinary conversation, while keeping natural rhythm and word stress. Keep vowels natural; do not stretch sounds, split syllables, spell letters, whisper, sing, or add an introduction. For a multiword phrase, say it as one naturally connected phrase. No music, sound effects, translations, examples, or commentary."
+}
