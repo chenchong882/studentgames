@@ -518,6 +518,8 @@ resize();
 /* ---------- 世界 / 大樓設定 ---------- */
 const FLOORS = 5;
 const FLOOR_H = 150;
+const FLOOR_FIGURE_SCALE = FLOOR_H*0.62/100;  // 角色美術的身高為 100 單位
+const ROOF_FEET_OFFSET = 59;
 const BW = 980;                 // 大樓世界寬
 const BH = FLOORS * FLOOR_H;    // 大樓世界高
 const BX = -BW/2, BY = -BH/2;   // 大樓左上(世界座標, 以大樓中心為原點)
@@ -526,6 +528,7 @@ const WIN_W = 320;              // 每層窗戶寬度(置中)
 function floorRect(i){ // i: 0=最上層
   return { x: BX, y: BY + i*FLOOR_H, w: BW, h: FLOOR_H };
 }
+function floorFeetY(i){ return BY+(i+0.9)*FLOOR_H; }
 
 /* ---------- 牆面材質(窗戶/木牆可打穿、石牆不行) ---------- */
 const SEG = 9;                  // 每層牆面水平分成幾段
@@ -569,7 +572,7 @@ function getOverviewFrame(){
   const z = Math.max(0.001, Math.min(ZOOM_OUT, (VW - 32)/BW, (bottom - top)/(worldBottom - worldTop)));
   const minY = worldBottom - (bottom - VH/2)/z;
   const maxY = worldTop - (top - VH/2)/z;
-  overviewFrame = { zoom:z, y:Math.max(minY, Math.min(COVER_CAM_Y, maxY)) };
+  overviewFrame = { zoom:z, y:Math.max(minY, Math.min(COVER_CAM_Y, maxY)), hudBottom:top };
   overviewDirty = false;
   return overviewFrame;
 }
@@ -580,7 +583,7 @@ let recoil = 0;                 // 後座抖動量
 let flash = 0;                  // 槍口閃光
 let shake = {x:0,y:0};
 
-const AIM_MINX = BX+30, AIM_MAXX = BX+BW-30, AIM_MINY = BY-110, AIM_MAXY = BY+BH-30;
+const AIM_MINX = BX+30, AIM_MAXX = BX+BW-30, AIM_MINY = BY-110, AIM_MAXY = floorFeetY(FLOORS-1);
 function clampAim(){ aim.x = clamp(aim.x, AIM_MINX, AIM_MAXX); aim.y = clamp(aim.y, AIM_MINY, AIM_MAXY); }
 function screenToWorld(sx, sy){ return { x:(sx - VW/2)/zoom + cam.x, y:(sy - VH/2)/zoom + cam.y }; }
 
@@ -1001,11 +1004,11 @@ function grantRoofReward(){
   if(lives<MAX_LIVES)rewards.push(()=>{lives++;return '恢復 1 次機會';});
   return pick(rewards)();
 }
-function finishRoofRaid(outcome){
+function finishRoofRaid(outcome,sight){
   if(state!=='raid'||!roofRaid)return;
   if(outcome==='win'){
     roofAfterHit = {x:roofRaid.x, y:roofRaid.y, falling:0.01};
-    spawnFabricImpact(roofRaid.x,roofRaid.y+14,wardrobe[3][2]);
+    recordFigureReaction(roofAfterHit,sight.x,sight.y,true);
   }
   const hurt=outcome==='timeout';
   const message=hurt?'屋頂敵人開火！生命 −1':'危機解除！'+grantRoofReward();
@@ -1019,7 +1022,7 @@ function finishRoofRaid(outcome){
 }
 function resumeRoofQuestion(){
   if(!roofResume)return;
-  const saved=roofResume;roofResume=null;state='playing';
+  const saved=roofResume;roofResume=null;roofAfterHit=null;state='playing';
   aim.x=saved.aimX;aim.y=saved.aimY;apSelected=saved.apSelected;
   setMissionNote(saved.note);setScope(saved.scoped);
   cam.x=saved.camX;cam.y=saved.camY;zoom=saved.zoom;scopeBlend=saved.scopeBlend;
@@ -1039,6 +1042,55 @@ function updateRoofRaid(dt){
 }
 
 /* ---------- 開火 ---------- */
+// 只在遊戲已判定命中後挑動畫。座標換回美術人物的 100 單位，寬容判定區外緣也能讓塵絮貼在衣物上。
+function recordFigureReaction(f,hitX,hitY,onRoof=false){
+  const scale=onRoof?1:FLOOR_FIGURE_SCALE, dir=onRoof?1:f.dir;
+  const originX=onRoof?f.x:f.px, feetY=onRoof?f.y+ROOF_FEET_OFFSET:floorFeetY(f.i);
+  const x=(hitX-originX)*dir/scale;
+  const pose=standingFigurePose(onRoof?0:f.walk,onRoof);
+  const hip=pose.trunk[1], lean=Math.tan(pose.trunk[2]);
+  const lowest=onRoof?(BY-18-feetY)/scale-4:-2;
+  const y=clamp((hitY-feetY)/scale,hip-51,lowest);
+  let px=0,py=y,nearest=Infinity;
+  // 同側兩段布料、或兩隻鞋重疊時，取離點選位置最近的一段。
+  function fabricStrip(ax,ay,bx,by,width){
+    const dx=bx-ax,dy=by-ay;
+    const u=clamp(((x-ax)*dx+(y-ay)*dy)/(dx*dx+dy*dy),0,1);
+    const cx=ax+u*dx,cy=ay+u*dy,d=Math.hypot(x-cx,y-cy);
+    if(d>=nearest)return;
+    nearest=d;
+    const spread=d?Math.min(1,width/d):0;
+    px=cx+(x-cx)*spread;py=cy+(y-cy)*spread;
+  }
+  if(y<hip-34){
+    f.reaction='top';
+    px=clamp(x,-2.5,7.5);
+  }else if(y<hip+2){
+    const jacketCenter=(hip-y)*lean;
+    if(Math.abs(x-jacketCenter)<=5.8){
+      f.reaction='middle';px=x;
+    }else{
+      f.reaction='side';
+      for(const [shoulder,arm] of [[-4,pose.nearArm],[3,pose.farArm]]){
+        const [ex,ey,wx,wy]=arm;
+        fabricStrip(shoulder+28*lean,hip-28,ex-ey*lean,hip+ey,3);
+        fabricStrip(ex-ey*lean,hip+ey,wx-wy*lean,hip+wy,2);
+      }
+    }
+  }else{
+    f.reaction=!onRoof&&y>=-10?'foot':'lower';
+    for(const [offset,leg] of [[1,pose.nearLeg],[-2,pose.farLeg]]){
+      const [kneeX,kneeY,heelX,soleY]=leg;
+      if(f.reaction==='foot') fabricStrip(heelX-2,soleY-3,heelX+6,soleY-2,1.8);
+      else {
+        fabricStrip(offset,hip,kneeX,kneeY,3.8);
+        if(!onRoof) fabricStrip(kneeX,kneeY,heelX,soleY-4,2.8);
+      }
+    }
+  }
+  const tint=f.reaction==='lower'?'#5c6970':f.reaction==='foot'?'#727978':wardrobe[onRoof?3:f.i][2];
+  spawnFabricImpact(originX+dir*px*scale,feetY+Math.min(py,lowest)*scale,tint);
+}
 function strikeSurface(x,y,shotAP=false){
   const onFacade = x>BX && x<BX+BW;
   const fi = onFacade && y>BY && y<BY+BH ? Math.floor((y-BY)/FLOOR_H) : -1;
@@ -1063,7 +1115,7 @@ function tryFire(){
     if(roofRaid.ammo<=0){clickEmpty();return;}
     roofRaid.ammo--; nextFireAt=performance.now()+FIRE_COOLDOWN_MS;
     recoil=1;flash=1;gunshot();
-    if(roofRaidHitTest(sight.x,sight.y))finishRoofRaid('win');
+    if(roofRaidHitTest(sight.x,sight.y))finishRoofRaid('win',sight);
     else{
       strikeSurface(sight.x,sight.y);
       roofRaid.hitFlash=1;
@@ -1091,8 +1143,8 @@ function tryFire(){
     }
   }
   if(target){
+    recordFigureReaction(target,hitX,hitY);
     target.alive=false;target.falling=0.01;
-    spawnFabricImpact(target.px,floorRect(target.i).y+FLOOR_H*0.48,wardrobe[target.i][2]);
     if(target.word.word===answer.word){
       settleQuestion('correct');combo++;
       const precision=shotsThisRound===1?40:0;
@@ -1150,10 +1202,11 @@ function enterKillcam(f, success){
 
 // 特寫時淡出目標前方的外牆，保留相鄰房間的牆框和遮蔽。
 function facadeOpacity(i,k){
-  if(!killTarget || killTarget.i!==i) return 1;
+  if(!killTarget || killTarget.i!==i || !killTarget.frame) return 1;
   const left = BX+k*SEGW;
-  const x = killTarget.px, endX = x-killTarget.dir*68*killTarget.falling;
-  const distance = Math.max(0,left-Math.max(x,endX),Math.min(x,endX)-left-SEGW);
+  const frame = killTarget.frame, scaleX = killTarget.dir*FLOOR_FIGURE_SCALE;
+  const x1 = killTarget.px+frame.left*scaleX, x2 = killTarget.px+frame.right*scaleX;
+  const distance = Math.max(0,left-Math.max(x1,x2),Math.min(x1,x2)-left-SEGW);
   return 1 - cinematic * 0.93 * clamp(1-distance/60,0,1);
 }
 
@@ -1279,8 +1332,8 @@ function loop(t){
   // 人物 / 粒子 (playing / feedback / killcam 都更新)
   if(state==='playing' || state==='feedback' || state==='killcam' || state==='raid' || state==='raid-result'){
     if(roofAfterHit){
-      roofAfterHit.falling += rawdt*1.8;
-      if(roofAfterHit.falling>=1) roofAfterHit = null;
+      roofAfterHit.falling = Math.min(1,roofAfterHit.falling+rawdt*1.25);
+      if(roofAfterHit.falling===1 && t>=feedbackUntil-300) roofAfterHit = null;
     }
     for(const f of floorsData){
       if(tutorial||state==='raid'||state==='raid-result')continue;
@@ -1331,12 +1384,18 @@ function loop(t){
 
   // 相機目標: killcam 推近目標, 否則開鏡跟 aim / 收鏡看全棟
   let cx, cy, cz, follow;
-  if(killTarget && (state==='killcam' || state==='feedback')){
-    const r = floorRect(killTarget.i);
-    const drop = killTarget.falling;
-    cx = killTarget.px - killTarget.dir*27*drop;
-    cy = r.y + FLOOR_H*(0.54+0.24*drop);
-    cz = Math.min(ZOOM_IN*1.7, VH*0.56/(FLOOR_H*0.62)); follow = 6;
+  if(state==='paused'){
+    cx=cam.x; cy=cam.y; cz=zoom; follow=0;
+  } else if(killTarget && (state==='killcam' || state==='feedback')){
+    const f=killTarget;
+    const frame=fallingFigureFrame(f);
+    const bottom=VH-clamp(VH*.135,52,96);
+    const top=Math.min(getOverviewFrame().hudBottom,bottom*.85);
+    cz=Math.max(.05,Math.min(ZOOM_IN*1.7,(bottom-top)*.8/(100*FLOOR_FIGURE_SCALE),
+      VW*.86/((frame.right-frame.left)*FLOOR_FIGURE_SCALE)));
+    cx=f.px+f.dir*frame.centerX*FLOOR_FIGURE_SCALE;
+    cy=floorFeetY(f.i)+frame.centerY*FLOOR_FIGURE_SCALE-(top+bottom-VH)/(2*cz);
+    follow=6;
     cinematic += (1 - cinematic) * Math.min(1, rawdt*4);
     if(state==='killcam' && performance.now() > killUntil){
       targetTimeScale = 1;
@@ -1349,7 +1408,10 @@ function loop(t){
       else { state = 'feedback'; feedbackUntil = performance.now() + 650; }
     }
   } else if(roofAfterHit && (state==='feedback' || state==='raid-result')){
-    cx=roofAfterHit.x; cy=roofAfterHit.y+12; cz=ZOOM_IN; follow=8;
+    const f=roofAfterHit, frame=fallingFigureFrame(f,true);
+    cx=f.x+frame.centerX;
+    cy=Math.min(f.y+ROOF_FEET_OFFSET+frame.centerY,BY-26);
+    cz=ZOOM_IN; follow=8;
   } else {
     const overview = getOverviewFrame();
     cx = scoped ? aim.x : 0; cy = scoped ? aim.y : overview.y; cz = scoped ? targetZoom : overview.zoom;
@@ -1751,13 +1813,14 @@ function drawBuildingRoof(){
 function drawRoofRaid(){
   const figure = roofRaid || roofAfterHit;
   if(!figure) return;
-  const p = worldToScreen(figure.x,figure.y+59);
+  const p = worldToScreen(figure.x,figure.y+ROOF_FEET_OFFSET);
   const ledge = worldToScreen(figure.x,BY-18).y;
   ctx.save();
   ctx.beginPath(); ctx.rect(0,0,VW,Math.max(0,ledge)); ctx.clip();
   ctx.translate(p.x,p.y);
   ctx.scale(zoom,zoom);
-  drawHumanoid(3,0,figure.falling||0,true);
+  const pose=figure.falling?fallingFigureFrame(figure,true).pose:standingFigurePose(0,true);
+  drawHumanoid(3,pose,true);
   ctx.restore();
 
   if(!roofRaid) return;
@@ -1965,6 +2028,88 @@ function figurePhase(t,start,end){
   const u=clamp((t-start)/(end-start),0,1);
   return u*u*(3-2*u);
 }
+
+// 動作原畫。軀幹是 [腰 x、y、傾角、頭部相對傾角、轉身後的正面寬度]；
+// 腿是鞋底座標系裡的 [膝 x、y、鞋跟 x、y]，手臂則用外套座標系的 [肘 x、y、腕 x、y]。
+function figurePose(trunk,nearLeg,farLeg,nearArm,farArm){
+  return {trunk,nearLeg,farLeg,nearArm,farArm};
+}
+const reactionPoses={
+  top:[ // 後仰，手抬起後往背側落地
+    [.13,figurePose([-2,-47,-.30,-.23,1], [4,-23,7,0],[-6,-24,-7,-1],[-9,-22,-14,-29],[3,-19,12,-23])],
+    [.55,figurePose([-10,-31,-.82,-.20,1],[10,-23,16,0],[-5,-20,-9,-1],[-12,-29,-15,-43],[9,-22,16,-28])],
+    [.92,figurePose([-21,-8,-1.48,-.04,1],[2,-10,23,0],[-1,-17,13,-2],[-6,-35,-4,-47],[4,-14,11,-7])]
+  ],
+  side:[ // 扭身張臂，轉成側躺
+    [.16,figurePose([3,-46,.24,.02,.70],[9,-23,10,0],[-8,-26,-12,-3],[-13,-15,-21,-13],[9,-21,20,-25])],
+    [.54,figurePose([10,-30,.75,-.18,.56],[16,-20,13,-3],[0,-21,-15,-1],[-11,-15,-15,-8],[12,-22,17,-27])],
+    [.89,figurePose([11,-9,1.42,-.08,.70],[1,-17,-13,0],[-4,-12,-22,-2],[4,-19,7,-27],[0,-35,1,-44])]
+  ],
+  middle:[ // 合臂收身，雙膝彎曲坐下
+    [.17,figurePose([0,-42,.35,.29,.96],[7,-23,7,0],[-4,-22,-6,-1],[5,-15,9,-16],[9,-16,6,-22])],
+    [.56,figurePose([-4,-22,.50,.31,.94],[14,-24,14,0],[3,-21,-4,-1],[9,-12,15,-11],[13,-16,12,-19])],
+    [.88,figurePose([-6,-8,.30,.39,.96],[10,-25,18,0],[1,-20,7,-1],[11,-13,15,-12],[12,-17,10,-21])]
+  ],
+  lower:[ // 膝蓋先落，再俯身向前
+    [.17,figurePose([1,-38,.16,.09,1],[8,-18,5,0],[1,-19,-10,-1],[0,-14,9,-5],[7,-13,13,-9])],
+    [.51,figurePose([-4,-28,.56,.15,1],[14,-4,-6,0],[4,-5,-18,-1],[5,-13,16,-10],[12,-17,20,-15])],
+    [.93,figurePose([-8,-22,1.68,.12,1],[12,-4,-9,0],[3,-6,-24,-1],[10,-18,17,-9],[12,-25,16,-21])]
+  ],
+  foot:[ // 腳向前滑開，坐下時手往後撐
+    [.17,figurePose([-1,-46,-.14,-.08,.99],[12,-23,24,-2],[-7,-24,-12,0],[-12,-18,-20,-12],[8,-21,18,-20])],
+    [.52,figurePose([-7,-28,-.55,.12,.97],[16,-17,34,-1],[-2,-23,7,0],[-14,-15,-25,-5],[13,-19,22,-16])],
+    [.90,figurePose([-11,-8,-.72,.18,.98],[13,-8,37,0],[2,-23,19,-1],[-13,-17,-21,-11],[9,-15,16,-9])]
+  ]
+};
+
+function standingFigurePose(walk,onRoof=false){
+  const gait=onRoof?0:Math.sin(walk), stride=gait*13, bend=onRoof?7:0;
+  const hipY=(onRoof?-36:-48)+Math.abs(gait)*1.2, kneeY=hipY*.52-bend*.4;
+  return figurePose([0,hipY,.065,0,1],
+    [1.5+stride*.40+bend,kneeY+1,5+stride,-Math.max(0,-gait)*4],
+    [-4-stride*.35+bend,kneeY,-5-stride,-1-Math.max(0,gait)*4],
+    [onRoof?-.5:-3-gait*5,-13,onRoof?13:2-gait*10,onRoof?-21:-4],
+    [onRoof?8:-1+gait*5,-14,onRoof?17:6+gait*10,onRoof?-23:-4]);
+}
+function sampleFallingPose(f,onRoof){
+  const frames=reactionPoses[f.reaction];
+  const i=frames.findIndex(([end])=>f.falling<end);
+  if(i<0)return frames[frames.length-1][1];
+  const [start,from]=i?frames[i-1]:[0,standingFigurePose(onRoof?0:f.walk,onRoof)];
+  const [end,to]=frames[i], mix=figurePhase(f.falling,start,end);
+  const blend=(a,b)=>a.map((v,k)=>v+(b[k]-v)*mix);
+  return figurePose(blend(from.trunk,to.trunk),blend(from.nearLeg,to.nearLeg),
+    blend(from.farLeg,to.farLeg),blend(from.nearArm,to.nearArm),blend(from.farArm,to.farArm));
+}
+
+function poseFraming(pose){
+  const [hipX,hipY,angle,tilt,turn]=pose.trunk;
+  const c=Math.cos(angle),s=Math.sin(angle);
+  let left=hipX-9,right=hipX+10,top=hipY-4;
+  function include(x,y,radius){
+    left=Math.min(left,x-radius); right=Math.max(right,x+radius); top=Math.min(top,y-radius);
+  }
+  function includeCoat(x,y,radius){
+    include(hipX+c*x*turn-s*y,hipY+s*x*turn+c*y,radius);
+  }
+  // 頭、肩、手、雙腳共同決定畫面範圍，鏡頭和陰影跟著同一份姿勢走。
+  includeCoat(15*Math.sin(tilt),-33-15*Math.cos(tilt),8);
+  includeCoat(0,-28,8);
+  for(const arm of [pose.nearArm,pose.farArm]){
+    includeCoat(arm[0],arm[1],4);includeCoat(arm[2],arm[3],4);
+  }
+  for(const leg of [pose.nearLeg,pose.farLeg]){
+    include(leg[0],leg[1],5);include(leg[2]+2,leg[3]-2,7);
+  }
+  return {left,right,centerX:(left+right)/2,centerY:top/2};
+}
+function fallingFigureFrame(f,onRoof=false){
+  if(!f.frame || f.frame.time!==f.falling){
+    const pose=sampleFallingPose(f,onRoof);
+    f.frame={time:f.falling,pose,...poseFraming(pose)};
+  }
+  return f.frame;
+}
 function drawTrouserLeg(hipX,hipY,kneeX,kneeY,heelX,heelY,front){
   const fabric=front?'#43515c':'#25313b', cuff=front?'#36434d':'#202b35';
   garmentPiece(hipX,hipY,kneeX,kneeY,5.8,4.3,fabric);
@@ -1982,40 +2127,25 @@ function drawCoatSleeve(sx,sy,ex,ey,wx,wy,palette,front){
   garmentPiece(ex,ey,wx,wy,1.2,1.5,palette[0]);
   ctx.fillStyle=palette[3];ctx.beginPath();ctx.ellipse(wx+.5,wy+1.3,2.1,3,-.3,0,Math.PI*2);ctx.fill();
 }
-function drawHumanoid(style,walk,falling,onRoof=false){
-  const palette=wardrobe[style];
-  // 先縮肩，再屈膝，最後重心側落。腳在地面上前後錯開，外套與頭各自延遲回落。
-  const flinch=figurePhase(falling,0,.11)*(1-figurePhase(falling,.16,.46));
-  const knees=figurePhase(falling,.10,.56), drop=figurePhase(falling,.41,.86);
-  const settle=figurePhase(falling,.84,1), rebound=Math.sin(settle*Math.PI);
-  const gait=Math.sin(walk)*(1-knees)*(onRoof?0:1);
-  const hipX=-3*flinch-3*knees-15*drop-2*settle;
-  const hipY=(onRoof?-36:-48)+(onRoof?8:20)*knees+17*drop+2*settle-1.5*rebound+Math.abs(gait)*1.2;
-  const bend=(onRoof?7:0)*(1-knees);
-  const stride=gait*13;
-  const frontKnee=1.5+stride*.40+9*knees-3*drop+bend;
-  const rearKnee=-4-stride*.35+3*knees-11*drop+bend;
-  const kneeY=hipY*.52-4*knees-4*drop-bend*.4;
-  const nearFoot=5+stride*(1-drop)+6*knees+8*drop, farFoot=-5-stride*(1-drop)-4*knees;
-  drawTrouserLeg(hipX-2,hipY,rearKnee,kneeY,farFoot,-1-Math.max(0,gait)*4,false);
-  drawTrouserLeg(hipX+1,hipY,frontKnee,kneeY+1,nearFoot,-Math.max(0,-gait)*4,true);
+function drawHumanoid(style,pose,onRoof=false){
+  const palette=wardrobe[style], [hipX,hipY,angle,tilt,turn]=pose.trunk;
   ctx.save();
-  ctx.translate(hipX,hipY);
-  ctx.rotate(.065-.29*flinch+.12*knees-1.49*drop-.14*settle+.045*rebound);
-  const shrug=3.5*flinch+1.6*knees;
-  const elbow=onRoof?7:-2+gait*5+4*flinch+5*drop;
-  const wrist=onRoof?15:4+gait*10+7*flinch+9*drop;
-  drawCoatSleeve(3,-28,elbow+1,-14-shrug,wrist+2,onRoof?-23:-4-shrug-9*flinch,palette,false);
+  // 鞋底、指尖貼著室內地面。屋頂另外由女兒牆決定遮擋。
+  ctx.beginPath();ctx.rect(-135,-130,270,130);ctx.clip();
+  drawTrouserLeg(hipX-2,hipY,...pose.farLeg,false);
+  drawTrouserLeg(hipX+1,hipY,...pose.nearLeg,true);
+  ctx.save();
+  ctx.translate(hipX,hipY);ctx.rotate(angle);ctx.scale(turn,1);
+  drawCoatSleeve(3,-28,...pose.farArm,palette,false);
   // 背部冷色輪廓、衣襟反光、翻領與下襬摺痕。
   const coat=ctx.createLinearGradient(-10,-21,9,-17);
   coat.addColorStop(0,palette[2]);coat.addColorStop(.12,palette[1]);coat.addColorStop(.62,palette[1]);coat.addColorStop(1,palette[0]);
-  figurePanel(coat,-4,-33-shrug,3,-34,8,-29,9,-21,7,-9,10,2,-7,3+2*flinch,-10,0,-8,-12,-9,-26);
-  figurePanel(palette[0],-5,-32-shrug,0,-34,6,-30,2,-25);
+  figurePanel(coat,-4,-33,3,-34,8,-29,9,-21,7,-9,10,2,-7,3,-10,0,-8,-12,-9,-26);
+  figurePanel(palette[0],-5,-32,0,-34,6,-30,2,-25);
   figurePanel(palette[2],2,-26,4,-24,4,-7,3,-10);
   figurePanel(palette[0],-8,-5,2,-8,-6,-4,-5,-2);
   ctx.save();
-  ctx.translate(0,-33-shrug);
-  ctx.rotate(-.14*flinch+.16*knees-.10*settle);
+  ctx.translate(0,-33);ctx.rotate(tilt);
   figurePanel('#977461',-2,-8,3,-9,3,1,-2,2);
   // 側臉、耳側陰影與額前反光。樓層輪替短髮和毛帽。
   figurePanel(palette[3],-6,-15,-2,-19,4,-18,6,-15,6,-12,8,-9.5,6,-8.7,5,-4.6,2,-3.7,-3,-5,-6,-10);
@@ -2027,21 +2157,25 @@ function drawHumanoid(style,walk,falling,onRoof=false){
   figurePanel(cap?'#879399':'#77675e',-5.9,-17.5,-2,-20.1,3.1,-19.8,5.1,-18.8,-1.6,-18.9);
   ctx.restore();
   if(onRoof) figurePanel('#303b42',-6,-26,0,-23,25,-25,28,-24,28,-21,9,-20,2,-17,-4,-20);
-  drawCoatSleeve(-4,-27-shrug,onRoof?-.5:-3-gait*5+4*flinch+5*drop,-13-shrug,
-    onRoof?13:2-gait*10+9*flinch+9*drop,onRoof?-21:-4-shrug-10*flinch-4*drop,palette,true);
+  drawCoatSleeve(-4,-27,...pose.nearArm,palette,true);
+  ctx.restore();
   ctx.restore();
 }
 
 function drawPerson(f){
   if(!f || !f.word.word) return;
-  const s=worldToScreen(f.px,floorRect(f.i).y+FLOOR_H*.9);
-  const h=FLOOR_H*.62*zoom;
+  const s=worldToScreen(f.px,floorFeetY(f.i));
+  const h=100*FLOOR_FIGURE_SCALE*zoom;
   if(s.x+h<0 || s.x-h>VW || s.y+4<0 || s.y-h>VH) return;
   ctx.save();ctx.translate(s.x,s.y);ctx.scale(h/100*f.dir,h/100);
-  const drop=figurePhase(f.falling,.34,.94);
+  const frame=f.falling?fallingFigureFrame(f):null;
+  const pose=frame?frame.pose:standingFigurePose(f.walk);
+  const settle=figurePhase(f.falling,.23,.85);
+  const shadowX=frame?frame.centerX*settle:0;
+  const shadowWidth=frame?13*(1-settle)+(frame.right-frame.left)*.48*settle:13;
   ctx.fillStyle='rgba(5,8,13,.43)';ctx.beginPath();
-  ctx.ellipse(-19*drop,0,13+30*drop,2.9+1.4*drop,0,0,Math.PI*2);ctx.fill();
-  drawHumanoid(f.i,f.walk,f.falling);
+  ctx.ellipse(shadowX,0,shadowWidth,2.9+1.4*settle,0,0,Math.PI*2);ctx.fill();
+  drawHumanoid(f.i,pose);
   ctx.restore();
 }
 
@@ -2602,7 +2736,7 @@ function failGame(reason){
 
 /* ---------- 關卡推進 / 補給 ---------- */
 function advance(){
-  killTarget=null;
+  killTarget=null;roofAfterHit=null;
   document.body.classList.remove('hit-closeup');
   const next=roundNo+1;
   if(next>MAX_ROUNDS){endGame();return;}
