@@ -174,9 +174,11 @@
   body.dev-desktop .help .row.desktop { display: block; }
 
   /* 即時提示 toast */
-  #toast { position: fixed; top: 38%; left: 50%; transform: translateX(-50%); z-index: 15;
-    font-size: clamp(22px, 5vw, 40px); font-weight: bold; text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+  #toast { position: fixed; bottom: calc(9% + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 15;
+    width: max-content; max-width: calc(100% - 160px); padding: 8px 14px; border-radius: 6px; background: rgba(6,12,18,.86);
+    font-size: clamp(15px, 1.8vw, 21px); font-weight: bold; text-shadow: 0 1px 4px #000;
     opacity: 0; transition: opacity .2s ease; pointer-events: none; text-align: center; }
+  body.hit-closeup #controls, body.hit-closeup #toast { visibility: hidden; }
 
   #intel-speak { min-width:44px; min-height:44px; }
   #intel-text { overflow-wrap:anywhere; }
@@ -645,23 +647,90 @@ let damageFlash = 0;          // 中彈紅閃 0..1
 // 簡單模式先屋頂突襲、再選免費補給；困難模式可打斷作答，結束後回到原題。
 const ROOF_TIME_MS = 10000;
 let roofRaid = null;          // {x,y,deadline,ammo,hitFlash,lastSecond,resume}
+let roofAfterHit = null;      // 屋頂事件已結算，角色留在畫面直到動作結束
 let roofDelay = -1, roofResume = null;
 let roofCount = 0, lastRoofRound = 0, roofCheckedRound = 0;
 
-/* 粒子(特效) */
-let particles = [];
-function spawnParticles(wx, wy, color, n, spd){
-  for(let i=0;i<n;i++){
-    const a = rand(0, Math.PI*2), s = rand(spd*0.3, spd);
-    particles.push({ x:wx, y:wy, vx:Math.cos(a)*s, vy:Math.sin(a)*s - rand(0,spd*0.4),
-      life:1, color, size:rand(2,5) });
+/* 命中碎片使用世界座標；塵霧的小圖只繪製一次，供所有粒子共用。 */
+let particles = [], bulletHoles = [];
+const fragmentStyles = {
+  stone: { colors:['#c3c0b5','#a09f97','#787b79'], size:4, speed:119, lift:45, gravity:330, drag:1.4, duration:0.72 },
+  wood:  { colors:['#b07745','#d19b5d','#e4ba81'], size:8, speed:108, lift:39, gravity:194, drag:2.0, duration:0.92 },
+  glass: { colors:['#a5d1d4','#d2eeee','#79a8b1'], size:7, speed:134, lift:34, gravity:265, drag:1.3, duration:0.95 },
+  cloth: { colors:['#a99e8a','#908c83','#bdb4a2'], size:3.4, speed:55, lift:17, gravity:39, drag:3.2, duration:0.58 }
+};
+const dustSprites = new Map();
+function dustSprite(rgb){
+  if(dustSprites.has(rgb))return dustSprites.get(rgb);
+  const tile=document.createElement('canvas');tile.width=tile.height=48;
+  const c=tile.getContext('2d'),g=c.createRadialGradient(24,24,1,24,24,23);
+  g.addColorStop(0,'rgba('+rgb+',0.46)');g.addColorStop(0.48,'rgba('+rgb+',0.22)');g.addColorStop(1,'rgba('+rgb+',0)');
+  c.fillStyle=g;c.fillRect(0,0,48,48);dustSprites.set(rgb,tile);return tile;
+}
+function emitDust(x,y,rgb,count,size){
+  const sprite=dustSprite(rgb);
+  for(let n=0;n<count;n++){
+    particles.push({kind:'dust',sprite,x:x+rand(-3,3),y:y+rand(-3,3),vx:rand(-38,38),vy:rand(-34,5),
+      size:size*rand(0.68,1.2),age:0,duration:rand(0.58,1.03),drag:2.4,gravity:-9,angle:0,spin:0});
   }
 }
-let bulletHoles = []; // {x,y,mat:'stone'|'wood'|'glass', sz:隨機大小, shape:石牆不規則輪廓}
-function addHole(x, y, mat, pierced = mat!=='stone'){
-  const h = { x, y, mat, pierced, sz: rand(0.7, 1.5) };
-  if(mat === 'stone') h.shape = Array.from({length:9}, ()=> rand(0.6, 1.32));  // 石牆: 不規則多邊形輪廓
-  bulletHoles.push(h);
+function emitFragments(x,y,kind,count,tint){
+  const style=fragmentStyles[kind];
+  for(let n=0;n<count;n++){
+    const a=rand(0,Math.PI*2),speed=style.speed*rand(0.28,1);
+    particles.push({kind,x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed-style.lift,
+      size:style.size*rand(0.42,1.2),age:0,duration:style.duration*rand(0.7,1.2),drag:style.drag,gravity:style.gravity,
+      angle:rand(0,Math.PI*2),spin:rand(-9,9),face:rand(0,Math.PI*2),color:tint||pick(style.colors)});
+  }
+  if(particles.length>96)particles.splice(0,particles.length-96);
+}
+function spawnFabricImpact(x,y,tint){
+  emitDust(x,y,'168,159,140',3,9);
+  emitFragments(x,y,'cloth',7,tint);
+}
+function spawnSurfaceImpact(x,y,mat,pierced){
+  if(mat===MAT.WINDOW)mat='glass';
+  addHole(x,y,mat,pierced);
+  if(mat==='stone')emitDust(x,y,'189,189,177',6,18);
+  if(mat==='wood')emitDust(x,y,'193,155,107',4,12);
+  emitFragments(x,y,mat,mat==='glass'?17:12);
+}
+function updateImpactParticles(dt){
+  let live=0;
+  for(const p of particles){
+    p.age+=dt;if(p.age>=p.duration)continue;
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.angle+=p.spin*dt;
+    p.vx*=Math.max(0,1-p.drag*dt);p.vy+=(p.gravity-p.drag*0.35*p.vy)*dt;
+    particles[live++]=p;
+  }
+  particles.length=live;
+}
+
+// 破面和裂紋在命中時生成一次，拉近、移鏡時仍貼在同一塊表面上。
+function addHole(x,y,mat,pierced=mat!=='stone'){
+  const h={x,y,mat,pierced,sz:rand(0.85,1.2),floor:Math.floor((y-BY)/FLOOR_H),bay:segIndexAt(x)};
+  if(mat==='wood'){
+    const tear=[[-7,-3],[-5,-11],[-3,-7],[-2,-21],[0,-8],[3,-13],[4,-5],[7,-3],[6,5],[4,8],[3,16],[1,7],[-2,20],[-3,8],[-6,11]];
+    h.rim=tear.map(([px,py])=>({x:px*rand(.8,1.16),y:py*rand(.7,1.16)}));
+  }else{
+    const r=mat==='glass'?4.2:(pierced?10:8);
+    h.rim=Array.from({length:11},(_,k)=>{
+      const a=(k+rand(-.17,.17))*Math.PI*2/11,rad=r*rand(.78,1.21);
+      return {x:Math.cos(a)*rad,y:Math.sin(a)*rad*.84};
+    });
+  }
+  h.cracks=[];
+  if(mat==='glass'||mat==='stone'){
+    const count=mat==='glass'?randi(8,11):randi(3,5),offset=rand(0,Math.PI*2);
+    for(let k=0;k<count;k++){
+      const a=offset+(k+rand(-.26,.26))*Math.PI*2/count,bend=a+rand(-.22,.22);
+      const length=mat==='glass'?rand(15,35):rand(9,17);
+      const mx=Math.cos(bend)*length*.52,my=Math.sin(bend)*length*.52;
+      h.cracks.push({mx,my,ex:Math.cos(a)*length,ey:Math.sin(a)*length,
+        fx:mx+Math.cos(bend+.6)*length*.28,fy:my+Math.sin(bend+.6)*length*.28,link:Math.random()<.55});
+    }
+  }
+  bulletHoles.push(h);if(bulletHoles.length>32)bulletHoles.shift();
 }
 // 天氣(每關隨機): rain 下雨 / snow 下雪 / clear 普通夜晚
 let weather = 'rain';
@@ -782,7 +851,7 @@ function startRound(){
   roundNo++;
   if(roundNo > MAX_ROUNDS){ endGame(); return; }
 
-  roofRaid = null; roofResume = null; roofDelay = -1;
+  roofRaid = null; roofAfterHit = null; roofResume = null; roofDelay = -1;
   document.getElementById('roof-panel').hidden = true;
   roundSettled = false; shotsThisRound = 0; apSelected = false;
   setMissionNote('');
@@ -845,7 +914,7 @@ function startRound(){
   // 準星置中、相機回到大樓中央、收鏡
   aim.x = 0; aim.y = 0;
   cam.x = 0; cam.y = 0;
-  document.body.classList.remove('scoped');
+  document.body.classList.remove('scoped','hit-closeup');
   scoped = false; scopeBlend = 0; targetZoom = ZOOM_OUT; zoom = ZOOM_OUT;
   particles = []; bulletHoles = [];
   // 重置慢動作 / killcam / 反擊
@@ -934,7 +1003,10 @@ function grantRoofReward(){
 }
 function finishRoofRaid(outcome){
   if(state!=='raid'||!roofRaid)return;
-  if(outcome==='win')spawnParticles(roofRaid.x,roofRaid.y,'#fbbf24',28,240);
+  if(outcome==='win'){
+    roofAfterHit = {x:roofRaid.x, y:roofRaid.y, falling:0.01};
+    spawnFabricImpact(roofRaid.x,roofRaid.y+14,wardrobe[3][2]);
+  }
   const hurt=outcome==='timeout';
   const message=hurt?'屋頂敵人開火！生命 −1':'危機解除！'+grantRoofReward();
   roofResume=roofRaid.resume;
@@ -967,6 +1039,16 @@ function updateRoofRaid(dt){
 }
 
 /* ---------- 開火 ---------- */
+function strikeSurface(x,y,shotAP=false){
+  const onFacade = x>BX && x<BX+BW;
+  const fi = onFacade && y>BY && y<BY+BH ? Math.floor((y-BY)/FLOOR_H) : -1;
+  const mat = fi>=0 ? segMatAt(floorsData[fi],x) : null;
+  const blocked = mat===MAT.STONE && !shotAP;
+  if(mat) spawnSurfaceImpact(x,y,mat,!blocked);
+  else if(onFacade && y>=BY-18 && y<BY) spawnSurfaceImpact(x,y,MAT.STONE,false);
+  return {fi,blocked};
+}
+
 function tryFire(){
   if(!inputActive())return;
   if(tutorial){showToast('先練習開鏡與收鏡，這段不耗子彈','#38bdf8');return;}
@@ -982,7 +1064,11 @@ function tryFire(){
     roofRaid.ammo--; nextFireAt=performance.now()+FIRE_COOLDOWN_MS;
     recoil=1;flash=1;gunshot();
     if(roofRaidHitTest(sight.x,sight.y))finishRoofRaid('win');
-    else{roofRaid.hitFlash=1;showToast(roofRaid.ammo?'射偏了！剩 1 發緊急彈藥':'緊急彈藥用盡，敵人即將開火！','#fbbf24');}
+    else{
+      strikeSurface(sight.x,sight.y);
+      roofRaid.hitFlash=1;
+      showToast(roofRaid.ammo?'射偏了！剩 1 發緊急彈藥':'緊急彈藥用盡，敵人即將開火！','#fbbf24');
+    }
     updateHUD();return;
   }
   const shotAP=mode==='hard'&&apSelected&&apStock>0;
@@ -994,10 +1080,7 @@ function tryFire(){
   if(shotAP){apStock--;apSelected=false;}else ammo--;
   shotsThisRound++;recoil=1;flash=1;gunshot();
   const hitX=sight.x+wind*120,hitY=sight.y;
-  const inBuilding=hitX>BX&&hitX<BX+BW&&hitY>BY&&hitY<BY+BH;
-  const fi=inBuilding?Math.floor((hitY-BY)/FLOOR_H):-1;
-  const wall=fi>=0?segMatAt(floorsData[fi],hitX):null;
-  const blocked=wall===MAT.STONE&&!shotAP;
+  const {fi,blocked}=strikeSurface(hitX,hitY,shotAP);
   let target=null;
   if(!blocked){
     for(const f of floorsData){
@@ -1007,14 +1090,9 @@ function tryFire(){
       if(Math.abs(hitX-f.px)<rx&&Math.abs(hitY-bodyY)<ry){target=f;break;}
     }
   }
-  if(wall){
-    const mat=wall===MAT.WINDOW?'glass':wall;
-    addHole(hitX,hitY,mat,mat!=='stone'||shotAP);
-    spawnParticles(hitX,hitY,mat==='stone'?'#d2d2d2':mat==='wood'?'#b07a3c':'#a8d8ff',13,175);
-  }
   if(target){
     target.alive=false;target.falling=0.01;
-    spawnParticles(target.px,floorRect(target.i).y+FLOOR_H*0.5,'#ef4444',24,250);
+    spawnFabricImpact(target.px,floorRect(target.i).y+FLOOR_H*0.48,wardrobe[target.i][2]);
     if(target.word.word===answer.word){
       settleQuestion('correct');combo++;
       const precision=shotsThisRound===1?40:0;
@@ -1023,7 +1101,6 @@ function tryFire(){
       if(!practiceOnly){score+=gained;if(mode==='hard')money+=100+(shotsThisRound===1?20:0);}
       speakWord(answer.word);
       setMissionNote('答對：'+answer.word+' ＝ '+answer.meaning+(practiceOnly?' · 續練完成一題':' · +'+gained+' 分'));
-      showToast('✅ '+answer.word+(practiceOnly?'':' +'+gained),'#34d399');
       enterKillcam(target,true);
     }else{
       settleQuestion('wrong',target.word.word);combo=0;
@@ -1062,11 +1139,22 @@ function endRound(success){
 // 打中人 → 慢動作特寫: 鏡頭推近目標、看他中彈倒下
 function enterKillcam(f, success){
   state = 'killcam';
+  document.body.classList.add('hit-closeup');
+  document.getElementById('toast').style.opacity='0';
   killTarget = f; killSuccess = success;
   targetTimeScale = 0.45;          // 慢動作
   killUntil = performance.now() + (success ? 850 : 1100);
   spotted = false; shooterIdx = -1;   // 取消反擊倒數
   document.getElementById('fire-btn').disabled = true;
+}
+
+// 特寫時淡出目標前方的外牆，保留相鄰房間的牆框和遮蔽。
+function facadeOpacity(i,k){
+  if(!killTarget || killTarget.i!==i) return 1;
+  const left = BX+k*SEGW;
+  const x = killTarget.px, endX = x-killTarget.dir*68*killTarget.falling;
+  const distance = Math.max(0,left-Math.max(x,endX),Math.min(x,endX)-left-SEGW);
+  return 1 - cinematic * 0.93 * clamp(1-distance/60,0,1);
 }
 
 /* ---------- 答錯對照：先看正解，再由學生決定何時繼續 ---------- */
@@ -1190,6 +1278,10 @@ function loop(t){
 
   // 人物 / 粒子 (playing / feedback / killcam 都更新)
   if(state==='playing' || state==='feedback' || state==='killcam' || state==='raid' || state==='raid-result'){
+    if(roofAfterHit){
+      roofAfterHit.falling += rawdt*1.8;
+      if(roofAfterHit.falling>=1) roofAfterHit = null;
+    }
     for(const f of floorsData){
       if(tutorial||state==='raid'||state==='raid-result')continue;
       if(f.alive){
@@ -1209,8 +1301,7 @@ function loop(t){
         f.falling = Math.min(1, f.falling + sdt*2.5);
       }
     }
-    for(const p of particles){ p.x += p.vx*sdt; p.y += p.vy*sdt; p.vy += 600*sdt; p.life -= sdt*1.4; }
-    particles = particles.filter(p=>p.life>0);
+    updateImpactParticles(sdt);
   }
 
   if(state === 'playing' && !tutorial){
@@ -1240,18 +1331,25 @@ function loop(t){
 
   // 相機目標: killcam 推近目標, 否則開鏡跟 aim / 收鏡看全棟
   let cx, cy, cz, follow;
-  if(state==='killcam' && killTarget){
+  if(killTarget && (state==='killcam' || state==='feedback')){
     const r = floorRect(killTarget.i);
-    cx = killTarget.px; cy = r.y + FLOOR_H*0.5; cz = ZOOM_IN*1.7; follow = 5;
+    const drop = killTarget.falling;
+    cx = killTarget.px - killTarget.dir*27*drop;
+    cy = r.y + FLOOR_H*(0.54+0.24*drop);
+    cz = Math.min(ZOOM_IN*1.7, VH*0.56/(FLOOR_H*0.62)); follow = 6;
     cinematic += (1 - cinematic) * Math.min(1, rawdt*4);
-    if(performance.now() > killUntil){
-      targetTimeScale = 1; killTarget = null;
+    if(state==='killcam' && performance.now() > killUntil){
+      targetTimeScale = 1;
       if(!killSuccess){                                      // 打錯人: 扣 1 次機會，先看比較，再繼續或結算
+        killTarget = null;
+        document.body.classList.remove('hit-closeup');
         if(!practiceOnly)lives--; updateHUD();
         showAnswerReview();
       }
       else { state = 'feedback'; feedbackUntil = performance.now() + 650; }
     }
+  } else if(roofAfterHit && (state==='feedback' || state==='raid-result')){
+    cx=roofAfterHit.x; cy=roofAfterHit.y+12; cz=ZOOM_IN; follow=8;
   } else {
     const overview = getOverviewFrame();
     cx = scoped ? aim.x : 0; cy = scoped ? aim.y : overview.y; cz = scoped ? targetZoom : overview.zoom;
@@ -1268,8 +1366,9 @@ function loop(t){
   damageFlash *= Math.pow(0.02, rawdt);
   if(recoil < 0.01) recoil = 0;
   if(flash < 0.01) flash = 0;
-  const sh = recoil*14;
-  shake.x = rand(-sh, sh); shake.y = rand(-sh, sh);
+  // 一次短促的上抬與回穩，讓第一瞬間的碎屑仍看得清楚。
+  shake.x = recoil*recoil*1.5;
+  shake.y = recoil*6;
 
   // 開鏡淡入 / 蹲掩體淡出 的過場混合
   scopeBlend += ((scoped?1:0) - scopeBlend) * Math.min(1, rawdt*9);
@@ -1303,7 +1402,6 @@ function updateHardMode(dt){
 function enemyFire(){
   gunshot();
   lives--; damageFlash = 1;
-  for(let k=0;k<3;k++) addHole(aim.x+rand(-70,70), aim.y+rand(-70,70), 'glass');
   spotted = false; shooterIdx = -1;
   if(lives <= 0){ failGame('shot'); return; }
   showToast(`🩸 中彈！剩 ${lives} 命 — 開槍沒中要馬上收鏡蹲下`, '#f87171');
@@ -1319,16 +1417,21 @@ function render(){
   drawGround();
   drawBuilding();
   drawBuildingRoof();
+  for(const b of bulletHoles){
+    if(b.y>=BY) continue;
+    const s = worldToScreen(b.x,b.y);
+    drawBulletHole(s.x,s.y,b);
+  }
   drawRoofRaid();
   drawParticles();
-  if(state !== 'killcam') drawForeground();    // 我方掩體牆 + 蹲姿狙擊手(隨開鏡淡出)
+  if(!killTarget && !roofAfterHit) drawForeground();
   if(difficulty === 'hard') drawSpotted();
   drawVignette();
   drawScopeOverlay();
   drawCrosshair();
   drawMuzzleFlash();
   drawDamageFlash();
-  if(state === 'killcam') drawCinematic();
+  if(killTarget) drawCinematic();
 }
 
 /* ---------- 前景: 我方掩體牆 + 蹲姿狙擊手(第三人稱) ---------- */
@@ -1372,39 +1475,49 @@ function drawMountedRifle(wallTop){
   ctx.restore();
   ctx.restore();
 }
+let coverGrain = null;
 function drawCoverWall(top){
-  const g = ctx.createLinearGradient(0, top, 0, VH);
-  g.addColorStop(0,'#3a404b'); g.addColorStop(1,'#191d24');
-  ctx.fillStyle = g; ctx.fillRect(0, top, VW, VH-top);
-  // 頂部壓條(亮邊 + 下方陰影)
-  ctx.fillStyle = '#4b515d'; ctx.fillRect(0, top, VW, 11);
-  ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(0, top, VW, 3);
-  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(0, top+11, VW, 5);
-  // 磚縫
-  ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 1;
-  const rows = 3, bh = (VH-top-16)/rows;
-  for(let r=0;r<rows;r++){
-    const y = top+16+r*bh;
-    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(VW,y); ctx.stroke();
-    const off = (r%2) ? VW/16 : 0;
-    for(let c=-1;c<9;c++){ const x = c*VW/8 + off; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+bh); ctx.stroke(); }
+  if(!coverGrain){
+    const tile=document.createElement('canvas'); tile.width=192; tile.height=128;
+    const g=tile.getContext('2d'), random=sceneryRandom(3479);
+    for(let n=0;n<600;n++){
+      g.fillStyle=n%3?'rgba(13,18,20,.17)':'rgba(182,181,163,.15)';
+      g.fillRect(random()*192,random()*128,1+random()*2,.6+random());
+    }
+    coverGrain=ctx.createPattern(tile,'repeat');
+  }
+  const cap=clamp(VH*.028,10,26), y=top+cap;
+  const face=ctx.createLinearGradient(0,y,0,VH);
+  face.addColorStop(0,'#252d31'); face.addColorStop(.12,'#3d4546'); face.addColorStop(1,'#1c252b');
+  ctx.fillStyle=face; ctx.fillRect(0,y,VW,VH-y);
+  ctx.fillStyle=coverGrain; ctx.fillRect(0,y,VW,VH-y);
+  const coping=ctx.createLinearGradient(0,top,0,y);
+  coping.addColorStop(0,weather==='rain'?'#828d8d':'#727973');
+  coping.addColorStop(.63,'#515d60'); coping.addColorStop(.68,'#6d7776'); coping.addColorStop(1,'#343d41');
+  ctx.fillStyle=coping; ctx.fillRect(0,top,VW,cap);
+  const slab=clamp(VW*.19,100,240);
+  for(let x=slab*.48;x<VW+slab*.2;x+=slab){
+    ctx.strokeStyle='rgba(9,16,18,.55)'; ctx.lineWidth=1.7;
+    ctx.beginPath(); ctx.moveTo(x+9,top); ctx.lineTo(x,y-3); ctx.lineTo(x,y); ctx.stroke();
+    ctx.fillStyle='rgba(10,18,21,.35)'; ctx.fillRect(x,y,2,VH-y);
+    ctx.fillStyle='rgba(185,192,177,.11)'; ctx.fillRect(x+2,y,1,VH-y);
   }
 }
 // 我方狙擊手(背面視角, 蹲↔起身由 scopeBlend 控制)
 function drawAllySniper(wallTop){
   const up = clamp(scopeBlend,0,1);
   const left = SETTINGS.leftHanded;
-  const sx = left ? VW*0.70 : VW*0.30;
+  const sx = left ? VW*0.86 : VW*0.14;
   const S = clamp(VH*0.0013, 0.72, 1.3);
   ctx.save();
-  ctx.translate(sx, wallTop + 42 - up*48);   // 起身時整體上移露出更多
+  ctx.translate(sx, wallTop + 5 - up*32);
   if(left) ctx.scale(-1,1);
   ctx.scale(S, S);
-  const cloth='#3c4a39', clothD='#2b3729', clothL='#52624c', skin='#c69a70';
+  const cloth='#444e47', clothD='#293333', clothL='#727c70', skin='#93745f';
   // 步槍只在探頭開鏡時舉起；蹲下時完全藏進牆後，避免只露一根黑色槍管
   if(up > 0.18){
     ctx.save();
-    ctx.globalAlpha = clamp((up-0.18)/0.34,0,1);
+    ctx.globalAlpha *= clamp((up-0.18)/0.34,0,1);
     ctx.rotate(-0.10 - up*0.16);
     ctx.strokeStyle = '#14171c'; ctx.lineWidth = 8; ctx.lineCap = 'round';
     const bl = 70 + up*95;
@@ -1412,47 +1525,85 @@ function drawAllySniper(wallTop){
     if(up > 0.25){ ctx.fillStyle = '#0e1116'; ctx.fillRect(14, -bl*0.55, 16, 24); } // 瞄準鏡
     ctx.restore();
   }
-  // 肩背(寬圓漸層)
+  // 背光沿肩線勾邊，衣領與袖褶保持暗部。
   const bg = ctx.createLinearGradient(-48,0, 48,0);
   bg.addColorStop(0,clothD); bg.addColorStop(0.5,cloth); bg.addColorStop(1,clothL);
-  ctx.fillStyle = bg; roundRectPath(-48,-8,96,92,28); ctx.fill();
+  figurePanel(bg,-48,28,-39,3,-18,-8,-8,-13,17,-11,38,-3,47,12,51,70,-49,71);
+  figurePanel(clothL,-39,3,-18,-8,-8,-13,1,-12,-14,-6,-32,2);
+  figurePanel(clothD,-20,-6,-8,-12,19,-11,26,-5,15,1,-1,4);
   // 背帶
   ctx.strokeStyle = clothD; ctx.lineWidth = 7;
   ctx.beginPath(); ctx.moveTo(-20,-4); ctx.lineTo(-10,76); ctx.moveTo(22,-4); ctx.lineTo(10,76); ctx.stroke();
   // 後腦 + 毛帽
   ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(2,-24,20,0,Math.PI*2); ctx.fill();
   ctx.fillStyle = '#2b3530'; ctx.beginPath(); ctx.arc(2,-28,21,Math.PI*0.96,Math.PI*2.04); ctx.fill();
-  ctx.fillRect(-19,-28,42,7);
+  ctx.fillStyle='#3e4a48'; ctx.fillRect(-19,-28,42,7);
+  ctx.strokeStyle='#59625a'; ctx.lineWidth=1.3;
+  ctx.beginPath();ctx.moveTo(-14,-30);ctx.quadraticCurveTo(-13,-42,-3,-47);
+  ctx.moveTo(-8,-29);ctx.quadraticCurveTo(-7,-41,-1,-46);ctx.stroke();
   // 握槍手臂(前伸)
   ctx.strokeStyle = cloth; ctx.lineWidth = 16; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(24,8); ctx.lineTo(16,-26); ctx.stroke();
   ctx.restore();
 }
 
-// 夜空 + 月 + 遠景天際線(視差) + 雨
+// 靜態城市與建材共用固定種子，平移與放大時紋理留在原位。
+function sceneryRandom(seed){
+  return ()=>{ seed=(Math.imul(seed,1664525)+1013904223)>>>0; return seed/4294967296; };
+}
+let skyline = null;
+function districtSkyline(){
+  if(skyline) return skyline;
+  const strip = document.createElement('canvas');
+  strip.width=1024; strip.height=250;
+  const g=strip.getContext('2d'), random=sceneryRandom(8431);
+  for(let layer=0;layer<2;layer++){
+    for(let x=-8;x<strip.width;){
+      const w=26+random()*54, roof=(layer?72:17)+random()*106;
+      g.fillStyle=layer?'#1b2833':'#34414d';
+      g.fillRect(x,roof,w,strip.height-roof);
+      g.fillRect(x+w*.18,roof-5,w*.46,6);
+      if(random()>.65) g.fillRect(x+w*.67,roof-14,1,16);
+      g.fillStyle=layer?'#16212b':'#303d49'; g.fillRect(x+w*.75,roof+2,w*.25,strip.height-roof);
+      for(let wy=roof+9;wy<strip.height;wy+=9){
+        for(let wx=x+4;wx<x+w-4;wx+=9){
+          const lit=random();
+          if(lit>.38)continue;
+          g.fillStyle=lit<.05?'#9d8b71':layer?'#56636a':'#515d65';
+          g.fillRect(wx,wy,3+random()*2,2);
+        }
+      }
+      x+=w+2+random()*7;
+    }
+  }
+  skyline=strip; return strip;
+}
+
 function drawSky(){
   const bg = ctx.createLinearGradient(0,0,0,VH);
-  bg.addColorStop(0,'#090d1b'); bg.addColorStop(0.6,'#111a30'); bg.addColorStop(1,'#1a2236');
+  bg.addColorStop(0,'#101a2a'); bg.addColorStop(0.39,'#2c4051'); bg.addColorStop(0.68,'#686568'); bg.addColorStop(1,'#27333f');
   ctx.fillStyle = bg; ctx.fillRect(0,0,VW,VH);
   // 月
   const mx = VW*0.78 - cam.x*0.02, my = VH*0.18;
-  const mg = ctx.createRadialGradient(mx,my,4, mx,my,70);
-  mg.addColorStop(0,'rgba(210,224,255,0.5)'); mg.addColorStop(1,'rgba(210,224,255,0)');
-  ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(mx,my,70,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle = '#e6edff'; ctx.beginPath(); ctx.arc(mx,my,20,0,Math.PI*2); ctx.fill();
-  // 遠景天際線
-  const par = -cam.x*0.04, horizon = VH*0.74, n = 11, bw = VW/n;
-  ctx.fillStyle = 'rgba(36,48,80,0.5)';
-  for(let i=-1;i<=n;i++){
-    const seed = ((i*73)%17 + 17)%17;
-    const bh = VH*(0.08 + seed/55);
-    const bx = i*bw + ((par % bw) + bw) % bw;
-    ctx.fillRect(bx, horizon-bh, bw*0.72, bh);
-    // 零星窗光
-    ctx.fillStyle = 'rgba(120,140,190,0.18)';
-    if(seed%3===0) ctx.fillRect(bx+bw*0.2, horizon-bh*0.7, bw*0.12, bh*0.1);
-    ctx.fillStyle = 'rgba(36,48,80,0.5)';
+  const radius=clamp(Math.min(VW,VH)*.022,6,16);
+  const mg = ctx.createRadialGradient(mx,my,0, mx,my,radius*4);
+  mg.addColorStop(0,weather==='clear'?'#e6e5d4':'#b1bbc0'); mg.addColorStop(.21,'#b4bfc1');
+  mg.addColorStop(.29,'rgba(194,204,207,.28)'); mg.addColorStop(1,'rgba(194,204,207,0)');
+  ctx.fillStyle = mg; ctx.fillRect(mx-radius*4,my-radius*4,radius*8,radius*8);
+  if(weather==='clear'){
+    const t=performance.now()/1500;
+    for(const st of stars){
+      const a=(.28+.12*Math.sin(t+st.tw))*(1-st.y);
+      ctx.fillStyle=`rgba(220,230,245,${a})`;
+      ctx.beginPath(); ctx.arc(st.x*VW,st.y*VH,st.r,0,Math.PI*2); ctx.fill();
+    }
   }
+  const skylineW=Math.max(600,VW), skylineH=Math.min(VH*.42,skylineW*.27);
+  const horizon=VH*.75-cam.y*.016, offset=-cam.x*.055;
+  for(let x=offset-skylineW;x<VW;x+=skylineW){
+    if(x+skylineW>=0)ctx.drawImage(districtSkyline(),x,horizon-skylineH,skylineW+.5,skylineH);
+  }
+  ctx.fillStyle='#1b2833'; ctx.fillRect(0,horizon,VW,VH-horizon);
   // 降水(依天氣)
   if(weather === 'rain'){
     ctx.strokeStyle = 'rgba(150,180,220,0.22)'; ctx.lineWidth = 1;
@@ -1468,13 +1619,6 @@ function drawSky(){
       d.y += d.sp*0.006; if(d.y>1) d.y -= 1;
       const x = (d.x*VW) + Math.sin(t*0.6 + d.ph)*14;
       ctx.beginPath(); ctx.arc(x, d.y*VH, d.r, 0, Math.PI*2); ctx.fill();
-    }
-  } else {  // clear: 普通夜晚 → 點綴星星
-    const t = performance.now()/700;
-    for(const st of stars){
-      const a = 0.35 + 0.4*Math.sin(t + st.tw);
-      ctx.fillStyle = `rgba(220,230,255,${a})`;
-      ctx.beginPath(); ctx.arc(st.x*VW, st.y*VH, st.r, 0, Math.PI*2); ctx.fill();
     }
   }
 }
@@ -1504,10 +1648,19 @@ function drawGround(){
   ctx.fillStyle = '#2c3442'; ctx.fillRect(0, top, VW, 8*zoom);
   ctx.fillStyle = 'rgba(180,200,230,0.10)'; ctx.fillRect(0, top, VW, 2);
   ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(0, top + 8*zoom, VW, 3*zoom);
-  // 濕地面反光條(雨夜)
-  ctx.globalAlpha = 0.12; ctx.fillStyle = '#9fc0ff';
-  for(let i=0;i<5;i++){ const ry = top + (18 + i*22)*zoom; if(ry>VH) break; ctx.fillRect(0, ry, VW, 1.5); }
-  ctx.globalAlpha = 1;
+  // 雨天的積水只反射一樓窗光，沿路面向外拉長。
+  if(weather==='rain' && floorsData.length){
+    const groundFloor=floorsData[FLOORS-1];
+    for(let k=0;k<SEG;k++){
+      if(groundFloor.segs[k]!==MAT.WINDOW)continue;
+      const cx=bl.x+(k+.5)*SEGW*zoom;
+      for(let j=0;j<8;j++){
+        const width=(26+3*j)*zoom;
+        ctx.fillStyle=`rgba(173,164,135,${.17-j*.018})`;
+        ctx.fillRect(cx-width*.5+Math.sin(k+j*1.8)*7*zoom,top+(15+j*j*.9)*zoom,width,1.6*zoom);
+      }
+    }
+  }
   // 道路中線(虛線)
   const midY = top + 80*zoom;
   if(midY < VH){
@@ -1529,36 +1682,37 @@ function drawBuilding(){
   for(let i=0;i<FLOORS;i++){
     const r = floorRect(i);
     const a = worldToScreen(r.x, r.y), fh = FLOOR_H*zoom;
-    const ig = ctx.createLinearGradient(a.x, a.y, a.x, a.y+fh);
-    ig.addColorStop(0,'#18203360'); ig.addColorStop(0.55,'#141b2c'); ig.addColorStop(1,'#0d1320');
-    ctx.fillStyle = ig; ctx.fillRect(a.x, a.y, fw, fh);
-    // 室內地板
-    ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(a.x, a.y+fh*0.9); ctx.lineTo(a.x+fw, a.y+fh*0.9); ctx.stroke();
+    if(a.y+fh<0 || a.y>VH)continue;
+    for(let k=0;k<SEG;k++)drawRoomBay(i,k,a.x+k*SEGW*zoom,a.y,SEGW*zoom+.45,fh);
     drawPerson(floorsData[i]);
   }
 
-  // 3. 牆面材質(遮蓋): 窗戶透、木牆半透、石牆不透
+  // 3. 窗框玻璃覆在人物前；板材與石牆平時完全遮住室內。
   for(let i=0;i<FLOORS;i++){
     const f = floorsData[i], r = floorRect(i);
     const a = worldToScreen(r.x, r.y), fh = FLOOR_H*zoom;
+    if(a.y+fh < -8 || a.y > VH+8)continue;
     for(let k=0;k<SEG;k++){
-      const sx = worldToScreen(r.x + k*SEGW, r.y).x;
-      drawWallSegment(f.segs[k], sx, a.y, SEGW*zoom + 0.5, fh);
+      const sx=a.x+k*SEGW*zoom, sw=SEGW*zoom+.45;
+      if(sx+sw < -1 || sx > VW+1)continue;
+      ctx.save(); ctx.globalAlpha *= facadeOpacity(i,k);
+      drawWallSegment(f.segs[k],sx,a.y,sw,fh,(i*2+k)%3);
+      ctx.restore();
     }
-    // 樓板橫樑
-    ctx.fillStyle = '#06090f'; ctx.fillRect(tl.x, a.y - 4*zoom, fw, 7*zoom);
+    // 混凝土樓板邊緣與底面陰影，串成連續立面。
+    ctx.fillStyle = '#151a1d'; ctx.fillRect(tl.x,a.y-3*zoom,fw,8*zoom);
+    ctx.fillStyle = '#5a6160'; ctx.fillRect(tl.x,a.y-3*zoom,fw,1.7*zoom);
+    ctx.fillStyle = 'rgba(7,13,15,.35)'; ctx.fillRect(tl.x,a.y+5*zoom,fw,4*zoom);
   }
 
-  // 4. 霓虹單字(外牆招牌) + 彈孔
-  for(let i=0;i<FLOORS;i++) drawFloorWord(i);
-  for(const b of bulletHoles){ const s = worldToScreen(b.x, b.y); drawBulletHole(s.x, s.y, b); }
-
-  // 4.5 透過木牆/石牆的洞窺視: 洞後是房間, 有人經過時會露出一塊(可預判位置)
+  for(const b of bulletHoles){
+    if(b.y<BY)continue;  // 女兒牆上的痕跡在屋頂繪製完成後疊上。
+    const s = worldToScreen(b.x,b.y);
+    ctx.save(); ctx.globalAlpha *= facadeOpacity(b.floor,b.bay);
+    drawBulletHole(s.x,s.y,b); ctx.restore();
+  }
   drawPeekHoles();
-
-  // 5. killcam: 把被擊目標重畫在最上(特寫不被牆遮)
-  if(state === 'killcam' && killTarget) drawPerson(killTarget);
+  for(let i=0;i<FLOORS;i++) drawFloorWord(i);
 
   // 大樓外框
   ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 3; ctx.strokeRect(tl.x, tl.y, fw, fhAll);
@@ -1566,151 +1720,328 @@ function drawBuilding(){
 
 // 屋頂女兒牆與設備，讓突襲狙擊手有清楚、合理的出現位置
 function drawBuildingRoof(){
-  const l = worldToScreen(BX,BY), r = worldToScreen(BX+BW,BY);
-  const h = Math.max(7,18*zoom);
+  const l = worldToScreen(BX,BY);
+  if(l.y < -2 || l.y-85*zoom > VH)return;
   ctx.save();
-  const g = ctx.createLinearGradient(0,l.y-h,0,l.y+3);
-  g.addColorStop(0,'#323947'); g.addColorStop(1,'#111620');
-  ctx.fillStyle = g; ctx.fillRect(l.x,l.y-h,r.x-l.x,h);
-  ctx.fillStyle = '#4b5565'; ctx.fillRect(l.x,l.y-h,r.x-l.x,Math.max(2,3*zoom));
-  ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = Math.max(1,2*zoom); ctx.strokeRect(l.x,l.y-h,r.x-l.x,h);
-  // 小型通風箱與天線只放在後方，不遮住三個突襲點
-  const vent = worldToScreen(BX+BW*0.13,BY);
-  ctx.fillStyle = '#242b37'; ctx.fillRect(vent.x-22*zoom,l.y-38*zoom,44*zoom,20*zoom);
-  const ant = worldToScreen(BX+BW*0.86,BY);
-  ctx.strokeStyle = '#252c37'; ctx.lineWidth = Math.max(1.5,3*zoom);
-  ctx.beginPath(); ctx.moveTo(ant.x,l.y-h); ctx.lineTo(ant.x,l.y-66*zoom); ctx.stroke();
+  ctx.translate(l.x,l.y); ctx.scale(zoom,zoom);
+  // 服務設備集中在兩端，中央三個登場點保持清楚。
+  ctx.fillStyle='#313c40'; ctx.fillRect(45,-46,62,30);
+  ctx.fillStyle='#657074'; ctx.fillRect(43,-48,66,3);
+  ctx.fillStyle='#1d282b'; ctx.fillRect(50,-41,51,19);
+  ctx.fillStyle='#4e5a5d';
+  for(let j=0;j<4;j++)ctx.fillRect(52,-40+j*4,47,1.4);
+  const tankX=BW-76;
+  const steel=ctx.createLinearGradient(tankX-23,0,tankX+23,0);
+  steel.addColorStop(0,'#323c40'); steel.addColorStop(.30,'#76807e'); steel.addColorStop(1,'#3b464a');
+  ctx.fillStyle=steel; ctx.fillRect(tankX-23,-64,46,37);
+  ctx.beginPath(); ctx.ellipse(tankX,-64,23,5,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#929792'; ctx.fillRect(tankX-21,-57,42,1.4); ctx.fillRect(tankX-21,-36,42,1.4);
+  ctx.fillStyle='#30383b'; ctx.fillRect(tankX-18,-27,4,10); ctx.fillRect(tankX+14,-27,4,10);
+  ctx.strokeStyle='#525e60'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(tankX+23,-32); ctx.lineTo(tankX+36,-32); ctx.lineTo(tankX+36,-17); ctx.stroke();
+  const cap=ctx.createLinearGradient(0,-18,0,0);
+  cap.addColorStop(0,'#717673'); cap.addColorStop(.15,'#4d5658'); cap.addColorStop(1,'#29343a');
+  ctx.fillStyle=cap; ctx.fillRect(0,-18,BW,18);
+  ctx.fillStyle='#8b8e86'; ctx.fillRect(0,-18,BW,1.6);
+  ctx.fillStyle='rgba(20,27,29,.4)';
+  for(let x=68;x<BW;x+=103)ctx.fillRect(x,-15,1,15);
   ctx.restore();
 }
 
 function drawRoofRaid(){
-  if(!roofRaid) return;
-  const p = worldToScreen(roofRaid.x,roofRaid.y);
-  const z = Math.max(0.58,zoom), pulse = 0.5+0.5*Math.sin(performance.now()/85);
+  const figure = roofRaid || roofAfterHit;
+  if(!figure) return;
+  const p = worldToScreen(figure.x,figure.y+59);
+  const ledge = worldToScreen(figure.x,BY-18).y;
   ctx.save();
+  ctx.beginPath(); ctx.rect(0,0,VW,Math.max(0,ledge)); ctx.clip();
   ctx.translate(p.x,p.y);
-  // 敵方狙擊手：頭、身體、步槍與紅色鏡片反光
-  ctx.strokeStyle = '#171a20'; ctx.lineWidth = 15*z; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(0,10*z); ctx.lineTo(0,55*z); ctx.stroke();
-  ctx.fillStyle = '#20242c'; ctx.beginPath(); ctx.arc(0,-4*z,13*z,0,Math.PI*2); ctx.fill();
-  ctx.strokeStyle = '#0e1116'; ctx.lineWidth = 5*z;
-  ctx.beginPath(); ctx.moveTo(-5*z,17*z); ctx.lineTo(38*z,2*z); ctx.stroke();
-  ctx.strokeStyle = `rgba(255,55,55,${0.55+pulse*0.45})`; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.arc(28*z,5*z,(13+pulse*9)*z,0,Math.PI*2); ctx.stroke();
-  ctx.fillStyle = '#ff3535'; ctx.shadowColor='#ff3030'; ctx.shadowBlur=18;
-  ctx.beginPath(); ctx.arc(28*z,5*z,4.5*z,0,Math.PI*2); ctx.fill();
-  if(roofRaid.hitFlash>0){ ctx.strokeStyle=`rgba(255,210,80,${roofRaid.hitFlash})`; ctx.lineWidth=6; ctx.beginPath(); ctx.arc(0,18*z,55*z,0,Math.PI*2); ctx.stroke(); }
+  ctx.scale(zoom,zoom);
+  drawHumanoid(3,0,figure.falling||0,true);
+  ctx.restore();
+
+  if(!roofRaid) return;
+  const lens = worldToScreen(figure.x+26,figure.y+2);
+  const pulse = 0.5+0.5*Math.sin(performance.now()/180);
+  const glow = Math.max(5,(8+pulse*5)*zoom)*(1+roofRaid.hitFlash*0.3);
+  ctx.save();
+  const flare = ctx.createRadialGradient(lens.x,lens.y,0,lens.x,lens.y,glow);
+  flare.addColorStop(0,'#ffe1b4'); flare.addColorStop(.16,'#ff7465');
+  flare.addColorStop(.35,'rgba(245,62,48,.7)'); flare.addColorStop(1,'rgba(225,54,44,0)');
+  ctx.fillStyle=flare; ctx.fillRect(lens.x-glow,lens.y-glow,2*glow,2*glow);
   ctx.restore();
 }
 
-function drawWallSegment(mat, x, y, w, h){
-  if(x+w < -8 || x > VW+8 || y+h < -8 || y > VH+8) return;
-  ctx.save();
-  if(mat === MAT.WINDOW){
-    // 玻璃: 大致透明, 露出室內的人
-    const g = ctx.createLinearGradient(x, y, x, y+h);
-    g.addColorStop(0,'rgba(130,170,210,0.16)'); g.addColorStop(1,'rgba(70,100,140,0.10)');
-    ctx.fillStyle = g; ctx.fillRect(x+w*0.07, y+h*0.12, w*0.86, h*0.78);
-    ctx.strokeStyle = 'rgba(150,190,230,0.45)'; ctx.lineWidth = 2; ctx.strokeRect(x+w*0.07, y+h*0.12, w*0.86, h*0.78);
-    ctx.beginPath();
-    ctx.moveTo(x+w*0.5, y+h*0.12); ctx.lineTo(x+w*0.5, y+h*0.9);
-    ctx.moveTo(x+w*0.07, y+h*0.5); ctx.lineTo(x+w*0.93, y+h*0.5);
-    ctx.stroke();
-    ctx.globalAlpha = 0.12; ctx.strokeStyle = '#cfe6ff'; ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.moveTo(x+w*0.22, y+h*0.85); ctx.lineTo(x+w*0.62, y+h*0.22); ctx.stroke();
-  } else if(mat === MAT.WOOD){
-    // 木牆: 完全不透明(看不到後面的人、不透光), 但子彈可穿 → 要算走位時機
-    const g = ctx.createLinearGradient(x, y, x+w, y);
-    g.addColorStop(0,'#5a3f28'); g.addColorStop(0.5,'#714f33'); g.addColorStop(1,'#523619');
-    ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
-    // 直木紋 + 橫向木板接縫
-    ctx.globalAlpha = 0.4; ctx.strokeStyle = '#3a2716'; ctx.lineWidth = 1;
-    for(let k=1;k<4;k++){ const xx = x+w*k/4; ctx.beginPath(); ctx.moveTo(xx, y); ctx.lineTo(xx, y+h); ctx.stroke(); }
-    for(let k=1;k<3;k++){ const yy = y+h*k/3; ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x+w, yy); ctx.stroke(); }
-    ctx.globalAlpha = 1;
-  } else {
-    // 石牆: 不透明灰磚(完全遮住)
-    const g = ctx.createLinearGradient(x, y, x+w, y+h);
-    g.addColorStop(0,'#3c4049'); g.addColorStop(1,'#2a2d34');
-    ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1;
-    const rows = 4, rh = h/rows;
-    for(let rr=0;rr<rows;rr++){
-      const yy = y+rr*rh;
-      ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x+w, yy); ctx.stroke();
-      const off = (rr%2) ? w*0.5 : 0;
-      ctx.beginPath(); ctx.moveTo(x+off, yy); ctx.lineTo(x+off, yy+rh); ctx.stroke();
+// 4 種室內與每材質各 3 張小圖在第一次顯示時繪製，以後只貼圖。
+const bayArtwork = new Map();
+function bayTile(kind, variant){
+  const key=kind+variant;
+  if(bayArtwork.has(key))return bayArtwork.get(key);
+  const tile=document.createElement('canvas');
+  tile.width=216; tile.height=300;
+  const g=tile.getContext('2d');
+  g.scale(2,2);       // 設計座標 108 × 150，保留開鏡後可見的木紋與骨材。
+  const random=sceneryRandom(7427+variant*1481);
+  if(kind==='room')paintRoomBay(g,variant);
+  else if(kind===MAT.WINDOW)paintGlazing(g,variant);
+  else if(kind===MAT.WOOD)paintTimber(g,variant,random);
+  else paintMasonry(g,variant,random);
+  bayArtwork.set(key,tile);
+  return tile;
+}
+
+function paintRoomBay(g,variant){
+  const warm=variant%2===0, lightX=[26,74,64,35][variant];
+  // 頂燈照亮後牆，地板與內凹側牆保留陰影。
+  g.fillStyle=warm?'#3c3934':'#344046'; g.fillRect(0,0,108,150);
+  const light=g.createRadialGradient(lightX,25,2,lightX,49,98);
+  light.addColorStop(0,warm?'#9b896e':'#859693'); light.addColorStop(.62,warm?'#665e50':'#596968');
+  light.addColorStop(1,warm?'#3f413c':'#374347');
+  g.fillStyle=light; g.fillRect(5,16,98,105);
+  g.fillStyle='rgba(12,22,25,.22)'; g.fillRect(3,13,4,112);
+  g.fillStyle=warm?'#24292a':'#263336'; g.fillRect(5,115,98,4);
+  const floor=g.createLinearGradient(0,119,0,150);
+  floor.addColorStop(0,warm?'#5a5448':'#4b5756'); floor.addColorStop(1,'#242c30');
+  g.fillStyle=floor; g.fillRect(0,119,108,31);
+  g.strokeStyle='rgba(18,25,26,.4)'; g.lineWidth=.8; g.beginPath();
+  g.moveTo(24,119); g.lineTo(-6,150); g.moveTo(78,119); g.lineTo(104,150); g.stroke();
+  g.fillStyle='#424748'; g.fillRect(lightX-15,12,30,4);
+  g.fillStyle=warm?'#dfcdab':'#c4d7d2'; g.fillRect(lightX-12,16,24,1.5);
+  if(variant===0 || variant===3){
+    // 工作桌、桌腳與稍稍發光的螢幕。
+    const x=variant===0?9:66;
+    g.fillStyle='#333a37'; g.fillRect(x+3,97,2,23); g.fillRect(x+30,97,2,23);
+    g.fillStyle='#686152'; g.fillRect(x,93,36,3); g.fillStyle='#343c3a'; g.fillRect(x,96,36,2);
+    g.fillStyle='#262e30'; g.fillRect(x+9,76,18,14); g.fillRect(x+16,90,3,3);
+    g.fillStyle=warm?'#687575':'#7c9290'; g.fillRect(x+10.5,77.5,15,10);
+    g.fillStyle='#8d8977'; g.fillRect(x+1,90,6,3);
+  }else if(variant===1){
+    // 壁面檔案架，紙盒的標籤留在架子邊緣。
+    g.fillStyle='#374344'; g.fillRect(73,55,29,65);
+    for(let row=0;row<3;row++){
+      const y=66+row*18;
+      g.fillStyle='#756f60'; g.fillRect(75,y-5,12,10); g.fillStyle='#65706a'; g.fillRect(89,y-8,10,13);
+      g.fillStyle='#a29982'; g.fillRect(79,y-2,4,2);
+      g.fillStyle='#2c383a'; g.fillRect(72,y+5,31,2);
+    }
+  }else{
+    // 內側走廊的高窗門與門框凹槽。
+    g.fillStyle='#404843'; g.fillRect(8,39,27,81);
+    g.fillStyle='#61665b'; g.fillRect(10,41,23,77);
+    g.fillStyle='#39464a'; g.fillRect(13,47,17,25);
+    g.fillStyle='#849193'; g.fillRect(13,47,17,1);
+    g.fillStyle='#bab5a4'; g.fillRect(26,82,5,1.6);
+  }
+}
+
+function paintGlazing(g,variant){
+  const sheen=g.createLinearGradient(5,0,102,82);
+  sheen.addColorStop(0,'rgba(172,205,216,.23)'); sheen.addColorStop(.4,'rgba(110,157,183,.06)');
+  sheen.addColorStop(.72,'rgba(155,191,201,.12)'); sheen.addColorStop(1,'rgba(69,111,131,.13)');
+  g.fillStyle=sheen; g.fillRect(0,0,108,150);
+  g.save(); g.beginPath(); g.rect(4,10,100,128); g.clip();
+  const dx=variant*14;
+  g.fillStyle='rgba(197,220,227,.085)'; g.beginPath(); g.moveTo(18+dx,10);
+  g.lineTo(33+dx,10); g.lineTo(-16+dx,138); g.lineTo(-31+dx,138); g.fill();
+  g.fillStyle='rgba(198,220,225,.16)'; g.fillRect(5,12,1,121);
+  g.restore();
+  // 較細的窗梃偏離中央停留點；窗台下方有外伸的投影。
+  const stile=variant===1?76:32;
+  g.fillStyle='#212d32'; g.fillRect(0,0,4,150); g.fillRect(104,0,4,150);
+  g.fillRect(0,6,108,4); g.fillRect(3,37,102,2.2); g.fillRect(stile,9,2.4,129);
+  g.fillStyle='#697778'; g.fillRect(3,9,1,128); g.fillRect(stile,10,.7,126);
+  g.fillStyle='#667174'; g.fillRect(0,136,108,2.4);
+  g.fillStyle='#374347'; g.fillRect(0,138,108,7);
+  g.fillStyle='#232c31'; g.fillRect(0,145,108,5);
+}
+
+function paintTimber(g,variant,random){
+  const w=27;
+  for(let k=0;k<4;k++){
+    const x=k*w, knotX=x+8+random()*12, knotY=32+random()*84;
+    const side=g.createLinearGradient(x,0,x+w,0);
+    side.addColorStop(0,'#49372b'); side.addColorStop(.12,['#866748','#876348','#765b47'][(k+variant)%3]);
+    side.addColorStop(1,'#6b503c'); g.fillStyle=side; g.fillRect(x,0,w,150);
+    g.strokeStyle='rgba(46,31,25,.32)'; g.lineWidth=.65;
+    for(let stroke=0;stroke<13;stroke++){
+      const grainX=x+2+random()*(w-4), y=random()*94-8;
+      const bend=grainX<knotX?-2.2:2.2;
+      g.beginPath(); g.moveTo(grainX,y);
+      g.bezierCurveTo(grainX+.4,y+13,grainX+bend,y+21,grainX+.7,y+36+random()*26); g.stroke();
+    }
+    g.strokeStyle='rgba(53,36,26,.48)'; g.lineWidth=.8;
+    for(let ring=1;ring<=3;ring++){
+      g.beginPath(); g.ellipse(knotX,knotY,ring*.83,ring*2.8,-.07,0,Math.PI*2); g.stroke();
+    }
+    g.fillStyle='#382e27'; g.fillRect(x,0,1.5,150);
+    g.fillStyle='rgba(220,189,143,.29)'; g.fillRect(x+1.5,0,.8,150);
+    for(const y of [16,132]){
+      const nail=x+7+random()*10;
+      g.fillStyle='#383531'; g.beginPath(); g.arc(nail,y,1.45,0,Math.PI*2); g.fill();
+      g.fillStyle='#a19881'; g.fillRect(nail-.7,y-1,.9,.65);
     }
   }
-  ctx.restore();
+  const stain=g.createLinearGradient(0,0,0,150);
+  stain.addColorStop(0,'rgba(20,22,23,.32)'); stain.addColorStop(.21,'rgba(20,22,23,0)'); stain.addColorStop(1,'rgba(15,25,30,.22)');
+  g.fillStyle=stain; g.fillRect(0,0,108,150);
+}
+
+function paintMasonry(g,variant,random){
+  g.fillStyle='#343b3e'; g.fillRect(0,0,108,150);
+  for(let row=0;row<4;row++){
+    const y=row*37.5, offset=row%2?-27:0;
+    for(let x=offset;x<108;x+=54){
+      g.fillStyle=['#656866','#5c6363','#6b6d69','#606566'][(row+Math.floor((x-offset)/54)+variant)%4];
+      g.fillRect(x+1,y+1,52.8,36);
+      g.fillStyle='rgba(188,191,181,.32)'; g.fillRect(x+1.3,y+1.1,51,.8);
+      g.fillStyle='rgba(25,32,35,.38)'; g.fillRect(x+52.4,y+2,.9,34.6);
+    }
+  }
+  for(let n=0;n<760;n++){
+    g.fillStyle=n%3?'rgba(37,45,46,.24)':'rgba(213,210,190,.22)';
+    g.fillRect(random()*108,random()*150,.5+random()*1.6,.5+random());
+  }
+  const runoff=g.createLinearGradient(0,0,0,65);
+  runoff.addColorStop(0,'rgba(41,45,40,.32)'); runoff.addColorStop(1,'rgba(41,45,40,0)');
+  g.fillStyle=runoff;
+  for(let n=0;n<12;n++)g.fillRect(random()*108,0,1+random()*3,18+random()*48);
+}
+
+function drawRoomBay(i,k,x,y,w,h){
+  if(x+w<0 || x>VW || y+h<0 || y>VH)return;
+  ctx.drawImage(bayTile('room',(i+k*3)%4),x,y,w,h);
+}
+
+function drawWallSegment(mat,x,y,w,h,variant){
+  ctx.drawImage(bayTile(mat,variant),x,y,w,h);
 }
 
 function drawFloorWord(i){
   const f = floorsData[i];
   const r = floorRect(i);
-  // 字顯示在窗戶左側牆面(霓虹/油漆風)；emoji 招牌放大、中文用黑體
-  const wp = worldToScreen(r.x + 36, r.y + FLOOR_H*0.5);
+  const wp = worldToScreen(r.x+30, r.y+21);
   const isPic = roundType==='en2pic';
-  const fontPx = Math.max(10, (isPic ? 44 : 30)*zoom);
+  const fontPx = Math.max(10,(isPic ? 39 : 27)*zoom);
+  if(wp.y+fontPx<0 || wp.y-fontPx>VH) return;
   ctx.save();
-  ctx.font = `900 ${fontPx}px "Arial Black", "Noto Sans TC", Arial, sans-serif`;
+  ctx.font = `700 ${fontPx}px Arial, "Noto Sans TC", sans-serif`;
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  const col = `hsl(${f.hue} 90% 65%)`;
-  // 簡單模式在全景也能讀字；困難模式仍鼓勵開鏡辨識。
+  const label = f.display || f.word.word;
+  const pad = Math.max(2,7*zoom);
+  const width = Math.min(ctx.measureText(label).width,(BW-72)*zoom);
   const legible = clamp((zoom - ZOOM_OUT) / (ZOOM_IN - ZOOM_OUT), 0, 1);
-  ctx.globalAlpha = mode==='simple' ? 0.9+0.1*legible : 0.55+0.45*legible;
-  ctx.shadowColor = col; ctx.shadowBlur = (8 + 14*legible);
-  ctx.fillStyle = col;
-  ctx.fillText(f.display || f.word.word, wp.x, wp.y, (BW - 72)*zoom);
+  ctx.globalAlpha = mode==='simple' ? 1 : 0.65+0.35*legible;
+  ctx.fillStyle = '#141e22';
+  ctx.fillRect(wp.x-pad,wp.y-fontPx*.62,width+pad*2,fontPx*1.24);
+  ctx.fillStyle = `hsl(${f.hue} 39% 65%)`;
+  ctx.fillRect(wp.x-pad,wp.y-fontPx*.62,Math.max(1,2*zoom),fontPx*1.24);
+  ctx.fillStyle = '#f4f0df';
+  ctx.fillText(label,wp.x,wp.y+fontPx*.04,(BW-72)*zoom);
   ctx.restore();
 }
 
-// 膠囊狀肢體(圓端粗線)
-function limb(x1,y1,x2,y2,w,color){
-  ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+// 角色以鞋底為原點，100 單位身高。外套背光面、中間色、輪廓光和臉部分層上色。
+const wardrobe = [
+  ['#263b4b','#55768b','#a2bec8','#c69070'], ['#533b34','#9c7154','#d7b68e','#ac7b60'],
+  ['#2e4544','#658276','#bad0b2','#cf9a7b'], ['#33364a','#676781','#b1b0c4','#ae826a'],
+  ['#4d4834','#938b62','#d3cda6','#c3997a']
+];
+function figurePanel(color,...coords){
+  ctx.fillStyle=color; ctx.beginPath(); ctx.moveTo(coords[0],coords[1]);
+  for(let i=2;i<coords.length;i+=2) ctx.lineTo(coords[i],coords[i+1]);
+  ctx.closePath(); ctx.fill();
 }
-
-// 立體卡通人偶(原點在腳底, 往上畫)
-function drawHumanoid(h, f){
-  const shirt = `hsl(${f.hue} 48% 55%)`, shirtD = `hsl(${f.hue} 48% 42%)`;
-  const pants = '#2c3344', pantsD = '#222838';
-  const hipY = -h*0.46, shY = -h*0.78, headY = -h*0.90, hr = h*0.13;
-  const w = f.alive ? Math.sin(f.walk) : 0;
-  const stride = w*h*0.12, armS = Math.sin(f.walk+Math.PI)*h*0.10;
-  // 後腿 / 後臂
-  limb(0,hipY, -stride, 0, h*0.11, pantsD);
-  limb(0,shY, -armS, hipY+h*0.06, h*0.075, shirtD);
-  // 軀幹(左右漸層做立體)
-  const tg = ctx.createLinearGradient(-h*0.12,0, h*0.12,0);
-  tg.addColorStop(0,shirtD); tg.addColorStop(0.5,shirt); tg.addColorStop(1,shirtD);
-  ctx.strokeStyle = tg; ctx.lineWidth = h*0.22; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(0,hipY); ctx.lineTo(0,shY); ctx.stroke();
-  // 前腿 / 前臂
-  limb(0,hipY, stride, 0, h*0.11, pants);
-  limb(0,shY, armS, hipY+h*0.06, h*0.08, shirt);
-  // 頭(球狀漸層)
-  const hg = ctx.createRadialGradient(-hr*0.3,headY-hr*0.3,hr*0.2, 0,headY,hr);
-  hg.addColorStop(0,'#f3d8b4'); hg.addColorStop(1,'#c69a70');
-  ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(0,headY,hr,0,Math.PI*2); ctx.fill();
-  // 頭髮
-  ctx.fillStyle = '#33271d'; ctx.beginPath(); ctx.arc(0,headY,hr,Math.PI*1.0,Math.PI*2.0); ctx.fill();
+// 袖管、褲管隨關節方向轉動，保留肩膀、肘、袖口各處寬度。
+function garmentPiece(x1,y1,x2,y2,r1,r2,color){
+  const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy)||1;
+  const nx=-dy/len, ny=dx/len;
+  ctx.fillStyle=color; ctx.beginPath();
+  ctx.moveTo(x1+nx*r1,y1+ny*r1); ctx.lineTo(x2+nx*r2,y2+ny*r2);
+  ctx.quadraticCurveTo(x2+dx/len*r2*.65,y2+dy/len*r2*.65,x2-nx*r2,y2-ny*r2);
+  ctx.lineTo(x1-nx*r1,y1-ny*r1);
+  ctx.quadraticCurveTo(x1-dx/len*r1,y1-dy/len*r1,x1+nx*r1,y1+ny*r1); ctx.fill();
+}
+function figurePhase(t,start,end){
+  const u=clamp((t-start)/(end-start),0,1);
+  return u*u*(3-2*u);
+}
+function drawTrouserLeg(hipX,hipY,kneeX,kneeY,heelX,heelY,front){
+  const fabric=front?'#43515c':'#25313b', cuff=front?'#36434d':'#202b35';
+  garmentPiece(hipX,hipY,kneeX,kneeY,5.8,4.3,fabric);
+  garmentPiece(kneeX,kneeY,heelX,heelY-3,4.4,3.3,cuff);
+  figurePanel(front?'#5c6970':'#36424c',kneeX-4,kneeY-3,kneeX+1.8,kneeY-2,kneeX-2.3,kneeY+.6);
+  figurePanel('#20262c',heelX-3.2,heelY-5,heelX+3,heelY-5,heelX+4.5,heelY-2.6,
+    heelX+7.8,heelY-2,heelX+8.4,heelY-.5,heelX+7,heelY,heelX-3.7,heelY);
+  ctx.fillStyle='#727978';ctx.fillRect(heelX-3.4,heelY-1,10.7,.8);
+}
+function drawCoatSleeve(sx,sy,ex,ey,wx,wy,palette,front){
+  const cloth=front?palette[1]:palette[0];
+  garmentPiece(sx,sy,ex,ey,4.7,3.6,cloth);
+  garmentPiece(ex,ey,wx,wy,3.9,2.6,cloth);
+  figurePanel(front?palette[2]:palette[1],sx-3,sy-1.4,sx+1.2,sy-3,ex+2.2,ey-1);
+  garmentPiece(ex,ey,wx,wy,1.2,1.5,palette[0]);
+  ctx.fillStyle=palette[3];ctx.beginPath();ctx.ellipse(wx+.5,wy+1.3,2.1,3,-.3,0,Math.PI*2);ctx.fill();
+}
+function drawHumanoid(style,walk,falling,onRoof=false){
+  const palette=wardrobe[style];
+  // 先縮肩，再屈膝，最後重心側落。腳在地面上前後錯開，外套與頭各自延遲回落。
+  const flinch=figurePhase(falling,0,.11)*(1-figurePhase(falling,.16,.46));
+  const knees=figurePhase(falling,.10,.56), drop=figurePhase(falling,.41,.86);
+  const settle=figurePhase(falling,.84,1), rebound=Math.sin(settle*Math.PI);
+  const gait=Math.sin(walk)*(1-knees)*(onRoof?0:1);
+  const hipX=-3*flinch-3*knees-15*drop-2*settle;
+  const hipY=(onRoof?-36:-48)+(onRoof?8:20)*knees+17*drop+2*settle-1.5*rebound+Math.abs(gait)*1.2;
+  const bend=(onRoof?7:0)*(1-knees);
+  const stride=gait*13;
+  const frontKnee=1.5+stride*.40+9*knees-3*drop+bend;
+  const rearKnee=-4-stride*.35+3*knees-11*drop+bend;
+  const kneeY=hipY*.52-4*knees-4*drop-bend*.4;
+  const nearFoot=5+stride*(1-drop)+6*knees+8*drop, farFoot=-5-stride*(1-drop)-4*knees;
+  drawTrouserLeg(hipX-2,hipY,rearKnee,kneeY,farFoot,-1-Math.max(0,gait)*4,false);
+  drawTrouserLeg(hipX+1,hipY,frontKnee,kneeY+1,nearFoot,-Math.max(0,-gait)*4,true);
+  ctx.save();
+  ctx.translate(hipX,hipY);
+  ctx.rotate(.065-.29*flinch+.12*knees-1.49*drop-.14*settle+.045*rebound);
+  const shrug=3.5*flinch+1.6*knees;
+  const elbow=onRoof?7:-2+gait*5+4*flinch+5*drop;
+  const wrist=onRoof?15:4+gait*10+7*flinch+9*drop;
+  drawCoatSleeve(3,-28,elbow+1,-14-shrug,wrist+2,onRoof?-23:-4-shrug-9*flinch,palette,false);
+  // 背部冷色輪廓、衣襟反光、翻領與下襬摺痕。
+  const coat=ctx.createLinearGradient(-10,-21,9,-17);
+  coat.addColorStop(0,palette[2]);coat.addColorStop(.12,palette[1]);coat.addColorStop(.62,palette[1]);coat.addColorStop(1,palette[0]);
+  figurePanel(coat,-4,-33-shrug,3,-34,8,-29,9,-21,7,-9,10,2,-7,3+2*flinch,-10,0,-8,-12,-9,-26);
+  figurePanel(palette[0],-5,-32-shrug,0,-34,6,-30,2,-25);
+  figurePanel(palette[2],2,-26,4,-24,4,-7,3,-10);
+  figurePanel(palette[0],-8,-5,2,-8,-6,-4,-5,-2);
+  ctx.save();
+  ctx.translate(0,-33-shrug);
+  ctx.rotate(-.14*flinch+.16*knees-.10*settle);
+  figurePanel('#977461',-2,-8,3,-9,3,1,-2,2);
+  // 側臉、耳側陰影與額前反光。樓層輪替短髮和毛帽。
+  figurePanel(palette[3],-6,-15,-2,-19,4,-18,6,-15,6,-12,8,-9.5,6,-8.7,5,-4.6,2,-3.7,-3,-5,-6,-10);
+  figurePanel('#775c51',-5,-13,-1,-14,-1,-10,1,-8,1,-5.2,-3,-5.6,-5.5,-9);
+  figurePanel('#e0b596',3,-15,5,-14,5.6,-11.7,4.6,-12);
+  const cap=onRoof||style%2===1;
+  figurePanel(cap?'#34414b':'#3d3333',-6.3,-8,-7.2,-14,-5.8,-18.1,-2,-20.1,3.1,-19.8,6,-18,6.9,-15.3,
+    cap?8.5:2.5,-14.8,-1,-14,-3.5,-11,-3.6,-8);
+  figurePanel(cap?'#879399':'#77675e',-5.9,-17.5,-2,-20.1,3.1,-19.8,5.1,-18.8,-1.6,-18.9);
+  ctx.restore();
+  if(onRoof) figurePanel('#303b42',-6,-26,0,-23,25,-25,28,-24,28,-21,9,-20,2,-17,-4,-20);
+  drawCoatSleeve(-4,-27-shrug,onRoof?-.5:-3-gait*5+4*flinch+5*drop,-13-shrug,
+    onRoof?13:2-gait*10+9*flinch+9*drop,onRoof?-21:-4-shrug-10*flinch-4*drop,palette,true);
+  ctx.restore();
 }
 
 function drawPerson(f){
   if(!f || !f.word.word) return;
-  const r = floorRect(f.i);
-  const s = worldToScreen(f.px, r.y + FLOOR_H*0.9);  // 腳底站樓板
-  const h = FLOOR_H*0.62*zoom;
-  ctx.save();
-  ctx.translate(s.x, s.y);
-  // 落地陰影
-  if(f.falling < 0.4){
-    ctx.save(); ctx.globalAlpha = 0.3*(1 - f.falling*2.5); ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.ellipse(0,0, h*0.2, h*0.045, 0,0,Math.PI*2); ctx.fill(); ctx.restore();
-  }
-  if(f.falling > 0) ctx.rotate(f.dir * f.falling * Math.PI/2); // 中彈往側倒
-  drawHumanoid(h, f);
+  const s=worldToScreen(f.px,floorRect(f.i).y+FLOOR_H*.9);
+  const h=FLOOR_H*.62*zoom;
+  if(s.x+h<0 || s.x-h>VW || s.y+4<0 || s.y-h>VH) return;
+  ctx.save();ctx.translate(s.x,s.y);ctx.scale(h/100*f.dir,h/100);
+  const drop=figurePhase(f.falling,.34,.94);
+  ctx.fillStyle='rgba(5,8,13,.43)';ctx.beginPath();
+  ctx.ellipse(-19*drop,0,13+30*drop,2.9+1.4*drop,0,0,Math.PI*2);ctx.fill();
+  drawHumanoid(f.i,f.walk,f.falling);
   ctx.restore();
 }
 
@@ -1720,74 +2051,122 @@ function roundRectPath(x,y,w,h,r){
   ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
 }
 
-// 石牆不規則孔輪廓(依 hole.shape 各點半徑倍率畫多邊形)
-function stonePath(cx, cy, r, shape){
+function clipImpactSurface(b){
+  const roof=b.floor<0,x=roof?BX:BX+b.bay*SEGW,y=roof?BY-18:BY+b.floor*FLOOR_H;
+  const p=worldToScreen(x,y);
+  ctx.beginPath();ctx.rect(p.x,p.y,(roof?BW:SEGW)*zoom,(roof?18:FLOOR_H)*zoom);ctx.clip();
+}
+function rimPath(rim,x,y,scale){
   ctx.beginPath();
-  const n = shape.length;
-  for(let i=0;i<n;i++){
-    const a = (i/n)*Math.PI*2, rr = r*shape[i];
-    const px = cx+Math.cos(a)*rr, py = cy+Math.sin(a)*rr;
-    if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
-  }
+  ctx.moveTo(x+rim[0].x*scale,y+rim[0].y*scale);
+  for(let i=1;i<rim.length;i++)ctx.lineTo(x+rim[i].x*scale,y+rim[i].y*scale);
   ctx.closePath();
 }
-
 function drawBulletHole(x,y,b){
-  const mat = b.mat, sz = b.sz || 1;
-  ctx.save();
-  if(mat === 'stone'){
-    const R = (b.pierced?4.5:3)*sz;
-    stonePath(x, y, R, b.shape || [1,1,1,1,1,1,1,1,1]);
-    ctx.fillStyle = 'rgba(15,15,18,0.85)'; ctx.fill();
-    ctx.strokeStyle = 'rgba(210,210,210,0.4)'; ctx.lineWidth = 1; ctx.stroke();
-    for(let k=0;k<5;k++){ const a=k*1.3; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*R*2.2, y+Math.sin(a)*R*2.2); ctx.stroke(); }
-  } else if(mat === 'wood'){
-    const R = 5*sz;
-    ctx.fillStyle = 'rgba(28,16,7,0.85)'; ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle = 'rgba(150,100,55,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x,y,R*1.4,0,Math.PI*2); ctx.stroke();
-  } else {
-    const R = 4*sz;
-    ctx.strokeStyle = 'rgba(200,225,255,0.6)'; ctx.lineWidth = 1; ctx.fillStyle = 'rgba(10,15,25,0.8)';
-    ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2); ctx.fill();
-    for(let k=0;k<6;k++){ const a=k*Math.PI/3; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+Math.cos(a)*R*3, y+Math.sin(a)*R*3); ctx.stroke(); }
+  const scale=b.sz*zoom,extent=38*scale;
+  if(x+extent<0||x-extent>VW||y+extent<0||y-extent>VH)return;
+  ctx.save();clipImpactSurface(b);ctx.translate(x,y);ctx.scale(scale,scale);
+  const glass=b.mat==='glass',wood=b.mat==='wood';
+  if(b.cracks.length){
+    ctx.beginPath();
+    for(const c of b.cracks){
+      ctx.moveTo(0,0);ctx.lineTo(c.mx,c.my);ctx.lineTo(c.ex,c.ey);
+      if(glass&&c.link){ctx.moveTo(c.mx,c.my);ctx.lineTo(c.fx,c.fy);}
+    }
+    ctx.strokeStyle=glass?'rgba(23,51,64,.8)':'rgba(23,24,25,.68)';ctx.lineWidth=glass?1.5:.75;ctx.stroke();
+    if(glass){
+      ctx.save();ctx.translate(-.34,-.43);
+      ctx.strokeStyle='rgba(218,248,249,.9)';ctx.lineWidth=.72;
+      // Canvas 的目前路徑已固定座標，重建受光邊緣以保留玻璃斷面厚度。
+      ctx.beginPath();
+      b.cracks.forEach((c,i)=>{
+        ctx.moveTo(0,0);ctx.lineTo(c.mx,c.my);ctx.lineTo(c.ex,c.ey);
+        if(c.link){
+          const next=b.cracks[(i+1)%b.cracks.length];
+          ctx.moveTo(c.mx,c.my);ctx.lineTo(next.mx*.81,next.my*.81);
+          ctx.moveTo(c.mx,c.my);ctx.lineTo(c.fx,c.fy);
+        }
+      });
+      ctx.stroke();ctx.restore();
+    }
+  }
+  // 缺口外圈以同一個輪廓畫出深淺切面；內緣也供後續的房間裁切使用。
+  rimPath(b.rim,0,.6,1.05);
+  ctx.fillStyle=glass?'rgba(112,181,198,.45)':wood?'#69452c':'#575856';ctx.fill();
+  const cut=impactOpeningScale(b);
+  const highlight=glass?'#c5e6e6':wood?'#d9a96d':'#c0bdb0';
+  const shadow=glass?'#719fa8':wood?'#93613c':'#838680';
+  for(let i=0;i<b.rim.length;i++){
+    const a=b.rim[i],n=b.rim[(i+1)%b.rim.length],lit=a.x+a.y>0;
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(n.x,n.y);
+    ctx.lineTo(n.x*cut,n.y*cut);ctx.lineTo(a.x*cut,a.y*cut);ctx.closePath();
+    ctx.fillStyle=lit?highlight:shadow;
+    ctx.fill();
+  }
+  rimPath(b.rim,0,0,cut);
+  ctx.fillStyle=glass?'rgba(12,34,43,.46)':wood?'#36271e':b.pierced?'#2e3031':'#60615d';ctx.fill();
+  if(!b.pierced&&b.mat==='stone'){
+    // 擋住的石面仍有粗顆粒和灰色底，與穿透後的暗室分開。
+    ctx.fillStyle='#9a9b90';
+    for(let i=0;i<b.rim.length;i+=2){
+      const p=b.rim[i];ctx.fillRect(p.x*.32,p.y*.37,.9,.67);
+    }
   }
   ctx.restore();
 }
+function impactOpeningScale(b){return b.mat==='wood' ? 0.64 : 0.58;}
 
-// 透過木牆/石牆上的彈孔, 看到後面的房間與經過的人(用圓形裁切只露出一小塊)
 function drawPeekHoles(){
   for(const b of bulletHoles){
-    if(!b.pierced || (b.mat !== 'wood' && b.mat !== 'stone')) continue;   // 玻璃本來就看得到, 不需窺視
-    const fi = clamp(Math.floor((b.y - BY)/FLOOR_H), 0, FLOORS-1);
-    const f = floorsData[fi];
-    const s = worldToScreen(b.x, b.y);
-    const sz = b.sz || 1;
-    const rad = (b.mat==='stone' ? 6 : 7) * sz * zoom;
-    if(rad < 1.2) continue;                                 // 太遠(收鏡)時洞太小, 略過
-    const isStone = b.mat==='stone' && b.shape;
-    const cut = ()=>{ if(isStone) stonePath(s.x, s.y, rad, b.shape); else { ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, Math.PI*2); } };
-    ctx.save();
-    cut(); ctx.clip();
-    ctx.fillStyle = '#0c1119'; ctx.fillRect(s.x-rad-2, s.y-rad-2, rad*2+4, rad*2+4);  // 洞後的暗室
-    if(f && f.alive) drawPerson(f);                         // 有人經過 → 露出一塊
+    if(!b.pierced||b.mat==='glass'||b.floor<0)continue;
+    const f=floorsData[b.floor];if(!f)continue;
+    const p=worldToScreen(b.x,b.y),scale=b.sz*zoom,extent=27*scale;
+    if(extent<2||p.x+extent<0||p.x-extent>VW||p.y+extent<0||p.y-extent>VH)continue;
+    ctx.save();clipImpactSurface(b);rimPath(b.rim,p.x,p.y,scale*impactOpeningScale(b));ctx.clip();
+    const bay=worldToScreen(BX+b.bay*SEGW,BY+b.floor*FLOOR_H);
+    drawRoomBay(b.floor,b.bay,bay.x,bay.y,SEGW*zoom+0.45,FLOOR_H*zoom);
+    if(Math.abs(f.px-b.x)<FLOOR_H)drawPerson(f);
     ctx.restore();
-    // 洞口暗邊, 讓窺視孔更明顯
-    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.5; cut(); ctx.stroke();
   }
 }
-
 function drawParticles(){
   for(const p of particles){
-    const s = worldToScreen(p.x, p.y);
-    ctx.globalAlpha = clamp(p.life,0,1);
-    ctx.fillStyle = p.color;
-    ctx.fillRect(s.x, s.y, p.size, p.size);
+    const s=worldToScreen(p.x,p.y),t=p.age/p.duration;
+    const radius=p.size*zoom*(p.kind==='dust'?1+t*1.7:1);
+    if(s.x+radius<0||s.x-radius>VW||s.y+radius<0||s.y-radius>VH)continue;
+    ctx.save();ctx.translate(s.x,s.y);
+    if(p.kind==='dust'){
+      ctx.globalAlpha=(1-t)*.84;
+      ctx.drawImage(p.sprite,-radius,-radius*.82,2*radius,1.64*radius);
+    }else{
+      ctx.rotate(p.angle);ctx.scale(radius,radius);
+      const opacity=Math.min(1,(1-t)*3);
+      ctx.globalAlpha=opacity;ctx.fillStyle=p.color;
+      ctx.beginPath();
+      if(p.kind==='glass'){
+        const face=Math.cos(p.face+p.angle*.81),width=.12+Math.abs(face)*.45;
+        ctx.globalAlpha=opacity*(.32+.35*Math.abs(face));
+        ctx.moveTo(-.93,-width*.3);ctx.lineTo(.58,-width);ctx.lineTo(.25,width);ctx.closePath();ctx.fill();
+        ctx.globalAlpha=opacity;
+        ctx.strokeStyle=face>.1?'#e5ffff':'#88adb3';ctx.lineWidth=.10;
+        ctx.beginPath();ctx.moveTo(-.93,-width*.3);ctx.lineTo(.58,-width);ctx.stroke();
+      }else if(p.kind==='wood'){
+        ctx.moveTo(-1,-.1);ctx.lineTo(.65,-.19);ctx.lineTo(1,-.03);ctx.lineTo(-.56,.18);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#8c5d38';ctx.beginPath();ctx.moveTo(-1,-.1);ctx.lineTo(.9,-.04);ctx.lineTo(-.56,.18);ctx.fill();
+      }else if(p.kind==='stone'){
+        ctx.moveTo(-.9,-.32);ctx.lineTo(.04,-.64);ctx.lineTo(.88,-.13);ctx.lineTo(.48,.63);ctx.lineTo(-.59,.44);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#646661';ctx.beginPath();ctx.moveTo(-.59,.44);ctx.lineTo(.88,-.13);ctx.lineTo(.48,.63);ctx.fill();
+      }else{
+        ctx.strokeStyle=p.color;ctx.lineWidth=.2;
+        ctx.moveTo(-.86,0);ctx.quadraticCurveTo(-.2,-.36,.92,.18);ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
-  ctx.globalAlpha = 1;
 }
 
 function drawScopeOverlay(){
-  if(state === 'killcam') return;
+  if(killTarget || roofAfterHit) return;
   const sb = clamp(scopeBlend, 0, 1);
   if(sb < 0.02){
     // 手機只在第一關顯示一行提示，後續把畫面留給目標。
@@ -1814,9 +2193,18 @@ function drawScopeOverlay(){
   ctx.rect(0,0,VW,VH);
   ctx.arc(cx, cy, R, 0, Math.PI*2, true);
   ctx.fill('evenodd');
-  // 鏡框
-  ctx.strokeStyle = '#0b0f1a'; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
-  ctx.strokeStyle = 'rgba(120,140,160,0.4)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx,cy,R-6,0,Math.PI*2); ctx.stroke();
+  // 鏡片中央留白，反光與鏡筒陰影集中在外緣。
+  const lens = ctx.createRadialGradient(cx,cy,R*.72,cx,cy,R);
+  lens.addColorStop(0,'rgba(12,28,33,0)');
+  lens.addColorStop(.8,'rgba(26,53,57,.15)');
+  lens.addColorStop(1,'rgba(2,7,12,.7)');
+  ctx.fillStyle = lens; ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.fill();
+  const rim = ctx.createLinearGradient(cx-R,cy-R,cx+R,cy+R);
+  rim.addColorStop(0,'#4c5a5d'); rim.addColorStop(.27,'#202a2d'); rim.addColorStop(.62,'#080c0e'); rim.addColorStop(1,'#364245');
+  ctx.strokeStyle = rim; ctx.lineWidth = Math.max(3,R*.035);
+  ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = 'rgba(173,206,206,.53)'; ctx.lineWidth = Math.max(1,R*.006);
+  ctx.beginPath(); ctx.arc(cx,cy,R*.979,Math.PI*1.06,Math.PI*1.61); ctx.stroke();
   // 十字線
   ctx.strokeStyle = 'rgba(239,68,68,0.85)'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(cx-R, cy); ctx.lineTo(cx-14, cy); ctx.moveTo(cx+14, cy); ctx.lineTo(cx+R, cy);
@@ -1848,7 +2236,7 @@ function drawMuzzleFlash(){
 
 // 非開鏡時跟著 aim 的準星(開鏡用鏡框十字)
 function drawCrosshair(){
-  if((state!=='playing' && state!=='feedback' && state!=='raid') || scoped) return;
+  if((state!=='playing' && state!=='feedback' && state!=='raid') || scoped || roofAfterHit) return;
   const s = worldToScreen(aim.x, aim.y);
   ctx.save();
   ctx.strokeStyle = 'rgba(239,68,68,0.9)'; ctx.lineWidth = 1.5;
@@ -1915,23 +2303,21 @@ function drawDamageFlash(){
 // kill cam: 電影黑邊 + 文字
 function drawCinematic(){
   const a = clamp(cinematic,0,1);
-  if(a <= 0.01) return;
-  const bar = VH*0.14*a;
+  if(a <= 0.01 || !answer) return;
+  const band = clamp(VH*.135,52,96);
+  const y = VH-band;
   ctx.save();
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0,0,VW,bar); ctx.fillRect(0,VH-bar,VW,bar);
-  ctx.globalAlpha = a; ctx.textAlign = 'center';
-  if(killSuccess){
-    ctx.fillStyle = '#fff'; ctx.font = '900 38px "Arial Black",Arial,sans-serif';
-    ctx.fillText('✸ ELIMINATED', VW/2, VH-bar-24);
-    ctx.fillStyle = '#34d399'; ctx.font = '700 20px "Noto Sans TC",sans-serif';
-    if(killTarget) ctx.fillText(killTarget.word.word, VW/2, bar+36);
-  } else {
-    ctx.fillStyle = '#f87171'; ctx.font = '900 32px "Arial Black",Arial,sans-serif';
-    ctx.fillText('✗ WRONG TARGET', VW/2, VH-bar-24);
-    ctx.fillStyle = '#fecaca'; ctx.font = '700 18px "Noto Sans TC",sans-serif';
-    if(answer) ctx.fillText(`正解是 ${answer.word}`, VW/2, bar+34);
-  }
+  ctx.globalAlpha = a;
+  const shade = ctx.createLinearGradient(0,y-band*.48,0,VH);
+  shade.addColorStop(0,'rgba(5,10,13,0)'); shade.addColorStop(.38,'rgba(5,10,13,.88)'); shade.addColorStop(1,'#050a0d');
+  ctx.fillStyle = shade; ctx.fillRect(0,y-band*.48,VW,band*1.48);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = killSuccess?'#aad7c2':'#f0bdad';
+  ctx.font = `600 ${clamp(band*.19,12,16)}px "Noto Sans TC",sans-serif`;
+  ctx.fillText(killSuccess?'判讀正確':'判讀錯誤 · 正解',VW/2,y+band*.22);
+  ctx.fillStyle = '#f3f0e8';
+  ctx.font = `700 ${clamp(band*.35,18,30)}px Arial,"Noto Sans TC",sans-serif`;
+  ctx.fillText(answer.word+'  ·  '+answer.meaning,VW/2,y+band*.57,VW*.87);
   ctx.restore();
 }
 
@@ -2164,7 +2550,7 @@ function startGame(m){
   WB.hasPic = GameData.picturePool(WB.bank).length >= 5;
   roundNo = 0; score = 0; money = 0; combo = 0; lives = MAX_LIVES;
   apStock=0;apSelected=false;extraAmmo=0;easyAmmoUntilRound=0;extraTime=0;shoppedAt={};
-  roofRaid=null;roofResume=null;roofDelay=-1;roofCount=0;lastRoofRound=0;roofCheckedRound=0;nextFireAt=0;
+  roofRaid=null;roofAfterHit=null;roofResume=null;roofDelay=-1;roofCount=0;lastRoofRound=0;roofCheckedRound=0;nextFireAt=0;
   nextTimeBonus=0;nextAmmoBonus=0;practiceOnly=false;tutorial=null;
   answerOrder=shuffle(WB.bank);answerCounts=new Map();reviewQueue=[];
   document.getElementById('practice-continue').hidden=true;
@@ -2216,6 +2602,8 @@ function failGame(reason){
 
 /* ---------- 關卡推進 / 補給 ---------- */
 function advance(){
+  killTarget=null;
+  document.body.classList.remove('hit-closeup');
   const next=roundNo+1;
   if(next>MAX_ROUNDS){endGame();return;}
   if(mode==='simple'&&!practiceOnly&&SHOP_ROUNDS.includes(next)&&roofCheckedRound!==roundNo&&roofCount<2){
@@ -2423,10 +2811,10 @@ function returnToMainMenu(){
   clearAnswerReview();
   stopBgm();
   state = 'menu';
-  roofRaid=null;roofResume=null;roofDelay=-1;tutorial=null;
+  killTarget=null;roofRaid=null;roofAfterHit=null;roofResume=null;roofDelay=-1;tutorial=null;
   document.getElementById('roof-panel').hidden=true;
   document.getElementById('training-panel').hidden=true;
-  document.body.classList.remove('scoped');
+  document.body.classList.remove('scoped','hit-closeup');
   scoped = false; scopeBlend = 0; targetZoom = ZOOM_OUT;
   document.getElementById('pause-overlay').classList.add('hide');
   document.getElementById('shop-overlay').classList.add('hide');
