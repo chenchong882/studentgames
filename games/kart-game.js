@@ -7,15 +7,17 @@
   const GATES = [200, 545, 880];
   const PREVIEW_DISTANCE = 115;
   const CRUISE = 120;
+  const SKID_DURATION = 1.5;
+  const SKID_STEERING_LOCK = 0.8;
   const BUILTIN_WORDS = [
     ['harbor', '港口'], ['bridge', '橋'], ['island', '島嶼'], ['boat', '船'],
     ['beach', '海灘'], ['lighthouse', '燈塔'], ['wave', '海浪'], ['windmill', '風車'],
     ['tunnel', '隧道'], ['ocean', '海洋'], ['cloud', '雲'], ['mountain', '山']
   ].map(([word, chinese]) => ({ word, chinese }));
   const DRIVERS = [
-    { x: -0.63, distance: 9, cruise: 109, color: '#ffad31' },
-    { x:  0.57, distance: 17, cruise: 115, color: '#8b71e8' },
-    { x: -0.13, distance: 26, cruise: 121, color: '#20b6be' }
+    { x: -0.63, distance: 9, cruise: 109, color: '#ffad31', name: '金砂' },
+    { x:  0.57, distance: 17, cruise: 115, color: '#8b71e8', name: '紫電' },
+    { x: -0.13, distance: 26, cruise: 121, color: '#20b6be', name: '青浪' }
   ];
   const CONTROL_KEYS = {
     ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
@@ -42,13 +44,34 @@
   const canvas = document.getElementById('kart-canvas');
 
   function newRace(mode) {
-    return {
-      phase: 'garage', mode, lap: 1, laps: LAPS, rank: DRIVERS.length + 1, trackLength: TRACK_LENGTH,
+    const rivals = DRIVERS.map((driver, id) => ({ ...driver, id, speed: 0, slow: 0, bumpCooldown: 0, finishedAt: null }));
+    const standings = rivals.map(({ id, name, color }) => ({
+      id: 'rival-' + id, name, number: String(id + 11), color, isPlayer: false, rivalId: id
+    }));
+    standings.push({ id:'player', name:'你', number:'07', color:'#ec513f', isPlayer:true });
+    const race = {
+      phase: 'garage', mode, lap: 1, laps: LAPS, rank: standings.length, trackLength: TRACK_LENGTH, finishedAt: null,
       speed: 0, elapsed: 0, countdown: 3, distance: 0, x: 0, steer: 0, offroad: false,
       drifting: false, driftCharge: 0, boost: 0, pulse: 0, inventory: null,
+      skid: 0, skidDuration: SKID_DURATION, skidSide: 1,
       question: null, feedback: '', correct: 0, attempts: 0, review: [], vocabCount: vocab.length,
-      rivals: DRIVERS.map((driver, id) => ({ ...driver, id, speed: 0, slow: 0, bumpCooldown: 0 }))
+      rivals, standings
     };
+    updateStandings(race);
+    return race;
+  }
+
+  function updateStandings(race) {
+    // Cars that crossed the line keep their finish order while the others race on.
+    const kart = row => row.isPlayer ? race : race.rivals[row.rivalId];
+    race.standings.sort((a, b) => {
+      const first = kart(a), second = kart(b);
+      if (first.finishedAt !== null || second.finishedAt !== null) {
+        return (first.finishedAt ?? Infinity) - (second.finishedAt ?? Infinity);
+      }
+      return second.distance - first.distance;
+    });
+    race.rank = 1 + race.standings.findIndex(row => row.isPlayer);
   }
 
   function notify() {
@@ -171,14 +194,18 @@
       else state.boost = Math.max(state.boost, 2.4);
       showFeedback(`${q.word} ＝ ${q.prompt}　${reward}`);
     } else {
-      showFeedback(`正解　${q.word} ＝ ${q.prompt}`, 3);
+      state.skid = SKID_DURATION;
+      state.skidSide = Math.abs(state.x) > .45 ? -Math.sign(state.x) : (gateIndex % 2 === 0 ? 1 : -1);
+      state.speed = Math.min(state.speed, 78);
+      state.boost = 0; state.drifting = false; state.driftCharge = 0;
+      showFeedback(`打滑！正解　${q.word} ＝ ${q.prompt}`, 3);
     }
     state.question = null;
     gateIndex++;
     notify();
   }
   function useItem() {
-    if (state.phase !== 'racing' || !state.inventory) return false;
+    if (state.phase !== 'racing' || state.skid > 0 || !state.inventory) return false;
     if (state.inventory === 'boost') {
       state.boost = Math.max(state.boost, 3.4);
       showFeedback('氮氣啟動！');
@@ -207,10 +234,14 @@
     const brake = pressed('brake');
     const curve = window.KartRender.curveAt(state.distance);
     const velocity = state.speed / CRUISE;
-    state.steer += (turn - state.steer) * (1 - Math.exp(-11 * dt));
-    state.x = clamp(state.x + (state.steer * (1.15 + 0.36 * velocity) - curve * velocity * 0.61) * dt, -1.22, 1.22);
+    const slipping = state.skid > 0;
+    const skidElapsed = SKID_DURATION - state.skid;
+    const grip = slipping ? clamp((skidElapsed - SKID_STEERING_LOCK) / (SKID_DURATION - SKID_STEERING_LOCK), 0, 1) : 1;
+    const slide = slipping ? state.skidSide * .52 * Math.sin(2 * Math.PI * skidElapsed / SKID_DURATION) : 0;
+    state.steer += (turn * grip - state.steer) * (1 - Math.exp(-11 * dt));
+    state.x = clamp(state.x + (state.steer * grip * (1.15 + 0.36 * velocity) + slide - curve * velocity * 0.61) * dt, -1.22, 1.22);
     state.offroad = Math.abs(state.x) > 1;
-    const drifting = brake && turn * curve > 0.15 && !state.offroad && state.speed > 66;
+    const drifting = !slipping && brake && turn * curve > 0.15 && !state.offroad && state.speed > 66;
     if (drifting) state.driftCharge = Math.min(1, state.driftCharge + dt / 0.62);
     else if (state.drifting) {
       if (state.driftCharge >= 1 && !state.offroad) {
@@ -220,13 +251,18 @@
       state.driftCharge = 0;
     }
     state.drifting = drifting;
-    const target = state.offroad ? 73 : drifting ? 105 : brake ? 63 : state.boost > 0 ? 158 : CRUISE;
-    const acceleration = target < state.speed ? 60 : state.boost > 0 ? 86 : 36;
+    const target = slipping ? 30 + grip * 36 : state.offroad ? 73 : drifting ? 105 : brake ? 63 : state.boost > 0 ? 158 : CRUISE;
+    const acceleration = target < state.speed ? (slipping ? 150 : 60) : state.boost > 0 ? 86 : 36;
     state.speed += clamp(target - state.speed, -acceleration * dt, acceleration * dt);
     state.distance += state.speed / 3.6 * dt;
+    state.skid = Math.max(0, state.skid - dt);
   }
   function driveRivals(dt) {
     for (const rival of state.rivals) {
+      if (rival.finishedAt !== null) {
+        rival.distance += rival.speed / 3.6 * dt;
+        continue;
+      }
       const setup = DRIVERS[rival.id];
       const gap = state.distance - rival.distance;
       const rhythm = Math.sin(state.elapsed * 0.55 + rival.id * 2);
@@ -234,7 +270,12 @@
       rival.slow = Math.max(0, rival.slow - dt);
       rival.bumpCooldown = Math.max(0, rival.bumpCooldown - dt);
       rival.speed += clamp(target - rival.speed, -65 * dt, 31 * dt);
+      const previous = rival.distance;
       rival.distance += rival.speed / 3.6 * dt;
+      if (rival.distance >= FINISH) {
+        rival.finishedAt = state.elapsed - dt + dt * (FINISH - previous) / (rival.distance - previous);
+        continue;
+      }
       rival.x = clamp(setup.x + 0.12 * Math.sin(rival.distance * 0.015 + rival.id) + 0.12 * window.KartRender.curveAt(rival.distance), -0.86, 0.86);
       // A light racing bump costs momentum. Leave the approach to each word gate clear.
       if (!state.question && !rival.bumpCooldown && Math.abs(rival.distance - state.distance) < 2.5 && Math.abs(rival.x - state.x) < 0.19) {
@@ -242,7 +283,7 @@
         rival.bumpCooldown = 1.8;
       }
     }
-    state.rank = 1 + state.rivals.filter(rival => rival.distance > state.distance).length;
+    updateStandings(state);
   }
   function advance(dt) {
     if (!dt) return;
@@ -257,6 +298,7 @@
     const raceDt = crossedFinish ? dt * clamp((FINISH - previousDistance) / (state.distance - previousDistance), 0, 1) : dt;
     if (crossedFinish) state.distance = FINISH;
     state.elapsed += raceDt;
+    if (crossedFinish) state.finishedAt = state.elapsed;
     driveRivals(raceDt);
     state.lap = Math.min(LAPS, Math.floor(state.distance / TRACK_LENGTH) + 1);
     checkGate();

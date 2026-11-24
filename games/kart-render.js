@@ -499,6 +499,97 @@
     c.restore();
   }
 
+  // The rear-view sprite has no side or nose. Project those angles on the ground
+  // plane during a spin so the helmet stays upright and the wheels stay on the road.
+  const SPIN_VIEWS = 24;
+  function spinningKart(frame) {
+    if (vehicleSprites.has(frame)) return vehicleSprites.get(frame);
+    const sprite = surface(244, 200);
+    const c = sprite.getContext('2d');
+    c.translate(122, 190);
+    const yaw = frame * TAU / SPIN_VIEWS, cos = Math.cos(yaw), sin = Math.sin(yaw);
+    function project(x, y, z) {
+      const depth = z * cos - x * sin;
+      return [x * cos + z * sin, -27 - y - depth * .34, depth - y * .34];
+    }
+    const faces = [];
+    function face(color, points) {
+      const projected = points.map(([x, y, z]) => project(x, y, z));
+      const depth = projected.reduce((sum, point) => sum + point[2], 0) / projected.length;
+      faces.push({ color, depth, coords: projected.flatMap(([x, y]) => [x, y]) });
+    }
+    function hull(outline, bottom, top, paint, side) {
+      const upper = outline.map(([x, z]) => [x, top, z]);
+      const lower = outline.map(([x, z]) => [x, bottom, z]);
+      for (let i = 0; i < outline.length; i++) {
+        const j = (i + 1) % outline.length;
+        face(side, [lower[i], lower[j], upper[j], upper[i]]);
+      }
+      face(paint, upper);
+    }
+    for (const side of [-1, 1]) {
+      for (const z of [-42, 42]) {
+        const outer = [], inner = [];
+        for (let j = 0; j < 12; j++) {
+          const angle = j * TAU / 12;
+          const y = 11 + Math.sin(angle) * 20, zz = z + Math.cos(angle) * 20;
+          outer.push([side * 82, y, zz]); inner.push([side * 56, y, zz]);
+        }
+        for (let j = 0; j < 12; j++) {
+          const k = (j + 1) % 12;
+          face(j < 6 ? '#475563' : '#27333d', [outer[j], outer[k], inner[k], inner[j]]);
+        }
+        face('#202b35', outer);
+        face('#6f7e86', outer.map(([x, y, zz]) => [x + side, 11 + (y - 11) * .53, z + (zz - z) * .53]));
+      }
+    }
+    hull([[-60,-59],[60,-59],[67,-36],[52,44],[32,68],[-32,68],[-52,44],[-67,-36]], 8, 23, '#e95642', '#b33d34');
+    hull([[-54,-58],[54,-58],[51,-39],[-51,-39]], 23, 32, '#ee644e', '#374650');
+    hull([[-37,17],[37,17],[26,61],[-26,61]], 23, 39, '#fa634b', '#d14736');
+    face('#ffedcb', [[-7,40,19],[7,40,19],[7,40,59],[-7,40,59]]);
+    hull([[-29,-28],[29,-28],[26,6],[-26,6]], 27, 65, '#ef6853', '#c24037');
+    for (const side of [-1, 1]) {
+      hull([[side*44,-28],[side*61,-28],[side*59,19],[side*46,14]], 23, 31, '#fff0c9', '#2169a6');
+    }
+    faces.sort((a, b) => b.depth - a.depth);
+    for (const f of faces) polygon(c, f.color, ...f.coords);
+
+    const [hx, hy] = project(0, 99, -6);
+    oval(c, '#253540', hx, hy, 37, 37);
+    c.save(); c.beginPath(); c.ellipse(hx, hy, 35, 35, 0, 0, TAU); c.clip();
+    box(c, gradient(c, hy - 35, hy + 35, [[0,'#fff9e4'],[.56,'#e4dfca'],[1,'#a0a9a9']]), hx - 36, hy - 36, 72, 72);
+    const stripe = hx - sin * 25;
+    polygon(c, '#1966a6', hx - 6, hy - 38, hx + 6, hy - 38, stripe + 6, hy, stripe + 4, hy + 35, stripe - 4, hy + 35, stripe - 6, hy);
+    // The dark visor wraps across the front hemisphere and becomes visible from the side.
+    for (let j = 0; j < 16; j++) {
+      const a = -1.65 + j * 3.3 / 16, b = a + 3.3 / 16;
+      if (Math.cos((a + b) / 2 + yaw) > 0) continue;
+      const visor = [[a, 9], [b, 9], [b, -10], [a, -10]].map(([az, h]) => {
+        const radius = Math.sqrt(35 * 35 - h * h);
+        return project(radius * Math.sin(az), 99 + h, -6 + radius * Math.cos(az)).slice(0, 2);
+      });
+      polygon(c, j < 7 ? '#233748' : '#1e2e42', ...visor.flat());
+    }
+    c.restore();
+    vehicleSprites.set(frame, sprite);
+    return sprite;
+  }
+
+  function drawPeel(c, width, time, side) {
+    const t = reducedMotion.matches ? 0 : time;
+    c.save();
+    c.translate(side * width * (.45 + .19 * t), width * (.02 + .11 * t));
+    const scale = width / 170;
+    c.scale(scale * side, scale);
+    c.globalAlpha = Math.min(1, (1 - time) * 4);
+    oval(c, 'rgba(28,40,43,.23)', 2, 2, 18, 4);
+    c.translate(0, -Math.sin(t * Math.PI) * 13);
+    polygon(c, '#935e26', -20, 1, -12, -2, -4, -5, -2, -16, 2, -18, 4, -7, 10, -4, 20, -7, 16, 0, 6, 4, 0, 2, -9, 6);
+    polygon(c, '#ffd84e', -19, 1, -10, -1, -2, -5, 0, -15, 2, -16, 2, -6, 9, -3, 17, -5, 13, -1, 5, 1, 0, -1, -9, 4);
+    polygon(c, '#fff2a4', 0, -2, 5, 2, 9, 8, 1, 5, -4, 1);
+    c.restore();
+  }
+
   function drawKart(v, p, s, driver, isPlayer) {
     const c = v.c;
     const steer = isPlayer ? s.steer : clamp(curveAt(driver.distance) * .65, -.8, .8);
@@ -510,12 +601,17 @@
     const wobble = reducedMotion.matches ? 0 : Math.sin(s.elapsed * (bouncing ? 40 : 21) + driver.id) * width
       * (bouncing ? .014 : .004) * clamp(s.speed / 100, 0, 1);
     oval(c, 'rgba(36,47,52,.30)', x + width * .05, y - width * .018, width * .52, width * .094);
-    const sprite = kartSprite(driver.color, isPlayer ? '07' : String(driver.id + 11), isPlayer);
+    const slipping = isPlayer && s.skid > 0;
+    const skidProgress = slipping ? 1 - s.skid / s.skidDuration : 0;
+    const spin = 1 - (1 - skidProgress) ** 2;
+    const spinFrame = reducedMotion.matches ? 0 : wrap(Math.round(spin * SPIN_VIEWS) * s.skidSide, SPIN_VIEWS);
+    const sprite = spinFrame ? spinningKart(spinFrame) : kartSprite(driver.color, isPlayer ? '07' : String(driver.id + 11), isPlayer);
     c.save();
     c.translate(x, y + wobble);
+    if (slipping) drawPeel(c, width, skidProgress, -s.skidSide);
     c.rotate(steer * (s.drifting && isPlayer ? .105 : .030));
     const scale = width / 184;
-    if (isPlayer && !reducedMotion.matches && (s.drifting || s.offroad)) {
+    if (isPlayer && !reducedMotion.matches && (s.drifting || s.offroad || slipping)) {
       for (const side of [-1, 1]) {
         for (let n = 0; n < 4; n++) {
           const t = wrap(s.elapsed * 2.5 + n / 4, 1);

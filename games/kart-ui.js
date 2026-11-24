@@ -4,6 +4,9 @@
   const ui = Object.fromEntries(Array.from(document.querySelectorAll('[id]'), el => [el.id, el]));
   const game = window.KartGame;
   const write = GameRuntime.text;
+  const standingRows = new Map();
+  const standingAnimations = new WeakMap();
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let mode = 'race', phase = '', currentQuestion = null, activeLane = -2, approachLength = 1;
   let previousCountdown = null, previousAttempts = 0, previousItem = null, audio = null;
   let soundOn = true, motor = null;
@@ -67,6 +70,8 @@
   function startRace() {
     enableAudio();
     previousCountdown = null; previousAttempts = 0; previousItem = null;
+    ui['standing-list'].textContent = '';
+    standingRows.clear();
     game.start(mode);
   }
   ui.start.addEventListener('click', startRace);
@@ -146,6 +151,50 @@
     tone(523, .14); tone(659, .14, .14); tone(784, .24, .28);
   }
 
+  function standingRow(driver) {
+    if (standingRows.has(driver.id)) return standingRows.get(driver.id);
+    const row = document.createElement('li');
+    row.className = driver.isPlayer ? 'standing-row is-player' : 'standing-row';
+    row.style.setProperty('--kart-color', driver.color);
+    const marker = document.createElement('span'), number = document.createElement('span');
+    marker.className = 'rank-marker'; number.className = 'car-number';
+    number.textContent = '#' + driver.number;
+    row.append(marker, document.createTextNode(driver.name), number);
+    standingRows.set(driver.id, row);
+    return row;
+  }
+
+  function paintStandings(state) {
+    const list = ui['standing-list'];
+    const drivers = state.standings;
+    if (list.childElementCount === drivers.length && drivers.every((driver, i) => list.children[i] === standingRows.get(driver.id))) return;
+
+    write(ui.rank, state.rank);
+    write(ui['rank-suffix'], ['st','nd','rd','th'][state.rank - 1]);
+    ui['standing-place'].setAttribute('aria-label', '目前第 ' + state.rank + ' 名');
+    const rows = drivers.map(standingRow);
+    const animate = state.phase === 'racing' && list.children.length === rows.length && !reduceMotion.matches && typeof list.animate === 'function';
+    // Read every current screen position before changing layout, including a pass still in motion.
+    const before = animate ? rows.map(row => row.getBoundingClientRect()) : [];
+    rows.forEach((row, i) => {
+      standingAnimations.get(row)?.cancel();
+      list.appendChild(row);
+      row.setAttribute('aria-label', '第 ' + (i + 1) + ' 名，' + drivers[i].name + '，' + drivers[i].number + ' 號車');
+    });
+    if (!animate) return;
+    const after = rows.map(row => row.getBoundingClientRect());
+    rows.forEach((row, i) => {
+      const dy = before[i].top - after[i].top, dx = before[i].left - after[i].left;
+      if (Math.abs(dy) < .5 && Math.abs(dx) < .5) return;
+      const drop = dy < 0;
+      const move = (x, y) => 'translate(' + x + 'px,' + y + 'px)';
+      const frames = [{transform:move(dx, dy)}];
+      if (drop) frames.push({transform:move(-3, dy - 2), offset:.19});
+      frames.push({transform:move(0, drop ? 2 : -1), offset:.85}, {transform:move(0, 0)});
+      standingAnimations.set(row, row.animate(frames, {duration:drop ? 240 : 200, easing:'ease-in-out'}));
+    });
+  }
+
   function update(state) {
     const next = state.phase;
     updateMotor(state);
@@ -177,7 +226,7 @@
       ui.start.disabled = !GameData.ready() || state.vocabCount < 3;
       return;
     }
-    write(ui.rank, state.rank);
+    paintStandings(state);
     write(ui.lap, state.lap + ' / ' + state.laps);
     write(ui.speed, Math.round(state.speed));
     if (next === 'countdown' && previousCountdown !== state.countdown) {
@@ -194,9 +243,9 @@
     paintQuestion(state.question, state.distance);
     ui['race-message'].hidden = !state.feedback;
     write(ui['race-message'], state.feedback);
-    const pace = state.offroad ? '駛回賽道' : state.drifting ? (state.driftCharge >= 1 ? '放開煞車加速！' : '甩尾集氣 ' + Math.floor(state.driftCharge * 100) + '%') : state.boost > 0 ? '氮氣加速' : '';
+    const pace = state.skid > 0 ? '打滑減速' : state.offroad ? '駛回賽道' : state.drifting ? (state.driftCharge >= 1 ? '放開煞車加速！' : '甩尾集氣 ' + Math.floor(state.driftCharge * 100) + '%') : state.boost > 0 ? '氮氣加速' : '';
     write(ui['pace-status'], pace);
-    ui.item.disabled = !state.inventory || next !== 'racing';
+    ui.item.disabled = !state.inventory || state.skid > 0 || next !== 'racing';
     write(ui['item-name'], state.inventory === 'boost' ? '用氮氣' : state.inventory === 'pulse' ? '用脈衝' : '空道具格');
   }
   document.addEventListener('kart-update', event => update(event.detail));

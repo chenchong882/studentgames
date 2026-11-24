@@ -52,7 +52,7 @@
       <div class="setup">
         <section class="mode-pane" aria-labelledby="mode-title">
           <h2 id="mode-title"><span class="slashes" aria-hidden="true"></span>選擇賽制</h2>
-          <p class="drive-hint">車子會自動加速。看中文提示，開進對應的英文車道。</p>
+          <p class="drive-hint">車子會自動加速。看中文提示選車道，選錯會打滑減速。</p>
           <div class="mode-grid" role="group" aria-labelledby="mode-title">
             <button type="button" class="mode" data-mode="race" aria-pressed="true">
               <span class="mode-head"><svg class="mode-icon"><use href="#i-flag"/></svg><span class="radio-dot" aria-hidden="true"></span></span>
@@ -79,8 +79,16 @@
     <div class="track-screen">
       <canvas id="kart-canvas" aria-label="卡丁車賽道，依中文提示駛入正確的英文車道"></canvas>
       <div class="race-top">
-        <div class="scoreboard"><span class="pos"><b id="rank">4</b> / 4</span><span class="lap">圈數 <strong id="lap">1 / 2</strong></span></div>
-        <button type="button" class="hud-button" id="pause" aria-label="暫停比賽"><svg class="ico"><use href="#i-pause"/></svg></button>
+        <div class="race-tools">
+          <button type="button" class="hud-button" id="pause" aria-label="暫停比賽"><svg class="ico"><use href="#i-pause"/></svg></button>
+          <span class="lap">圈數 <strong id="lap">1 / 2</strong></span>
+        </div>
+        <aside class="standings" aria-label="即時排名">
+          <div class="standing-place" id="standing-place" aria-label="目前第 4 名" role="img">
+            <b id="rank">4</b><span id="rank-suffix">th</span><small>/ 4</small>
+          </div>
+          <ol id="standing-list" role="list" aria-label="車手依名次排列"></ol>
+        </aside>
       </div>
       <div id="word-prompt" hidden><small>駛入正確的英文車道</small><strong id="prompt"></strong><div id="word-lanes" lang="en"></div><div class="approach"><i id="gate-meter"></i></div></div>
       <div id="race-message" role="status" hidden></div>
@@ -103,12 +111,12 @@
   <div class="overlay" id="help" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
     <section class="sheet"><button class="close" type="button" id="help-close" aria-label="關閉玩法說明"><svg class="ico"><use href="#i-x"/></svg></button>
       <h2 id="help-title">玩法說明</h2>
-      <p>賽車會自動加速。看到中文提示時，把車開到對應的英文車道；通過單字門的那一刻就算作答。</p>
+      <p>賽車會自動加速。看到中文提示時，把車開到對應的英文車道。選錯會像踩到香蕉皮，短暫打滑減速；穩住車後就能繼續追。</p>
       <dl class="guide">
         <div><dt>轉向</dt><dd>按住左右方向鍵、A／D 或畫面上的箭頭。</dd></div>
         <div><dt>甩尾</dt><dd>入彎時按住煞車和彎內方向；集氣完成後放開，獲得短暫加速。鍵盤煞車是 ↓ 或 S。</dd></div>
         <div><dt>用道具</dt><dd>道具賽答對可以拿氮氣或減速脈衝。按空白鍵或點道具格使用，每次可帶 1 件。</dd></div>
-        <div><dt>暫停</dt><dd>點右上角的暫停鍵，或按 Esc。</dd></div>
+        <div><dt>暫停</dt><dd>點左上角的暫停鍵，或按 Esc。</dd></div>
       </dl>
     </section>
   </div>
