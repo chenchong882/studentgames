@@ -10,7 +10,7 @@
   const itemActions = { boost:'噴氮氣', banana:'放香蕉', missile:'瞄準飛彈' };
   const slotButtons = Array.from(ui['item-rack'].querySelectorAll('[data-slot]'));
   let mode = 'race', phase = '', currentQuestion = null, activeLane = -2, approachLength = 1;
-  let previousCountdown = null, previousAttempts = 0, previousUses = 0, previousLock = null, audio = null;
+  let previousCountdown = null, previousAttempts = 0, previousLock = null, audio = null;
   let soundOn = true, motor = null;
   try { soundOn = localStorage.getItem('kart-sound') !== 'off'; } catch (_) {}
 
@@ -35,6 +35,14 @@
     osc.onended = () => { osc.disconnect(); volume.disconnect(); };
     osc.start(start); osc.stop(start + duration + .01);
   }
+  function playSpinSound() {
+    tone(260, .19);
+  }
+  document.addEventListener('kart-item-hit', playSpinSound);
+  document.addEventListener('kart-item-used', event => {
+    if (event.detail === 'banana') playSpinSound();
+    else { tone(360, .13); tone(690, .13, .08); }
+  });
   function updateMotor(state) {
     if (state.phase !== 'racing' || !soundOn || audio?.state !== 'running') {
       if (motor) { motor.stop(); motor = null; }
@@ -71,7 +79,7 @@
   }));
   function startRace() {
     enableAudio();
-    previousCountdown = null; previousAttempts = 0; previousUses = 0; previousLock = null;
+    previousCountdown = null; previousAttempts = 0; previousLock = null;
     ui['standing-list'].textContent = '';
     standingRows.clear();
     game.start(mode);
@@ -157,6 +165,18 @@
     tone(523, .14); tone(659, .14, .14); tone(784, .24, .28);
   }
 
+  const hitLog = ui['hit-log'];
+  document.addEventListener('kart-item-hit', ({ detail: { effect, name, elapsed } }) => {
+    const row = ui['hit-entry'].content.firstElementChild.cloneNode(true);
+    row.dataset.effect = effect;
+    row.dataset.expires = elapsed + 5;
+    row.querySelector('use').setAttribute('href', '#i-' + effect);
+    row.querySelector('strong').textContent = name;
+    row.querySelector('span').textContent = effect === 'banana' ? '踩到你的香蕉皮' : '被你的飛彈擊中';
+    if (hitLog.childElementCount === 3) hitLog.firstElementChild.remove();
+    hitLog.appendChild(row);
+  });
+
   function standingRow(driver) {
     if (standingRows.has(driver.id)) return standingRows.get(driver.id);
     const row = document.createElement('li');
@@ -219,8 +239,6 @@
     const target = state.aim && state.aim.progress >= 1 ? state.aim.targetId : null;
     if (target !== null && target !== previousLock && available) tone(880, .075);
     previousLock = target;
-    if (state.itemsUsed > previousUses && available) { tone(360, .13); tone(690, .13, .08); }
-    previousUses = state.itemsUsed;
     ui.item.disabled = !available || !selected;
     if (ui.item.dataset.item !== (selected || 'box')) {
       ui.item.dataset.item = selected || 'box';
@@ -242,6 +260,7 @@
     if (next !== phase) {
       const prior = phase;
       phase = next;
+      if (next === 'garage' || next === 'countdown') hitLog.textContent = '';
       ui.garage.hidden = next !== 'garage';
       ui.race.hidden = next === 'garage';
       document.body.classList.toggle('in-race', next !== 'garage');
@@ -267,6 +286,9 @@
       ui.start.disabled = !GameData.ready() || state.vocabCount < 3;
       return;
     }
+    while (hitLog.firstElementChild && Number(hitLog.firstElementChild.dataset.expires) <= state.elapsed) {
+      hitLog.firstElementChild.remove();
+    }
     paintStandings(state);
     write(ui.lap, state.lap + ' / ' + state.laps);
     write(ui.speed, Math.round(state.speed));
@@ -277,7 +299,7 @@
     if (previousAttempts < state.attempts) {
       const answer = state.review[state.review.length - 1];
       if (answer.correct) { tone(740, .12); tone(990, .15, .09); }
-      else tone(260, .19);
+      else playSpinSound();
     }
     previousAttempts = state.attempts;
     paintQuestion(state.question, state.distance);

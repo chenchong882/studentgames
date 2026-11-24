@@ -236,10 +236,12 @@
     return true;
   }
   function consumeItem() {
+    const item = state.inventory;
     state.items[state.selectedSlot] = null;
     const other = 1 - state.selectedSlot;
     if (state.items[other]) state.selectedSlot = other;
     state.itemsUsed++;
+    document.dispatchEvent(new CustomEvent('kart-item-used', { detail: item }));
     notify();
   }
   function beginItem() {
@@ -292,7 +294,9 @@
     rival.hitEffect = effect;
     rival.hitTime = slipped ? SKID_DURATION : 2;
     rival.speed = Math.min(rival.speed, slipped ? 55 : 30);
-    if (!state.skid && !state.question) showFeedback(rival.name + (slipped ? '踩中香蕉！' : '被飛彈擊中！'), 1.4);
+    document.dispatchEvent(new CustomEvent('kart-item-hit', {
+      detail: { effect, name: rival.name, elapsed: state.elapsed }
+    }));
   }
   function advanceItems(dt) {
     for (let i = state.bananas.length - 1; i >= 0; i--) {

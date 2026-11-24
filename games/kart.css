@@ -83,6 +83,11 @@ body.in-race {overflow:hidden;overscroll-behavior:none}
 .standing-place b {font-size:46px;letter-spacing:-2px}
 .standing-place small {font-size:13px;color:white;margin-left:5px}
 #standing-list {margin:0;padding:0;list-style:none;display:grid;gap:2px}
+#hit-log {display:grid;gap:3px;margin-top:6px}
+.hit-notice {display:grid;grid-template-columns:18px 1fr;align-items:center;gap:1px 4px;padding:4px 5px;color:white;background:#152838ef;border-left:3px solid #ffda50;border-radius:3px;font-size:clamp(11px,1.1vw,14px);line-height:1.2}
+.hit-notice[data-effect=missile] {border-left-color:#ff896c}
+.hit-notice svg {width:18px;height:18px}
+.hit-notice span {grid-column:1/-1}
 .standing-row {position:relative;min-width:0;height:25px;display:flex;align-items:center;gap:6px;padding:0 7px;background:linear-gradient(90deg,#152838d1,#142636ef);border-right:3px solid var(--kart-color);border-radius:3px;color:#fff;font-size:14px;font-weight:800;text-shadow:0 1px 1px #182637}
 .standing-row.is-player {height:32px;background:#fff1b2;border:1px solid #443b26;border-right:4px solid var(--kart-color);color:#1a2934;text-shadow:none;z-index:2;box-shadow:0 1px 2px #112b3966}
 .rank-marker {flex:none;display:block;width:10px;height:10px;border:1px solid #fff9;border-radius:50%;background:var(--kart-color)}
@@ -154,6 +159,7 @@ body.in-race {overflow:hidden;overscroll-behavior:none}
   .setup {grid-template-columns:1fr;gap:14px;margin-top:17px}.mode-pane h2 {margin-bottom:9px}.mode {padding:11px 13px}.mode strong {font-size:18px}.mode-desc {font-size:13px}
   .track-pane {padding:12px}.map {width:83px;height:58px}.circuit {padding:0 4px 10px}.circuit h2 {margin:2px 0;font-size:22px}
   .standings {width:87px}.standing-place b {font-size:34px}.standing-place {font-size:15px}
+  .hit-notice {padding:3px;grid-template-columns:15px 1fr}.hit-notice svg {width:15px;height:15px}
   .standing-row {height:19px;font-size:12px;gap:4px;padding:0 4px}.standing-row.is-player {height:25px}
   .is-player .rank-marker {width:18px;height:18px}.is-player .rank-marker::after {top:6px;height:5px}
   .car-number {font-size:10px}
