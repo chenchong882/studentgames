@@ -336,7 +336,7 @@
         <h2>🧟 詳細玩法</h2>
         看題目找到正確單字的小屋，進屋防守 <b>10 秒</b>即可佔領。<br>
         殭屍不是答案；開槍與手榴彈只用來保護自己。<br>
-        每間小屋分開計時。離屋時佔領進度暫停，回到同一間就能接著守。<br><br>
+        困難模式要在同一間小屋連續守滿 10 秒，離屋就歸零。簡單與一般模式會保留每間小屋的進度，回來可以接著守。<br><br>
         👑 <b>BOSS</b>：護盾存在時先佔領正確小屋；破盾後射擊 BOSS。半血時會再次開盾。簡單需答對 3＋2 次，困難需答對 4＋3 次。<br><br>
         💻 <b>電腦</b>：WASD 移動、Shift 緊急衝刺、滑鼠瞄準、左鍵開槍、G 手榴彈、R 換彈、空白鍵跳躍。<br>
         📱 <b>手機／平板</b>：左搖桿移動，將移動手指滑到左側邊界的 ⚡ 區域即可衝刺；右側滑動瞄準，使用畫面按鈕攻擊。
@@ -1238,7 +1238,7 @@ let wave=0,targetWord=null,roundKind='word',roundUsesPic=false,combo=0,weaponLev
   recovering=false,recoverLevel=0,recoveryStreak=0,
   gateReady=false,gateOpen=false,gameWon=false,survivalSeconds=0,exitGate=null;
 const CAPTURE_SECONDS=10,QUESTION_SECONDS=38;
-let captureHouse=null,captureT=0,questionT=QUESTION_SECONDS,captureActive=false,captureCooldown=0,roundTransition=false,transitionT=0;
+let captureHouse=null,questionT=QUESTION_SECONDS,captureActive=false,captureCooldown=0,roundTransition=false,transitionT=0;
 const captureHudEl=document.getElementById('captureHud'),captureTextEl=document.getElementById('captureText'),captureTrackEl=document.getElementById('captureTrack'),captureFillEl=document.getElementById('captureFill'),houseWordEl=document.getElementById('houseWord');
 function pickWord(except){
   const list=VOCAB.filter(x=>x!==except);return (list.length?list:VOCAB)[(rnd(list.length||1))|0];
@@ -1320,7 +1320,7 @@ function assignHouseAnswers(){
     h.captureT=0;
     if(h.active)setHouseLabel(h,labelForWord(h.answer),roundUsesPic);else clearHouseLabel(h);
   }
-  captureHouse=null;captureT=0;questionT=QUESTION_SECONDS;captureActive=true;
+  captureHouse=null;questionT=QUESTION_SECONDS;captureActive=true;
   captureHudEl.style.display='block';captureTrackEl.style.display='none';captureFillEl.style.width='0%';captureTextEl.style.display='none';captureTextEl.textContent='';
   houseWordEl.style.display='none';houseWordEl.textContent='';questionTimerEl.textContent=compactHud.matches?QUESTION_SECONDS+' 秒':'剩餘 '+QUESTION_SECONDS+' 秒';
 }
@@ -1380,7 +1380,7 @@ function beginWave(){
       showObjective('👑 佔領正確小屋 4 次破盾 ・ 🏹 弓箭手 '+archers+' ・ 🐕 殭屍狗 '+dogs);
     }
   }else{
-    showObjective('在正確小屋內累積守滿 10 秒，離屋後可回來接著守');
+    showObjective(gameMode==='hard'?'在正確小屋內連續守滿 10 秒，離屋就歸零':'在正確小屋內累積守滿 10 秒，離屋後可回來接著守');
     if(gameMode==='hard'){
       const hazards=[],archers=hardArcherCount(wave),dogs=hardDogCount(wave);
       if(archers){spawnHardArchers(archers);hazards.push('🏹 弓箭手 '+archers);}
@@ -1426,7 +1426,10 @@ function onQuestionTimeout(){
   registerWrong();for(const z of zombies)if(z.userData.alive&&z!==boss){z.userData.enrage=Math.max(z.userData.enrage,gameMode==='hard'?7:6);setRageVisual(z,true);}
   spawnCrowd(3);showObjective('⏰ 超時：全場殭屍短暫狂暴，題目與小屋重新洗牌！');setQuestion(true);captureCooldown=1.4;
 }
-function insideHouse(h){return player.y<1.4&&Math.abs(player.x-h.cx)<h.w/2-T/2&&Math.abs(player.z-h.cz)<h.d/2-T/2;}
+function insideHouse(h){
+  const heightLimit=gameMode==='hard'?h.h:1.4;
+  return player.y<heightLimit&&Math.abs(player.x-h.cx)<h.w/2-T/2&&Math.abs(player.z-h.cz)<h.d/2-T/2;
+}
 function updateCapture(dt){
   if(!captureActive||roundTransition)return;
   const h=HOUSES.find(h=>h.active&&insideHouse(h))||null;
@@ -1434,16 +1437,18 @@ function updateCapture(dt){
   const seconds=Math.max(0,Math.ceil(questionT));
   GameRuntime.text(questionTimerEl, compactHud.matches?((h?'⏸ ':'')+seconds+' 秒'):(h?('倒數暫停（剩餘 '+seconds+' 秒）'):('剩餘 '+seconds+' 秒')));
   if(captureCooldown>0){captureCooldown-=dt;captureTextEl.style.display='block';GameRuntime.text(captureTextEl, '重新洗牌中…');captureTrackEl.style.display='none';houseWordEl.style.display='none';return;}
+  if(gameMode==='hard'&&captureHouse&&captureHouse!==h)captureHouse.captureT=0;
   if(h){
     if(captureHouse!==h){
-      captureHouse=h;captureT=h.captureT||0;
-      showObjective('留在 '+h.name+' 裡防守；離開後會保留這間的進度');
+      captureHouse=h;
+      showObjective(gameMode==='hard'?('在 '+h.name+' 連續守滿 10 秒，離屋就歸零'):('留在 '+h.name+' 裡防守；離開後會保留這間的進度'));
     }
-    captureT+=dt;h.captureT=captureT;const left=Math.max(0,CAPTURE_SECONDS-captureT);
+    h.captureT+=dt;
+    const captureT=h.captureT,left=Math.max(0,CAPTURE_SECONDS-captureT);
     captureTextEl.style.display='block';GameRuntime.text(captureTextEl, '佔領倒數 '+left.toFixed(1)+' 秒');GameRuntime.text(houseWordEl, '目前小屋：'+(h.answer&&h.answer.word?h.answer.word:'—'));houseWordEl.style.display='block';captureTrackEl.style.display='block';captureFillEl.style.width=(Math.min(1,captureT/CAPTURE_SECONDS)*100)+'%';
     if(captureT>=CAPTURE_SECONDS){captureActive=false;captureHudEl.style.display='none';h.correct?onHouseCorrect(h):onHouseWrong(h);return;}
   }else{
-    captureHouse=null;captureT=0;
+    captureHouse=null;
     const saved=Math.max(0,...HOUSES.map(x=>x.captureT||0));
     captureFillEl.style.width=(saved/CAPTURE_SECONDS*100)+'%';captureTrackEl.style.display=saved>0?'block':'none';
     captureTextEl.style.display=saved>0?'block':'none';GameRuntime.text(captureTextEl, saved>0?('已保留 '+saved.toFixed(1)+' 秒'):'');houseWordEl.style.display='none';GameRuntime.text(houseWordEl, '');
