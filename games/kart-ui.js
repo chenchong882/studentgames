@@ -1,0 +1,204 @@
+(() => {
+  'use strict';
+
+  const ui = Object.fromEntries(Array.from(document.querySelectorAll('[id]'), el => [el.id, el]));
+  const game = window.KartGame;
+  const write = GameRuntime.text;
+  let mode = 'race', phase = '', currentQuestion = null, activeLane = -2, approachLength = 1;
+  let previousCountdown = null, previousAttempts = 0, previousItem = null, audio = null;
+  let soundOn = true, motor = null;
+  try { soundOn = localStorage.getItem('kart-sound') !== 'off'; } catch (_) {}
+
+  function enableAudio() {
+    if (!soundOn) return;
+    const Context = window.AudioContext || window.webkitAudioContext;
+    if (!Context) return;
+    try {
+      if (!audio) audio = new Context();
+      if (audio.state === 'suspended' || audio.state === 'interrupted') audio.resume().catch(() => {});
+    } catch (_) { /* The visual signals work independently of audio. */ }
+  }
+  function tone(hz, duration, delay = 0) {
+    if (!soundOn || !audio || audio.state !== 'running') return;
+    const start = audio.currentTime + delay;
+    const osc = audio.createOscillator(), volume = audio.createGain();
+    osc.type = 'triangle'; osc.frequency.value = hz;
+    volume.gain.setValueAtTime(.001, start);
+    volume.gain.exponentialRampToValueAtTime(.085, start + .012);
+    volume.gain.exponentialRampToValueAtTime(.001, start + duration);
+    osc.connect(volume); volume.connect(audio.destination);
+    osc.onended = () => { osc.disconnect(); volume.disconnect(); };
+    osc.start(start); osc.stop(start + duration + .01);
+  }
+  function updateMotor(state) {
+    if (state.phase !== 'racing' || !soundOn || audio?.state !== 'running') {
+      if (motor) { motor.stop(); motor = null; }
+      return;
+    }
+    if (!motor) {
+      const osc = audio.createOscillator(), volume = audio.createGain();
+      osc.type = 'triangle'; osc.frequency.value = 42 + state.speed * .48; volume.gain.value = .011;
+      osc.connect(volume); volume.connect(audio.destination);
+      osc.onended = () => { osc.disconnect(); volume.disconnect(); };
+      osc.start(); motor = osc;
+    }
+    motor.frequency.setTargetAtTime(42 + state.speed * .48, audio.currentTime, .08);
+  }
+  function paintSound() {
+    for (const button of soundButtons) {
+      button.setAttribute('aria-pressed', String(soundOn));
+      button.querySelector('use').setAttribute('href', soundOn ? '#i-speaker' : '#i-muted');
+      write(button.querySelector('span'), soundOn ? '音效開啟' : '音效關閉');
+    }
+  }
+  const soundButtons = [ui['audio-toggle'], ui['pause-audio']];
+  soundButtons.forEach(button => button.addEventListener('click', () => {
+    soundOn = !soundOn;
+    try { localStorage.setItem('kart-sound', soundOn ? 'on' : 'off'); } catch (_) {}
+    paintSound(); enableAudio(); tone(660, .11);
+  }));
+  paintSound();
+
+  const modes = Array.from(document.querySelectorAll('[data-mode]'));
+  modes.forEach(button => button.addEventListener('click', () => {
+    mode = button.dataset.mode;
+    modes.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+  }));
+  function startRace() {
+    enableAudio();
+    previousCountdown = null; previousAttempts = 0; previousItem = null;
+    game.start(mode);
+  }
+  ui.start.addEventListener('click', startRace);
+  ui.again.addEventListener('click', startRace);
+  ui.pause.addEventListener('click', game.pause);
+  ui.resume.addEventListener('click', () => { enableAudio(); game.resume(); });
+  ui.item.addEventListener('click', () => {
+    game.useItem();
+    ui.race.focus({preventScroll:true});
+  });
+  [ui.back, ui.leave].forEach(button => button.addEventListener('click', game.garage));
+  ui['help-open'].addEventListener('click', () => {
+    ui.help.hidden = false;
+    ui['help-close'].focus();
+  });
+  function closeHelp() {
+    ui.help.hidden = true;
+    ui['help-open'].focus();
+  }
+  ui['help-close'].addEventListener('click', closeHelp);
+  ui.help.addEventListener('click', event => { if (event.target === ui.help) closeHelp(); });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !ui.help.hidden) { event.preventDefault(); closeHelp(); return; }
+    if (event.key !== 'Tab') return;
+    const modal = [ui.help, ui.break, ui.finish].find(el => !el.hidden);
+    if (!modal) return;
+    const buttons = modal.querySelectorAll('button:enabled');
+    const first = buttons[0], last = buttons[buttons.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  });
+
+  function paintQuestion(q, distance) {
+    if (q !== currentQuestion) {
+      currentQuestion = q; activeLane = -2;
+      ui['word-prompt'].hidden = !q;
+      ui['word-lanes'].textContent = '';
+      if (q) {
+        approachLength = Math.max(1, q.distance - distance);
+        write(ui.prompt, q.prompt);
+        for (const word of q.options) {
+          const label = document.createElement('span');
+          label.textContent = word;
+          ui['word-lanes'].appendChild(label);
+        }
+      }
+    }
+    if (q) {
+      const remaining = Math.max(0, Math.min(1, (q.distance - distance) / approachLength));
+      ui['gate-meter'].style.transform = 'scaleX(' + remaining + ')';
+    }
+    if (q && activeLane !== q.lane) {
+      activeLane = q.lane;
+      Array.from(ui['word-lanes'].children).forEach((label, i) => label.classList.toggle('selected', i === q.lane));
+    }
+  }
+
+  function showResults(state) {
+    write(ui['final-rank'], '第 ' + state.rank + ' 名');
+    const seconds = Math.floor(state.elapsed);
+    write(ui['final-time'], Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0') + '.' + Math.floor((state.elapsed - seconds) * 10));
+    write(ui['final-words'], state.correct + ' / ' + state.attempts);
+    const list = ui['review-list'];
+    list.textContent = '';
+    for (const answer of state.review) {
+      const li = document.createElement('li'), status = document.createElement('span'), words = document.createElement('span');
+      status.className = 'verdict'; status.textContent = answer.correct ? '答對' : '答錯';
+      words.textContent = answer.word + '　' + answer.chinese;
+      if (!answer.correct) {
+        li.className = 'wrong';
+        const chosen = document.createElement('span');
+        chosen.className = 'picked'; chosen.textContent = '你的選擇：' + answer.chosen;
+        words.appendChild(chosen);
+      }
+      li.append(status, words); list.appendChild(li);
+    }
+    tone(523, .14); tone(659, .14, .14); tone(784, .24, .28);
+  }
+
+  function update(state) {
+    const next = state.phase;
+    updateMotor(state);
+    if (next !== phase) {
+      const prior = phase;
+      phase = next;
+      ui.garage.hidden = next !== 'garage';
+      ui.race.hidden = next === 'garage';
+      document.body.classList.toggle('in-race', next !== 'garage');
+      ui.break.hidden = next !== 'paused';
+      ui.finish.hidden = next !== 'finished';
+      ui.count.hidden = next !== 'countdown';
+      ui.item.hidden = ui['item-key-tip'].hidden = state.mode !== 'item';
+      if (next === 'garage') {
+        if (prior) ui.start.focus({preventScroll:true});
+      } else if (next === 'paused') {
+        ui.resume.focus();
+      } else if (next === 'finished') {
+        showResults(state); ui.again.focus({preventScroll:true});
+      } else {
+        ui.race.focus({preventScroll:true});
+        if (prior === 'countdown' && next === 'racing') tone(850, .3);
+      }
+    }
+
+    if (next === 'garage') {
+      const hash = game.getLessonHash() || location.hash;
+      ui['hub-link'].setAttribute('href', '../index.html' + hash);
+      ui.start.disabled = !GameData.ready() || state.vocabCount < 3;
+      return;
+    }
+    write(ui.rank, state.rank);
+    write(ui.lap, state.lap + ' / ' + state.laps);
+    write(ui.speed, Math.round(state.speed));
+    if (next === 'countdown' && previousCountdown !== state.countdown) {
+      previousCountdown = state.countdown;
+      write(ui.count, state.countdown); tone(440, .12);
+    }
+    if (previousAttempts < state.attempts) {
+      const answer = state.review[state.review.length - 1];
+      if (answer.correct) { tone(740, .12); tone(990, .15, .09); }
+      else tone(260, .19);
+    }
+    if (previousItem && !state.inventory && next === 'racing') { tone(360, .13); tone(690, .13, .08); }
+    previousAttempts = state.attempts; previousItem = state.inventory;
+    paintQuestion(state.question, state.distance);
+    ui['race-message'].hidden = !state.feedback;
+    write(ui['race-message'], state.feedback);
+    const pace = state.offroad ? '駛回賽道' : state.drifting ? (state.driftCharge >= 1 ? '放開煞車加速！' : '甩尾集氣 ' + Math.floor(state.driftCharge * 100) + '%') : state.boost > 0 ? '氮氣加速' : '';
+    write(ui['pace-status'], pace);
+    ui.item.disabled = !state.inventory || next !== 'racing';
+    write(ui['item-name'], state.inventory === 'boost' ? '用氮氣' : state.inventory === 'pulse' ? '用脈衝' : '空道具格');
+  }
+  document.addEventListener('kart-update', event => update(event.detail));
+  update(game.getState());
+})();

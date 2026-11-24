@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#132333">
+  <title>單字卡丁車 Word Kart｜Student Games</title>
+  <link rel="stylesheet" href="./kart.css">
+  <script src="./lesson-data.js" defer></script>
+  <script src="./game-runtime.js" defer></script>
+  <script src="./kart-render.js" defer></script>
+  <script src="./kart-game.js" defer></script>
+  <script src="./kart-ui.js" defer></script>
+</head>
+<body>
+  <svg class="sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 21V4c5-3 10 3 16 0v11c-6 3-11-3-16 0"/><path d="M5 5h3v3H5zm3 3h3v3H8zm3-2h3v3h-3zm3 4h3v3h-3zm3-4h2v3h-2z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10M8 4l9 5"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.3 9a2.8 2.8 0 0 1 5.5.6c0 2-2.8 2.4-2.8 4.4m0 3h.01"/></symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M3 9h4l5-4v14l-5-4H3zM16 9a5 5 0 0 1 0 6m3-9a9 9 0 0 1 0 12"/></symbol>
+    <symbol id="i-muted" viewBox="0 0 24 24"><path d="M3 9h4l5-4v14l-5-4H3zM16 9l6 6m0-6-6 6"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14m8-14v14" stroke-width="4"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 4-8 8 8 8"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 4 8 8-8 8"/></symbol>
+    <symbol id="i-drift" viewBox="0 0 24 24"><path d="m11 7 6-3 4 8-6 3zM3 20c0-4 9-4 7-8m-1 9c0-3 6-3 5-6"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.4"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12m0-12L6 18"/></symbol>
+  </svg>
+
+  <div id="garage">
+    <header class="site-head"><div class="wrap head-inner">
+      <a class="brand" id="hub-link" href="../index.html" aria-label="返回 Student Games 遊戲大廳">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>STUDENT<span>GAMES</span>
+      </a>
+      <nav class="nav" aria-label="遊戲設定">
+        <button type="button" id="help-open"><svg class="ico"><use href="#i-help"/></svg>玩法說明</button>
+        <button type="button" id="audio-toggle" aria-pressed="true"><svg class="ico"><use href="#i-speaker"/></svg><span>音效開啟</span></button>
+      </nav>
+    </div></header>
+    <main class="wrap lobby">
+      <section class="poster" aria-labelledby="game-title">
+        <img src="../assets/kart-harbour.webp" class="cover" width="1672" height="941" fetchpriority="high" alt="紅色卡丁車在高雄港貨櫃碼頭旁的彎道甩尾">
+        <div class="poster-panel" aria-hidden="true"></div>
+        <div class="poster-copy">
+          <span class="demo"><span class="checks" aria-hidden="true"></span> ARCADE DEMO</span>
+          <h1 id="game-title" aria-label="Word Kart 單字卡丁車"><span>WORD</span><span>KART</span></h1>
+          <div class="zh-title">單字卡丁車</div>
+        </div>
+      </section>
+
+      <div class="setup">
+        <section class="mode-pane" aria-labelledby="mode-title">
+          <h2 id="mode-title"><span class="slashes" aria-hidden="true"></span>選擇賽制</h2>
+          <p class="drive-hint">車子會自動加速。看中文提示，開進對應的英文車道。</p>
+          <div class="mode-grid" role="group" aria-labelledby="mode-title">
+            <button type="button" class="mode" data-mode="race" aria-pressed="true">
+              <span class="mode-head"><svg class="mode-icon"><use href="#i-flag"/></svg><span class="radio-dot" aria-hidden="true"></span></span>
+              <strong>競速賽</strong><span class="mode-desc">選對單字，氮氣立刻加速。</span>
+            </button>
+            <button type="button" class="mode" data-mode="item" aria-pressed="false">
+              <span class="mode-head"><svg class="mode-icon"><use href="#i-box"/></svg><span class="radio-dot" aria-hidden="true"></span></span>
+              <strong>道具賽</strong><span class="mode-desc">選對單字，拿道具搶名次。</span>
+            </button>
+          </div>
+          <div id="kart-lesson"></div>
+        </section>
+        <section class="track-pane" aria-labelledby="track-title">
+          <div class="circuit"><div><span class="track-loc"><svg class="ico"><use href="#i-pin"/></svg>高雄港</span><h2 id="track-title">港灣環線</h2><p>每圈 1.05 公里 <span>／</span> 2 圈 <span>／</span> 4 位車手</p></div>
+            <svg class="map" viewBox="0 0 126 83" fill="none" aria-hidden="true"><path d="M15 53c-5-7-1-14 8-18l16-7c8-3 7-14 17-17l15-3c8-2 11 3 10 9l-2 7c-1 6 3 9 11 8l11-1c13-1 17 12 9 20L88 70c-5 4-12 4-18 0l-9-8c-4-3-8-3-13-1l-10 5c-6 3-13 2-17-4z" stroke="#4d6370" stroke-width="10"/><path d="M15 53c-5-7-1-14 8-18l16-7c8-3 7-14 17-17l15-3c8-2 11 3 10 9l-2 7c-1 6 3 9 11 8l11-1c13-1 17 12 9 20L88 70c-5 4-12 4-18 0l-9-8c-4-3-8-3-13-1l-10 5c-6 3-13 2-17-4z" stroke="#f1f6ee" stroke-width="3"/><path d="m26 28 5 12" stroke="#ffd255" stroke-width="6"/></svg>
+          </div>
+          <button id="start" type="button" class="primary">開始比賽<svg class="ico"><use href="#i-arrow"/></svg></button>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <main id="race" tabindex="-1" aria-label="港灣環線賽道" hidden>
+    <div class="track-screen">
+      <canvas id="kart-canvas" aria-label="卡丁車賽道，依中文提示駛入正確的英文車道"></canvas>
+      <div class="race-top">
+        <div class="scoreboard"><span class="pos"><b id="rank">4</b> / 4</span><span class="lap">圈數 <strong id="lap">1 / 2</strong></span></div>
+        <button type="button" class="hud-button" id="pause" aria-label="暫停比賽"><svg class="ico"><use href="#i-pause"/></svg></button>
+      </div>
+      <div id="word-prompt" hidden><small>駛入正確的英文車道</small><strong id="prompt"></strong><div id="word-lanes" lang="en"></div><div class="approach"><i id="gate-meter"></i></div></div>
+      <div id="race-message" role="status" hidden></div>
+      <div id="count" role="status" hidden></div>
+      <div class="telemetry"><span id="pace-status"></span><span class="speed"><b id="speed">0</b> km/h</span></div>
+    </div>
+    <div class="controls" aria-label="賽車操作">
+      <div class="control-group">
+        <button data-kart-control="left" aria-label="向左轉"><svg class="ico"><use href="#i-left"/></svg></button>
+        <button data-kart-control="right" aria-label="向右轉"><svg class="ico"><use href="#i-right"/></svg></button>
+      </div>
+      <span class="keyboard-tip">← → 轉向　↓ 煞車<span id="item-key-tip" hidden>　空白鍵使用道具</span></span>
+      <div class="control-group">
+        <button data-kart-control="brake" aria-label="煞車，配合轉向可甩尾"><svg class="ico"><use href="#i-drift"/></svg><span>煞車</span></button>
+        <button id="item" hidden disabled><svg class="ico"><use href="#i-box"/></svg><span id="item-name">空道具格</span></button>
+      </div>
+    </div>
+  </main>
+
+  <div class="overlay" id="help" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+    <section class="sheet"><button class="close" type="button" id="help-close" aria-label="關閉玩法說明"><svg class="ico"><use href="#i-x"/></svg></button>
+      <h2 id="help-title">玩法說明</h2>
+      <p>賽車會自動加速。看到中文提示時，把車開到對應的英文車道；通過單字門的那一刻就算作答。</p>
+      <dl class="guide">
+        <div><dt>轉向</dt><dd>按住左右方向鍵、A／D 或畫面上的箭頭。</dd></div>
+        <div><dt>甩尾</dt><dd>入彎時按住煞車和彎內方向；集氣完成後放開，獲得短暫加速。鍵盤煞車是 ↓ 或 S。</dd></div>
+        <div><dt>用道具</dt><dd>道具賽答對可以拿氮氣或減速脈衝。按空白鍵或點道具格使用，每次可帶 1 件。</dd></div>
+        <div><dt>暫停</dt><dd>點右上角的暫停鍵，或按 Esc。</dd></div>
+      </dl>
+    </section>
+  </div>
+  <div class="overlay" id="break" role="dialog" aria-modal="true" aria-labelledby="break-title" hidden>
+    <section class="sheet compact"><div class="sheet-icon"><svg class="ico"><use href="#i-pause"/></svg></div><h2 id="break-title">比賽暫停</h2>
+      <button class="primary" id="resume" type="button">繼續比賽<svg class="ico"><use href="#i-arrow"/></svg></button>
+      <button class="secondary sound-setting" id="pause-audio" type="button" aria-pressed="true"><svg class="ico"><use href="#i-speaker"/></svg><span>音效開啟</span></button>
+      <button class="secondary" id="leave" type="button">結束這場，回到選單</button>
+    </section>
+  </div>
+  <div class="overlay" id="finish" role="dialog" aria-modal="true" aria-labelledby="finish-title" hidden>
+    <section class="sheet result"><span class="finish-flag" aria-hidden="true"></span><h2 id="finish-title">衝過終點！</h2>
+      <div class="result-grid"><div><small>名次</small><b id="final-rank"></b></div><div><small>完賽時間</small><b id="final-time"></b></div><div><small>單字答對</small><b id="final-words"></b></div></div>
+      <h3>本場單字回顧</h3><ol id="review-list"></ol>
+      <button class="primary" id="again" type="button">再跑一場<svg class="ico"><use href="#i-arrow"/></svg></button><button id="back" class="secondary" type="button">回到賽制選單</button>
+    </section>
+  </div>
+</body>
+</html>

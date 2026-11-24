@@ -1,0 +1,328 @@
+(() => {
+  'use strict';
+
+  const TRACK_LENGTH = 1050;
+  const LAPS = 2;
+  const FINISH = TRACK_LENGTH * LAPS;
+  const GATES = [200, 545, 880];
+  const PREVIEW_DISTANCE = 115;
+  const CRUISE = 120;
+  const BUILTIN_WORDS = [
+    ['harbor', '港口'], ['bridge', '橋'], ['island', '島嶼'], ['boat', '船'],
+    ['beach', '海灘'], ['lighthouse', '燈塔'], ['wave', '海浪'], ['windmill', '風車'],
+    ['tunnel', '隧道'], ['ocean', '海洋'], ['cloud', '雲'], ['mountain', '山']
+  ].map(([word, chinese]) => ({ word, chinese }));
+  const DRIVERS = [
+    { x: -0.63, distance: 9, cruise: 109, color: '#ffad31' },
+    { x:  0.57, distance: 17, cruise: 115, color: '#8b71e8' },
+    { x: -0.13, distance: 26, cruise: 121, color: '#20b6be' }
+  ];
+  const CONTROL_KEYS = {
+    ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
+    ArrowDown: 'brake', KeyS: 'brake'
+  };
+  const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
+  const laneAt = x => x < -1 / 3 ? 0 : x > 1 / 3 ? 2 : 1;
+  const wrapKey = value => value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
+  const order = array => {
+    const copy = array.slice();
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+
+  let vocab = BUILTIN_WORDS;
+  let lessonHash = '';
+  let deck = [], previousWord = '', gateIndex = 0, countdownTime = 0, feedbackTime = 0;
+  let beforePause = 'racing', frameId = 0, lastFrame = null, lastUpdate = 0;
+  let state = newRace('race');
+  const heldKeys = new Set(), heldPointers = new Map(), heldControls = new Set();
+  const canvas = document.getElementById('kart-canvas');
+
+  function newRace(mode) {
+    return {
+      phase: 'garage', mode, lap: 1, laps: LAPS, rank: DRIVERS.length + 1, trackLength: TRACK_LENGTH,
+      speed: 0, elapsed: 0, countdown: 3, distance: 0, x: 0, steer: 0, offroad: false,
+      drifting: false, driftCharge: 0, boost: 0, pulse: 0, inventory: null,
+      question: null, feedback: '', correct: 0, attempts: 0, review: [], vocabCount: vocab.length,
+      rivals: DRIVERS.map((driver, id) => ({ ...driver, id, speed: 0, slow: 0, bumpCooldown: 0 }))
+    };
+  }
+
+  function notify() {
+    document.dispatchEvent(new CustomEvent('kart-update', { detail: state }));
+  }
+  function draw() {
+    window.KartRender.draw(canvas, state);
+  }
+  function showFeedback(message, seconds = 2.4) {
+    state.feedback = message;
+    feedbackTime = seconds;
+  }
+  function clearControls() {
+    heldKeys.clear(); heldPointers.clear(); heldControls.clear();
+    state.steer = 0; state.drifting = false; state.driftCharge = 0;
+  }
+  function setControl(action, held) {
+    if (!held) { heldControls.delete(action); return; }
+    if (state.phase === 'racing') heldControls.add(action);
+  }
+  function pressed(action) {
+    if (heldControls.has(action)) return true;
+    for (const code of heldKeys) if (CONTROL_KEYS[code] === action) return true;
+    for (const value of heldPointers.values()) if (value === action) return true;
+    return false;
+  }
+
+  function wake() {
+    if (!frameId) frameId = requestAnimationFrame(frame);
+  }
+  function frame(timestamp) {
+    frameId = 0;
+    // Large gaps after switching apps must not move the player past a gate.
+    const dt = lastFrame === null ? 0 : Math.min((timestamp - lastFrame) / 1000, 0.08);
+    lastFrame = timestamp;
+    if (state.phase === 'countdown') {
+      countdownTime = Math.max(0, countdownTime - dt);
+      const tick = Math.ceil(countdownTime);
+      if (tick !== state.countdown) {
+        state.countdown = tick;
+        if (!tick) state.phase = 'racing';
+        notify();
+      }
+    } else if (state.phase === 'racing') {
+      advance(dt);
+    }
+    draw();
+    if (state.phase === 'countdown' || state.phase === 'racing') {
+      if (timestamp - lastUpdate >= 80) { notify(); lastUpdate = timestamp; }
+      wake();
+    }
+  }
+  function stopFrame() {
+    cancelAnimationFrame(frameId);
+    frameId = 0; lastFrame = null;
+  }
+  function start(mode = 'race') {
+    if (!GameData.ready() || vocab.length < 3) return false;
+    stopFrame(); clearControls();
+    state = newRace(mode === 'item' ? 'item' : 'race');
+    deck = []; previousWord = ''; gateIndex = 0; feedbackTime = 0;
+    countdownTime = 3; state.phase = 'countdown';
+    notify(); wake();
+    return true;
+  }
+  function pause() {
+    if (state.phase !== 'racing' && state.phase !== 'countdown') return;
+    beforePause = state.phase;
+    state.phase = 'paused';
+    stopFrame(); clearControls(); notify(); draw();
+  }
+  function resume() {
+    if (state.phase !== 'paused' || document.hidden) return;
+    state.phase = beforePause;
+    notify(); wake();
+  }
+  function garage() {
+    stopFrame(); clearControls();
+    state = newRace(state.mode);
+    notify(); draw();
+  }
+
+  function nextQuestion(gateDistance) {
+    if (!deck.length) {
+      deck = order(vocab);
+      // Avoid repeating a just-seen prompt at the boundary of two shuffled decks.
+      const end = deck.length - 1;
+      if (deck[end].word === previousWord) [deck[0], deck[end]] = [deck[end], deck[0]];
+    }
+    const target = deck.pop();
+    previousWord = target.word;
+    const others = order(vocab.filter(w => w.word !== target.word)).slice(0, 2);
+    const options = order([target, ...others]).map(w => w.word);
+    state.question = { prompt: target.chinese, word: target.word, options, distance: gateDistance, lane: laneAt(state.x) };
+  }
+  function giveItem() {
+    if (state.inventory) return '道具格已滿';
+    state.inventory = state.rank === 1 || Math.random() < 0.5 ? 'boost' : 'pulse';
+    return state.inventory === 'boost' ? '獲得氮氣' : '獲得脈衝';
+  }
+  function checkGate() {
+    if (gateIndex >= LAPS * GATES.length) return;
+    const gateDistance = Math.floor(gateIndex / GATES.length) * TRACK_LENGTH + GATES[gateIndex % GATES.length];
+    if (!state.question && gateDistance - state.distance <= PREVIEW_DISTANCE) {
+      nextQuestion(gateDistance);
+      notify();
+    }
+    const q = state.question;
+    if (!q) return;
+    q.lane = state.offroad ? -1 : laneAt(state.x);
+    if (state.distance < gateDistance) return;
+    const chosen = q.options[q.lane] || '未通過字門';
+    const correct = chosen === q.word;
+    state.review.push({ word: q.word, chinese: q.prompt, chosen, correct });
+    state.attempts++;
+    if (correct) {
+      state.correct++;
+      let reward = '加速！';
+      if (state.mode === 'item') reward = giveItem();
+      else state.boost = Math.max(state.boost, 2.4);
+      showFeedback(`${q.word} ＝ ${q.prompt}　${reward}`);
+    } else {
+      showFeedback(`正解　${q.word} ＝ ${q.prompt}`, 3);
+    }
+    state.question = null;
+    gateIndex++;
+    notify();
+  }
+  function useItem() {
+    if (state.phase !== 'racing' || !state.inventory) return false;
+    if (state.inventory === 'boost') {
+      state.boost = Math.max(state.boost, 3.4);
+      showFeedback('氮氣啟動！');
+    } else {
+      const ahead = state.rivals.filter(rival => rival.distance >= state.distance && rival.distance < FINISH)
+        .sort((a, b) => a.distance - b.distance);
+      // If we passed the target before using the item, it can still slow a pursuing kart.
+      const target = ahead[0] || state.rivals.filter(rival => rival.distance < FINISH)
+        .sort((a, b) => b.distance - a.distance)[0];
+      if (target) {
+        target.slow = 3.8;
+        state.pulse = 1.1;
+        showFeedback(ahead.length ? '脈衝命中前車！' : '脈衝命中後車！');
+      } else {
+        state.boost = 3.4;
+        showFeedback('對手已完賽，脈衝轉成氮氣！');
+      }
+    }
+    state.inventory = null;
+    notify();
+    return true;
+  }
+
+  function drive(dt) {
+    const turn = Number(pressed('right')) - Number(pressed('left'));
+    const brake = pressed('brake');
+    const curve = window.KartRender.curveAt(state.distance);
+    const velocity = state.speed / CRUISE;
+    state.steer += (turn - state.steer) * (1 - Math.exp(-11 * dt));
+    state.x = clamp(state.x + (state.steer * (1.15 + 0.36 * velocity) - curve * velocity * 0.61) * dt, -1.22, 1.22);
+    state.offroad = Math.abs(state.x) > 1;
+    const drifting = brake && turn * curve > 0.15 && !state.offroad && state.speed > 66;
+    if (drifting) state.driftCharge = Math.min(1, state.driftCharge + dt / 0.62);
+    else if (state.drifting) {
+      if (state.driftCharge >= 1 && !state.offroad) {
+        state.boost = Math.max(state.boost, 1.35);
+        showFeedback('甩尾加速！', 1.3);
+      }
+      state.driftCharge = 0;
+    }
+    state.drifting = drifting;
+    const target = state.offroad ? 73 : drifting ? 105 : brake ? 63 : state.boost > 0 ? 158 : CRUISE;
+    const acceleration = target < state.speed ? 60 : state.boost > 0 ? 86 : 36;
+    state.speed += clamp(target - state.speed, -acceleration * dt, acceleration * dt);
+    state.distance += state.speed / 3.6 * dt;
+  }
+  function driveRivals(dt) {
+    for (const rival of state.rivals) {
+      const setup = DRIVERS[rival.id];
+      const gap = state.distance - rival.distance;
+      const rhythm = Math.sin(state.elapsed * 0.55 + rival.id * 2);
+      const target = rival.slow > 0 ? 67 : setup.cruise + rhythm * 3 + clamp(gap * 0.10, -10, 8);
+      rival.slow = Math.max(0, rival.slow - dt);
+      rival.bumpCooldown = Math.max(0, rival.bumpCooldown - dt);
+      rival.speed += clamp(target - rival.speed, -65 * dt, 31 * dt);
+      rival.distance += rival.speed / 3.6 * dt;
+      rival.x = clamp(setup.x + 0.12 * Math.sin(rival.distance * 0.015 + rival.id) + 0.12 * window.KartRender.curveAt(rival.distance), -0.86, 0.86);
+      // A light racing bump costs momentum. Leave the approach to each word gate clear.
+      if (!state.question && !rival.bumpCooldown && Math.abs(rival.distance - state.distance) < 2.5 && Math.abs(rival.x - state.x) < 0.19) {
+        state.speed = Math.max(0, state.speed - 8);
+        rival.bumpCooldown = 1.8;
+      }
+    }
+    state.rank = 1 + state.rivals.filter(rival => rival.distance > state.distance).length;
+  }
+  function advance(dt) {
+    if (!dt) return;
+    state.boost = Math.max(0, state.boost - dt);
+    state.pulse = Math.max(0, state.pulse - dt);
+    feedbackTime = Math.max(0, feedbackTime - dt);
+    if (!feedbackTime) state.feedback = '';
+    const previousDistance = state.distance;
+    drive(dt);
+    const crossedFinish = state.distance >= FINISH;
+    // Interpolate the last step so photo finishes use the same instant for all karts.
+    const raceDt = crossedFinish ? dt * clamp((FINISH - previousDistance) / (state.distance - previousDistance), 0, 1) : dt;
+    if (crossedFinish) state.distance = FINISH;
+    state.elapsed += raceDt;
+    driveRivals(raceDt);
+    state.lap = Math.min(LAPS, Math.floor(state.distance / TRACK_LENGTH) + 1);
+    checkGate();
+    if (crossedFinish) {
+      state.phase = 'finished';
+      clearControls(); notify();
+    }
+  }
+
+  function applyKartData(raw) {
+    const payload = GameData.prepare(raw);
+    const seenEn = new Set(), seenZh = new Set();
+    // A Chinese prompt must identify exactly one English choice, even for short lesson lists.
+    const words = payload.words.filter(w => {
+      const en = wrapKey(w.word), zh = wrapKey(w.chinese);
+      if (!en || !zh || seenEn.has(en) || seenZh.has(zh)) return false;
+      seenEn.add(en); seenZh.add(zh); return true;
+    });
+    const changed = words.length !== vocab.length || words.some((w, i) => w.word !== vocab[i].word || w.chinese !== vocab[i].chinese);
+    vocab = words;
+    lessonHash = raw ? '#lessonData=' + encodeURIComponent(JSON.stringify(raw)) : '';
+    GameData.report(payload, words, 3, '#kart-lesson', '每個字門需要 3 組英、中皆不同的選項。');
+    if (changed) garage();
+    else { state.vocabCount = words.length; notify(); }
+  }
+  window.addEventListener('message', event => {
+    if (event.data?.type === 'KART_DATA') applyKartData(event.data.payload);
+  });
+
+  function editable(target) {
+    return target instanceof Element && (target.isContentEditable || target.closest('input, select, textarea'));
+  }
+  window.addEventListener('keydown', event => {
+    if (editable(event.target) || event.altKey || event.ctrlKey || event.metaKey) return;
+    if ((event.code === 'Escape' || event.code === 'KeyP') && ['countdown', 'racing', 'paused'].includes(state.phase)) {
+      event.preventDefault();
+      if (!event.repeat) { if (state.phase === 'paused') resume(); else pause(); }
+      return;
+    }
+    if (state.phase !== 'racing') return;
+    if (CONTROL_KEYS[event.code]) {
+      event.preventDefault(); heldKeys.add(event.code);
+    } else if (event.code === 'Space' && !event.target.closest?.('button:not([data-kart-control])')) {
+      event.preventDefault(); if (!event.repeat) useItem();
+    }
+  });
+  window.addEventListener('keyup', event => { heldKeys.delete(event.code); });
+  document.addEventListener('pointerdown', event => {
+    const button = event.target.closest?.('[data-kart-control]');
+    if (!button || state.phase !== 'racing' || event.button !== 0) return;
+    event.preventDefault();
+    heldPointers.set(event.pointerId, button.dataset.kartControl);
+    button.setPointerCapture(event.pointerId);
+  });
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    document.addEventListener(type, event => { heldPointers.delete(event.pointerId); }, true);
+  }
+  window.addEventListener('blur', pause);
+  window.addEventListener('pagehide', pause);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  window.KartGame = { start, pause, resume, garage, useItem, setControl, getState: () => state, getLessonHash: () => lessonHash };
+  GameRuntime.onResize(draw, canvas)();
+  const hashData = new URLSearchParams(location.hash.slice(1)).get('lessonData');
+  if (hashData !== null) {
+    let raw = null;
+    try { raw = JSON.parse(hashData); } catch (_) { /* GameData displays the invalid lesson receipt. */ }
+    applyKartData(raw);
+  }
+})();
