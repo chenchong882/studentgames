@@ -9,6 +9,8 @@
   const CRUISE = 120;
   const SKID_DURATION = 1.5;
   const SKID_STEERING_LOCK = 0.8;
+  const LOCK_SECONDS = 0.35;
+  const ITEMS = { boost:'氮氣', banana:'香蕉', missile:'飛彈' };
   const BUILTIN_WORDS = [
     ['harbor', '港口'], ['bridge', '橋'], ['island', '島嶼'], ['boat', '船'],
     ['beach', '海灘'], ['lighthouse', '燈塔'], ['wave', '海浪'], ['windmill', '風車'],
@@ -21,8 +23,10 @@
   ];
   const CONTROL_KEYS = {
     ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
-    ArrowDown: 'brake', KeyS: 'brake'
+    ArrowDown: 'brake', KeyS: 'brake', ShiftLeft:'brake', ShiftRight:'brake', KeyZ:'brake'
   };
+  const ITEM_KEYS = new Set(['ControlLeft', 'ControlRight', 'KeyX', 'Space']);
+  const SWAP_KEYS = new Set(['AltLeft', 'AltRight', 'KeyC']);
   const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
   const laneAt = x => x < -1 / 3 ? 0 : x > 1 / 3 ? 2 : 1;
   const wrapKey = value => value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -37,14 +41,18 @@
 
   let vocab = BUILTIN_WORDS;
   let lessonHash = '';
-  let deck = [], previousWord = '', gateIndex = 0, countdownTime = 0, feedbackTime = 0;
+  let deck = [], itemBag = [], previousWord = '', gateIndex = 0, countdownTime = 0, feedbackTime = 0;
+  let heldItemKey = null;
   let beforePause = 'racing', frameId = 0, lastFrame = null, lastUpdate = 0;
   let state = newRace('race');
   const heldKeys = new Set(), heldPointers = new Map(), heldControls = new Set();
   const canvas = document.getElementById('kart-canvas');
 
   function newRace(mode) {
-    const rivals = DRIVERS.map((driver, id) => ({ ...driver, id, speed: 0, slow: 0, bumpCooldown: 0, finishedAt: null }));
+    const rivals = DRIVERS.map((driver, id) => ({
+      ...driver, id, speed: 0, hitEffect: null, hitTime: 0, bumpCooldown: 0, finishedAt: null,
+      previousX: driver.x, previousDistance: driver.distance
+    }));
     const standings = rivals.map(({ id, name, color }) => ({
       id: 'rival-' + id, name, number: String(id + 11), color, isPlayer: false, rivalId: id
     }));
@@ -52,7 +60,9 @@
     const race = {
       phase: 'garage', mode, lap: 1, laps: LAPS, rank: standings.length, trackLength: TRACK_LENGTH, finishedAt: null,
       speed: 0, elapsed: 0, countdown: 3, distance: 0, x: 0, steer: 0, offroad: false,
-      drifting: false, driftCharge: 0, boost: 0, pulse: 0, inventory: null,
+      drifting: false, driftCharge: 0, boost: 0,
+      items: [null, null], selectedSlot: 0, itemsUsed: 0, aim: null, bananas: [], missiles: [],
+      get inventory() { return this.items[this.selectedSlot]; },
       skid: 0, skidDuration: SKID_DURATION, skidSide: 1,
       question: null, feedback: '', correct: 0, attempts: 0, review: [], vocabCount: vocab.length,
       rivals, standings
@@ -86,6 +96,7 @@
   }
   function clearControls() {
     heldKeys.clear(); heldPointers.clear(); heldControls.clear();
+    heldItemKey = null; state.aim = null;
     state.steer = 0; state.drifting = false; state.driftCharge = 0;
   }
   function setControl(action, held) {
@@ -132,7 +143,7 @@
     if (!GameData.ready() || vocab.length < 3) return false;
     stopFrame(); clearControls();
     state = newRace(mode === 'item' ? 'item' : 'race');
-    deck = []; previousWord = ''; gateIndex = 0; feedbackTime = 0;
+    deck = []; itemBag = []; previousWord = ''; gateIndex = 0; feedbackTime = 0;
     countdownTime = 3; state.phase = 'countdown';
     notify(); wake();
     return true;
@@ -168,9 +179,19 @@
     state.question = { prompt: target.chinese, word: target.word, options, distance: gateDistance, lane: laneAt(state.x) };
   }
   function giveItem() {
-    if (state.inventory) return '道具格已滿';
-    state.inventory = state.rank === 1 || Math.random() < 0.5 ? 'boost' : 'pulse';
-    return state.inventory === 'boost' ? '獲得氮氣' : '獲得脈衝';
+    const slot = state.items.indexOf(null);
+    if (slot < 0) return '道具格已滿';
+    if (!itemBag.length) itemBag = order(Object.keys(ITEMS));
+    let pick = itemBag.length - 1;
+    // Make the first pickup usable while the starting pack is still together.
+    if (state.correct === 1) {
+      const frontCar = state.rivals.some(r => window.KartRender.inAimRange(r, state.distance));
+      pick = itemBag.findIndex(item => frontCar ? item === 'missile' : item !== 'missile');
+    }
+    if (!state.inventory) state.selectedSlot = slot;
+    const [item] = itemBag.splice(pick, 1);
+    state.items[slot] = item;
+    return '獲得' + ITEMS[item];
   }
   function checkGate() {
     if (gateIndex >= LAPS * GATES.length) return;
@@ -198,35 +219,106 @@
       state.skidSide = Math.abs(state.x) > .45 ? -Math.sign(state.x) : (gateIndex % 2 === 0 ? 1 : -1);
       state.speed = Math.min(state.speed, 78);
       state.boost = 0; state.drifting = false; state.driftCharge = 0;
+      state.aim = null;
       showFeedback(`打滑！正解　${q.word} ＝ ${q.prompt}`, 3);
     }
     state.question = null;
     gateIndex++;
     notify();
   }
-  function useItem() {
-    if (state.phase !== 'racing' || state.skid > 0 || !state.inventory) return false;
-    if (state.inventory === 'boost') {
-      state.boost = Math.max(state.boost, 3.4);
-      showFeedback('氮氣啟動！');
-    } else {
-      const ahead = state.rivals.filter(rival => rival.distance >= state.distance && rival.distance < FINISH)
-        .sort((a, b) => a.distance - b.distance);
-      // If we passed the target before using the item, it can still slow a pursuing kart.
-      const target = ahead[0] || state.rivals.filter(rival => rival.distance < FINISH)
-        .sort((a, b) => b.distance - a.distance)[0];
-      if (target) {
-        target.slow = 3.8;
-        state.pulse = 1.1;
-        showFeedback(ahead.length ? '脈衝命中前車！' : '脈衝命中後車！');
-      } else {
-        state.boost = 3.4;
-        showFeedback('對手已完賽，脈衝轉成氮氣！');
-      }
-    }
-    state.inventory = null;
+  function cycleItem() {
+    if (state.phase !== 'racing' || state.mode !== 'item') return false;
+    const other = 1 - state.selectedSlot;
+    if (!state.items[other]) return false;
+    state.aim = null;
+    state.selectedSlot = other;
     notify();
     return true;
+  }
+  function consumeItem() {
+    state.items[state.selectedSlot] = null;
+    const other = 1 - state.selectedSlot;
+    if (state.items[other]) state.selectedSlot = other;
+    state.itemsUsed++;
+    notify();
+  }
+  function beginItem() {
+    if (state.phase !== 'racing' || state.skid > 0 || !state.inventory || state.aim) return false;
+    if (state.inventory === 'missile') {
+      state.aim = { targetId:null, progress:0 };
+      notify(); return true;
+    }
+    if (state.inventory === 'banana') {
+      state.bananas.push({ distance:state.distance - 3, x:state.x, createdAt:state.elapsed });
+      showFeedback('香蕉已放在車後');
+    } else {
+      state.boost = Math.max(state.boost, 3.4);
+      showFeedback('氮氣啟動！');
+    }
+    consumeItem();
+    return true;
+  }
+  function trackAim(dt) {
+    if (!state.aim) return;
+    const id = window.KartRender.findAimTarget(canvas, state);
+    if (id !== state.aim.targetId) state.aim.progress = 0;
+    state.aim.targetId = id;
+    state.aim.progress = id === null ? 0 : Math.min(1, state.aim.progress + dt / LOCK_SECONDS);
+  }
+  function endItem() {
+    const aim = state.aim;
+    if (!aim) return false;
+    const id = window.KartRender.findAimTarget(canvas, state);
+    state.aim = null;
+    if (state.phase !== 'racing' || state.skid > 0 || state.inventory !== 'missile') { notify(); return false; }
+    if (id === null || aim.targetId !== id || aim.progress < 1) {
+      showFeedback('尚未鎖定，保留飛彈'); notify(); return false;
+    }
+    const target = state.rivals[id];
+    const flightTime = .26 + (target.distance - state.distance) / 145;
+    state.missiles.push({ x:state.x, distance:state.distance, targetId:id,
+      startX:state.x, startDistance:state.distance, progress:0, flightTime });
+    showFeedback('飛彈追擊' + target.name);
+    consumeItem();
+    return true;
+  }
+  function useItem() {
+    if (heldItemKey !== null) return false;
+    return state.aim ? endItem() : beginItem();
+  }
+
+  function hitRival(rival, effect) {
+    const slipped = effect === 'banana';
+    rival.hitEffect = effect;
+    rival.hitTime = slipped ? SKID_DURATION : 2;
+    rival.speed = Math.min(rival.speed, slipped ? 55 : 30);
+    if (!state.skid && !state.question) showFeedback(rival.name + (slipped ? '踩中香蕉！' : '被飛彈擊中！'), 1.4);
+  }
+  function advanceItems(dt) {
+    for (let i = state.bananas.length - 1; i >= 0; i--) {
+      const peel = state.bananas[i];
+      let victim = null, earliest = Infinity;
+      for (const rival of state.rivals) {
+        if (rival.finishedAt !== null || rival.previousDistance > peel.distance || rival.distance < peel.distance) continue;
+        const travel = rival.distance - rival.previousDistance;
+        const t = travel > 0 ? (peel.distance - rival.previousDistance) / travel : 0;
+        const x = rival.previousX + t * (rival.x - rival.previousX);
+        if (Math.abs(x - peel.x) <= .23 && t < earliest) { victim = rival; earliest = t; }
+      }
+      if (victim) hitRival(victim, 'banana');
+      if (victim || (state.elapsed - peel.createdAt > 2 && state.rivals.every(r => r.distance > peel.distance || r.finishedAt !== null))) {
+        state.bananas.splice(i, 1);
+      }
+    }
+    for (let i = state.missiles.length - 1; i >= 0; i--) {
+      const shot = state.missiles[i], target = state.rivals[shot.targetId];
+      shot.progress = Math.min(1, shot.progress + dt / shot.flightTime);
+      shot.x = shot.startX + (target.x - shot.startX) * shot.progress;
+      shot.distance = shot.startDistance + (target.distance - shot.startDistance) * shot.progress;
+      if (shot.progress === 1 && target.finishedAt === null) hitRival(target, 'missile');
+      if (shot.progress === 1 || target.finishedAt !== null) state.missiles.splice(i, 1);
+    }
+    trackAim(dt);
   }
 
   function drive(dt) {
@@ -259,6 +351,10 @@
   }
   function driveRivals(dt) {
     for (const rival of state.rivals) {
+      rival.previousX = rival.x;
+      rival.previousDistance = rival.distance;
+      rival.hitTime = Math.max(0, rival.hitTime - dt);
+      if (!rival.hitTime) rival.hitEffect = null;
       if (rival.finishedAt !== null) {
         rival.distance += rival.speed / 3.6 * dt;
         continue;
@@ -266,14 +362,13 @@
       const setup = DRIVERS[rival.id];
       const gap = state.distance - rival.distance;
       const rhythm = Math.sin(state.elapsed * 0.55 + rival.id * 2);
-      const target = rival.slow > 0 ? 67 : setup.cruise + rhythm * 3 + clamp(gap * 0.10, -10, 8);
-      rival.slow = Math.max(0, rival.slow - dt);
+      const target = rival.hitTime > 0 ? 32 : setup.cruise + rhythm * 3 + clamp(gap * 0.10, -10, 8);
       rival.bumpCooldown = Math.max(0, rival.bumpCooldown - dt);
       rival.speed += clamp(target - rival.speed, -65 * dt, 31 * dt);
-      const previous = rival.distance;
       rival.distance += rival.speed / 3.6 * dt;
       if (rival.distance >= FINISH) {
-        rival.finishedAt = state.elapsed - dt + dt * (FINISH - previous) / (rival.distance - previous);
+        const fraction = (FINISH - rival.previousDistance) / (rival.distance - rival.previousDistance);
+        rival.finishedAt = state.elapsed - dt + dt * fraction;
         continue;
       }
       rival.x = clamp(setup.x + 0.12 * Math.sin(rival.distance * 0.015 + rival.id) + 0.12 * window.KartRender.curveAt(rival.distance), -0.86, 0.86);
@@ -288,7 +383,6 @@
   function advance(dt) {
     if (!dt) return;
     state.boost = Math.max(0, state.boost - dt);
-    state.pulse = Math.max(0, state.pulse - dt);
     feedbackTime = Math.max(0, feedbackTime - dt);
     if (!feedbackTime) state.feedback = '';
     const previousDistance = state.distance;
@@ -300,6 +394,7 @@
     state.elapsed += raceDt;
     if (crossedFinish) state.finishedAt = state.elapsed;
     driveRivals(raceDt);
+    if (state.mode === 'item') advanceItems(raceDt);
     state.lap = Math.min(LAPS, Math.floor(state.distance / TRACK_LENGTH) + 1);
     checkGate();
     if (crossedFinish) {
@@ -332,20 +427,37 @@
     return target instanceof Element && (target.isContentEditable || target.closest('input, select, textarea'));
   }
   window.addEventListener('keydown', event => {
-    if (editable(event.target) || event.altKey || event.ctrlKey || event.metaKey) return;
-    if ((event.code === 'Escape' || event.code === 'KeyP') && ['countdown', 'racing', 'paused'].includes(state.phase)) {
+    if (editable(event.target) || event.metaKey || event.getModifierState?.('AltGraph')) return;
+    if (!event.ctrlKey && !event.altKey && (event.code === 'Escape' || event.code === 'KeyP') && ['countdown', 'racing', 'paused'].includes(state.phase)) {
       event.preventDefault();
       if (!event.repeat) { if (state.phase === 'paused') resume(); else pause(); }
       return;
     }
     if (state.phase !== 'racing') return;
+    const holdingUseCtrl = heldItemKey === 'ControlLeft' || heldItemKey === 'ControlRight';
     if (CONTROL_KEYS[event.code]) {
+      if (event.altKey || (event.ctrlKey && !holdingUseCtrl)) return;
       event.preventDefault(); heldKeys.add(event.code);
-    } else if (event.code === 'Space' && !event.target.closest?.('button:not([data-kart-control])')) {
-      event.preventDefault(); if (!event.repeat) useItem();
+    } else if (state.mode === 'item' && SWAP_KEYS.has(event.code) && (!event.ctrlKey || holdingUseCtrl)) {
+      event.preventDefault(); if (!event.repeat) cycleItem();
+    } else if (state.mode === 'item' && ITEM_KEYS.has(event.code) && !event.altKey) {
+      if (event.code === 'Space' && event.target.closest?.('button:not([data-kart-control])')) return;
+      if (event.ctrlKey && event.code !== 'ControlLeft' && event.code !== 'ControlRight') return;
+      event.preventDefault();
+      if (!event.repeat && heldItemKey === null) {
+        heldItemKey = event.code;
+        beginItem();
+      }
     }
   });
-  window.addEventListener('keyup', event => { heldKeys.delete(event.code); });
+  window.addEventListener('keyup', event => {
+    heldKeys.delete(event.code);
+    if (state.mode === 'item' && state.phase === 'racing' && (event.code === 'AltLeft' || event.code === 'AltRight')) event.preventDefault();
+    if (event.code === heldItemKey) {
+      heldItemKey = null;
+      endItem();
+    }
+  });
   document.addEventListener('pointerdown', event => {
     const button = event.target.closest?.('[data-kart-control]');
     if (!button || state.phase !== 'racing' || event.button !== 0) return;
@@ -359,7 +471,8 @@
   window.addEventListener('blur', pause);
   window.addEventListener('pagehide', pause);
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
-  window.KartGame = { start, pause, resume, garage, useItem, setControl, getState: () => state, getLessonHash: () => lessonHash };
+  window.KartGame = { start, pause, resume, garage, useItem, cycleItem, itemNames: ITEMS,
+    setControl, getState: () => state, getLessonHash: () => lessonHash };
   GameRuntime.onResize(draw, canvas)();
   const hashData = new URLSearchParams(location.hash.slice(1)).get('lessonData');
   if (hashData !== null) {

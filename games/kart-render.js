@@ -430,6 +430,66 @@
       half: p.half + (q.half - p.half) * t, k: p.k + (q.k - p.k) * t };
   }
 
+  // Aiming and drawing use the same road sample, including on turn-in and over crests.
+  function roadFor(v, s) {
+    if (v.distance !== s.distance || v.lane !== s.x) {
+      v.points = buildRoad(v, s);
+      v.distance = s.distance;
+      v.lane = s.x;
+    }
+    return v.points;
+  }
+
+  function kartPosition(v, p, driver) {
+    const width = v.kartWidth * p.k;
+    const hit = driver.hitEffect === 'missile' && driver.hitTime > 0;
+    const hop = hit && !reducedMotion.matches ? Math.sin(Math.PI * clamp((2 - driver.hitTime) / .55, 0, 1)) * width * .32 : 0;
+    return { x:p.x + p.half * driver.x, y:p.y, centerY:p.y - hop - .48 * width, width, hop };
+  }
+
+  function gateBoard(p) {
+    return { top:p.y - p.half * .75, height:p.half * .174 };
+  }
+
+  function inAimRange(rival, distance) {
+    const gap = rival.distance - distance;
+    return rival.finishedAt === null && gap >= 2 && gap <= 125;
+  }
+
+  function aimSight(v, points, s) {
+    const ahead = s.rivals.filter(r => inAimRange(r, s.distance))
+      .sort((a, b) => a.distance - b.distance);
+    const nearer = [kartPosition(v, at(points, s.distance), s)];
+    const gate = s.question && at(points, s.question.distance);
+    const board = gate && gateBoard(gate);
+    let preview = null;
+    for (const rival of ahead) {
+      const road = at(points, rival.distance), kart = kartPosition(v, road, rival);
+      // Do not lock a car hidden by another kart, the next hill, or a word sign.
+      const offscreen = kart.x < 0 || kart.x > v.w || kart.centerY < 0 || kart.centerY > v.h;
+      const blockedByKart = nearer.some(n => Math.abs(n.x - kart.x) < n.width * .30 &&
+        kart.centerY > n.y - n.hop - n.width * .80 && kart.centerY < n.y - n.hop);
+      nearer.push(kart);
+      if (offscreen || blockedByKart) continue;
+      if (points.some(p => p.pos > s.distance && p.pos < rival.distance && p.y < kart.centerY &&
+        Math.abs(p.x - kart.x) < p.half)) continue;
+      if (gate && s.question.distance < rival.distance && Math.abs(kart.x - gate.x) < gate.half &&
+        kart.centerY >= board.top && kart.centerY <= board.top + board.height) continue;
+      const x = road.x + s.x * road.half;
+      const sight = { x, y:kart.centerY, tolerance:road.half * .22, kart, rival };
+      if (Math.abs(kart.x - x) <= sight.tolerance) return { ...sight, targetId:rival.id };
+      if (!preview) preview = sight;
+    }
+    if (preview) return preview;
+    const p = at(points, s.distance + 40);
+    return { x:p.x + p.half * s.x, y:p.y - v.kartWidth * p.k * .48, tolerance:p.half * .22 };
+  }
+
+  function findAimTarget(canvas, s) {
+    const v = views.get(canvas);
+    return v ? aimSight(v, roadFor(v, s), s).targetId ?? null : null;
+  }
+
   function drawRoad(v, points) {
     const c = v.c;
     // Several distant segments can project into a single pixel on a phone.
@@ -466,8 +526,7 @@
 
   function drawGate(c, p, question) {
     const half = p.half;
-    const top = p.y - half * .75;
-    const height = half * .174;
+    const {top, height} = gateBoard(p);
     const pole = Math.max(1.4, half * .015);
     const width = half * (2 / question.options.length);
     c.save();
@@ -502,8 +561,9 @@
   // The rear-view sprite has no side or nose. Project those angles on the ground
   // plane during a spin so the helmet stays upright and the wheels stay on the road.
   const SPIN_VIEWS = 24;
-  function spinningKart(frame) {
-    if (vehicleSprites.has(frame)) return vehicleSprites.get(frame);
+  function spinningKart(frame, color) {
+    const key = 'spin-' + color + '-' + frame;
+    if (vehicleSprites.has(key)) return vehicleSprites.get(key);
     const sprite = surface(244, 200);
     const c = sprite.getContext('2d');
     c.translate(122, 190);
@@ -543,11 +603,11 @@
         face('#6f7e86', outer.map(([x, y, zz]) => [x + side, 11 + (y - 11) * .53, z + (zz - z) * .53]));
       }
     }
-    hull([[-60,-59],[60,-59],[67,-36],[52,44],[32,68],[-32,68],[-52,44],[-67,-36]], 8, 23, '#e95642', '#b33d34');
-    hull([[-54,-58],[54,-58],[51,-39],[-51,-39]], 23, 32, '#ee644e', '#374650');
-    hull([[-37,17],[37,17],[26,61],[-26,61]], 23, 39, '#fa634b', '#d14736');
+    hull([[-60,-59],[60,-59],[67,-36],[52,44],[32,68],[-32,68],[-52,44],[-67,-36]], 8, 23, color, '#374650');
+    hull([[-54,-58],[54,-58],[51,-39],[-51,-39]], 23, 32, color, '#374650');
+    hull([[-37,17],[37,17],[26,61],[-26,61]], 23, 39, color, '#374650');
     face('#ffedcb', [[-7,40,19],[7,40,19],[7,40,59],[-7,40,59]]);
-    hull([[-29,-28],[29,-28],[26,6],[-26,6]], 27, 65, '#ef6853', '#c24037');
+    hull([[-29,-28],[29,-28],[26,6],[-26,6]], 27, 65, color, '#374650');
     for (const side of [-1, 1]) {
       hull([[side*44,-28],[side*61,-28],[side*59,19],[side*46,14]], 23, 31, '#fff0c9', '#2169a6');
     }
@@ -571,52 +631,54 @@
       polygon(c, j < 7 ? '#233748' : '#1e2e42', ...visor.flat());
     }
     c.restore();
-    vehicleSprites.set(frame, sprite);
+    vehicleSprites.set(key, sprite);
     return sprite;
   }
 
-  function drawPeel(c, width, time, side) {
-    const t = reducedMotion.matches ? 0 : time;
-    c.save();
-    c.translate(side * width * (.45 + .19 * t), width * (.02 + .11 * t));
-    const scale = width / 170;
-    c.scale(scale * side, scale);
-    c.globalAlpha = Math.min(1, (1 - time) * 4);
+  function drawPeel(c, lift) {
     oval(c, 'rgba(28,40,43,.23)', 2, 2, 18, 4);
-    c.translate(0, -Math.sin(t * Math.PI) * 13);
+    c.translate(0, -lift);
     polygon(c, '#935e26', -20, 1, -12, -2, -4, -5, -2, -16, 2, -18, 4, -7, 10, -4, 20, -7, 16, 0, 6, 4, 0, 2, -9, 6);
     polygon(c, '#ffd84e', -19, 1, -10, -1, -2, -5, 0, -15, 2, -16, 2, -6, 9, -3, 17, -5, 13, -1, 5, 1, 0, -1, -9, 4);
     polygon(c, '#fff2a4', 0, -2, 5, 2, 9, 8, 1, 5, -4, 1);
-    c.restore();
   }
 
   function drawKart(v, p, s, driver, isPlayer) {
     const c = v.c;
     const steer = isPlayer ? s.steer : clamp(curveAt(driver.distance) * .65, -.8, .8);
-    const width = v.kartWidth * p.k;
-    const x = p.x + p.half * driver.x;
-    const y = p.y;
+    const {width, x, y, hop} = kartPosition(v, p, driver);
     if (x < -width || x > v.w + width || y - width > v.h) return;
     const bouncing = isPlayer && s.offroad;
     const wobble = reducedMotion.matches ? 0 : Math.sin(s.elapsed * (bouncing ? 40 : 21) + driver.id) * width
       * (bouncing ? .014 : .004) * clamp(s.speed / 100, 0, 1);
     oval(c, 'rgba(36,47,52,.30)', x + width * .05, y - width * .018, width * .52, width * .094);
-    const slipping = isPlayer && s.skid > 0;
-    const skidProgress = slipping ? 1 - s.skid / s.skidDuration : 0;
+    const skidRemaining = isPlayer ? s.skid : driver.hitEffect === 'banana' ? driver.hitTime : 0;
+    const slipping = skidRemaining > 0;
+    const skidSide = isPlayer ? s.skidSide : driver.id % 2 === 0 ? 1 : -1;
+    const skidProgress = slipping ? clamp(1 - skidRemaining / s.skidDuration, 0, 1) : 0;
     const spin = 1 - (1 - skidProgress) ** 2;
-    const spinFrame = reducedMotion.matches ? 0 : wrap(Math.round(spin * SPIN_VIEWS) * s.skidSide, SPIN_VIEWS);
-    const sprite = spinFrame ? spinningKart(spinFrame) : kartSprite(driver.color, isPlayer ? '07' : String(driver.id + 11), isPlayer);
+    const spinFrame = reducedMotion.matches ? 0 : wrap(Math.round(spin * SPIN_VIEWS) * skidSide, SPIN_VIEWS);
+    const sprite = spinFrame ? spinningKart(spinFrame, driver.color) : kartSprite(driver.color, isPlayer ? '07' : String(driver.id + 11), isPlayer);
+    const hitTime = driver.hitEffect === 'missile' ? driver.hitTime : 0;
     c.save();
-    c.translate(x, y + wobble);
-    if (slipping) drawPeel(c, width, skidProgress, -s.skidSide);
+    c.translate(x, y + wobble - hop);
+    if (slipping) {
+      const t = reducedMotion.matches ? 0 : skidProgress;
+      c.save();
+      c.translate(-skidSide * width * (.45 + .19 * t), width * (.02 + .11 * t));
+      c.scale(-skidSide * width / 170, width / 170);
+      c.globalAlpha = Math.min(1, (1 - skidProgress) * 4);
+      drawPeel(c, Math.sin(t * Math.PI) * 13);
+      c.restore();
+    }
     c.rotate(steer * (s.drifting && isPlayer ? .105 : .030));
     const scale = width / 184;
-    if (isPlayer && !reducedMotion.matches && (s.drifting || s.offroad || slipping)) {
+    if (!reducedMotion.matches && (slipping || isPlayer && (s.drifting || s.offroad))) {
       for (const side of [-1, 1]) {
         for (let n = 0; n < 4; n++) {
           const t = wrap(s.elapsed * 2.5 + n / 4, 1);
           const dx = side * width * (.40 + t * .15) - steer * width * t * .12;
-          oval(c, s.offroad ? 'rgba(220,198,157,.43)' : 'rgba(227,232,227,.46)',
+          oval(c, isPlayer && s.offroad ? 'rgba(220,198,157,.43)' : 'rgba(227,232,227,.46)',
             dx, width * (.008 + .12 * t), width * (.02 + t * .05), width * (.015 + t * .028));
         }
       }
@@ -633,14 +695,87 @@
     }
     c.drawImage(sprite, -122 * scale, -190 * scale, 244 * scale, 200 * scale);
     c.restore();
-    if (isPlayer && s.pulse > 0) {
-      const t = wrap(s.elapsed * 1.25, 1);
-      c.beginPath();
-      c.ellipse(x, y - width * .12, width * (.40 + t * 1.48), width * (.14 + t * .26), 0, 0, TAU);
-      c.strokeStyle = 'rgba(159,245,237,' + (.75 * (1 - t)) + ')';
-      c.lineWidth = 2 + (1 - t) * width * .018;
-      c.stroke();
+    if (hitTime > 0) {
+      const t = reducedMotion.matches ? .55 : clamp((2 - hitTime) / .55, 0, 1);
+      const glow = Math.max(.6, 1 - t);
+      c.save();
+      c.translate(x, y - .78 * width - hop);
+      c.globalAlpha = Math.min(1, hitTime * 5);
+      for (let i = 0; i < 3; i++) {
+        const angle = Math.PI * (1.12 + i * .38);
+        const radius = width * (.21 + .15 * t);
+        const dx = Math.cos(angle) * radius, dy = Math.sin(angle) * radius;
+        const size = Math.max(3, width * .13 * glow);
+        polygon(c, '#784c24', dx, dy - size, dx + .34 * size, dy - .30 * size, dx + size, dy,
+          dx + .34 * size, dy + .30 * size, dx, dy + size, dx - .34 * size, dy + .30 * size,
+          dx - size, dy, dx - .34 * size, dy - .30 * size);
+        polygon(c, '#ffdb56', dx, dy - .78 * size, dx + .62 * size, dy, dx, dy + .78 * size, dx - .62 * size, dy);
+      }
+      c.restore();
     }
+  }
+
+  function drawSight(v, points, s) {
+    const c = v.c, sight = aimSight(v, points, s);
+    const acquiring = sight.targetId != null && s.aim.targetId === sight.targetId;
+    const locked = acquiring && s.aim.progress >= 1;
+    const color = locked ? '#ff726a' : acquiring ? '#83ffdf' : '#f3fffd';
+    const w = Math.max(5, sight.tolerance);
+    c.save();
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    // Horizontal ticks mark the tolerance at the opponent's actual depth.
+    for (const side of [-1, 1]) {
+      const x = sight.x + side * w;
+      const pts = [x, sight.y - 4, x, sight.y + 4, x + side * 4, sight.y + 4];
+      line(c, '#203a48', 3.5, ...pts); line(c, color, 1.6, ...pts);
+    }
+    oval(c, '#203a48', sight.x, sight.y, 2.5, 2.5);
+    oval(c, color, sight.x, sight.y, 1.4, 1.4);
+    if (acquiring) {
+      const {x, centerY, width} = sight.kart;
+      const radius = Math.max(9, width * (.61 - .08 * s.aim.progress));
+      const tip = Math.max(4, radius * .34);
+      for (const a of [-1, 1]) for (const b of [-1, 1]) {
+        const xx = x + a * radius, yy = centerY + b * radius * .90;
+        const stroke = [xx - a * tip, yy, xx, yy, xx, yy - b * tip];
+        line(c, '#203a48', 4, ...stroke); line(c, color, 2, ...stroke);
+      }
+      const barWidth = Math.max(18, radius * 1.3), barY = centerY - radius * .9 - 6;
+      box(c, '#203a48', x - barWidth / 2 - 1, barY - 1, barWidth + 2, 4);
+      box(c, color, x - barWidth / 2, barY, barWidth * s.aim.progress, 2);
+      if (locked) {
+        const tipY = barY - 3;
+        polygon(c, color, x - 4, tipY - 4, x + 4, tipY - 4, x, tipY);
+        c.font = 'bold 12px system-ui, sans-serif';
+        c.textAlign = 'center'; c.textBaseline = 'bottom';
+        c.lineWidth = 3; c.strokeStyle = '#203a48';
+        c.strokeText('可發射', x, tipY - 5);
+        c.fillStyle = '#fff5e0'; c.fillText('可發射', x, tipY - 5);
+      }
+    }
+    c.restore();
+  }
+
+  function drawMissile(v, points, s, p, shot) {
+    const c = v.c, target = s.rivals.find(r => r.id === shot.targetId);
+    if (!target) return;
+    const projectile = kartPosition(v, p, shot);
+    const end = kartPosition(v, at(points, target.distance), target);
+    const lift = reducedMotion.matches ? 0 : .56 * Math.sin(Math.PI * shot.progress);
+    const x = projectile.x + (.20 * projectile.width * (1 - shot.progress));
+    const y = projectile.centerY - lift * projectile.width;
+    const scale = clamp(projectile.width / 125, .28, 1.75);
+    c.save();
+    c.translate(x, y);
+    c.rotate(Math.atan2(end.centerY - y, end.x - x));
+    c.scale(scale, scale);
+    polygon(c, '#f9a549', -12,-3, -21,-5, -19,-2, -29,1, -21,3, -23,5, -12,3);
+    polygon(c, '#fff6ba', -11,-2, -22,0, -11,2);
+    polygon(c, '#213849', -16,-8, -8,-6, -5,-5, 6,-5, 15,0, 6,5, -5,5, -16,8, -14,2, -14,-2);
+    polygon(c, '#ee6556', -14,-6, -5,-4, -6,4, -14,6, -12,1, -12,-1);
+    polygon(c, '#fff2cf', -9,-3, 5,-4, 13,0, 5,4, -9,3);
+    polygon(c, '#ee6556', 6,-3, 13,0, 6,3);
+    c.restore();
   }
 
   function drawObjects(v, points, s) {
@@ -658,6 +793,8 @@
       if (i % 3 === 0) add(i * 21, 1.14, 'beacon', .60);
     }
     if (s.question) add(s.question.distance, 0, 'gate', 1);
+    for (const peel of s.bananas) add(peel.distance, peel.x, 'banana', .16);
+    for (const shot of s.missiles) add(shot.distance, shot.x, 'missile', 1, shot);
     for (const rival of s.rivals) add(rival.distance, rival.x, 'kart', 1, rival);
     add(s.distance, s.x, 'player', 1, { id: 7, x: s.x, color: '#ec513f' });
     entries.sort((a, b) => b.pos - a.pos);
@@ -667,6 +804,15 @@
         drawKart(v, p, s, obj.driver, obj.kind === 'player');
       } else if (obj.kind === 'gate') {
         drawGate(v.c, p, s.question);
+      } else if (obj.kind === 'banana') {
+        const scale = Math.max(.14, p.half * obj.size / 40);
+        v.c.save();
+        v.c.translate(p.x + p.half * obj.lane, p.y);
+        v.c.scale(scale, scale);
+        drawPeel(v.c, 0);
+        v.c.restore();
+      } else if (obj.kind === 'missile') {
+        drawMissile(v, points, s, p, obj.driver);
       } else {
         const width = p.half * obj.size;
         const x = p.x + p.half * obj.lane;
@@ -696,13 +842,14 @@
     const c = v.c;
     const pan = .12 * Math.sin(s.distance * TAU / LAP) + .047 * Math.sin(s.distance * TAU / 350);
     c.drawImage(v.panorama, Math.round(-w * (.20 + pan)), 0);
-    const points = buildRoad(v, s);
+    const points = roadFor(v, s);
     const end = points[points.length - 1];
     const tip = { x: end.x, y: v.horizon, half: 0 };
     ribbon(c, '#a6b9a0', tip, end, -1.5, 6.5);
     ribbon(c, '#819399', tip, end, -1, 1);
     drawRoad(v, points);
     drawObjects(v, points, s);
+    if (s.aim) drawSight(v, points, s);
     if (s.boost > 0 && !reducedMotion.matches) {
       const center = .51 * w;
       for (let i = 0; i < 10; i++) {
@@ -715,5 +862,5 @@
     }
   }
 
-  window.KartRender = { draw, curveAt };
+  window.KartRender = { draw, curveAt, findAimTarget, inAimRange };
 })();

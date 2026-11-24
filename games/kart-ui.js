@@ -7,8 +7,10 @@
   const standingRows = new Map();
   const standingAnimations = new WeakMap();
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const itemActions = { boost:'噴氮氣', banana:'放香蕉', missile:'瞄準飛彈' };
+  const slotButtons = Array.from(ui['item-rack'].querySelectorAll('[data-slot]'));
   let mode = 'race', phase = '', currentQuestion = null, activeLane = -2, approachLength = 1;
-  let previousCountdown = null, previousAttempts = 0, previousItem = null, audio = null;
+  let previousCountdown = null, previousAttempts = 0, previousUses = 0, previousLock = null, audio = null;
   let soundOn = true, motor = null;
   try { soundOn = localStorage.getItem('kart-sound') !== 'off'; } catch (_) {}
 
@@ -69,7 +71,7 @@
   }));
   function startRace() {
     enableAudio();
-    previousCountdown = null; previousAttempts = 0; previousItem = null;
+    previousCountdown = null; previousAttempts = 0; previousUses = 0; previousLock = null;
     ui['standing-list'].textContent = '';
     standingRows.clear();
     game.start(mode);
@@ -82,6 +84,10 @@
     game.useItem();
     ui.race.focus({preventScroll:true});
   });
+  slotButtons.forEach((button, i) => button.addEventListener('click', () => {
+    if (i !== game.getState().selectedSlot) game.cycleItem();
+    ui.race.focus({preventScroll:true});
+  }));
   [ui.back, ui.leave].forEach(button => button.addEventListener('click', game.garage));
   ui['help-open'].addEventListener('click', () => {
     ui.help.hidden = false;
@@ -195,6 +201,41 @@
     });
   }
 
+  function paintItems(state) {
+    const available = state.phase === 'racing' && state.skid <= 0;
+    slotButtons.forEach((button, i) => {
+      const item = state.items[i], selected = !!item && i === state.selectedSlot;
+      const slotState = [item, selected, state.phase].join('/');
+      if (button.dataset.slotState === slotState) return;
+      button.dataset.slotState = slotState;
+      button.disabled = state.phase !== 'racing' || !item;
+      button.setAttribute('aria-pressed', String(selected));
+      const name = game.itemNames[item] || '空格';
+      button.setAttribute('aria-label', '第 ' + (i + 1) + ' 格，' + name + (selected ? '，已選取' : ''));
+      button.querySelector('use').setAttribute('href', '#i-' + (item || 'box'));
+      write(button.querySelector('span'), name);
+    });
+    const selected = state.inventory;
+    const target = state.aim && state.aim.progress >= 1 ? state.aim.targetId : null;
+    if (target !== null && target !== previousLock && available) tone(880, .075);
+    previousLock = target;
+    if (state.itemsUsed > previousUses && available) { tone(360, .13); tone(690, .13, .08); }
+    previousUses = state.itemsUsed;
+    ui.item.disabled = !available || !selected;
+    if (ui.item.dataset.item !== (selected || 'box')) {
+      ui.item.dataset.item = selected || 'box';
+      ui.item.querySelector('use').setAttribute('href', '#i-' + (selected || 'box'));
+    }
+    let action = itemActions[selected] || '空道具格';
+    if (state.aim) {
+      action = state.rank === 1 ? '前方無車' : target === null ? '瞄準中' : '發射飛彈';
+    }
+    write(ui['item-name'], action);
+    write(ui['item-key-tip'], selected === 'missile'
+      ? '　Alt / C 換格　按住 X 瞄準，鎖定後放開'
+      : '　Alt / C 換格　Ctrl / X 使用');
+  }
+
   function update(state) {
     const next = state.phase;
     updateMotor(state);
@@ -207,7 +248,7 @@
       ui.break.hidden = next !== 'paused';
       ui.finish.hidden = next !== 'finished';
       ui.count.hidden = next !== 'countdown';
-      ui.item.hidden = ui['item-key-tip'].hidden = state.mode !== 'item';
+      ui['item-rack'].hidden = ui.item.hidden = ui['item-key-tip'].hidden = state.mode !== 'item';
       if (next === 'garage') {
         if (prior) ui.start.focus({preventScroll:true});
       } else if (next === 'paused') {
@@ -238,15 +279,13 @@
       if (answer.correct) { tone(740, .12); tone(990, .15, .09); }
       else tone(260, .19);
     }
-    if (previousItem && !state.inventory && next === 'racing') { tone(360, .13); tone(690, .13, .08); }
-    previousAttempts = state.attempts; previousItem = state.inventory;
+    previousAttempts = state.attempts;
     paintQuestion(state.question, state.distance);
     ui['race-message'].hidden = !state.feedback;
     write(ui['race-message'], state.feedback);
     const pace = state.skid > 0 ? '打滑減速' : state.offroad ? '駛回賽道' : state.drifting ? (state.driftCharge >= 1 ? '放開煞車加速！' : '甩尾集氣 ' + Math.floor(state.driftCharge * 100) + '%') : state.boost > 0 ? '氮氣加速' : '';
     write(ui['pace-status'], pace);
-    ui.item.disabled = !state.inventory || state.skid > 0 || next !== 'racing';
-    write(ui['item-name'], state.inventory === 'boost' ? '用氮氣' : state.inventory === 'pulse' ? '用脈衝' : '空道具格');
+    if (state.mode === 'item') paintItems(state);
   }
   document.addEventListener('kart-update', event => update(event.detail));
   update(game.getState());
