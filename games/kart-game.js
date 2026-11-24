@@ -11,6 +11,18 @@
   const SKID_STEERING_LOCK = 0.8;
   const LOCK_SECONDS = 0.35;
   const ITEMS = { boost:'氮氣', banana:'香蕉', missile:'飛彈' };
+  const CARS = [
+    { id:'burst', name:'爆烈 G3', color:'#159c9e', specialty:'起步加速快', acceleration:43, steering:1, bumpLoss:8 },
+    { id:'saber', name:'尖峰 G3', color:'#2868b4', specialty:'轉向靈敏', acceleration:36, steering:1.12, bumpLoss:8 },
+    { id:'solid', name:'合金 G3', color:'#dba421', specialty:'碰撞失速少', acceleration:36, steering:1, bumpLoss:3 }
+  ];
+  const TRACKS = [
+    { id:'beach', theme:'海灘', name:'椰岸海濱大道' },
+    { id:'city', theme:'城市', name:'市中心環道' },
+    { id:'desert', theme:'沙漠', name:'沙丘綠洲' },
+    { id:'night', theme:'夜晚的街道', name:'月夜霓虹街' },
+    { id:'space', theme:'太空', name:'星環太空站' }
+  ];
   const BUILTIN_WORDS = [
     ['harbor', '港口'], ['bridge', '橋'], ['island', '島嶼'], ['boat', '船'],
     ['beach', '海灘'], ['lighthouse', '燈塔'], ['wave', '海浪'], ['windmill', '風車'],
@@ -48,17 +60,18 @@
   const heldKeys = new Set(), heldPointers = new Map(), heldControls = new Set();
   const canvas = document.getElementById('kart-canvas');
 
-  function newRace(mode) {
+  function newRace(mode, car = CARS[0], stageIndex = 0, results = []) {
     const rivals = DRIVERS.map((driver, id) => ({
-      ...driver, id, speed: 0, hitEffect: null, hitTime: 0, bumpCooldown: 0, finishedAt: null,
+      ...driver, id, car: { ...CARS[id], color:driver.color }, speed: 0, hitEffect: null, hitTime: 0, bumpCooldown: 0, finishedAt: null,
       previousX: driver.x, previousDistance: driver.distance
     }));
     const standings = rivals.map(({ id, name, color }) => ({
       id: 'rival-' + id, name, number: String(id + 11), color, isPlayer: false, rivalId: id
     }));
-    standings.push({ id:'player', name:'你', number:'07', color:'#ec513f', isPlayer:true });
+    standings.push({ id:'player', name:'你', number:'07', color:car.color, isPlayer:true });
     const race = {
-      phase: 'garage', mode, lap: 1, laps: LAPS, rank: standings.length, trackLength: TRACK_LENGTH, finishedAt: null,
+      phase: 'garage', mode, car, stageIndex, track:TRACKS[stageIndex], results,
+      lap: 1, laps: LAPS, rank: standings.length, trackLength: TRACK_LENGTH, finishedAt: null,
       speed: 0, elapsed: 0, countdown: 3, distance: 0, x: 0, steer: 0, offroad: false,
       drifting: false, driftCharge: 0, boost: 0,
       items: [null, null], selectedSlot: 0, itemsUsed: 0, aim: null, bananas: [], missiles: [],
@@ -139,14 +152,23 @@
     cancelAnimationFrame(frameId);
     frameId = 0; lastFrame = null;
   }
-  function start(mode = 'race') {
+  function launchStage(mode, car, stageIndex, results) {
     if (!GameData.ready() || vocab.length < 3) return false;
     stopFrame(); clearControls();
-    state = newRace(mode === 'item' ? 'item' : 'race');
-    deck = []; itemBag = []; previousWord = ''; gateIndex = 0; feedbackTime = 0;
+    state = newRace(mode, car, stageIndex, results);
+    itemBag = []; gateIndex = 0; feedbackTime = 0;
     countdownTime = 3; state.phase = 'countdown';
     notify(); wake();
     return true;
+  }
+  function start(mode = 'race', carId) {
+    deck = []; previousWord = '';
+    const car = CARS.find(entry => entry.id === carId) || CARS[0];
+    return launchStage(mode === 'item' ? 'item' : 'race', car, 0, []);
+  }
+  function nextStage() {
+    if (state.phase !== 'finished' || state.stageIndex + 1 >= TRACKS.length) return false;
+    return launchStage(state.mode, state.car, state.stageIndex + 1, state.results);
   }
   function pause() {
     if (state.phase !== 'racing' && state.phase !== 'countdown') return;
@@ -161,7 +183,7 @@
   }
   function garage() {
     stopFrame(); clearControls();
-    state = newRace(state.mode);
+    state = newRace(state.mode, state.car);
     notify(); draw();
   }
 
@@ -328,14 +350,14 @@
   function drive(dt) {
     const turn = Number(pressed('right')) - Number(pressed('left'));
     const brake = pressed('brake');
-    const curve = window.KartRender.curveAt(state.distance);
+    const curve = window.KartRender.curveAt(state.distance, state.track.id);
     const velocity = state.speed / CRUISE;
     const slipping = state.skid > 0;
     const skidElapsed = SKID_DURATION - state.skid;
     const grip = slipping ? clamp((skidElapsed - SKID_STEERING_LOCK) / (SKID_DURATION - SKID_STEERING_LOCK), 0, 1) : 1;
     const slide = slipping ? state.skidSide * .52 * Math.sin(2 * Math.PI * skidElapsed / SKID_DURATION) : 0;
     state.steer += (turn * grip - state.steer) * (1 - Math.exp(-11 * dt));
-    state.x = clamp(state.x + (state.steer * grip * (1.15 + 0.36 * velocity) + slide - curve * velocity * 0.61) * dt, -1.22, 1.22);
+    state.x = clamp(state.x + (state.steer * grip * state.car.steering * (1.15 + 0.36 * velocity) + slide - curve * velocity * 0.61) * dt, -1.22, 1.22);
     state.offroad = Math.abs(state.x) > 1;
     const drifting = !slipping && brake && turn * curve > 0.15 && !state.offroad && state.speed > 66;
     if (drifting) state.driftCharge = Math.min(1, state.driftCharge + dt / 0.62);
@@ -348,7 +370,7 @@
     }
     state.drifting = drifting;
     const target = slipping ? 30 + grip * 36 : state.offroad ? 73 : drifting ? 105 : brake ? 63 : state.boost > 0 ? 158 : CRUISE;
-    const acceleration = target < state.speed ? (slipping ? 150 : 60) : state.boost > 0 ? 86 : 36;
+    const acceleration = target < state.speed ? (slipping ? 150 : 60) : state.boost > 0 ? 86 : state.car.acceleration;
     state.speed += clamp(target - state.speed, -acceleration * dt, acceleration * dt);
     state.distance += state.speed / 3.6 * dt;
     state.skid = Math.max(0, state.skid - dt);
@@ -375,10 +397,10 @@
         rival.finishedAt = state.elapsed - dt + dt * fraction;
         continue;
       }
-      rival.x = clamp(setup.x + 0.12 * Math.sin(rival.distance * 0.015 + rival.id) + 0.12 * window.KartRender.curveAt(rival.distance), -0.86, 0.86);
+      rival.x = clamp(setup.x + 0.12 * Math.sin(rival.distance * 0.015 + rival.id) + 0.12 * window.KartRender.curveAt(rival.distance, state.track.id), -0.86, 0.86);
       // A light racing bump costs momentum. Leave the approach to each word gate clear.
       if (!state.question && !rival.bumpCooldown && Math.abs(rival.distance - state.distance) < 2.5 && Math.abs(rival.x - state.x) < 0.19) {
-        state.speed = Math.max(0, state.speed - 8);
+        state.speed = Math.max(0, state.speed - state.car.bumpLoss);
         rival.bumpCooldown = 1.8;
       }
     }
@@ -403,6 +425,7 @@
     checkGate();
     if (crossedFinish) {
       state.phase = 'finished';
+      state.results.push({ track:state.track, rank:state.rank, elapsed:state.elapsed, correct:state.correct, attempts:state.attempts });
       clearControls(); notify();
     }
   }
@@ -475,7 +498,7 @@
   window.addEventListener('blur', pause);
   window.addEventListener('pagehide', pause);
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
-  window.KartGame = { start, pause, resume, garage, useItem, cycleItem, itemNames: ITEMS,
+  window.KartGame = { start, nextStage, pause, resume, garage, useItem, cycleItem, cars:CARS, tracks:TRACKS, itemNames:ITEMS,
     setControl, getState: () => state, getLessonHash: () => lessonHash };
   GameRuntime.onResize(draw, canvas)();
   const hashData = new URLSearchParams(location.hash.slice(1)).get('lessonData');

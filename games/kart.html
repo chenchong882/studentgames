@@ -8,7 +8,9 @@
   <link rel="stylesheet" href="./kart.css">
   <script src="./lesson-data.js" defer></script>
   <script src="./game-runtime.js" defer></script>
+  <script src="./kart-models.js" defer></script>
   <script src="./kart-render.js" defer></script>
+  <script src="./kart-dash.js" defer></script>
   <script src="./kart-game.js" defer></script>
   <script src="./kart-drive-audio.js" defer></script>
   <script src="./kart-ui.js" defer></script>
@@ -44,49 +46,54 @@
       </nav>
     </div></header>
     <main class="wrap lobby">
-      <section class="poster" aria-labelledby="game-title">
-        <img src="../assets/kart-harbour.webp" class="cover" width="1672" height="941" fetchpriority="high" alt="紅色卡丁車在高雄港貨櫃碼頭旁的彎道甩尾">
-        <div class="poster-panel" aria-hidden="true"></div>
-        <div class="poster-copy">
-          <span class="demo"><span class="checks" aria-hidden="true"></span> ARCADE DEMO</span>
-          <h1 id="game-title" aria-label="Word Kart 單字卡丁車"><span>WORD</span><span>KART</span></h1>
-          <div class="zh-title">單字卡丁車</div>
-        </div>
-      </section>
-
-      <div class="setup">
-        <section class="mode-pane" aria-labelledby="mode-title">
-          <h2 id="mode-title"><span class="slashes" aria-hidden="true"></span>選擇賽制</h2>
-          <p class="drive-hint">車子會自動加速。看中文提示選車道，選錯會打滑減速。</p>
-          <div class="mode-grid" role="group" aria-labelledby="mode-title">
-            <button type="button" class="mode" data-mode="race" aria-pressed="true">
-              <span class="mode-head"><svg class="mode-icon"><use href="#i-flag"/></svg><span class="radio-dot" aria-hidden="true"></span></span>
-              <strong>競速賽</strong><span class="mode-desc">選對單字，氮氣立刻加速。</span>
-            </button>
-            <button type="button" class="mode" data-mode="item" aria-pressed="false">
-              <span class="mode-head"><svg class="mode-icon"><use href="#i-box"/></svg><span class="radio-dot" aria-hidden="true"></span></span>
-              <strong>道具賽</strong><span class="mode-desc">選對單字，拿道具搶名次。</span>
-            </button>
+      <div class="lobby-title"><span class="checks" aria-hidden="true"></span><h1>單字卡丁車</h1><span lang="en">Word Kart</span></div>
+      <div class="garage-columns">
+        <section class="garage-panel" aria-labelledby="car-title">
+          <header class="panel-heading"><h2 id="car-title">我的車庫</h2><span>選擇出賽車輛</span></header>
+          <div class="showroom">
+            <div class="car-nameplate" aria-live="polite"><h3 id="car-name"></h3><span id="car-specialty"></span></div>
+            <div class="display-plinth" aria-hidden="true"></div>
+            <canvas id="garage-car" width="660" height="308" aria-hidden="true"></canvas>
           </div>
-          <div id="kart-lesson"></div>
+          <div id="car-list" role="group" aria-labelledby="car-title"></div>
         </section>
-        <section class="track-pane" aria-labelledby="track-title">
-          <div class="circuit"><div><span class="track-loc"><svg class="ico"><use href="#i-pin"/></svg>高雄港</span><h2 id="track-title">港灣環線</h2><p>每圈 1.05 公里 <span>／</span> 2 圈 <span>／</span> 4 位車手</p></div>
-            <svg class="map" viewBox="0 0 126 83" fill="none" aria-hidden="true"><path d="M15 53c-5-7-1-14 8-18l16-7c8-3 7-14 17-17l15-3c8-2 11 3 10 9l-2 7c-1 6 3 9 11 8l11-1c13-1 17 12 9 20L88 70c-5 4-12 4-18 0l-9-8c-4-3-8-3-13-1l-10 5c-6 3-13 2-17-4z" stroke="#4d6370" stroke-width="10"/><path d="M15 53c-5-7-1-14 8-18l16-7c8-3 7-14 17-17l15-3c8-2 11 3 10 9l-2 7c-1 6 3 9 11 8l11-1c13-1 17 12 9 20L88 70c-5 4-12 4-18 0l-9-8c-4-3-8-3-13-1l-10 5c-6 3-13 2-17-4z" stroke="#f1f6ee" stroke-width="3"/><path d="m26 28 5 12" stroke="#ffd255" stroke-width="6"/></svg>
+        <section class="tour-panel" aria-labelledby="track-title">
+          <header class="panel-heading"><h2 id="track-title">五站巡迴賽</h2><span>每站 2 圈・4 位車手</span></header>
+          <ol id="tour-stops" aria-label="依序進行的五站賽道"></ol>
+          <div class="start-panel">
+            <div class="mode-grid" role="group" aria-label="選擇賽制">
+              <button type="button" class="mode" data-mode="race" aria-pressed="true"><svg class="ico"><use href="#i-flag"/></svg>競速賽</button>
+              <button type="button" class="mode" data-mode="item" aria-pressed="false"><svg class="ico"><use href="#i-box"/></svg>道具賽</button>
+            </div>
+            <p id="mode-hint">駛入正確的英文車道，立即加速。</p>
+            <div id="kart-lesson"></div>
+            <button id="start" type="button" class="primary">從海灘出發<svg class="ico"><use href="#i-arrow"/></svg></button>
           </div>
-          <button id="start" type="button" class="primary">開始比賽<svg class="ico"><use href="#i-arrow"/></svg></button>
         </section>
       </div>
+      <details class="archive-links">
+        <summary>看看當年台版《跑跑卡丁車》的畫面</summary>
+        <p>三款車參考台版 G3 車系重繪。五站巡迴、車輛手感和單字門是這款教學遊戲的設計。</p>
+        <nav aria-label="台版史料">
+          <a href="https://forum.gamer.com.tw/C.php?bsn=8936&amp;snA=155952" target="_blank" rel="noopener">台服車庫錄影 ↗</a>
+          <a href="https://p2.bahamut.com.tw/B/2KU/22/0000177622.JPG" target="_blank" rel="noopener">2007 城鎮公路全景 ↗</a>
+          <a href="https://gnn.gamer.com.tw/detail.php?sn=27415" target="_blank" rel="noopener">2007 月不落城 ↗</a>
+          <a href="https://p2.bahamut.com.tw/B/2KU/37/0000216437.JPG" target="_blank" rel="noopener">2008 比賽儀表 ↗</a>
+          <a href="https://gnn.gamer.com.tw/detail.php?sn=29052" target="_blank" rel="noopener">2008 太空改版 ↗</a>
+          <a href="https://p2.bahamut.com.tw/B/2KU/33/0000836033.JPG" target="_blank" rel="noopener">2013 海濱賽道四景 ↗</a>
+          <a href="https://brand.gamania.com/gvoice/41414/" target="_blank" rel="noopener">橘子典藏的城鎮實機 ↗</a>
+        </nav>
+      </details>
     </main>
   </div>
 
-  <main id="race" tabindex="-1" aria-label="港灣環線賽道" hidden>
+  <main id="race" tabindex="-1" aria-label="巡迴賽道" hidden>
     <div class="track-screen">
       <canvas id="kart-canvas" aria-label="卡丁車賽道，依中文提示駛入正確的英文車道"></canvas>
       <div class="race-top">
         <div class="race-tools">
           <button type="button" class="hud-button" id="pause" aria-label="暫停比賽"><svg class="ico"><use href="#i-pause"/></svg></button>
-          <span class="lap">圈數 <strong id="lap">1 / 2</strong></span>
+          <div class="lap"><span id="stage-hud">第 1 站・海灘</span><strong>圈數 <span id="lap">1 / 2</span></strong></div>
         </div>
         <aside class="standings" aria-label="即時排名">
           <div class="standing-place" id="standing-place" aria-label="目前第 4 名" role="img">
@@ -109,7 +116,10 @@
       <div id="word-prompt" hidden><small>駛入正確的英文車道</small><strong id="prompt"></strong><div id="word-lanes" lang="en"></div><div class="approach"><i id="gate-meter"></i></div></div>
       <div id="race-message" role="status" hidden></div>
       <div id="count" role="status" hidden></div>
-      <div class="telemetry"><span id="pace-status"></span><span class="speed"><b id="speed">0</b> km/h</span></div>
+      <div class="telemetry">
+        <span id="pace-status"></span>
+        <div class="dashboard"><canvas id="kart-dash" width="300" height="400" aria-hidden="true"></canvas><span class="speed-text">時速 <b id="speed">0</b> km/h</span></div>
+      </div>
     </div>
     <div class="controls" aria-label="賽車操作">
       <div class="control-group">
@@ -129,6 +139,7 @@
       <h2 id="help-title">玩法說明</h2>
       <p>賽車會自動加速。看到中文提示時，把車開到對應的英文車道。選錯會像踩到香蕉皮，短暫打滑減速；穩住車後就能繼續追。</p>
       <dl class="guide">
+        <div><dt>晉級</dt><dd>每站跑完 2 圈就能前往下一站，任何名次都能繼續。太空站衝線後可查看五站成績。</dd></div>
         <div><dt>轉向</dt><dd>按住左右方向鍵、A／D 或畫面上的箭頭。</dd></div>
         <div><dt>甩尾</dt><dd>入彎時按住 Shift 或 Z 並往彎內轉，集氣後鬆開就會加速。↓ 或 S 也能煞車。</dd></div>
         <div><dt>換道具</dt><dd>道具賽答對可拿 1 件，最多帶 2 件。按 Alt（Mac 是 Option）或 C 交換選取，亮框是下一件要用的道具。也可以點格子選取。</dd></div>
@@ -142,14 +153,15 @@
     <section class="sheet compact"><div class="sheet-icon"><svg class="ico"><use href="#i-pause"/></svg></div><h2 id="break-title">比賽暫停</h2>
       <button class="primary" id="resume" type="button">繼續比賽<svg class="ico"><use href="#i-arrow"/></svg></button>
       <button class="secondary sound-setting" id="pause-audio" type="button" aria-pressed="true"><svg class="ico"><use href="#i-speaker"/></svg><span>聲音開啟</span></button>
-      <button class="secondary" id="leave" type="button">結束這場，回到選單</button>
+      <button class="secondary" id="leave" type="button">結束巡迴，回到車庫</button>
     </section>
   </div>
   <div class="overlay" id="finish" role="dialog" aria-modal="true" aria-labelledby="finish-title" hidden>
     <section class="sheet result"><span class="finish-flag" aria-hidden="true"></span><h2 id="finish-title">衝過終點！</h2>
-      <div class="result-grid"><div><small>名次</small><b id="final-rank"></b></div><div><small>完賽時間</small><b id="final-time"></b></div><div><small>單字答對</small><b id="final-words"></b></div></div>
-      <h3>本場單字回顧</h3><ol id="review-list"></ol>
-      <button class="primary" id="again" type="button">再跑一場<svg class="ico"><use href="#i-arrow"/></svg></button><button id="back" class="secondary" type="button">回到賽制選單</button>
+      <div class="result-grid"><div><small id="rank-label">本站名次</small><b id="final-rank"></b></div><div><small id="time-label">本站時間</small><b id="final-time"></b></div><div><small id="words-label">本站答對</small><b id="final-words"></b></div></div>
+      <div id="tour-results" hidden><h3>各站成績</h3><ol id="stage-results"></ol></div>
+      <h3>本站單字回顧</h3><ol id="review-list"></ol>
+      <button class="primary" id="again" type="button"><span id="advance-name">前往下一站</span><svg class="ico"><use href="#i-arrow"/></svg></button><button id="back" class="secondary" type="button">結束巡迴，回到車庫</button>
     </section>
   </div>
 </body>

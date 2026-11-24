@@ -3,6 +3,7 @@
 
   const ui = Object.fromEntries(Array.from(document.querySelectorAll('[id]'), el => [el.id, el]));
   const game = window.KartGame;
+  let selectedCar = game.cars[0];
   const write = GameRuntime.text;
   const standingRows = new Map();
   const standingAnimations = new WeakMap();
@@ -90,18 +91,51 @@
   }));
   paintSound();
 
+  function selectCar(car) {
+    selectedCar = car;
+    for (const button of ui['car-list'].children) {
+      button.setAttribute('aria-pressed', String(button.dataset.car === car.id));
+    }
+    write(ui['car-name'], car.name);
+    write(ui['car-specialty'], car.specialty);
+    window.KartRender.drawKartPreview(ui['garage-car'], car);
+  }
+  for (const car of game.cars) {
+    const button = document.createElement('button'), preview = document.createElement('canvas');
+    button.type = 'button'; button.className = 'car-option'; button.dataset.car = car.id;
+    button.setAttribute('aria-label', car.name + '，' + car.specialty);
+    preview.width = 180; preview.height = 85; preview.setAttribute('aria-hidden', 'true');
+    button.append(preview, document.createTextNode(car.name)); ui['car-list'].appendChild(button);
+    window.KartRender.drawKartPreview(preview, car);
+    button.addEventListener('click', () => { selectCar(car); enableAudio(); syncMusic(); });
+  }
+  selectCar(selectedCar);
+  for (const [index, track] of game.tracks.entries()) {
+    const row = document.createElement('li'), num = document.createElement('span');
+    const preview = document.createElement('canvas'), caption = document.createElement('div');
+    const name = document.createElement('strong'), theme = document.createElement('small');
+    num.className = 'order'; num.textContent = String(index + 1).padStart(2, '0');
+    preview.width = 184; preview.height = 104; preview.setAttribute('aria-hidden', 'true');
+    name.textContent = track.name; theme.textContent = track.theme;
+    caption.append(name, theme); row.append(num, preview, caption); ui['tour-stops'].appendChild(row);
+    window.KartRender.drawTrackPreview(preview, track);
+  }
   const modes = Array.from(document.querySelectorAll('[data-mode]'));
   modes.forEach(button => button.addEventListener('click', () => {
     mode = button.dataset.mode;
     enableAudio(); syncMusic();
+    write(ui['mode-hint'], mode === 'item' ? '駛入正確的英文車道，取得一件道具。' : '駛入正確的英文車道，立即加速。');
     modes.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
   }));
-  function startRace() {
+  function startRace(event) {
+    const race = game.getState();
+    if (event.currentTarget === ui.again && race.phase !== 'finished') return;
     enableAudio();
     previousCountdown = null; previousAttempts = 0; previousLock = null;
     ui['standing-list'].textContent = '';
     standingRows.clear();
-    game.start(mode);
+    if (race.phase === 'finished' && race.stageIndex + 1 < game.tracks.length) game.nextStage();
+    else game.start(mode, selectedCar.id);
   }
   ui.start.addEventListener('click', startRace);
   ui.again.addEventListener('click', startRace);
@@ -162,11 +196,31 @@
     }
   }
 
+  function raceTime(elapsed) {
+    const seconds = Math.floor(elapsed);
+    return Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0') + '.' + Math.floor((elapsed - seconds) * 10);
+  }
   function showResults(state) {
-    write(ui['final-rank'], '第 ' + state.rank + ' 名');
-    const seconds = Math.floor(state.elapsed);
-    write(ui['final-time'], Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0') + '.' + Math.floor((state.elapsed - seconds) * 10));
-    write(ui['final-words'], state.correct + ' / ' + state.attempts);
+    const upcoming = game.tracks[state.stageIndex + 1];
+    write(ui['finish-title'], upcoming ? state.track.name + '・完賽' : '五站巡迴完賽！');
+    write(ui['advance-name'], upcoming ? '下一站・' + upcoming.theme : '再跑一次五站巡迴');
+    write(ui.back, upcoming ? '結束巡迴，回到車庫' : '回到車庫');
+    write(ui['rank-label'], upcoming ? '本站名次' : '最佳名次');
+    write(ui['time-label'], upcoming ? '本站時間' : '五站總時間');
+    write(ui['words-label'], upcoming ? '本站答對' : '五站答對');
+    const results = upcoming ? [state] : state.results;
+    write(ui['final-rank'], '第 ' + Math.min(...results.map(result => result.rank)) + ' 名');
+    write(ui['final-time'], raceTime(results.reduce((sum, result) => sum + result.elapsed, 0)));
+    write(ui['final-words'], results.reduce((sum, result) => sum + result.correct, 0) + ' / ' + results.reduce((sum, result) => sum + result.attempts, 0));
+    ui['tour-results'].hidden = !!upcoming;
+    ui['stage-results'].textContent = '';
+    if (!upcoming) {
+      for (const result of state.results) {
+        const row = document.createElement('li'), score = document.createElement('small');
+        score.textContent = '第 ' + result.rank + ' 名　' + raceTime(result.elapsed) + '　答對 ' + result.correct + '/' + result.attempts;
+        row.append(document.createTextNode(result.track.name), score); ui['stage-results'].appendChild(row);
+      }
+    }
     const list = ui['review-list'];
     list.textContent = '';
     for (const answer of state.review) {
@@ -287,6 +341,10 @@
       ui.break.hidden = next !== 'paused';
       ui.finish.hidden = next !== 'finished';
       ui.count.hidden = next !== 'countdown';
+      if (next === 'countdown') {
+        write(ui['stage-hud'], '第 ' + (state.stageIndex + 1) + ' 站・' + state.track.theme);
+        ui.race.setAttribute('aria-label', '巡迴賽道・' + state.track.name);
+      }
       ui['item-rack'].hidden = ui.item.hidden = ui['item-key-tip'].hidden = state.mode !== 'item';
       if (next === 'garage') {
         if (prior) ui.start.focus({preventScroll:true});
@@ -311,6 +369,7 @@
       hitLog.firstElementChild.remove();
     }
     paintStandings(state);
+    window.KartDash.draw(ui['kart-dash'], state);
     write(ui.lap, state.lap + ' / ' + state.laps);
     write(ui.speed, Math.round(state.speed));
     if (next === 'countdown' && previousCountdown !== state.countdown) {
