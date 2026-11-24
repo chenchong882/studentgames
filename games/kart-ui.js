@@ -9,20 +9,44 @@
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const itemActions = { boost:'噴氮氣', banana:'放香蕉', missile:'瞄準飛彈' };
   const slotButtons = Array.from(ui['item-rack'].querySelectorAll('[data-slot]'));
+  const music = ui['kart-music'];
+  const musicLevel = .24;
+  music.volume = musicLevel;
   let mode = 'race', phase = '', currentQuestion = null, activeLane = -2, approachLength = 1;
   let previousCountdown = null, previousAttempts = 0, previousLock = null, audio = null;
-  let soundOn = true, motor = null;
+  let soundOn = true, audioUnlocked = false, driveAudio = null;
   try { soundOn = localStorage.getItem('kart-sound') !== 'off'; } catch (_) {}
 
   function enableAudio() {
     if (!soundOn) return;
+    audioUnlocked = true;
     const Context = window.AudioContext || window.webkitAudioContext;
     if (!Context) return;
     try {
-      if (!audio) audio = new Context();
+      const firstUse = !audio;
+      if (firstUse) audio = new Context();
       if (audio.state === 'suspended' || audio.state === 'interrupted') audio.resume().catch(() => {});
+      // Mix on the same graph so mobile devices can set the music below the tires and engine.
+      if (firstUse && location.protocol !== 'file:' && audio.createMediaElementSource) {
+        const level = audio.createGain();
+        level.gain.value = musicLevel;
+        audio.createMediaElementSource(music).connect(level);
+        level.connect(audio.destination);
+        music.volume = 1;
+      }
     } catch (_) { /* The visual signals work independently of audio. */ }
   }
+  function syncMusic() {
+    const scene = game.getState().phase;
+    if (!soundOn || !audioUnlocked || document.hidden || scene === 'paused' || scene === 'finished') {
+      music.pause();
+    } else if (music.paused) {
+      music.play().catch(() => {});
+    }
+  }
+  document.addEventListener('visibilitychange', syncMusic);
+  window.addEventListener('pagehide', () => music.pause());
+  window.addEventListener('pageshow', syncMusic);
   function tone(hz, duration, delay = 0) {
     if (!soundOn || !audio || audio.state !== 'running') return;
     const start = audio.currentTime + delay;
@@ -41,40 +65,35 @@
   document.addEventListener('kart-item-hit', playSpinSound);
   document.addEventListener('kart-item-used', event => {
     if (event.detail === 'banana') playSpinSound();
-    else { tone(360, .13); tone(690, .13, .08); }
+    else if (event.detail === 'missile') { tone(360, .13); tone(690, .13, .08); }
   });
-  function updateMotor(state) {
+  function updateDriveAudio(state) {
     if (state.phase !== 'racing' || !soundOn || audio?.state !== 'running') {
-      if (motor) { motor.stop(); motor = null; }
+      if (driveAudio) { driveAudio.stop(); driveAudio = null; }
       return;
     }
-    if (!motor) {
-      const osc = audio.createOscillator(), volume = audio.createGain();
-      osc.type = 'triangle'; osc.frequency.value = 42 + state.speed * .48; volume.gain.value = .011;
-      osc.connect(volume); volume.connect(audio.destination);
-      osc.onended = () => { osc.disconnect(); volume.disconnect(); };
-      osc.start(); motor = osc;
-    }
-    motor.frequency.setTargetAtTime(42 + state.speed * .48, audio.currentTime, .08);
+    if (!driveAudio) driveAudio = window.KartDriveAudio.create(audio);
+    driveAudio.update(state);
   }
   function paintSound() {
     for (const button of soundButtons) {
       button.setAttribute('aria-pressed', String(soundOn));
       button.querySelector('use').setAttribute('href', soundOn ? '#i-speaker' : '#i-muted');
-      write(button.querySelector('span'), soundOn ? '音效開啟' : '音效關閉');
+      write(button.querySelector('span'), soundOn ? '聲音開啟' : '聲音關閉');
     }
   }
   const soundButtons = [ui['audio-toggle'], ui['pause-audio']];
   soundButtons.forEach(button => button.addEventListener('click', () => {
     soundOn = !soundOn;
     try { localStorage.setItem('kart-sound', soundOn ? 'on' : 'off'); } catch (_) {}
-    paintSound(); enableAudio(); tone(660, .11);
+    paintSound(); enableAudio(); syncMusic(); tone(660, .11);
   }));
   paintSound();
 
   const modes = Array.from(document.querySelectorAll('[data-mode]'));
   modes.forEach(button => button.addEventListener('click', () => {
     mode = button.dataset.mode;
+    enableAudio(); syncMusic();
     modes.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
   }));
   function startRace() {
@@ -87,7 +106,7 @@
   ui.start.addEventListener('click', startRace);
   ui.again.addEventListener('click', startRace);
   ui.pause.addEventListener('click', game.pause);
-  ui.resume.addEventListener('click', () => { enableAudio(); game.resume(); });
+  ui.resume.addEventListener('click', game.resume);
   ui.item.addEventListener('click', () => {
     game.useItem();
     ui.race.focus({preventScroll:true});
@@ -256,10 +275,11 @@
 
   function update(state) {
     const next = state.phase;
-    updateMotor(state);
     if (next !== phase) {
       const prior = phase;
       phase = next;
+      if (prior === 'paused' && (next === 'racing' || next === 'countdown')) enableAudio();
+      syncMusic();
       if (next === 'garage' || next === 'countdown') hitLog.textContent = '';
       ui.garage.hidden = next !== 'garage';
       ui.race.hidden = next === 'garage';
@@ -280,6 +300,7 @@
       }
     }
 
+    updateDriveAudio(state);
     if (next === 'garage') {
       const hash = game.getLessonHash() || location.hash;
       ui['hub-link'].setAttribute('href', '../index.html' + hash);

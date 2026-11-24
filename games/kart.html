@@ -10,9 +10,11 @@
   <script src="./game-runtime.js" defer></script>
   <script src="./kart-render.js" defer></script>
   <script src="./kart-game.js" defer></script>
+  <script src="./kart-drive-audio.js" defer></script>
   <script src="./kart-ui.js" defer></script>
 </head>
 <body>
+  <audio id="kart-music" src="../assets/music/Online Game Lobby Theme.mp3" preload="none" loop></audio>
   <svg class="sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 21V4c5-3 10 3 16 0v11c-6 3-11-3-16 0"/><path d="M5 5h3v3H5zm3 3h3v3H8zm3-2h3v3h-3zm3 4h3v3h-3zm3-4h2v3h-2z" fill="currentColor" stroke="none"/></symbol>
     <symbol id="i-box" viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10M8 4l9 5"/></symbol>
@@ -38,7 +40,7 @@
       </a>
       <nav class="nav" aria-label="遊戲設定">
         <button type="button" id="help-open"><svg class="ico"><use href="#i-help"/></svg>玩法說明</button>
-        <button type="button" id="audio-toggle" aria-pressed="true"><svg class="ico"><use href="#i-speaker"/></svg><span>音效開啟</span></button>
+        <button type="button" id="audio-toggle" aria-pressed="true"><svg class="ico"><use href="#i-speaker"/></svg><span>聲音開啟</span></button>
       </nav>
     </div></header>
     <main class="wrap lobby">
@@ -139,7 +141,7 @@
   <div class="overlay" id="break" role="dialog" aria-modal="true" aria-labelledby="break-title" hidden>
     <section class="sheet compact"><div class="sheet-icon"><svg class="ico"><use href="#i-pause"/></svg></div><h2 id="break-title">比賽暫停</h2>
       <button class="primary" id="resume" type="button">繼續比賽<svg class="ico"><use href="#i-arrow"/></svg></button>
-      <button class="secondary sound-setting" id="pause-audio" type="button" aria-pressed="true"><svg class="ico"><use href="#i-speaker"/></svg><span>音效開啟</span></button>
+      <button class="secondary sound-setting" id="pause-audio" type="button" aria-pressed="true"><svg class="ico"><use href="#i-speaker"/></svg><span>聲音開啟</span></button>
       <button class="secondary" id="leave" type="button">結束這場，回到選單</button>
     </section>
   </div>
