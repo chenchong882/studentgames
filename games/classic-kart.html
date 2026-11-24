@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#122b42">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fb543e'/%3E%3Cpath d='m7 26 5-20h14l-2 10H10' stroke='%23fff8dd' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+  <title>晴港市街｜Classic Kart Racing English</title>
+  <link rel="stylesheet" href="./classic-kart/race.css">
+  <script defer src="./classic-kart/vendor/three.r160.min.js"></script>
+  <script defer src="../data/wordbank.js"></script>
+  <script defer src="./lesson-data.js"></script>
+  <script defer src="./kart-drive-audio.js"></script>
+  <script defer src="./classic-kart/city.js"></script>
+  <script defer src="./classic-kart/drive.js"></script>
+  <script defer src="./classic-kart/kart.js"></script>
+  <script defer src="./classic-kart/gates.js"></script>
+  <script defer src="./classic-kart/race.js"></script>
+</head>
+<body data-phase="grid">
+  <svg class="icons" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="flag" viewBox="0 0 24 24"><path d="M4 21 8 3m-.1 1c4-2 7 2 11 0l-2 9c-4 2-7-2-11 0" fill="none"/><path d="m9 5 3 .3-.6 2.8-3-.3zm2.4 3.1 3 .5-.6 2.7-3-.4zm3.5-2.4 3 .1-.6 2.7-3-.1z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="sound" viewBox="0 0 24 24"><path d="M3 9h4l5-4v14l-5-4H3zM16 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"/></symbol>
+    <symbol id="mute" viewBox="0 0 24 24"><path d="M3 9h4l5-4v14l-5-4H3zm13 1 5 5m0-5-5 5"/></symbol>
+    <symbol id="pause-icon" viewBox="0 0 24 24"><path d="M8 5v14m8-14v14" stroke-width="3.5"/></symbol>
+    <symbol id="tune-icon" viewBox="0 0 24 24"><path d="M4 7h4m4 0h8M4 17h9m4 0h3"/><circle cx="10" cy="7" r="2.5"/><circle cx="15" cy="17" r="2.5"/></symbol>
+    <symbol id="help-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.6 2.6 0 1 1 4 2.2c-1.2.7-1.5 1.4-1.5 2.8m0 2.2v.1"/></symbol>
+    <symbol id="arrow" viewBox="0 0 24 24"><path d="M4 12h15m-6-6 6 6-6 6"/></symbol>
+    <symbol id="timer" viewBox="0 0 24 24"><circle cx="12" cy="14" r="7.5"/><path d="M9 3h6m-3 0v3m6 1 2-2m-8 5v4l2 1"/></symbol>
+    <symbol id="route" viewBox="0 0 24 24"><path d="M12 21s7-6.4 7-12A7 7 0 0 0 5 9c0 5.6 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/></symbol>
+    <symbol id="camera-icon" viewBox="0 0 24 24"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.2"/></symbol>
+  </svg>
+  <header class="topbar">
+    <a class="brand" id="hub" href="../index.html" aria-label="返回學生遊戲大廳"><b class="flag-tile"><svg><use href="#flag"/></svg></b><span>CLASSIC <i>KART</i></span></a>
+    <span class="brand-sub">RACING ENGLISH</span>
+    <nav aria-label="遊戲工具">
+      <button id="camera-button" title="切換鏡頭（C）" aria-label="切換鏡頭" hidden><svg><use href="#camera-icon"/></svg></button>
+      <button id="audio" title="聲音" aria-label="關閉聲音" aria-pressed="true"><svg><use href="#sound"/></svg></button>
+      <button id="tune" title="即時調校（T）" aria-label="即時調校" aria-expanded="false"><svg><use href="#tune-icon"/></svg></button>
+      <button id="help" title="操作說明" aria-label="操作說明"><svg><use href="#help-icon"/></svg></button>
+      <button id="pause" title="暫停（Esc）" aria-label="暫停" hidden><svg><use href="#pause-icon"/></svg></button>
+    </nav>
+  </header>
+  <main id="stage" aria-label="晴港市街 3D 賽道">
+    <canvas id="view" aria-label="3D 卡丁車賽道"></canvas>
+    <div class="grid-scrim"></div>
+    <section id="grid-card" aria-labelledby="course-title">
+      <div class="course-type"><i class="checker"></i> 城市計時賽</div>
+      <h1 id="course-title" lang="en">SUNPORT<br><em>CIRCUIT</em></h1>
+      <h2>晴港市街</h2>
+      <p class="race-facts"><span><svg><use href="#flag"/></svg>3 圈</span><span><svg><use href="#route"/></svg>每圈 4 道單字門</span></p>
+      <button class="primary" id="start" disabled>準備賽道中…</button>
+      <div id="lesson"></div>
+    </section>
+    <section id="hud" aria-label="比賽儀表" hidden>
+      <div class="clock panel"><svg><use href="#timer"/></svg><strong id="time">0:00.00</strong><span class="divider"></span><span class="score"><b class="good">✓ <span id="hits">0</span></b><b class="bad">× <span id="misses">0</span></b></span></div>
+      <div class="lapbox panel"><i class="checker"></i><span>LAP</span><strong id="lap">1</strong><small>/ 3</small></div>
+      <div id="question" hidden><span class="question-cap">駛入對應的英文車道</span><strong id="prompt"></strong><div id="choices"><span></span><span></span><span></span></div></div>
+      <div id="feedback" role="status" hidden></div>
+      <div id="countdown" role="status" hidden></div>
+      <div id="map-box"><canvas id="map" width="222" height="158" aria-label="賽道小地圖"></canvas><span>SUNPORT CIRCUIT</span></div>
+      <div class="nitro panel"><span class="nitro-label">N₂O</span><div class="charge"><i id="fill"></i></div><span id="slots" aria-label="氮氣儲存格"></span><kbd>Ctrl</kbd></div>
+      <div class="speedbox"><svg id="dial" viewBox="0 0 190 115" aria-hidden="true"></svg><strong id="speed">0</strong><span>KM/H</span><i id="drive-status"></i></div>
+    </section>
+    <div id="touch" hidden><div><button data-drive="left" aria-label="左轉">◀</button><button data-drive="right" aria-label="右轉">▶</button></div><div><button data-drive="nitro">N₂O</button><button data-drive="drift">甩尾</button><button data-drive="brake">煞車</button><button data-drive="throttle" class="gas">油門</button></div></div>
+    <aside id="tuning" class="sheet" aria-labelledby="tune-title" hidden><header><h2 id="tune-title">即時調校</h2><button id="close-tune" aria-label="關閉調校">×</button></header><div id="sliders"></div><button id="defaults" class="secondary">恢復預設參數</button></aside>
+    <div id="modal" hidden><section class="sheet dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="course-type"><i class="checker"></i> SUNPORT CIRCUIT</div><h2 id="dialog-title"></h2><div id="dialog-content"></div><div id="dialog-actions"></div></section></div>
+    <p id="fault" role="alert" hidden></p>
+  </main>
+  <footer><div class="footer-track"><i class="checker"></i><b>SUNPORT</b><span>晴港市街</span></div><div class="shortcuts"><span><kbd>↑</kbd> 油門</span><span><kbd>↓</kbd> 煞車</span><span><kbd>← →</kbd> 轉向</span><span><kbd>Shift</kbd> 甩尾</span><span><kbd>Ctrl</kbd> 氮氣</span></div><span class="touch-hint">觸控駕駛</span></footer>
+  <noscript>請開啟 JavaScript 以載入 3D 賽道。</noscript>
+</body>
+</html>

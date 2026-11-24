@@ -146,7 +146,7 @@ window.PracticeSet = (() => {
     function canLaunch(base) {
       if(!selected.length) { message('請先選至少 1 個單字，再開始遊戲。', true); return false; }
       const name = base.split('/').pop();
-      const minimum = {'tank.html':4,'runner.html':4,'ship.html':4,'battle.html':4,'sniper.html':5}[name] || 1;
+      const minimum = {'classic-kart.html':3,'tank.html':4,'runner.html':4,'ship.html':4,'battle.html':4,'sniper.html':5}[name] || 1;
       let count = selected.length;
       if(name === 'battle.html') count = selected.filter(w => !['pillow','eraser','towel'].includes(keyOf(w))).length;
       if(name === 'word-hunt-vocab.html') count = selected.filter(w => /^[a-z]{2,9}$/i.test(w.word)).length;

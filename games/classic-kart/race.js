@@ -1,0 +1,709 @@
+(() => {
+  'use strict';
+  const el = id => document.getElementById(id);
+  const showFailure = message => { el('fault').textContent = message; el('fault').hidden = false; };
+  if (![window.THREE, window.ClassicCity, window.ClassicDrive, window.ClassicKartArt, window.ClassicGates, window.WORD_BANK].every(Boolean)) {
+    showFailure('賽道資料未載入完整，請重新整理。');
+    return;
+  }
+  const drive = ClassicDrive, track = ClassicCity.track, cfg = drive.config;
+  const stage = el('stage'), view = el('view'), scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(52, 1, .12, 1100);
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: view, antialias: true, powerPreference: 'high-performance', alpha: false });
+  }
+  catch (_) {
+    showFailure('瀏覽器無法開啟 WebGL。請開啟硬體加速，再重新整理賽道。');
+    return;
+  }
+  ClassicCity.build(scene);
+  const gates = ClassicGates.build(scene, track);
+  const model = ClassicKartArt.create(scene);
+  const LAPS = 3, totalGates = LAPS * track.gates.length, step = cfg.fixedStep;
+  let car = drive.create(track.sample(0)), renderCar = { ...car }, previousPose = { x: car.x, z: car.z, yaw: car.yaw };
+  let phase = 'grid', beforePause = 'grid', modalKind = '', elapsed = 0, countdown = 3;
+  let progress = 0, projection = track.project(car.x, car.z, 0), gateIndex = 0, deck = [], records = [], correct = 0;
+  let question = null, feedbackTime = 0, goTime = 0, cameraMode = 0, dirty = true, accum = 0, last = 0;
+  let pixelLimit = Math.min(window.devicePixelRatio || 1, 1.5), slowFrames = 0, wallTimer = 0;
+  const keys = new Set(), pointers = new Map(), inputs = {}, requested = {}, inputEvents = [];
+  const keyMap = { ArrowUp: 'throttle', ArrowDown: 'brake', ArrowLeft: 'left', ArrowRight: 'right',
+    ShiftLeft: 'drift', ShiftRight: 'drift', ControlLeft: 'nitro', ControlRight: 'nitro' };
+  const pressed = name => Object.keys(keyMap).some(key => keyMap[key] === name && keys.has(key)) || [...pointers.values()].includes(name);
+
+  function recordInput(name) {
+    if (!name)
+      return;
+    const down = pressed(name);
+    if (down === !!requested[name])
+      return;
+    requested[name] = down;
+    if (phase === 'race')
+      inputEvents.push({ name, down, time: performance.now() });
+  }
+  // Preserve a quick throttle lift or Shift tap even when both DOM events land
+  // between two renders. Each edge reaches a distinct 120 Hz physics tick.
+
+  function readInputs(wallTime) {
+    if (!inputEvents.length || inputEvents[0].time > wallTime)
+      return;
+    const consumed = new Set();
+    for (const event of inputEvents) {
+      if (event.time > wallTime || consumed.has(event.name))
+        break;
+      inputs[event.name] = event.down;
+      consumed.add(event.name);
+    }
+    inputEvents.splice(0, consumed.size);
+  }
+
+  function clearInputs() {
+    keys.clear();
+    pointers.clear();
+    inputEvents.length = 0;
+    for (const name of Object.values(keyMap))
+      inputs[name] = requested[name] = false;
+    document.querySelectorAll('#touch .held').forEach(b => b.classList.remove('held'));
+  }
+  let words = ClassicGates.prepare(WORD_BANK.getWords());
+  let nextPayload, hasNextPayload = false;
+
+  function applyLesson(raw) {
+    if (phase !== 'grid' && phase !== 'finished') {
+      nextPayload = raw;
+      hasNextPayload = true;
+      return;
+    }
+    const payload = GameData.prepare(raw), options = ClassicGates.prepare(payload.words);
+    const distinct = new Set(options.map(w => w.chinese.toLowerCase()));
+    words = options;
+    GameData.report(payload, distinct.size < 3 ? options.filter((w, i, a) => a.findIndex(v => v.chinese.toLowerCase() === w.chinese.toLowerCase()) === i) : options, 3, '#lesson', '每座門有 3 個不同選項。');
+    el('start').disabled = !GameData.ready();
+    if (raw)
+      el('hub').href = '../index.html#lessonData=' + encodeURIComponent(JSON.stringify(raw));
+  }
+  const incoming = new URLSearchParams(location.hash.slice(1)).get('lessonData');
+  if (incoming !== null) {
+    try {
+      applyLesson(JSON.parse(incoming));
+    }
+    catch (_) {
+      applyLesson(null);
+    }
+  }
+  window.addEventListener('message', e => {
+    if (e.data?.type === 'KART_DATA' || e.data?.type === 'CLASSIC_KART_DATA')
+      applyLesson(e.data.payload);
+  });
+  const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+  const wrapAngle = n => Math.atan2(Math.sin(n), Math.cos(n));
+  const timeText = t => {
+    const n = Math.floor(t * 100);
+    return Math.floor(n / 6000) + ':' + String(Math.floor(n / 100) % 60).padStart(2, '0') + '.' + String(n % 100).padStart(2, '0');
+  };
+  let ctx = null, motor = null, sound = true;
+  try {
+    sound = localStorage.getItem('classic-kart-sound') !== 'off';
+  }
+  catch (_) { }
+
+  function audioLabel() {
+    el('audio').setAttribute('aria-label', sound ? '關閉聲音' : '開啟聲音');
+    el('audio').setAttribute('aria-pressed', String(sound));
+    el('audio').querySelector('use').setAttribute('href', sound ? '#sound' : '#mute');
+  }
+
+  function unlock() {
+    if (!sound)
+      return;
+    try {
+      const Audio = window.AudioContext || window.webkitAudioContext;
+      if (!Audio)
+        return;
+      ctx ||= new Audio();
+      if (ctx.state !== 'running')
+        ctx.resume().catch(() => { });
+    }
+    catch (_) { }
+  }
+
+  function syncMotor() {
+    if (!sound || !ctx || !['countdown', 'race'].includes(phase)) {
+      if (motor)
+        motor.stop();
+      motor = null;
+      return;
+    }
+    motor ||= KartDriveAudio.create(ctx);
+  }
+
+  function beep(hz, duration, delay = 0) {
+    if (!sound || !ctx || ctx.state !== 'running')
+      return;
+    const osc = ctx.createOscillator(), volume = ctx.createGain(), t = ctx.currentTime + delay;
+    osc.type = 'triangle';
+    osc.frequency.value = hz;
+    volume.gain.setValueAtTime(.0001, t);
+    volume.gain.exponentialRampToValueAtTime(.095, t + .01);
+    volume.gain.exponentialRampToValueAtTime(.0001, t + duration);
+    osc.connect(volume);
+    volume.connect(ctx.destination);
+    osc.onended = () => { osc.disconnect(); volume.disconnect(); };
+    osc.start(t);
+    osc.stop(t + duration + .01);
+  }
+  el('audio').onclick = () => { sound = !sound; audioLabel(); unlock(); syncMotor(); try {
+    localStorage.setItem('classic-kart-sound', sound ? 'on' : 'off');
+  }
+  catch (_) { } };
+  audioLabel();
+
+  function phaseTo(value) {
+    phase = value;
+    document.body.dataset.phase = value;
+    const onGrid = value === 'grid';
+    el('grid-card').hidden = !onGrid;
+    el('hud').hidden = onGrid;
+    el('camera-button').hidden = onGrid;
+    el('pause').hidden = !['countdown', 'race', 'paused'].includes(value);
+    el('touch').hidden = !['countdown', 'race'].includes(value);
+    if (!['race', 'countdown'].includes(value))
+      document.body.classList.remove('boosting');
+    syncMotor();
+    dirty = true;
+  }
+
+  function introCamera() {
+    const w = stage.clientWidth, h = stage.clientHeight, portrait = w / h < .95;
+    const origin = track.sample(0);
+    camera.position.set(origin.x + 3.35, 2.05, origin.z + 5.05);
+    camera.fov = portrait ? 54 : 41;
+    camera.lookAt(origin.x, .92, origin.z - .55);
+    camera.setViewOffset(w, h, portrait ? -.06 * w : -.205 * w, portrait ? -.19 * h : -.052 * h, w, h);
+    camera.updateProjectionMatrix();
+  }
+
+  function resize() {
+    let w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h)
+      return;
+    renderer.setPixelRatio(pixelLimit);
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    if (phase === 'grid')
+      introCamera();
+    else {
+      camera.clearViewOffset();
+      camera.updateProjectionMatrix();
+    }
+    dirty = true;
+  }
+  window.addEventListener('resize', resize);
+  if (window.ResizeObserver)
+    new ResizeObserver(resize).observe(stage);
+
+  function resetPose() {
+    Object.assign(previousPose, { x: car.x, z: car.z, yaw: car.yaw });
+    Object.assign(renderCar, car);
+    renderCar.cameraState = null;
+    ClassicKartArt.reset(model);
+  }
+
+  function resetOnRoad() {
+    drive.reset(car, track.sample(projection.s));
+    projection = track.project(car.x, car.z, projection.s);
+    resetPose();
+    drive.camera(camera, renderCar, 0, cameraMode, true);
+    dirty = true;
+  }
+
+  function begin() {
+    if (hasNextPayload) {
+      closeModal();
+      phaseTo('grid');
+      applyLesson(nextPayload);
+      hasNextPayload = false;
+    }
+    if (!GameData.ready() || words.length < 3)
+      return;
+    unlock();
+    clearInputs();
+    closeModal();
+    el('tuning').hidden = true;
+    el('tune').setAttribute('aria-expanded', 'false');
+    car = drive.create(track.sample(0));
+    resetPose();
+    projection = track.project(car.x, car.z, 0);
+    records = [];
+    deck = ClassicGates.questions(words, totalGates);
+    gateIndex = 0;
+    progress = 0;
+    elapsed = 0;
+    correct = 0;
+    track.gates.forEach((_, i) => gates.set(i, deck[i]));
+    feedbackTime = goTime = wallTimer = 0;
+    el('feedback').hidden = true;
+    setQuestion(null);
+    countdown = 3;
+    accum = 0;
+    last = 0;
+    phaseTo('countdown');
+    camera.clearViewOffset();
+    drive.camera(camera, renderCar, 0, cameraMode, true);
+    el('countdown').textContent = '3';
+    el('countdown').hidden = false;
+    beep(460, .12);
+    el('start').blur();
+    hud();
+  }
+  el('start').onclick = begin;
+
+  function setQuestion(q) {
+    if (q === question)
+      return;
+    question = q;
+    el('question').hidden = !q;
+    if (q) {
+      el('prompt').textContent = q.answer.chinese;
+      [...el('choices').children].forEach((e, i) => e.textContent = q.choices[i].word);
+    }
+  }
+
+  function notify(msg, wrong = false, seconds = 1.4) {
+    const tag = el('feedback');
+    tag.textContent = msg;
+    tag.classList.toggle('wrong', wrong);
+    tag.hidden = false;
+    feedbackTime = seconds;
+  }
+
+  function scoreGate(index, lateral) {
+    const lane = clamp(Math.floor((lateral + track.halfWidth) / (track.halfWidth * 2 / 3)), 0, 2);
+    const q = deck[index], hit = lane === q.correctLane, selected = q.choices[lane];
+    records.push({ word: q.answer.word, chinese: q.answer.chinese, picked: selected.word, hit });
+    if (hit) {
+      correct++;
+      drive.boost(car);
+      notify('Correct!  氮氣加速');
+      beep(740, .13);
+      beep(990, .16, .08);
+    }
+    else {
+      drive.penalize(car);
+      notify(q.answer.chinese + ' ＝ ' + q.answer.word, true, 2.2);
+      beep(245, .18);
+      beep(175, .18, .10);
+    }
+    gateIndex++;
+    setQuestion(null);
+    // Leave the gate the driver just answered intact until it disappears behind the camera.
+  }
+
+  function solve(dt, wallTime) {
+    const previous = projection, from = progress;
+    Object.assign(previousPose, { x: car.x, z: car.z, yaw: car.yaw });
+    readInputs(wallTime);
+    drive.step(car, inputs, dt);
+    projection = track.project(car.x, car.z, previous.s);
+    const side = Math.sign(projection.lateral), rim = track.halfWidth - cfg.collisionRadius;
+    if (Math.abs(projection.lateral) > rim) {
+      const nx = -projection.tz * side, nz = projection.tx * side, over = Math.abs(projection.lateral) - rim;
+      car.x -= nx * over;
+      car.z -= nz * over;
+      const outward = car.vx * nx + car.vz * nz;
+      if (outward > 0) {
+        car.vx -= nx * outward * (1 + cfg.wallRestitution);
+        car.vz -= nz * outward * (1 + cfg.wallRestitution);
+        if (outward > cfg.wallImpactSpeed && wallTimer <= 0) {
+          car.vx *= cfg.wallSpeedRetention;
+          car.vz *= cfg.wallSpeedRetention;
+          wallTimer = cfg.wallDebounce;
+        }
+      }
+      car.speed = Math.hypot(car.vx, car.vz);
+      projection.lateral = side * rim;
+    }
+    wallTimer = Math.max(0, wallTimer - dt);
+    let ds = projection.s - previous.s;
+    if (ds > track.length / 2)
+      ds -= track.length;
+    if (ds < -track.length / 2)
+      ds += track.length;
+    progress += ds;
+    elapsed += dt;
+    const target = gateIndex < totalGates ? Math.floor(gateIndex / track.gates.length) * track.length + track.gates[gateIndex % track.gates.length] : Infinity;
+    const remaining = target - progress;
+    // Once a question is on screen, braking cannot make it flicker off during approach.
+    const readingDistance = question ? 278 : clamp(45 + car.speed * 3.65, 140, 268);
+    if (from < target && remaining <= 0 && ds > 0) {
+      const fraction = clamp((target - from) / ds, 0, 1);
+      scoreGate(gateIndex, previous.lateral + (projection.lateral - previous.lateral) * fraction);
+    }
+    else if (remaining >= 0 && remaining <= readingDistance)
+      setQuestion(deck[gateIndex]);
+    else
+      setQuestion(null);
+    const lap = Math.floor(progress / track.length), oldLap = Math.floor(from / track.length);
+    if (lap > oldLap && lap > 0 && lap < LAPS)
+      track.gates.forEach((_, i) => gates.set(i, deck[lap * track.gates.length + i]));
+    if (progress >= track.length * LAPS && gateIndex === totalGates) {
+      finish();
+      return;
+    }
+    if (feedbackTime > 0 && (feedbackTime -= dt) <= 0)
+      el('feedback').hidden = true;
+    if (goTime > 0 && (goTime -= dt) <= 0)
+      el('countdown').hidden = true;
+  }
+
+  function hideTuning() { el('tuning').hidden = true; el('tune').setAttribute('aria-expanded', 'false'); }
+  const action = (label, handler, main = false) => { const b = document.createElement('button'); b.className = main ? 'primary' : 'secondary'; b.textContent = label; b.onclick = handler; el('dialog-actions').appendChild(b); return b; };
+  let focusBack;
+
+  function openModal(kind, title) {
+    if (el('modal').hidden)
+      focusBack = document.activeElement;
+    modalKind = kind;
+    hideTuning();
+    el('dialog-title').textContent = title;
+    el('dialog-content').replaceChildren();
+    el('dialog-actions').replaceChildren();
+    el('modal').hidden = false;
+  }
+
+  function closeModal() { el('modal').hidden = true; modalKind = ''; if (focusBack?.isConnected && !focusBack.closest('[hidden]'))
+    focusBack.focus({ preventScroll: true }); }
+
+  function resume() { closeModal(); clearInputs(); phaseTo(beforePause); last = 0; accum = 0; unlock(); }
+
+  function stopRace() {
+    if (phase === 'countdown' || phase === 'race') {
+      beforePause = phase;
+      clearInputs();
+      phaseTo('paused');
+      return true;
+    }
+    return phase === 'paused';
+  }
+
+  function pauseRace() {
+    if (phase === 'paused') {
+      resume();
+      return;
+    }
+    if (!stopRace())
+      return;
+    openModal('pause', '比賽暫停');
+    const a = action('繼續駕駛', resume, true);
+    action('把車放回路中央', () => { resetOnRoad(); resume(); });
+    action('重新開始', begin);
+    a.focus();
+  }
+
+  function help() {
+    if (!el('modal').hidden)
+      return;
+    const interrupted = stopRace();
+    openModal('help', '駕駛操作');
+    const content = el('dialog-content');
+    const list = document.createElement('dl');
+    for (const [key, label] of [['↑ / ↓', '加油／煞車，停下後可倒車'], ['← / →', '轉向，甩尾中按反方向拉正'], ['Shift', '與方向鍵同按進入甩尾'], ['Ctrl', '使用一格甩尾集滿的氮氣'], ['R / C', '重置車輛／切換跟車鏡頭'], ['Esc / T', '暫停／即時調校']]) {
+      const term = document.createElement('dt'), desc = document.createElement('dd'), k = document.createElement('kbd');
+      k.textContent = key;
+      term.appendChild(k);
+      desc.textContent = label;
+      list.append(term, desc);
+    }
+    content.appendChild(list);
+    const p = document.createElement('p');
+    p.textContent = '有效甩尾後，放開再踩油門即可小噴。讀上方的中文，開進對應的英文門；答對加速 2.5 秒，答錯會短暫緩速。';
+    content.appendChild(p);
+    action(interrupted ? '回到比賽' : '回到起跑線', interrupted ? resume : closeModal, true).focus();
+  }
+
+  function finish() {
+    phaseTo('finished');
+    clearInputs();
+    setQuestion(null);
+    el('feedback').hidden = true;
+    el('countdown').hidden = true;
+    openModal('result', '衝線！');
+    const c = el('dialog-content'), time = document.createElement('div');
+    time.className = 'result-time';
+    time.textContent = timeText(elapsed);
+    c.append(time);
+    const stats = document.createElement('div');
+    stats.className = 'result-stats';
+    for (const [label, value] of [['答對', correct], ['答錯', records.length - correct], ['正確率', Math.round(100 * correct / records.length) + '%']]) {
+      const col = document.createElement('span'), v = document.createElement('b');
+      col.textContent = label;
+      v.textContent = value;
+      col.append(v);
+      stats.append(col);
+    }
+    c.append(stats);
+    const misses = records.filter(r => !r.hit), h = document.createElement('h3');
+    h.textContent = misses.length ? '錯題複習' : '全部答對！';
+    c.append(h);
+    if (misses.length) {
+      const ul = document.createElement('ul');
+      misses.forEach(r => { const li = document.createElement('li'); li.textContent = r.chinese + ' ＝ ' + r.word + '（你選了 ' + r.picked + '）'; ul.append(li); });
+      c.append(ul);
+    }
+    action('重新開始', begin, true).focus();
+    action('返回遊戲大廳', () => location.href = el('hub').href);
+    beep(660, .18);
+    beep(880, .22, .16);
+    hud();
+  }
+
+  function switchCamera() { if (phase !== 'grid') {
+    cameraMode = 1 - cameraMode;
+    dirty = true;
+  } }
+  el('camera-button').onclick = switchCamera;
+  el('pause').onclick = pauseRace;
+  el('help').onclick = help;
+
+  function toggleTune() { if (!el('modal').hidden)
+    return; const open = el('tuning').hidden; el('tuning').hidden = !open; el('tune').setAttribute('aria-expanded', String(open)); }
+  el('tune').onclick = toggleTune;
+  el('close-tune').onclick = hideTuning;
+  const groups = new Map(), ranges = [];
+  for (const spec of drive.sliders) {
+    if (!groups.has(spec.group)) {
+      const d = document.createElement('details'), s = document.createElement('summary');
+      s.textContent = spec.group;
+      d.open = groups.size === 0;
+      d.append(s);
+      el('sliders').append(d);
+      groups.set(spec.group, d);
+    }
+    const l = document.createElement('label'), o = document.createElement('output'), r = document.createElement('input');
+    l.textContent = spec.label;
+    r.type = 'range';
+    r.min = spec.min;
+    r.max = spec.max;
+    r.step = spec.step;
+    r.value = cfg[spec.key];
+    const initial = cfg[spec.key];
+    function read() { cfg[spec.key] = Number(r.value); o.textContent = r.value + ' ' + spec.unit; dirty = true; }
+    r.oninput = read;
+    read();
+    ranges.push(() => { r.value = initial; read(); });
+    l.append(o, r);
+    groups.get(spec.group).append(l);
+  }
+  el('defaults').onclick = () => ranges.forEach(f => f());
+  el('modal').addEventListener('keydown', e => {
+    if (e.key !== 'Tab')
+      return;
+    const buttons = [...el('modal').querySelectorAll('button')], first = buttons[0], lastButton = buttons[buttons.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      lastButton.focus();
+    }
+    if (!e.shiftKey && document.activeElement === lastButton) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
+  window.addEventListener('keydown', e => {
+    if (e.code === 'Escape') {
+      e.preventDefault();
+      if (e.repeat)
+        return;
+      if (!el('tuning').hidden)
+        hideTuning();
+      else if (modalKind === 'help')
+        phase === 'paused' ? resume() : closeModal();
+      else
+        pauseRace();
+      return;
+    }
+    if (e.code === 'KeyT' && !e.repeat) {
+      toggleTune();
+      return;
+    }
+    if (e.target.matches?.('input') || modalKind || !['countdown', 'race'].includes(phase) || e.metaKey || e.altKey)
+      return;
+    if (keyMap[e.code]) {
+      e.preventDefault();
+      keys.add(e.code);
+      recordInput(keyMap[e.code]);
+    }
+    else if (!e.repeat && ['KeyC', 'KeyR'].includes(e.code)) {
+      e.preventDefault();
+      if (e.code === 'KeyC')
+        switchCamera();
+      else
+        resetOnRoad();
+    }
+  });
+  window.addEventListener('keyup', e => { keys.delete(e.code); recordInput(keyMap[e.code]); });
+
+  function away() { if (['race', 'countdown'].includes(phase))
+    pauseRace(); clearInputs(); }
+  window.addEventListener('blur', away);
+  document.addEventListener('visibilitychange', () => { if (document.hidden)
+    away(); });
+  for (const b of document.querySelectorAll('[data-drive]')) {
+    b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); pointers.set(e.pointerId, b.dataset.drive); recordInput(b.dataset.drive); b.classList.add('held'); });
+    const release = e => { pointers.delete(e.pointerId); recordInput(b.dataset.drive); b.classList.toggle('held', [...pointers.values()].includes(b.dataset.drive)); };
+    b.addEventListener('lostpointercapture', release);
+    b.addEventListener('pointerup', release);
+    b.addEventListener('pointercancel', release);
+    b.addEventListener('contextmenu', e => e.preventDefault());
+  }
+
+  function drawDial() {
+    const dial = el('dial'), NS = 'http://www.w3.org/2000/svg';
+    const path = (d, stroke, width, fill = 'none') => { const p = document.createElementNS(NS, 'path'); for (const [k, v] of Object.entries({ d, stroke, 'stroke-width': width, fill }))
+      p.setAttribute(k, v); dial.append(p); return p; };
+    path('M8 112 A87 87 0 1 1 182 112 Z', '#f4e5c2', 2.5, '#173249');
+    const polar = (a, r) => [95 + Math.cos(a) * r, 96 + Math.sin(a) * r].join(' ');
+    for (let i = 0; i <= 28; i++) {
+      const a = (-180 + i * 180 / 28) * Math.PI / 180;
+      path('M' + polar(a, i % 4 === 0 ? 65 : 72) + ' L' + polar(a, 79), i >= 21 ? '#ff8654' : '#d7e9e6', i % 4 === 0 ? 3 : 2);
+    }
+    const needle = path('M95 15 L89 28 L101 28 Z', 'none', 0, '#ffd05d');
+    return v => needle.setAttribute('transform', 'rotate(' + (-90 + clamp(v / 300, 0, 1) * 180) + ' 95 96)');
+  }
+  const gauge = drawDial();
+  const map = el('map'), mc = map.getContext('2d'), base = document.createElement('canvas');
+  base.width = map.width;
+  base.height = map.height;
+  const points = Array.from({ length: 420 }, (_, i) => track.sample(track.length * i / 420));
+  const xs = points.map(p => p.x), zs = points.map(p => p.z), minX = Math.min(...xs), minZ = Math.min(...zs), dx = Math.max(...xs) - minX, dz = Math.max(...zs) - minZ;
+  const mapScale = Math.min((map.width - 18) / dx, (map.height - 14) / dz);
+  const mx = x => (x - minX - dx / 2) * mapScale + map.width / 2, my = z => (z - minZ - dz / 2) * mapScale + map.height / 2;
+  const bg = base.getContext('2d');
+  bg.beginPath();
+  points.forEach((p, i) => i ? bg.lineTo(mx(p.x), my(p.z)) : bg.moveTo(mx(p.x), my(p.z)));
+  bg.closePath();
+  bg.lineJoin = 'round';
+  bg.lineWidth = 8;
+  bg.strokeStyle = '#132d3e';
+  bg.stroke();
+  bg.lineWidth = 4;
+  bg.strokeStyle = '#f5efcf';
+  bg.stroke();
+  track.gates.forEach(s => { const p = track.sample(s); bg.fillStyle = '#ffc354'; bg.fillRect(mx(p.x) - 2.5, my(p.z) - 2.5, 5, 5); });
+  for (let i = 0; i < cfg.slots; i++)
+    el('slots').append(document.createElement('i'));
+
+  function hud() {
+    const speed = Math.round(car.speed * 3.6);
+    el('speed').textContent = speed;
+    gauge(speed);
+    el('time').textContent = timeText(elapsed);
+    el('lap').textContent = clamp(Math.floor(progress / track.length) + 1, 1, LAPS);
+    el('hits').textContent = correct;
+    el('misses').textContent = records.length - correct;
+    el('fill').style.transform = 'scaleX(' + car.charge + ')';
+    [...el('slots').children].forEach((s, i) => s.classList.toggle('full', i < car.stock));
+    const mode = car.penalty ? '緩速' : car.boosting ? (car.boostKind === 'mini' ? '小噴' : '氮氣') : car.miniReady ? '補油小噴' : ({ entry: '甩尾', slide: '甩尾', counter: '反打', recover: '回抓' })[car.phase] || '';
+    el('drive-status').textContent = mode;
+    document.body.classList.toggle('boosting', phase === 'race' && car.boosting);
+    mc.clearRect(0, 0, map.width, map.height);
+    mc.drawImage(base, 0, 0);
+    mc.save();
+    mc.translate(mx(car.x), my(car.z));
+    mc.rotate(car.yaw);
+    mc.fillStyle = '#ff6d4c';
+    mc.strokeStyle = '#fffbea';
+    mc.lineWidth = 2;
+    mc.beginPath();
+    mc.moveTo(0, -8);
+    mc.lineTo(5, 5);
+    mc.lineTo(0, 3);
+    mc.lineTo(-5, 5);
+    mc.closePath();
+    mc.fill();
+    mc.stroke();
+    mc.restore();
+  }
+  const lines = document.createElement('div');
+  lines.className = 'streaks';
+  lines.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < 10; i++) {
+    const line = document.createElement('i');
+    line.style.setProperty('--angle', (i * 36 + 9) + 'deg');
+    lines.append(line);
+  }
+  stage.insertBefore(lines, el('hud'));
+  let hudAge = 0;
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const raw = last ? (now - last) / 1000 : 0, dt = clamp(raw, 0, .18);
+    last = now;
+    if (document.hidden)
+      return;
+    const moving = ['race', 'countdown'].includes(phase);
+    if (!moving && !dirty)
+      return;
+    if (moving && raw > 0) {
+      slowFrames = raw > .048 ? slowFrames + 1 : Math.max(0, slowFrames - 1);
+      if (slowFrames > 24 && pixelLimit > .72) {
+        pixelLimit = Math.max(.72, pixelLimit * .80);
+        slowFrames = 0;
+        resize();
+      }
+    }
+    if (phase === 'countdown') {
+      const tick = Math.ceil(countdown);
+      countdown = Math.max(0, countdown - dt);
+      if (Math.ceil(countdown) !== tick) {
+        el('countdown').textContent = Math.ceil(countdown) || 'GO!';
+        beep(countdown ? 460 : 870, countdown ? .1 : .28);
+      }
+      if (!countdown) {
+        Object.assign(inputs, requested);
+        phaseTo('race');
+        goTime = .72;
+        accum = 0;
+      }
+    }
+    else if (phase === 'race') {
+      accum += dt;
+      while (accum >= step && phase === 'race') {
+        solve(step, now - (accum - step) * 1000);
+        accum -= step;
+      }
+    }
+    if (phase === 'grid') {
+      introCamera();
+      ClassicKartArt.update(model, car, 0);
+    }
+    else {
+      const rig = renderCar.cameraState;
+      Object.assign(renderCar, car);
+      renderCar.cameraState = rig;
+      const f = clamp(accum / step, 0, 1);
+      renderCar.x = previousPose.x + (car.x - previousPose.x) * f;
+      renderCar.z = previousPose.z + (car.z - previousPose.z) * f;
+      renderCar.yaw = previousPose.yaw + wrapAngle(car.yaw - previousPose.yaw) * f;
+      ClassicKartArt.update(model, renderCar, moving ? dt : 0);
+      drive.camera(camera, renderCar, dt, cameraMode);
+      hudAge += dt;
+      if (hudAge >= .04 || dirty) {
+        hud();
+        hudAge = 0;
+      }
+      if (motor)
+        motor.update({ elapsed, speed: car.speed * 3.6, boost: car.boosting ? Math.max(car.quizTimer, car.miniTimer, car.tankTimer) : 0,
+          drifting: Math.abs(car.slip) > .12 && car.speed > 8, driftCharge: Math.min(1, Math.abs(car.slip)), skid: car.penalty });
+    }
+    renderer.render(scene, camera);
+    dirty = false;
+  }
+  window.ClassicRace = { telemetry: () => ({ phase, elapsed, car: { ...car, cameraState: undefined }, progress, projection: { ...projection },
+      gateIndex, question: question ? { correctLane: question.correctLane, choices: question.choices.map(w => w.word), meaning: question.answer.chinese } : null,
+      correct, wrong: records.length - correct, vocabCount: words.length, cameraMode, fov: camera.fov, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles }) };
+  view.addEventListener('webglcontextlost', () => { away(); showFailure('3D 顯示已中斷，請重新整理以載入賽道。'); });
+  el('start').disabled = !GameData.ready();
+  el('start').innerHTML = '開始競速 <svg aria-hidden="true"><use href="#arrow"/></svg>';
+  resize();
+  requestAnimationFrame(frame);
+})();
