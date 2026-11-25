@@ -11,6 +11,69 @@ window.GameSetup = (() => {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = text;
     b.addEventListener('click', action); return b;
   }
+  function addTextQuestions(row, settings, refresh) {
+    const field = row.parentElement;
+    const heading = field.querySelector('legend');
+    const label = document.createElement('span');
+    label.id = 'sg-practice-label';
+    label.textContent = heading.textContent;
+    field.setAttribute('aria-labelledby', label.id);
+    heading.className = 'sg-type-heading';
+
+    const choices = document.createElement('div');
+    choices.className = 'sg-options sg-two-options sg-text-choices';
+    choices.id = 'sg-text-choices';
+    choices.setAttribute('role', 'group');
+    choices.setAttribute('aria-label', '中英文字出題方式');
+    const textButton = row.querySelector('[data-value="text"]');
+    const toggle = button('單字題／句子題', event => {
+      setOpen(choices.hidden);
+      if (!choices.hidden && event.detail === 0) focusChoice();
+    });
+    toggle.className = 'sg-text-toggle';
+    for (const control of [toggle, textButton]) control.setAttribute('aria-controls', choices.id);
+    heading.replaceChildren(label, toggle);
+    field.append(choices);
+
+    function setOpen(open) {
+      choices.hidden = !open;
+      toggle.setAttribute('aria-expanded', String(open));
+      textButton.setAttribute('aria-expanded', String(open));
+    }
+    function focusChoice() {
+      choices.querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
+    }
+    function choose(value) {
+      settings.set(value);
+      setOpen(false);
+      refresh();
+      toggle.focus({preventScroll:true});
+    }
+    const word = button('單字題', () => choose('word'));
+    const sentence = button('句子題', () => choose('sentence'));
+    sentence.setAttribute('aria-describedby', 'sg-type-note');
+    choices.append(word, sentence);
+    setOpen(false);
+    field.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !choices.hidden) {
+        e.preventDefault(); e.stopPropagation();
+        setOpen(false); toggle.focus();
+      }
+    });
+    return {
+      open(fromKeyboard) { setOpen(true); if (fromKeyboard) focusChoice(); },
+      sync(selected) {
+        toggle.hidden = selected !== 'text';
+        if (toggle.hidden) { setOpen(false); return ''; }
+        sentence.disabled = !settings.available();
+        const useSentence = !sentence.disabled && settings.get() === 'sentence';
+        word.setAttribute('aria-pressed', String(!useSentence));
+        sentence.setAttribute('aria-pressed', String(useSentence));
+        if (sentence.disabled) return '單字題。' + settings.unavailableHint;
+        return useSentence ? '句子題：讀英文例句，選出空格裡的單字。' : '單字題：英文選中文、中文選英文。';
+      }
+    };
+  }
   function mount(config) {
     const start = document.querySelector(config.start);
     if (!start) return;
@@ -32,15 +95,18 @@ window.GameSetup = (() => {
       const field = document.createElement('fieldset'); const legend = document.createElement('legend'); legend.textContent = label;
       const row = document.createElement('div'); row.className = 'sg-options'; field.append(legend, row); panel.append(field); return row;
     }
+    let textPicker;
     if (!config.fixedType) {
       const row = group('練習題型');
       for (const [value, label] of [['text', '中英文字'], ['picture', '圖片題'], ['mixed', '混合練習']]) {
-        const b = button(label, () => {
+        const b = button(label, event => {
           preference = value; save('sgQuestionType', value);
           config.onTypeChange?.(); sync();
+          if (value === 'text') textPicker?.open(event.detail === 0);
         });
         b.dataset.value = value; b.setAttribute('aria-describedby', 'sg-type-note'); row.append(b); typeButtons.push(b);
       }
+      if (config.textQuestions) textPicker = addTextQuestions(row, config.textQuestions, sync);
     }
     panel.append(typeNote);
     let difficulty = read('sgGameDifficulty', '') || config.getDifficulty?.() || 'simple';
@@ -63,11 +129,13 @@ window.GameSetup = (() => {
         b.disabled = b.dataset.value !== 'text' && !available;
         b.setAttribute('aria-pressed', String(b.dataset.value === selected));
       });
+      const textHint = textPicker?.sync(selected);
       typeNote.textContent = config.fixedType || (!available
         ? `本題庫可用中英文字；圖片題需至少 ${config.pictureMinimum || 4} 個可辨識圖案。`
         : selected === 'picture' ? '看英文、聽發音，選對應圖片；只練有可辨識圖片的單字。'
         : selected === 'mixed' ? '文字題與圖片題混合出現，比例不隨遊戲難度改變。'
-        : (config.textNote?.() || '英文選中文、中文選英文。'));
+        : (textHint || config.textNote?.() || '英文選中文、中文選英文。'));
+      if (!available && textHint) typeNote.textContent = textHint + ' ' + typeNote.textContent;
       if (!available && preference !== 'text' && !config.fixedType) typeNote.textContent += ' 本次已改選中英文字。';
       difficultyButtons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.value === difficulty)));
       difficultyNote.textContent = config.hints?.[difficulty] || '';

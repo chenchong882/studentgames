@@ -416,7 +416,7 @@
         </button>
       </div>
     </div>
-    <details id="ship-advanced" class="sg-advanced"><summary>進階設定</summary><label><input id="ship-sentences" type="checkbox">文字題加入例句填空</label><p class="sg-note" id="ship-sentence-note"></p></details>
+    <details id="ship-advanced" class="sg-advanced" hidden><summary>進階設定</summary><label><input id="ship-sentences" type="checkbox">混合練習的文字回合加入句子題</label><p class="sg-note" id="ship-sentence-note"></p></details>
     <button class="mobile-start-cta" id="start-ship-btn" type="button">以困難模式開始</button>
     <button class="game-menu-return" type="button" onclick="location.href='../index.html'+location.hash" style="background:rgba(255,255,255,.16); color:#fff; font-size:clamp(15px,3.6vw,20px); padding:10px 32px;">← 返回遊戲選單</button>
     <div class="sub" id="mode-hint" style="font-size:clamp(12px,2.8vw,15px);"></div>
@@ -452,12 +452,13 @@
 
 <script src="../data/word-audio-manifest.js"></script>
 <script src="word-audio.js"></script>
+<script src="word-example.js"></script>
 <script src="round-review.js"></script>
 <script>
 "use strict";
 
 /* ════════════════ 題庫與設定 ════════════════ */
-let wordBank = [
+let wordBank = normalizeShipWords([
   { word: "ATTACK",  meaning: "攻擊",   pos: "動詞",    example: "The soldiers {W} the enemy base at night." },
   { word: "BRAVE",   meaning: "勇敢的", pos: "形容詞",  example: "The {W} sailor jumped into the stormy sea." },
   { word: "CAPTAIN", meaning: "船長",   pos: "名詞",    example: "The {W} steers the ship through the storm." },
@@ -466,7 +467,7 @@ let wordBank = [
   { word: "FIERCE",  meaning: "兇猛的", pos: "形容詞",  example: "A {W} tiger guarded the hidden cave." },
   { word: "GUARD",   meaning: "守衛",   pos: "動詞/名詞", example: "Two soldiers {W} the castle gate all night." },
   { word: "HIDDEN",  meaning: "隱藏的", pos: "形容詞",  example: "They found a {W} door behind the bookshelf." },
-];
+]);
 
 const shipColors = [
   { id: "red",    name: "紅色", icon: "🔴", main: "#d6402c", light: "#ff7a5e", dark: "#7e1d10" },
@@ -706,6 +707,12 @@ let builtinSource = true;
 function hasPicBank(){ return GameData.picturePool(wordBank).length >= 4; }
 let allPic = (function(){ try{ return localStorage.getItem('sgAllPic') === '1'; }catch(e){ return false; } })();
 let selectedShipMode = (function(){ try{return localStorage.getItem('shipMode3')||'normal';}catch(e){return 'normal';} })();
+let shipTextQuestion = 'word';
+try {
+  const saved = localStorage.getItem('sgShipTextQuestion');
+  if (saved === 'sentence' || (saved === null && localStorage.getItem('sgShipSentences') === '1')) shipTextQuestion = 'sentence';
+  if (saved === null) localStorage.setItem('sgShipTextQuestion', shipTextQuestion);
+} catch(e) {}
 
 /* ════════════════ 工具 ════════════════ */
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -723,7 +730,7 @@ function showToast(text, color) {
 }
 
 /* ════════════════ 回合 / 關卡產生 ════════════════ */
-function hasSentenceCloze(word) { return typeof word.example === 'string' && word.example.includes('{W}'); }
+function hasSentenceCloze(word) { return Boolean(word.clozePrompt); }
 function conditionKeysForLevel(lv) {
   return ["word"];
 }
@@ -766,23 +773,24 @@ function newRound() {
 
   game.conditions = conditionKeysForLevel(lv);
   // 題型獨立於操作難度。
-  const wantPic = GameSetup.usePicture(hasPicBank());
+  const hasPictures = hasPicBank();
+  const type = GameSetup.kind(hasPictures);
+  const wantPic = GameSetup.usePicture(hasPictures);
   const wordPool = wantPic ? GameData.picturePool(wordBank) : wordBank;
+  const sentencePool = type === 'text' && shipTextQuestion === 'sentence' ? wordBank.filter(hasSentenceCloze) : [];
   const target = {
-    word:  pick(wordPool),
+    word:  pick(sentencePool.length ? sentencePool : wordPool),
     color: pick(shipColors),
     flag:  pick(flags),
   };
   game.target = target;
-  const withSentence = document.getElementById('ship-sentences').checked && hasSentenceCloze(target.word) && Math.random() < 0.5;
+  const withSentence = sentencePool.length > 0 || (type === 'mixed' && !wantPic && $("ship-sentences").checked && hasSentenceCloze(target.word) && Math.random() < 0.5);
   game.qType = wantPic ? "en2pic" : withSentence ? "sentence" : (Math.random() < 0.5 ? "cn2en" : "en2cn");
-  RoundReview.begin({prompt:game.qType==="sentence"?target.word.example.replace("{W}","＿＿＿"):(game.qType==="cn2en"?target.word.meaning:target.word.word),answer:target.word.word,meaning:target.word.meaning});
+  RoundReview.begin({prompt:game.qType==="sentence"?target.word.clozePrompt:(game.qType==="cn2en"?target.word.meaning:target.word.word),answer:target.word.word,meaning:target.word.meaning});
 
   let count = clamp(2 + lv, 3, compactShipView() ? 3 : 5);
   // 干擾船：單字必不同；圖片回合的干擾 emoji 也必須與目標不同
-  const otherWordCandidates = wantPic
-    ? GameData.picturePool(wordBank).filter(w => w.word !== target.word.word)
-    : wordBank.filter(w => w.word !== target.word.word);
+  const otherWordCandidates = wordPool.filter(w => w.word !== target.word.word);
   const sentenceChoices = game.qType === "sentence" ? otherWordCandidates.filter(w => !wordsConflict(target.word, w)) : otherWordCandidates;
   const otherWords = shuffle((sentenceChoices.length ? sentenceChoices : otherWordCandidates).slice());
   count = Math.min(count, otherWords.length + 1);
@@ -846,10 +854,9 @@ function makeShip(attrs, idx, count, isTarget) {
 function updateQuestionUI() {
   const t = game.target;
   let title, chips;
-  if (game.qType === "sentence" && t.word.example) {
-    const cloze = t.word.example.replace("{W}", "＿＿＿");
+  if (game.qType === "sentence") {
     title = `讀句子，擊沉填入空格的正確單字（${t.word.pos}）`;
-    chips = [{ text: `📝 ${cloze}`, cls: "sentence" }];
+    chips = [{ text: `📝 ${t.word.clozePrompt}`, cls: "sentence" }];
   } else if (game.qType === "en2pic") {
     // 圖片題：題目顯示英文＋自動發音（發音失效時看字仍可作答），船身掛 emoji
     title = "聽發音，擊沉掛著正確圖片的船";
@@ -2416,7 +2423,8 @@ function normalizeShipWords(words){
     const avoidWith=Array.isArray(w&&w.avoidWith)?w.avoidWith.map(x=>String(x).trim().toLowerCase()).filter(Boolean):[];
     if(!word||!meaning) return;
     const k=word.toLowerCase(); if(seen.has(k)) return; seen.add(k);
-    out.push({ word: word.toUpperCase(), meaning, pos: pos||"單字", example, emoji, avoidWith });
+    const clozePrompt=WordExample.clozeTemplate({word,example}).replace(/\{W\}/g,"＿＿＿");
+    out.push({ word: word.toUpperCase(), meaning, pos: pos||"單字", example, clozePrompt, emoji, avoidWith });
   });
   return out;
 }
@@ -2473,10 +2481,20 @@ document.getElementById('ship-sentences').addEventListener('change',e=>{try{loca
 GameSetup.register({
   id:'ship', shell:'#start-screen', start:'#start-ship-btn', legacy:'#allpic-row,#mix-desc,.mode-section,#mode-hint', pause:'#pause-btn',
   advanced:['#ship-advanced'],
+  textQuestions:{
+    get:()=>shipTextQuestion,
+    set:value=>{
+      shipTextQuestion=value;
+      try{localStorage.setItem('sgShipTextQuestion',value);}catch(e){}
+    },
+    available:()=>wordBank.some(hasSentenceCloze),
+    unavailableHint:'這份題庫需要至少 1 個有填空例句的單字才能使用句子題。'
+  },
   syncExtra:type=>{
     const input=document.getElementById('ship-sentences');
-    input.disabled=type==='picture'||!wordBank.some(hasSentenceCloze);
-    document.getElementById('ship-sentence-note').textContent=input.disabled?'需選文字／混合練習，且題庫含可用的填空例句。':'勾選後，部分文字題會以例句填空出題。';
+    document.getElementById('ship-advanced').hidden=type!=='mixed';
+    input.disabled=type!=='mixed'||!wordBank.some(hasSentenceCloze);
+    document.getElementById('ship-sentence-note').textContent=input.disabled?'這份題庫缺少可填空的例句。':'勾選後，部分文字回合會以例句填空出題。';
   },
   hasPictures:hasPicBank, count:()=>wordBank.length, getDifficulty:()=>selectedShipMode, setDifficulty:selectShipMode,
   hints:{simple:'BOSS 較慢，敵方狙擊手不會反擊。',hard:'BOSS 較快，敵方狙擊手會反擊。'}

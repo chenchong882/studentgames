@@ -1,4 +1,4 @@
-/* Show a lesson sentence with its target word in bold. */
+/* Format lesson examples for reading, recordings and fill-in-the-blank questions. */
 window.WordExample = (() => {
   const wordOf = entry => String(entry.word || entry.en || '').trim();
   const sentenceOf = entry => String(entry.sentence || entry.example || '').trim();
@@ -6,6 +6,18 @@ window.WordExample = (() => {
   function text(entry) {
     const word = wordOf(entry);
     return word && sentenceOf(entry).replace(/\{W\}/g, (_, position) => spellingAt(word, position));
+  }
+  function wordPattern(word) {
+    const literal = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp('(^|[^a-z0-9_])(' + literal + ')(?![a-z0-9_])', 'gi');
+  }
+  function clozeTemplate(entry) {
+    const word = wordOf(entry);
+    const sentence = sentenceOf(entry);
+    if (!word || !sentence) return '';
+    if (sentence.includes('{W}')) return sentence;
+    const template = sentence.replace(wordPattern(word), '$1{W}');
+    return template === sentence ? '' : template;
   }
   function render(container, entry) {
     const word = wordOf(entry);
@@ -16,11 +28,7 @@ window.WordExample = (() => {
     // Templates mark the intended answer explicitly. For complete sentences,
     // match whole words or phrases and keep the spelling used in the sentence.
     const template = sentence.includes('{W}');
-    let pattern = /\{W\}/g;
-    if (!template) {
-      const literal = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      pattern = new RegExp('(^|[^a-z0-9_])(' + literal + ')(?![a-z0-9_])', 'gi');
-    }
+    const pattern = template ? /\{W\}/g : wordPattern(word);
     let cursor = 0;
     for (const match of sentence.matchAll(pattern)) {
       const start = match.index + (match[1] || '').length;
@@ -32,5 +40,5 @@ window.WordExample = (() => {
     container.append(sentence.slice(cursor));
     return true;
   }
-  return { render, text };
+  return { render, text, clozeTemplate };
 })();

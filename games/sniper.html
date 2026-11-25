@@ -311,13 +311,7 @@
     <div id="theme-chips" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center"></div>
     <p style="font-size:12px;color:#94a3b8;margin-top:8px">由學生頁面開啟、帶入段考單字時，會自動改用段考單字。</p>
   </div>
-  <details id="sniper-advanced" class="sg-advanced"><summary>進階設定</summary>
-  <div id="sniper-text-settings"><div class="step-label">文字題內容</div>
-  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
-    <button class="btn pick-btn" id="qtype-sentence">📝 句子題</button>
-    <button class="btn pick-btn" id="qtype-word">🔤 單字題</button>
-  </div>
-  </div></details>
+  <details id="sniper-advanced" class="sg-advanced"><summary>進階設定</summary></details>
   <div class="step-label" data-sg-legacy="true">② 題目內容</div>
   <div id="allpic-row"><button class="btn pick-btn" id="allpic-mix">混合練習（推薦）</button><button class="btn pick-btn" id="allpic-only">只玩圖片題</button></div>
   <div id="mix-desc" style="display:none;font-size:13px;color:#94a3b8;margin-top:8px">混合練習：交替出現中英文字題與英文／發音選圖片；簡單圖片較多、困難文字較多。</div>
@@ -464,11 +458,14 @@ function normalizeWords(arr){
     const avoidWith = Array.isArray(w && w.avoidWith) ? w.avoidWith.map(x=>String(x).trim().toLowerCase()).filter(Boolean) : [];
     if(!word || !meaning) return;
     const exampleWord = typeof w.exampleWord === 'string' && w.exampleWord.toUpperCase() === word.toUpperCase() ? w.exampleWord : word;
-    out.push({ word: word.toUpperCase(), exampleWord, meaning, pos: pos || '單字', example, emoji, avoidWith });
+    const cloze = WordExample.clozeTemplate({word:exampleWord, example});
+    out.push({ word: word.toUpperCase(), exampleWord, meaning, pos: pos || '單字', example, cloze, emoji, avoidWith });
   });
   return GameData.uniqueWords(out);
 }
 let selectedThemes = []; // 空陣列＝全部主題
+const MIN_SENTENCE_WORDS = 5;
+const hasCloze = w => Boolean(w.cloze);
 function buildWordBank(){
   const lesson = readLesson();
   const lessonWords = lesson ? normalizeWords(lesson.words) : [];
@@ -481,7 +478,7 @@ function buildWordBank(){
     const picked = normalizeWords(window.WORD_BANK.getWords(selectedThemes));
     if(picked.length >= 5) return { bank: shuffle(picked), source:'builtin' };
   }
-  return { bank: BUILTIN.slice(), source:'builtin' };
+  return { bank: BUILTIN.map(w=>({...w, cloze:WordExample.clozeTemplate(w)})), source:'builtin' };
 }
 
 /* ---------- 工具 ---------- */
@@ -866,7 +863,7 @@ function unlockSpeech(){
 /* ---------- 出題 ---------- */
 // 本回合題型。鐵則：圖片題一律「情報卡英文＋發音 → 射對應圖片」，絕不出看圖選字；也絕不出圖↔中
 function pickRoundType(){
-  if (GameSetup.kind(WB.hasPic) === 'text' && qtype === 'sentence') return 'cloze';
+  if (GameSetup.kind(WB.hasPic) === 'text' && qtype === 'sentence' && WB.sentenceWords.length >= MIN_SENTENCE_WORDS) return 'cloze';
   return GameSetup.usePicture(WB.hasPic) ? 'en2pic' : (Math.random()<0.5?'cn2en':'en2cn');
 }
 function startRound(){
@@ -883,10 +880,8 @@ function startRound(){
   // 選 5 個單字(1 對 4 干擾)：圖片回合只從有 emoji 的字抽；句子回合答案必須有例句
   let chosen;
   if(roundType === 'cloze'){
-    const withEx = WB.bank.filter(w=>w.example);
-    answer = chooseAnswer(withEx.length ? withEx : WB.bank);
+    answer = chooseAnswer(WB.sentenceWords);
     chosen = [answer, ...clozeChoices(answer, WB.bank, FLOORS-1)];
-    if(!answer.example) roundType = 'cn2en';   // 保險：完全沒例句時退回中→英
   } else {
     const pool = roundType==='en2pic' ? GameData.picturePool(WB.bank) : WB.bank;
     answer = chooseAnswer(pool);
@@ -896,7 +891,7 @@ function startRound(){
   while(chosen.length<FLOORS)chosen.push(null);
   chosen = shuffle(chosen);
   intelMode = roundType;
-  RoundReview.begin({prompt:roundType==='cloze'&&answer.example?answer.example.replace('{W}','＿＿＿'):(roundType==='cn2en'?answer.meaning:answer.word),answer:answer.word,meaning:answer.meaning});
+  RoundReview.begin({prompt:roundType==='cloze'?answer.cloze.replace(/\{W\}/g,'＿＿＿'):(roundType==='cn2en'?answer.meaning:answer.word),answer:answer.word,meaning:answer.meaning});
 
   // 風速: 簡單模式全程無風；其他模式前 4 關無風，之後逐步加入
   wind = mode==='hard' && roundNo>4 ? rand(-1,1)*Math.min(0.4,(roundNo-4)*0.08) : 0;
@@ -979,7 +974,7 @@ function renderIntel(){
   const sb = document.getElementById('intel-speak');
   if(sb) sb.style.display = (intelMode==='en2cn' || intelMode==='en2pic') ? 'inline-flex' : 'none';
   if(intelMode === 'cloze'){
-    const html = escapeIntel(answer.example).replace(/\{W\}/g, '<span class="blank">______</span>');
+    const html = escapeIntel(answer.cloze).replace(/\{W\}/g, '<span class="blank">______</span>');
     el.innerHTML = html + ` <span class="desktop-detail" style="color:#94a3b8">（填入空格的字＝你的目標）</span>`;
   } else if(intelMode === 'en2cn'){
     el.innerHTML = `<span class="desktop-detail">Target: </span><span class="phone-only phone-prompt">找中文</span><span class="blank">${escapeIntel(answer.word)}</span>` +
@@ -1179,7 +1174,7 @@ function tryFire(){
     }else{
       settleQuestion('wrong',target.word.word);combo=0;
       answerReview={correct:{...answer},chosen:{...target.word},type:roundType,round:roundNo,
-        prompt:roundType==='cloze'?answer.example.replace(/\{W\}/g,'＿＿＿'):roundType==='cn2en'?answer.meaning:answer.word};
+        prompt:roundType==='cloze'?answer.cloze.replace(/\{W\}/g,'＿＿＿'):roundType==='cn2en'?answer.meaning:answer.word};
       setMissionNote('判讀錯誤：你選了 '+target.word.word+'（'+target.word.meaning+'）；正解 '+answer.word+'（'+answer.meaning+'）。');
       enterKillcam(target,false);
     }
@@ -2727,6 +2722,7 @@ function startGame(m){
   difficulty = mode==='hard' ? 'hard' : 'easy';
   try{ localStorage.setItem('sniperMode3', mode); }catch(e){}
   WB.hasPic = GameData.picturePool(WB.bank).length >= 5;
+  WB.sentenceWords = WB.bank.filter(hasCloze);
   roundNo = 0; score = 0; money = 0; combo = 0; lives = MAX_LIVES;
   apStock=0;apSelected=false;extraAmmo=0;easyAmmoUntilRound=0;extraTime=0;shoppedAt={};
   roofRaid=null;roofAfterHit=null;roofResume=null;roofDelay=-1;roofCount=0;lastRoofRound=0;roofCheckedRound=0;nextFireAt=0;
@@ -2890,17 +2886,11 @@ function bankStats(){
   const wb = buildWordBank(), bank = wb.bank;
   return {
     pics: GameData.picturePool(bank).length >= 5,
-    sentences: bank.filter(w=>w.example).length >= 5, // 例句夠多才開句子題
+    sentences: bank.filter(hasCloze).length >= MIN_SENTENCE_WORDS,
   };
 }
 function refreshStartUI(){
   const st = bankStats();
-  const sBtn = document.getElementById('qtype-sentence');
-  const wBtn = document.getElementById('qtype-word');
-  sBtn.disabled = !st.sentences;
-  if(sBtn.disabled && qtype==='sentence') qtype = 'word';   // 例句不足：自動選單字題
-  sBtn.classList.toggle('sel', qtype==='sentence');
-  wBtn.classList.toggle('sel', qtype==='word');
   // 全圖檔開關：選「單字題」且有圖題庫才顯示（句子題與開關無關）
   document.getElementById('allpic-row').classList.toggle('show', qtype==='word' && st.pics);
   document.getElementById('mix-desc').style.display = qtype==='word' && st.pics ? 'block' : 'none';
@@ -2914,16 +2904,6 @@ function refreshStartUI(){
     qtype==='sentence' ? '句子題：可搭配簡單或困難操作'
     : st.pics ? '內建圖片單字：可選簡單或困難' : '段考單字：可選簡單或困難';
 }
-document.getElementById('qtype-sentence').addEventListener('click', ()=>{
-  qtype = 'sentence';
-  try{ localStorage.setItem('sniperQtype', qtype); }catch(e){}
-  refreshStartUI(); GameSetup.refresh();
-});
-document.getElementById('qtype-word').addEventListener('click', ()=>{
-  qtype = 'word';
-  try{ localStorage.setItem('sniperQtype', qtype); }catch(e){}
-  refreshStartUI();
-});
 function setAllPic(on){ allPic=on; try{localStorage.setItem('sgAllPic',on?'1':'0');}catch(e){} refreshStartUI(); }
 document.getElementById('allpic-mix').addEventListener('click',()=>setAllPic(false));
 document.getElementById('allpic-only').addEventListener('click',()=>setAllPic(true));
@@ -3034,17 +3014,17 @@ requestAnimationFrame(t=>{ lastT=t; loop(t); });
 GameSetup.register({
   id:'sniper', shell:'#start-overlay', start:'#start-sniper-btn', legacy:'#allpic-row,#mix-desc,.start-mode-row,#mode-hint', pause:'#pause-btn',
   advanced:['#sniper-advanced'],
-  restartData:()=>readLesson() || {builtin:true,unitTitle:'自選主題',words:buildWordBank().bank},
+  restartData:()=>readLesson() || {builtin:true,unitTitle:'自選主題',words:buildWordBank().bank.map(({cloze,...word})=>word)},
   hasPictures:()=>bankStats().pics, pictureMinimum:5, count:()=>buildWordBank().bank.length,
   getDifficulty:()=>mode, setDifficulty:m=>{mode=m;try{localStorage.setItem('sniperMode3',m);}catch(e){}refreshStartUI();},
-  onTypeChange:()=>{qtype='word';try{localStorage.setItem('sniperQtype','word');}catch(e){}refreshStartUI();},
-  syncExtra:selected=>{
-    document.getElementById('sniper-text-settings').hidden=selected!=='text';
-    if(selected==='text' && qtype==='sentence') document.getElementById('sg-type-note').textContent='進階設定：閱讀例句，找出正確單字。';
+  textQuestions:{
+    get:()=>qtype,
+    set:value=>{qtype=value;try{localStorage.setItem('sniperQtype',value);}catch(e){}},
+    available:()=>bankStats().sentences,
+    unavailableHint:`句子題需至少 ${MIN_SENTENCE_WORDS} 個有填空例句的單字。`
   },
   hints:{simple:'每層最多 2 段石牆；目標較慢、無風，射偏不觸發反擊。第 4、7 關後屋頂敵人限時 10 秒，逾時扣 1 顆生命；存活後免費選彈藥或生命補給。',hard:'有限穿甲彈、商店與風偏；射偏需收鏡躲避。第 3 關後可能遭遇屋頂敵襲，暫停英文計時，10 秒未擊倒扣 1 顆生命。'}
 });
-document.getElementById('qtype-word').addEventListener('click',()=>GameSetup.refresh());
 document.getElementById('theme-chips').addEventListener('click',()=>setTimeout(()=>GameSetup.refresh(),0));
 // 收起額外設定，主畫面保留一致的兩組選項。
 document.getElementById('sniper-advanced').append(document.getElementById('open-settings'), document.getElementById('theme-pick'));
