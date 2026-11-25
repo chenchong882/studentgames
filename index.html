@@ -102,6 +102,13 @@
     #vocab-preview { margin-top: 14px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(7,13,26,.6); }
     .vocab-preview-head { gap: 8px 14px; margin-bottom: 12px; }
     #vocab-preview-title { color: var(--text); font-size: 15px; font-weight: 800; }
+    .vocab-tabs:not([hidden]) { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; border: 1px solid #344359; border-bottom: 0; border-radius: 14px 14px 0 0; background: #101a2b; }
+    .vocab-tab { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 6px 11px; border: 1px solid transparent; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; font-size: 14px; white-space: nowrap; }
+    .vocab-tab span { font-size: 12px; font-variant-numeric: tabular-nums; }
+    .vocab-tab:hover { color: var(--text); background: #203047; }
+    .vocab-tab[aria-selected="true"] { color: var(--cyan); border-color: #3a7385; background: #193242; font-weight: 700; }
+    .vocab-tab:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+    .vocab-tabs:not([hidden]) + .vocab-grid { padding: 10px; border: 1px solid #344359; border-radius: 0 0 14px 14px; }
     .vocab-grid { --card-min: 190px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-min)), 1fr)); gap: 10px 8px; max-height: clamp(260px, 56vh, 520px); overflow-y: auto; }
     .vocab-card { display: flex; flex-direction: column; position: relative; min-width: 0; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.045); }
     .vocab-card.is-open { border-color: var(--cyan); box-shadow: inset 0 0 0 1px var(--cyan); background: rgba(77,217,255,.09); }
@@ -170,6 +177,8 @@
       .source-cards, .grid { grid-template-columns: 1fr; }
       .vocab-toggle { width: 100%; }
       .vocab-grid { --card-min: 128px; }
+      .vocab-tabs:not([hidden]) { flex-wrap: nowrap; overflow-x: auto; }
+      .vocab-tabs:not([hidden]) + .vocab-grid { padding: 8px; }
       #vocab-preview { padding: 12px; }
       .vocab-example { padding: 12px 14px; }
       .games-section { margin-top: 36px; }
@@ -253,6 +262,7 @@
             <button type="button" class="voice-option" data-voice="female" aria-pressed="true">女聲</button>
           </div>
         </div>
+        <div class="vocab-tabs" id="vocab-tabs" role="tablist" aria-label="預覽單字分類" hidden></div>
         <div class="vocab-grid" id="vocab-grid">
           <section class="vocab-example" id="vocab-example" hidden>
             <div class="example-copy">
@@ -561,6 +571,7 @@
     // ── 單字預覽 ──
     const vocabToggleBtn = document.getElementById('vocab-toggle-btn');
     const vocabPreview = document.getElementById('vocab-preview');
+    const vocabTabs = document.getElementById('vocab-tabs');
     const vocabGrid = document.getElementById('vocab-grid');
     const examplePanel = document.getElementById('vocab-example');
     const exampleEn = document.getElementById('example-en');
@@ -744,10 +755,9 @@
       ExampleAudio.play(openExample.entry, examplePlay);
     });
 
-    function buildVocabPreview(){
+    function renderPreviewCards(source){
       closeExample();
-      const source = practicePicker?.isDaily() ? practicePicker.words() : practiceSource().words;
-      const words = source.filter(w => w && typeof w === 'object').map(w => {
+      const words = source.map(w => {
         const word = w.word || w.en || w.phrase || '';
         const reading = scope === 'builtin' && window.READING_EXAMPLES?.get(word);
         return {
@@ -763,7 +773,7 @@
         audioStatus.textContent = '';
         if(window.WordAudio) WordAudio.stop();
       }
-      vocabTitle.textContent = `共 ${words.length} 個單字・點單字聽發音`;
+      vocabGrid.scrollTop = 0;
       vocabGrid.replaceChildren(examplePanel);
       words.forEach((w, index) => {
         const card = document.createElement('div');
@@ -799,6 +809,87 @@
         }
         vocabGrid.appendChild(card);
       });
+    }
+
+    function groupPreviewWords(catalog, dailyWords){
+      const groups = new Map(window.WORD_BANK.themes().map(({id, name}) => [id, {id, name, words:[]}]));
+      const other = {id:'other', name:'其他單字', words:[]};
+      // Shared daily lists have no theme. Match the picker's first occurrence in the selected catalog.
+      const dailyThemes = new Map();
+      if(dailyWords){
+        for(const {word, theme} of catalog){
+          const key = word.trim().toLowerCase();
+          if(!dailyThemes.has(key)) dailyThemes.set(key, theme);
+        }
+      }
+      for(const entry of dailyWords || catalog){
+        const theme = dailyWords ? dailyThemes.get(entry.word.trim().toLowerCase()) : entry.theme;
+        (groups.get(theme) || other).words.push(entry);
+      }
+      return [...groups.values(), other].filter(group => group.words.length);
+    }
+
+    let previewTheme = '';
+    function selectPreviewTab(tab, group){
+      previewTheme = group.id;
+      for(const button of vocabTabs.children){
+        button.setAttribute('aria-selected', String(button === tab));
+        button.tabIndex = button === tab ? 0 : -1;
+      }
+      vocabGrid.setAttribute('aria-labelledby', tab.id);
+      renderPreviewCards(group.words);
+      // Reveal the active tab on narrow screens without scrolling the page itself.
+      const strip = vocabTabs.getBoundingClientRect(), bounds = tab.getBoundingClientRect();
+      if(bounds.left < strip.left) vocabTabs.scrollLeft += bounds.left - strip.left;
+      else if(bounds.right > strip.right) vocabTabs.scrollLeft += bounds.right - strip.right;
+    }
+    vocabTabs.addEventListener('keydown', event => {
+      const tabs = Array.from(vocabTabs.children);
+      const i = tabs.indexOf(event.target);
+      if(i < 0) return;
+      const target = {
+        ArrowLeft: tabs[(i + tabs.length - 1) % tabs.length], ArrowRight: tabs[(i + 1) % tabs.length],
+        Home: tabs[0], End: tabs[tabs.length - 1]
+      }[event.key];
+      if(!target) return;
+      event.preventDefault();
+      target.focus();
+      target.click();
+    });
+
+    function buildVocabPreview(){
+      const source = practiceSource();
+      const dailyWords = practicePicker?.isDaily() ? practicePicker.words() : null;
+      const words = (dailyWords || source.words).filter(w => w && typeof w === 'object');
+      vocabTitle.textContent = `共 ${words.length} 個單字・點單字聽發音`;
+      const groups = source.builtin && window.WORD_BANK ? groupPreviewWords(source.words, dailyWords) : [];
+      vocabTabs.replaceChildren();
+      vocabTabs.hidden = !groups.length;
+      if(!groups.length){
+        vocabGrid.removeAttribute('role');
+        vocabGrid.removeAttribute('aria-labelledby');
+        renderPreviewCards(words);
+        return;
+      }
+      vocabGrid.setAttribute('role', 'tabpanel');
+      const selected = groups.find(group => group.id === previewTheme) || groups[0];
+      for(const group of groups){
+        const tab = document.createElement('button');
+        tab.type = 'button';
+        tab.className = 'vocab-tab';
+        tab.id = 'vocab-tab-' + group.id;
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-controls', vocabGrid.id);
+        tab.setAttribute('aria-label', `${group.name}，${group.words.length} 個單字`);
+        const count = document.createElement('span');
+        count.textContent = group.words.length;
+        tab.append(group.name, count);
+        tab.addEventListener('click', () => {
+          if(tab.getAttribute('aria-selected') !== 'true') selectPreviewTab(tab, group);
+        });
+        vocabTabs.appendChild(tab);
+      }
+      selectPreviewTab(document.getElementById('vocab-tab-' + selected.id), selected);
     }
 
     vocabToggleBtn.addEventListener('click', () => {
