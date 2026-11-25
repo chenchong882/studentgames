@@ -26,6 +26,9 @@
   scene.add(rivalGroup);
   rivalGroup.visible = false;
   let rivals = [], playerFinishedAt = null, displayedOrder = '';
+  const difficultyNames = { easy: '簡單', normal: '普通', hard: '困難' };
+  const boostLabels = { launch: '起步衝刺', mini: '小噴', tank: '氮氣', quiz: '氮氣' };
+  let difficulty = 'normal', launchArmed = false, launchUsed = false;
   let car = drive.create(track.sample(0)), renderCar = { ...car }, previousPose = { x: car.x, z: car.z, yaw: car.yaw };
   let phase = 'grid', beforePause = 'grid', modalKind = '', elapsed = 0, countdown = 3;
   let progress = 0, projection = track.project(car.x, car.z, 0), gateIndex = 0, deck = [], records = [], correct = 0;
@@ -43,6 +46,8 @@
     if (down === !!requested[name])
       return;
     requested[name] = down;
+    if (phase === 'countdown' && name === 'throttle')
+      launchArmed = down && countdown <= cfg.launchLead;
     if (phase === 'race')
       inputEvents.push({ name, down, time: performance.now() });
   }
@@ -53,16 +58,22 @@
     if (!inputEvents.length || inputEvents[0].time > wallTime)
       return;
     const consumed = new Set();
+    let throttlePressed = false;
     for (const event of inputEvents) {
       if (event.time > wallTime || consumed.has(event.name))
         break;
       inputs[event.name] = event.down;
+      if (event.name === 'throttle' && event.down)
+        throttlePressed = true;
       consumed.add(event.name);
     }
     inputEvents.splice(0, consumed.size);
+    if (throttlePressed && elapsed <= cfg.launchGrace)
+      tryLaunch();
   }
 
   function clearInputs() {
+    launchArmed = false;
     keys.clear();
     pointers.clear();
     inputEvents.length = 0;
@@ -79,6 +90,8 @@
       hasNextPayload = true;
       return;
     }
+    hasNextPayload = false;
+    nextPayload = undefined;
     const payload = GameData.prepare(raw), options = ClassicGates.prepare(payload.words);
     const distinct = new Set(options.map(w => w.chinese.toLowerCase()));
     words = options;
@@ -216,15 +229,16 @@
   }
 
   function resetOnRoad() {
-    drive.reset(car, track.sample(projection.s));
+    const onGrid = phase === 'countdown' || (phase === 'paused' && beforePause === 'countdown');
+    drive.reset(car, onGrid ? ClassicRivals.playerStart(track) : track.sample(projection.s));
     projection = track.project(car.x, car.z, projection.s);
     resetPose();
-    drive.camera(camera, renderCar, 0, cameraMode, true);
+    drive.camera(camera, renderCar, 0, cameraMode, true, onGrid ? 1 : 0);
     dirty = true;
   }
 
   function lineUpRivals() {
-    rivals = ClassicRivals.create(track, LAPS);
+    rivals = ClassicRivals.create(track, LAPS, difficulty);
     for (const rival of rivals) {
       if (!rivalViews.has(rival.id)) {
         const kart = ClassicKartArt.createRival(rivalGroup, rival);
@@ -268,13 +282,35 @@
     }
   }
 
-  function begin() {
-    if (hasNextPayload) {
-      closeModal();
-      phaseTo('grid');
+  function resetRace(pose) {
+    car = drive.create(pose);
+    resetPose();
+    projection = track.project(car.x, car.z, 0);
+    records = [];
+    gateIndex = 0;
+    progress = elapsed = correct = 0;
+    launchUsed = false;
+    feedbackTime = goTime = 0;
+    el('feedback').hidden = true;
+    setQuestion(null);
+  }
+
+  function returnToGrid() {
+    closeModal();
+    clearInputs();
+    phaseTo('grid');
+    resetRace(track.sample(0));
+    rivals = [];
+    playerFinishedAt = null;
+    track.gates.forEach((_, i) => gates.set(i, null));
+    if (hasNextPayload)
       applyLesson(nextPayload);
-      hasNextPayload = false;
-    }
+    document.querySelector('input[name="difficulty"]:checked').focus({ preventScroll: true });
+  }
+
+  function begin() {
+    if (hasNextPayload)
+      returnToGrid();
     if (!GameData.ready() || words.length < 3)
       return;
     unlock();
@@ -282,20 +318,11 @@
     closeModal();
     el('tuning').hidden = true;
     el('tune').setAttribute('aria-expanded', 'false');
-    car = drive.create(ClassicRivals.playerStart(track));
-    resetPose();
-    projection = track.project(car.x, car.z, 0);
-    records = [];
+    resetRace(ClassicRivals.playerStart(track));
     deck = ClassicGates.questions(words, totalGates);
-    gateIndex = 0;
-    progress = 0;
-    elapsed = 0;
-    correct = 0;
+    difficulty = document.querySelector('input[name="difficulty"]:checked').value;
     lineUpRivals();
     track.gates.forEach((_, i) => gates.set(i, deck[i]));
-    feedbackTime = goTime = 0;
-    el('feedback').hidden = true;
-    setQuestion(null);
     countdown = 3;
     accum = 0;
     last = 0;
@@ -303,12 +330,24 @@
     camera.clearViewOffset();
     drive.camera(camera, renderCar, 0, cameraMode, true, 1);
     el('countdown').textContent = '3';
+    delete el('countdown').dataset.launch;
+    el('launch-cue').textContent = '按住油門';
     el('countdown').hidden = false;
     beep(460, .12);
     el('start').blur();
     hud();
   }
   el('start').onclick = begin;
+
+  function tryLaunch() {
+    if (launchUsed || !inputs.throttle || inputs.brake) return;
+    launchUsed = true;
+    drive.launch(car);
+    el('countdown').dataset.launch = 'boost';
+    el('launch-cue').textContent = '起步衝刺！';
+    goTime = .72;
+    dirty = true;
+  }
 
   function setQuestion(q) {
     if (q === question)
@@ -435,6 +474,7 @@
     const a = action('繼續駕駛', resume, true);
     action('把車放回路中央', () => { resetOnRoad(); resume(); });
     action('重新開始', begin);
+    action('換難度重賽', returnToGrid);
     a.focus();
   }
 
@@ -445,7 +485,7 @@
     openModal('help', '駕駛操作');
     const content = el('dialog-content');
     const list = document.createElement('dl');
-    for (const [key, label] of [['↑ / ↓', '加油／煞車，停下後可倒車'], ['← / →', '轉向，甩尾中按反方向拉正'], ['Shift', '與方向鍵同按進入甩尾'], ['Ctrl', '使用一格甩尾集滿的氮氣'], ['R / C', '重置車輛／切換跟車鏡頭'], ['Esc / T', '暫停／即時調校']]) {
+    for (const [key, label] of [['↑ / ↓', '油門／煞車。倒數到 1 時按住油門可衝刺起跑，停下後按煞車可倒車。'], ['← / →', '轉向，甩尾中按反方向拉正'], ['Shift', '與方向鍵同按進入甩尾'], ['Ctrl', '使用一格甩尾集滿的氮氣'], ['R / C', '重置車輛／切換跟車鏡頭'], ['Esc / T', '暫停／即時調校']]) {
       const term = document.createElement('dt'), desc = document.createElement('dd'), k = document.createElement('kbd');
       k.textContent = key;
       term.appendChild(k);
@@ -473,7 +513,7 @@
     c.append(time);
     const stats = document.createElement('div');
     stats.className = 'result-stats';
-    for (const [label, value] of [['答對', correct], ['答錯', records.length - correct], ['正確率', Math.round(100 * correct / records.length) + '%']]) {
+    for (const [label, value] of [['AI 難度', difficultyNames[difficulty]], ['答對', correct], ['答錯', records.length - correct], ['正確率', Math.round(100 * correct / records.length) + '%']]) {
       const col = document.createElement('span'), v = document.createElement('b');
       col.textContent = label;
       v.textContent = value;
@@ -490,6 +530,7 @@
       c.append(ul);
     }
     action('重新開始', begin, true).focus();
+    action('更換難度', returnToGrid);
     action('返回遊戲大廳', () => location.href = el('hub').href);
     beep(660, .18);
     beep(880, .22, .16);
@@ -568,6 +609,7 @@
       return;
     if (keyMap[e.code]) {
       e.preventDefault();
+      if (e.repeat) return;
       keys.add(e.code);
       recordInput(keyMap[e.code]);
     }
@@ -657,7 +699,7 @@
     el('misses').textContent = records.length - correct;
     el('fill').style.transform = 'scaleX(' + car.charge + ')';
     [...el('slots').children].forEach((s, i) => s.classList.toggle('full', i < car.stock));
-    const mode = car.penalty ? '緩速' : car.boosting ? (car.boostKind === 'mini' ? '小噴' : '氮氣') : car.miniReady ? '補油小噴' : ({ entry: '甩尾', slide: '甩尾', counter: '反打', recover: '回抓' })[car.phase] || '';
+    const mode = car.penalty ? '緩速' : car.boosting ? boostLabels[car.boostKind] : car.miniReady ? '補油小噴' : ({ entry: '甩尾', slide: '甩尾', counter: '反打', recover: '回抓' })[car.phase] || '';
     el('drive-status').textContent = mode;
     document.body.classList.toggle('boosting', phase === 'race' && car.boosting);
     mc.clearRect(0, 0, map.width, map.height);
@@ -727,12 +769,17 @@
       countdown = Math.max(0, countdown - dt);
       if (Math.ceil(countdown) !== tick) {
         el('countdown').textContent = Math.ceil(countdown) || 'GO!';
+        if (countdown && countdown <= cfg.launchLead)
+          el('countdown').dataset.launch = 'ready';
         beep(countdown ? 460 : 870, countdown ? .1 : .28);
       }
       if (!countdown) {
         Object.assign(inputs, requested);
         phaseTo('race');
         goTime = .72;
+        delete el('countdown').dataset.launch;
+        if (launchArmed) tryLaunch();
+        launchArmed = false;
         accum = 0;
       }
     }
@@ -766,13 +813,13 @@
         hudAge = 0;
       }
       if (motor)
-        motor.update({ elapsed, speed: car.speed * 3.6, boost: car.boosting ? Math.max(car.quizTimer, car.miniTimer, car.tankTimer) : 0,
+        motor.update({ elapsed, speed: car.speed * 3.6, boost: car.boosting ? Math.max(car.quizTimer, car.miniTimer, car.tankTimer, car.launchTimer) : 0,
           drifting: car.skidding, driftCharge: Math.min(1, Math.abs(car.slip)), skid: car.penalty });
     }
     renderer.render(scene, camera);
     dirty = false;
   }
-  window.ClassicRace = { telemetry: () => ({ phase, elapsed, car: { ...car, cameraState: undefined }, progress, projection: { ...projection },
+  window.ClassicRace = { telemetry: () => ({ phase, elapsed, difficulty, launchUsed, car: { ...car, cameraState: undefined }, progress, projection: { ...projection },
       place: levelAtStart() ? null : standings().findIndex(r => r.id === 'player') + 1,
       rivals: rivals.map(r => ({ id: r.id, name: r.name, x: r.car.x, z: r.car.z, speed: r.car.speed, progress: r.progress, finishedAt: r.finishedAt })),
       gateIndex, question: question ? { correctLane: question.correctLane, choices: question.choices.map(w => w.word), meaning: question.answer.chinese } : null,

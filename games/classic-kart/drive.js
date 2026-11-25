@@ -20,6 +20,7 @@
   setting(engine, 'boostForce', '氮氣額外推力', 13.5, 5, 30, .5, 'm/s²');
   setting(engine, 'braking', '煞車力', 29, 10, 52, 1, 'm/s²');
   setting(engine, 'reverseSpeed', '倒車極速', 29, 10, 45, 1, 'km/h');
+  setting(engine, 'launchTime', '起步衝刺秒數', 1.25, .5, 2, .05, 's');
   setting(engine, 'nitroTime', '儲存氮氣秒數', 2.7, 1, 5, .1, 's');
   setting(engine, 'quizTime', '答對獎勵秒數', 2.5, 1, 5, .1, 's');
   setting(engine, 'penaltyTime', '答錯緩速秒數', 1.8, .7, 4, .1, 's');
@@ -55,6 +56,7 @@
     frontLimit: 55, rearLimit: 65, slipFloorSpeed: 7, angularDrag: 1.15,
     rollingDrag: .60, aeroDrag: .00092, overspeedDrag: .85, throttleTaper: 8,
     reverseAcceleration: 8, lowSpeedCrossover: 1.0, slowSpeed: 86, penaltyBrake: 24,
+    launchLead: 1, launchGrace: .5,
     penaltyOnset: .15, entryYawImpulse: 2.72, driftMinSpeed: 11.5, gripRelease: 32,
     skidMinSpeed: 7, bodySkidAngle: .115, rearSkidAngle: 3.5 * rad, skidGrip: .93,
     counterGrip: .75, qualifyingSlip: 8 * rad, qualifyingTime: .22,
@@ -73,7 +75,7 @@
       yawRate: 0, speed: 0, slip: 0, rearSlip: 0, skidding: false, steer: 0, wheelAngle: 0,
       phase: 'grip', grip: 1, entryLoad: 0, driftSide: 0, driftSeconds: 0, effectiveSeconds: 0,
       driftLatched: false, releasedFor: 0, driftFinished: false, prevThrottle: false, prevNitro: false, miniReady: 0,
-      throttleLifted: false, tankTimer: 0, quizTimer: 0, miniTimer: 0,
+      throttleLifted: false, launchTimer: 0, tankTimer: 0, quizTimer: 0, miniTimer: 0,
       penalty: 0, boostKind: '', boosting: false, cameraState: null, wallCooldown: 0
     });
   }
@@ -108,8 +110,14 @@
     car.boostKind = 'quiz';
     car.boosting = true;
   }
+  function launch(car) {
+    car.launchTimer = config.launchTime;
+    car.boostKind = 'launch';
+    car.boosting = true;
+  }
   function penalize(car) {
     car.penalty = config.penaltyTime;
+    car.launchTimer = 0;
     car.quizTimer = 0;
     car.miniTimer = car.miniReady = 0;
     car.boostKind = '';
@@ -229,9 +237,10 @@
     car.yawRate += handbrakeImpulse;
 
     const penalized = car.penalty > 0;
-    const largeBoost = !penalized && (car.quizTimer > 0 || car.tankTimer > 0);
+    const largeBoost = !penalized && (car.quizTimer > 0 || car.tankTimer > 0 || car.launchTimer > 0);
     const mini = !penalized && car.miniTimer > 0;
-    car.boostKind = penalized ? '' : car.quizTimer > 0 ? 'quiz' : car.tankTimer > 0 ? 'tank' : mini ? 'mini' : '';
+    car.boostKind = penalized ? '' : car.quizTimer > 0 ? 'quiz' : car.tankTimer > 0 ? 'tank' :
+      car.launchTimer > 0 ? 'launch' : mini ? 'mini' : '';
     car.boosting = !!car.boostKind;
     const cruisingSpeed = cfg.topSpeed * pace;
     let speedLimit = (largeBoost ? Math.max(cfg.boostSpeed, cruisingSpeed + 5) :
@@ -273,6 +282,7 @@
     car.slip = forward > 1 ? arc(car.yaw - Math.atan2(car.vx, -car.vz)) : 0;
     car.skidding = car.speed > cfg.skidMinSpeed && (Math.abs(car.slip) > cfg.bodySkidAngle ||
       (car.grip < cfg.skidGrip && Math.abs(car.rearSlip) > cfg.rearSkidAngle));
+    car.launchTimer = Math.max(0, car.launchTimer - dt);
     car.quizTimer = Math.max(0, car.quizTimer - dt);
     // A wrong gate suppresses propulsion but preserves the remainder of a paid-for tank.
     if (!penalized) car.tankTimer = Math.max(0, car.tankTimer - dt);
@@ -327,5 +337,5 @@
       view.updateProjectionMatrix();
     }
   }
-  window.ClassicDrive = {config, sliders, step, create, reset, constrainToRoad, resolveWallContact, camera, boost, penalize};
+  window.ClassicDrive = {config, sliders, step, create, reset, constrainToRoad, resolveWallContact, camera, boost, launch, penalize};
 })();

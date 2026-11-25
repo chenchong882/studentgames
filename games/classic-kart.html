@@ -50,7 +50,16 @@
       <h1 id="course-title" lang="en">SUNPORT<br><em>CIRCUIT</em></h1>
       <h2>晴港市街</h2>
       <p class="race-facts"><span><svg><use href="#flag"/></svg>3 圈</span><span>3 位 AI 對手</span><span><svg><use href="#route"/></svg>每圈 4 道單字門</span></p>
+      <fieldset class="race-difficulty">
+        <legend>AI 對手難度</legend>
+        <div class="difficulty-options">
+          <label><input type="radio" name="difficulty" value="easy"><span>簡單<small>新手練習</small></span></label>
+          <label><input type="radio" name="difficulty" value="normal" checked><span>普通<small>標準配速</small></span></label>
+          <label><input type="radio" name="difficulty" value="hard"><span>困難<small>甩尾搶冠</small></span></label>
+        </div>
+      </fieldset>
       <button class="primary" id="start" disabled>準備賽道中…</button>
+      <p class="launch-tip">倒數到 <b>1</b>，按住油門衝刺起跑。</p>
       <div id="lesson"></div>
     </section>
     <section id="hud" aria-label="比賽儀表" hidden>
@@ -62,6 +71,7 @@
       <div id="question" hidden><span class="question-cap">駛入對應的英文車道</span><strong id="prompt"></strong><div id="choices"><span></span><span></span><span></span></div></div>
       <div id="feedback" role="status" hidden></div>
       <div id="countdown" role="status" hidden></div>
+      <span id="launch-cue">按住油門</span>
       <div id="map-box"><canvas id="map" width="222" height="158" aria-label="賽道小地圖"></canvas><span>SUNPORT CIRCUIT</span></div>
       <div class="nitro panel"><span class="nitro-label">N₂O</span><div class="charge"><i id="fill"></i></div><span id="slots" aria-label="氮氣儲存格"></span><kbd>Ctrl</kbd></div>
       <div class="speedbox"><svg id="dial" viewBox="0 0 190 115" aria-hidden="true"></svg><strong id="speed">0</strong><span>KM/H</span><i id="drive-status"></i></div>

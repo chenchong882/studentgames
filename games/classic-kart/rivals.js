@@ -3,10 +3,16 @@
   'use strict';
   const drive = window.ClassicDrive;
   const drivers = [
-    { id:'breeze', name:'海風', color:'#268be3', number:'11', gridSlot:0, lane:-4.8, bypassOffset:-3.4, runout:56, pace:1.08, corner:21.6, drift:true },
-    { id:'citrus', name:'柑橘', color:'#eda329', number:'26', gridSlot:2, lane:1.0, bypassOffset:0, runout:47, pace:1.06, corner:21.2, drift:false },
-    { id:'aster', name:'星芒', color:'#9a64ce', number:'38', gridSlot:3, lane:5.0, bypassOffset:3.4, runout:39, pace:1.04, corner:21.2, drift:false }
+    { id:'breeze', name:'海風', color:'#268be3', number:'11', gridSlot:0, lane:-4.8, bypassOffset:-3.4, runout:56, drift:true },
+    { id:'citrus', name:'柑橘', color:'#eda329', number:'26', gridSlot:2, lane:1.0, bypassOffset:0, runout:47, drift:false },
+    { id:'aster', name:'星芒', color:'#9a64ce', number:'38', gridSlot:3, lane:5.0, bypassOffset:3.4, runout:39, drift:false }
   ];
+  // Pace scales engine thrust and cruising speed. Corner is the driver's target lateral acceleration in m/s².
+  const fieldPaces = {
+    easy:   { breeze:{pace:.80, corner:14.3}, citrus:{pace:.75, corner:13.5}, aster:{pace:.70, corner:12.8} },
+    normal: { breeze:{pace:1.08, corner:21.6}, citrus:{pace:1.06, corner:21.2}, aster:{pace:1.04, corner:21.2} },
+    hard:   { breeze:{pace:1.14, corner:23.6}, citrus:{pace:1.115, corner:22.8}, aster:{pace:1.095, corner:22.5} }
+  };
   const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
   const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
   const steerPeriod = 1 / 20;
@@ -36,8 +42,10 @@
   }
   const playerStart = track => startPose(track, 1);
 
-  function create(track, laps = 3) {
-    return drivers.map(driver => {
+  function create(track, laps = 3, difficulty = 'normal') {
+    const field = (difficulty === 'easy' || difficulty === 'hard') ? fieldPaces[difficulty] : fieldPaces.normal;
+    return drivers.map(profile => {
+      const driver = {...profile, ...field[profile.id]};
       const car = drive.create(startPose(track, driver.gridSlot));
       const startLane = track.gridLanes[driver.gridSlot];
       return {
