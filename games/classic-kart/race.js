@@ -176,6 +176,7 @@
   const music = el('race-music'), musicLevel = .24;
   const lobbyMusic = music.getAttribute('src');
   const courseMusic = {
+    dunes: ['../assets/music/Desert Dash 2000.mp3'],
     metro: ['../assets/music/Neon City Dash.mp3'],
     giant: ['../assets/music/Toy Kart Adventure.mp3'],
     beach: ['../assets/music/Neon Kart Dreams.mp3', '../assets/music/Neon Kart Dreams (1).mp3']
