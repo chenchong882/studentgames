@@ -174,6 +174,8 @@
     return Math.floor(n / 6000) + ':' + String(Math.floor(n / 100) % 60).padStart(2, '0') + '.' + String(n % 100).padStart(2, '0');
   };
   const music = el('race-music'), musicLevel = .24;
+  const lobbyMusic = music.getAttribute('src');
+  const courseMusic = { metro: '../assets/music/Neon City Dash.mp3' };
   music.volume = musicLevel;
   let ctx = null, motor = null, sound = true, audioUnlocked = false;
   try {
@@ -215,6 +217,11 @@
     const audible = sound && audioUnlocked && !document.hidden;
     const driving = phase === 'countdown' || phase === 'race';
     if (audible && (phase === 'grid' || phase === 'matching' || driving)) {
+      const src = phase === 'grid' ? lobbyMusic : (courseMusic[track.id] || lobbyMusic);
+      if (music.getAttribute('src') !== src) {
+        music.pause();
+        music.setAttribute('src', src);
+      }
       if (music.paused) music.play().catch(() => { });
     } else {
       music.pause();
