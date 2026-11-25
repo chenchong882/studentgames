@@ -119,14 +119,16 @@
     const n = Math.floor(t * 100);
     return Math.floor(n / 6000) + ':' + String(Math.floor(n / 100) % 60).padStart(2, '0') + '.' + String(n % 100).padStart(2, '0');
   };
-  let ctx = null, motor = null, sound = true;
+  const music = el('race-music'), musicLevel = .24;
+  music.volume = musicLevel;
+  let ctx = null, motor = null, sound = true, audioUnlocked = false;
   try {
     sound = localStorage.getItem('classic-kart-sound') !== 'off';
   }
   catch (_) { }
 
   function audioLabel() {
-    el('audio').setAttribute('aria-label', sound ? '關閉聲音' : '開啟聲音');
+    el('audio').setAttribute('aria-label', sound ? '關閉音樂與音效' : '開啟音樂與音效');
     el('audio').setAttribute('aria-pressed', String(sound));
     el('audio').querySelector('use').setAttribute('href', sound ? '#sound' : '#mute');
   }
@@ -134,19 +136,36 @@
   function unlock() {
     if (!sound)
       return;
+    audioUnlocked = true;
     try {
       const Audio = window.AudioContext || window.webkitAudioContext;
       if (!Audio)
         return;
-      ctx ||= new Audio();
+      const firstUse = !ctx;
+      if (firstUse) ctx = new Audio();
       if (ctx.state !== 'running')
         ctx.resume().catch(() => { });
+      // Mix the music below the engine on devices with hardware-controlled media volume.
+      if (firstUse && location.protocol !== 'file:' && ctx.createMediaElementSource) {
+        const gain = ctx.createGain();
+        gain.gain.value = musicLevel;
+        gain.connect(ctx.destination);
+        ctx.createMediaElementSource(music).connect(gain);
+        music.volume = 1;
+      }
     }
     catch (_) { }
   }
 
-  function syncMotor() {
-    if (!sound || !ctx || !['countdown', 'race'].includes(phase)) {
+  function syncAudio() {
+    const audible = sound && audioUnlocked && !document.hidden;
+    const driving = phase === 'countdown' || phase === 'race';
+    if (audible && (phase === 'grid' || driving)) {
+      if (music.paused) music.play().catch(() => { });
+    } else {
+      music.pause();
+    }
+    if (!audible || !ctx || !driving) {
       if (motor)
         motor.stop();
       motor = null;
@@ -170,7 +189,11 @@
     osc.start(t);
     osc.stop(t + duration + .01);
   }
-  el('audio').onclick = () => { sound = !sound; audioLabel(); unlock(); syncMotor(); try {
+  document.querySelector('.race-difficulty').addEventListener('click', () => {
+    unlock();
+    syncAudio();
+  });
+  el('audio').onclick = () => { sound = !sound; audioLabel(); unlock(); syncAudio(); try {
     localStorage.setItem('classic-kart-sound', sound ? 'on' : 'off');
   }
   catch (_) { } };
@@ -188,7 +211,7 @@
     el('touch').hidden = !['countdown', 'race'].includes(value);
     if (!['race', 'countdown'].includes(value))
       document.body.classList.remove('boosting');
-    syncMotor();
+    syncAudio();
     dirty = true;
   }
 
@@ -451,7 +474,7 @@
   function closeModal() { el('modal').hidden = true; modalKind = ''; if (focusBack?.isConnected && !focusBack.closest('[hidden]'))
     focusBack.focus({ preventScroll: true }); }
 
-  function resume() { closeModal(); clearInputs(); phaseTo(beforePause); last = 0; accum = 0; unlock(); }
+  function resume() { closeModal(); clearInputs(); unlock(); phaseTo(beforePause); last = 0; accum = 0; }
 
   function stopRace() {
     if (phase === 'countdown' || phase === 'race') {
@@ -626,8 +649,12 @@
   function away() { if (['race', 'countdown'].includes(phase))
     pauseRace(); clearInputs(); }
   window.addEventListener('blur', away);
-  document.addEventListener('visibilitychange', () => { if (document.hidden)
-    away(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) away();
+    syncAudio();
+  });
+  window.addEventListener('pagehide', () => music.pause());
+  window.addEventListener('pageshow', syncAudio);
   for (const b of document.querySelectorAll('[data-drive]')) {
     b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); pointers.set(e.pointerId, b.dataset.drive); recordInput(b.dataset.drive); b.classList.add('held'); });
     const release = e => { pointers.delete(e.pointerId); recordInput(b.dataset.drive); b.classList.toggle('held', [...pointers.values()].includes(b.dataset.drive)); };
