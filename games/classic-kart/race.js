@@ -175,7 +175,12 @@
   };
   const music = el('race-music'), musicLevel = .24;
   const lobbyMusic = music.getAttribute('src');
-  const courseMusic = { metro: '../assets/music/Neon City Dash.mp3' };
+  const courseMusic = {
+    metro: ['../assets/music/Neon City Dash.mp3'],
+    beach: ['../assets/music/Neon Kart Dreams.mp3', '../assets/music/Neon Kart Dreams (1).mp3']
+  };
+  const remainingSongs = new Map();
+  let raceMusic = lobbyMusic;
   music.volume = musicLevel;
   let ctx = null, motor = null, sound = true, audioUnlocked = false;
   try {
@@ -213,11 +218,23 @@
     catch (_) { }
   }
 
+  function drawRaceMusic(courseId) {
+    const songs = courseMusic[courseId];
+    if (!songs) return lobbyMusic;
+    if (songs.length === 1) return songs[0];
+    let bag = remainingSongs.get(courseId);
+    if (!bag?.length) {
+      bag = songs.slice();
+      remainingSongs.set(courseId, bag);
+    }
+    return bag.splice(Math.floor(Math.random() * bag.length), 1)[0];
+  }
+
   function syncAudio() {
     const audible = sound && audioUnlocked && !document.hidden;
     const driving = phase === 'countdown' || phase === 'race';
     if (audible && (phase === 'grid' || phase === 'matching' || driving)) {
-      const src = phase === 'grid' ? lobbyMusic : (courseMusic[track.id] || lobbyMusic);
+      const src = phase === 'grid' ? lobbyMusic : raceMusic;
       if (music.getAttribute('src') !== src) {
         music.pause();
         music.setAttribute('src', src);
@@ -470,6 +487,7 @@
     el('tuning').hidden = true;
     el('tune').setAttribute('aria-expanded', 'false');
     changeCourse(replayCourse || drawCourse());
+    raceMusic = drawRaceMusic(track.id);
     resetRace(ClassicRivals.playerStart(track));
     deck = ClassicGates.questions(words, totalGates);
     difficulty = document.querySelector('input[name="difficulty"]:checked').value;
