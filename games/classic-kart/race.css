@@ -23,6 +23,7 @@ body {
   background: var(--ink);
   color: var(--pale);
   display: grid;
+  grid-template-columns: minmax(0,1fr);
   grid-template-rows: 58px minmax(0,1fr) 43px;
   height: 100vh;
   height: 100dvh;
@@ -356,9 +357,12 @@ kbd {
   box-shadow: 0 3px 0 #12273a40;
 }
 
-.clock,.lapbox {
+.clock,.race-order {
   position: absolute;
   top: var(--edge);
+}
+
+.clock,.lapbox {
   display: flex;
   align-items: center;
   border-radius: 8px;
@@ -400,16 +404,62 @@ kbd {
   color: #ffb39d;
 }
 
-.lapbox {
+.race-order {
   right: var(--edge);
+  display: grid;
+  gap: 5px;
+  justify-items: end;
+}
+
+.lapbox {
   padding: 6px 15px;
   gap: 6px;
   font: 900 italic 16px Arial;
 }
 
-.lapbox .checker {
-  width: 18px;
-  height: 10px;
+.lapbox .place-label {
+  font: 800 12px Arial,sans-serif;
+}
+
+.lapbox .divider {
+  margin: 0 3px;
+}
+
+#field-order {
+  list-style: none;
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: #102a40cc;
+  color: #fff9ed;
+  counter-reset: place;
+}
+
+#field-order li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  counter-increment: place;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+#field-order li::before {
+  content: counter(place);
+  min-width: 1ch;
+  font-variant-numeric: tabular-nums;
+}
+
+#field-order li > i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid #fffc;
+}
+
+#field-order li.your-row {
+  color: var(--yellow);
 }
 
 .lapbox strong {
@@ -813,6 +863,10 @@ kbd {
   display: none;
 }
 
+@media(max-width:760px),(max-height:540px) {
+  #field-order { display: none; }
+}
+
 @media(pointer:coarse),(max-width:700px) {
   .shortcuts {
     display: none;
@@ -889,8 +943,10 @@ kbd {
   .topbar svg {
     width: 19px;
   }
-  .clock,.lapbox {
+  .clock,.race-order {
     top: 8px;
+  }
+  .clock,.lapbox {
     gap: 5px;
   }
   .clock {
@@ -907,8 +963,10 @@ kbd {
     font-size: 12px;
     gap: 3px;
   }
-  .lapbox {
+  .race-order {
     right: 8px;
+  }
+  .lapbox {
     padding: 3px 8px;
   }
   .lapbox strong {
@@ -988,6 +1046,12 @@ kbd {
   }
 }
 
+@media(max-width:410px) {
+  body:not([data-phase="grid"]) .brand-classic { display: none; }
+  .lapbox { gap: 3px; padding: 3px 6px; }
+  .lapbox .divider { margin: 0 1px; }
+}
+
 @media(max-height:540px) and (orientation:landscape) {
   body {
     grid-template-rows: 36px minmax(0,1fr) 22px;
@@ -1019,7 +1083,7 @@ kbd {
     font-size: 14px;
     padding: 7px 15px;
   }
-  .clock,.lapbox {
+  .clock,.race-order {
     top: 6px;
   }
   #question {

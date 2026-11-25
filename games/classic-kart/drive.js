@@ -29,6 +29,7 @@
   setting(tire, 'frontStiffness', '前輪側向剛度', 154, 100, 240, 2);
   setting(tire, 'rearStiffness', '後輪側向剛度', 192, 110, 270, 2);
   setting(tire, 'yawDamping', '車身迴轉阻尼', 6.6, 4, 15, .1, '/s');
+  setting(slide, 'entryTime', '入甩反應時間', .035, .02, .12, .005, 's');
   setting(slide, 'driftRearGrip', '甩尾後輪抓地比例', .37, .25, .85, .01);
   setting(slide, 'driftSteer', '甩尾舵角倍率', 1.35, 1, 1.75, .05);
   setting(slide, 'driftCarry', '放開甩尾後續滑時間', .58, .18, .9, .02, 's');
@@ -50,11 +51,12 @@
   // Secondary chassis constants stay together with the live calibration.
   Object.assign(config, {
     fixedStep: 1 / 120, collisionRadius: 1.14, wallRestitution: .1,
-    wallSpeedRetention: .87, wallImpactSpeed: 5, wallDebounce: .35, frontAxle: 1.08, rearAxle: 1.15, yawInertia: 2.5, tireDragFraction: .36, driftEntryTorque: 11,
+    wallSpeedRetention: .87, wallImpactSpeed: 5, wallDebounce: .35, frontAxle: 1.08, rearAxle: 1.15, yawInertia: 2.5, tireDragFraction: .36,
     frontLimit: 55, rearLimit: 65, slipFloorSpeed: 7, angularDrag: 1.15,
     rollingDrag: .60, aeroDrag: .00092, overspeedDrag: .85, throttleTaper: 8,
     reverseAcceleration: 8, lowSpeedCrossover: 1.0, slowSpeed: 86, penaltyBrake: 24,
-    penaltyOnset: .15, entryTime: .16, driftMinSpeed: 11.5, gripRelease: 9,
+    penaltyOnset: .15, entryYawImpulse: 2.72, driftMinSpeed: 11.5, gripRelease: 32,
+    skidMinSpeed: 7, bodySkidAngle: .115, rearSkidAngle: 3.5 * rad, skidGrip: .93,
     counterGrip: .75, qualifyingSlip: 8 * rad, qualifyingTime: .22,
     settledSlip: 4 * rad, miniWindow: .86, miniForce: 10.5,
     miniSpeedGain: 23, slots: 2, speedSteerFalloff: 21, cameraBodyMix: .25,
@@ -68,12 +70,33 @@
   function reset(car, pose) {
     return Object.assign(car, {
       x: pose.x, z: pose.z, vx: 0, vz: 0, yaw: Math.atan2(pose.tx, -pose.tz),
-      yawRate: 0, speed: 0, slip: 0, steer: 0, wheelAngle: 0,
-      phase: 'grip', grip: 1, driftSide: 0, driftSeconds: 0, effectiveSeconds: 0,
+      yawRate: 0, speed: 0, slip: 0, rearSlip: 0, skidding: false, steer: 0, wheelAngle: 0,
+      phase: 'grip', grip: 1, entryLoad: 0, driftSide: 0, driftSeconds: 0, effectiveSeconds: 0,
       driftLatched: false, releasedFor: 0, driftFinished: false, prevThrottle: false, prevNitro: false, miniReady: 0,
       throttleLifted: false, tankTimer: 0, quizTimer: 0, miniTimer: 0,
-      penalty: 0, boostKind: '', boosting: false, cameraState: null
+      penalty: 0, boostKind: '', boosting: false, cameraState: null, wallCooldown: 0
     });
+  }
+  function constrainToRoad(car, projection, halfWidth, dt) {
+    const side = Math.sign(projection.lateral), rim = halfWidth - config.collisionRadius;
+    if (Math.abs(projection.lateral) > rim) {
+      const nx = -projection.tz * side, nz = projection.tx * side, over = Math.abs(projection.lateral) - rim;
+      car.x -= nx * over;
+      car.z -= nz * over;
+      const outward = car.vx * nx + car.vz * nz;
+      if (outward > 0) {
+        car.vx -= nx * outward * (1 + config.wallRestitution);
+        car.vz -= nz * outward * (1 + config.wallRestitution);
+        if (outward > config.wallImpactSpeed && car.wallCooldown <= 0) {
+          car.vx *= config.wallSpeedRetention;
+          car.vz *= config.wallSpeedRetention;
+          car.wallCooldown = config.wallDebounce;
+        }
+      }
+      car.speed = Math.hypot(car.vx, car.vz);
+      projection.lateral = side * rim;
+    }
+    car.wallCooldown = Math.max(0, car.wallCooldown - dt);
   }
   function boost(car) {
     car.quizTimer = config.quizTime;
@@ -102,6 +125,8 @@
         (car.phase === 'grip' || car.phase === 'recover')) {
       car.phase = 'entry';
       car.driftSide = steerInput;
+      // A rear axle that is still sliding has less grip left to break on a second tap.
+      car.entryLoad = clamp((car.grip - config.driftRearGrip) / (1 - config.driftRearGrip), 0, 1);
       car.driftLatched = true;
       car.driftSeconds = car.effectiveSeconds = car.releasedFor = 0;
       car.driftFinished = false;
@@ -185,17 +210,19 @@
     const c = Math.cos(car.wheelAngle), s = Math.sin(car.wheelAngle);
     const frontSlip = Math.atan2(frontSide * c - forward * s,
       Math.max(cfg.slipFloorSpeed, Math.abs(forward * c + frontSide * s)));
-    const rearSlip = Math.atan2(rearSide, Math.max(cfg.slipFloorSpeed, Math.abs(forward)));
+    car.rearSlip = Math.atan2(rearSide, Math.max(cfg.slipFloorSpeed, Math.abs(forward)));
     const frontForce = -cfg.frontLimit * Math.tanh(frontSlip * cfg.frontStiffness / cfg.frontLimit);
-    const rearForce = -cfg.rearLimit * car.grip * Math.tanh(rearSlip * cfg.rearStiffness / cfg.rearLimit);
+    const rearForce = -cfg.rearLimit * car.grip * Math.tanh(car.rearSlip * cfg.rearStiffness / cfg.rearLimit);
     const frontLateral = frontForce * c;
     const cornerForce = frontLateral + rearForce;
-    // A short differential braking moment starts unloading the inside rear tire.
-    // The moment decays with time even if Shift stays down.
-    const handbrake = (car.phase === 'entry' || car.phase === 'slide') ?
-      cfg.driftEntryTorque * car.driftSide * Math.exp(-car.driftSeconds / cfg.entryTime) : 0;
-    const torque = handbrake + (cfg.frontAxle * frontLateral - cfg.rearAxle * rearForce) / cfg.yawInertia;
+    // Integrate the decaying handbrake moment over this tick. A shorter time
+    // delivers the same angular impulse earlier while yaw and the travel path stay continuous.
+    const handbrakeImpulse = (car.phase === 'entry' || car.phase === 'slide') ?
+      cfg.entryYawImpulse * car.entryLoad * car.driftSide *
+        Math.exp(-(car.driftSeconds - dt) / cfg.entryTime) * fade(1 / cfg.entryTime, dt) : 0;
+    const torque = (cfg.frontAxle * frontLateral - cfg.rearAxle * rearForce) / cfg.yawInertia;
     car.yawRate += (torque - (cfg.yawDamping + cfg.angularDrag * Math.abs(car.yawRate)) * car.yawRate) * dt;
+    car.yawRate += handbrakeImpulse;
 
     const penalized = car.penalty > 0;
     const largeBoost = !penalized && (car.quizTimer > 0 || car.tankTimer > 0);
@@ -239,6 +266,8 @@
     car.speed = Math.hypot(car.vx, car.vz);
     // Positive sideslip means the nose is to the right of the forward travel direction.
     car.slip = forward > 1 ? arc(car.yaw - Math.atan2(car.vx, -car.vz)) : 0;
+    car.skidding = car.speed > cfg.skidMinSpeed && (Math.abs(car.slip) > cfg.bodySkidAngle ||
+      (car.grip < cfg.skidGrip && Math.abs(car.rearSlip) > cfg.rearSkidAngle));
     car.quizTimer = Math.max(0, car.quizTimer - dt);
     // A wrong gate suppresses propulsion but preserves the remainder of a paid-for tank.
     if (!penalized) car.tankTimer = Math.max(0, car.tankTimer - dt);
@@ -290,5 +319,5 @@
       view.updateProjectionMatrix();
     }
   }
-  window.ClassicDrive = {config, sliders, step, create, reset, camera, boost, penalize};
+  window.ClassicDrive = {config, sliders, step, create, reset, constrainToRoad, camera, boost, penalize};
 })();

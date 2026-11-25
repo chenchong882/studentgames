@@ -2,7 +2,7 @@
   'use strict';
   const el = id => document.getElementById(id);
   const showFailure = message => { el('fault').textContent = message; el('fault').hidden = false; };
-  if (![window.THREE, window.ClassicCity, window.ClassicDrive, window.ClassicKartArt, window.ClassicGates, window.WORD_BANK].every(Boolean)) {
+  if (![window.THREE, window.ClassicCity, window.ClassicDrive, window.ClassicRivals, window.ClassicKartArt, window.ClassicGates, window.WORD_BANK].every(Boolean)) {
     showFailure('賽道資料未載入完整，請重新整理。');
     return;
   }
@@ -21,11 +21,16 @@
   const gates = ClassicGates.build(scene, track);
   const model = ClassicKartArt.create(scene);
   const LAPS = 3, totalGates = LAPS * track.gates.length, step = cfg.fixedStep;
+  const rivalGroup = new THREE.Group();
+  const rivalViews = new Map(), orderRows = new Map();
+  scene.add(rivalGroup);
+  rivalGroup.visible = false;
+  let rivals = [], playerFinishedAt = null, displayedOrder = '';
   let car = drive.create(track.sample(0)), renderCar = { ...car }, previousPose = { x: car.x, z: car.z, yaw: car.yaw };
   let phase = 'grid', beforePause = 'grid', modalKind = '', elapsed = 0, countdown = 3;
   let progress = 0, projection = track.project(car.x, car.z, 0), gateIndex = 0, deck = [], records = [], correct = 0;
   let question = null, feedbackTime = 0, goTime = 0, cameraMode = 0, dirty = true, accum = 0, last = 0;
-  let pixelLimit = Math.min(window.devicePixelRatio || 1, 1.5), slowFrames = 0, wallTimer = 0;
+  let pixelLimit = Math.min(window.devicePixelRatio || 1, 1.5), slowFrames = 0;
   const keys = new Set(), pointers = new Map(), inputs = {}, requested = {}, inputEvents = [];
   const keyMap = { ArrowUp: 'throttle', ArrowDown: 'brake', ArrowLeft: 'left', ArrowRight: 'right',
     ShiftLeft: 'drift', ShiftRight: 'drift', ControlLeft: 'nitro', ControlRight: 'nitro' };
@@ -162,6 +167,7 @@
     phase = value;
     document.body.dataset.phase = value;
     const onGrid = value === 'grid';
+    rivalGroup.visible = !onGrid;
     el('grid-card').hidden = !onGrid;
     el('hud').hidden = onGrid;
     el('camera-button').hidden = onGrid;
@@ -217,6 +223,44 @@
     dirty = true;
   }
 
+  function lineUpRivals() {
+    rivals = ClassicRivals.create(track, LAPS);
+    for (const rival of rivals) {
+      if (!rivalViews.has(rival.id)) {
+        const kart = ClassicKartArt.createRival(rivalGroup, rival);
+        rivalViews.set(rival.id, { model: kart, pose: {} });
+      }
+    }
+    playerFinishedAt = null;
+    displayedOrder = '';
+  }
+
+  function standings() {
+    const player = { id: 'player', name: '你', color: '#ff7254', progress, finishedAt: playerFinishedAt };
+    return [player, ...rivals].sort((a, b) => {
+      if (a.finishedAt !== null || b.finishedAt !== null)
+        return (a.finishedAt ?? Infinity) - (b.finishedAt ?? Infinity);
+      return b.progress - a.progress;
+    });
+  }
+
+  function updateOrder() {
+    const field = standings(), key = field.map(r => r.id).join('/');
+    if (key === displayedOrder) return;
+    displayedOrder = key;
+    el('place').textContent = field.findIndex(r => r.id === 'player') + 1;
+    for (const driver of field) {
+      if (!orderRows.has(driver.id)) {
+        const row = document.createElement('li'), marker = document.createElement('i');
+        marker.style.backgroundColor = driver.color;
+        row.append(marker, driver.name);
+        if (driver.id === 'player') row.className = 'your-row';
+        orderRows.set(driver.id, row);
+      }
+      el('field-order').append(orderRows.get(driver.id));
+    }
+  }
+
   function begin() {
     if (hasNextPayload) {
       closeModal();
@@ -240,8 +284,9 @@
     progress = 0;
     elapsed = 0;
     correct = 0;
+    lineUpRivals();
     track.gates.forEach((_, i) => gates.set(i, deck[i]));
-    feedbackTime = goTime = wallTimer = 0;
+    feedbackTime = goTime = 0;
     el('feedback').hidden = true;
     setQuestion(null);
     countdown = 3;
@@ -305,25 +350,7 @@
     readInputs(wallTime);
     drive.step(car, inputs, dt);
     projection = track.project(car.x, car.z, previous.s);
-    const side = Math.sign(projection.lateral), rim = track.halfWidth - cfg.collisionRadius;
-    if (Math.abs(projection.lateral) > rim) {
-      const nx = -projection.tz * side, nz = projection.tx * side, over = Math.abs(projection.lateral) - rim;
-      car.x -= nx * over;
-      car.z -= nz * over;
-      const outward = car.vx * nx + car.vz * nz;
-      if (outward > 0) {
-        car.vx -= nx * outward * (1 + cfg.wallRestitution);
-        car.vz -= nz * outward * (1 + cfg.wallRestitution);
-        if (outward > cfg.wallImpactSpeed && wallTimer <= 0) {
-          car.vx *= cfg.wallSpeedRetention;
-          car.vz *= cfg.wallSpeedRetention;
-          wallTimer = cfg.wallDebounce;
-        }
-      }
-      car.speed = Math.hypot(car.vx, car.vz);
-      projection.lateral = side * rim;
-    }
-    wallTimer = Math.max(0, wallTimer - dt);
+    drive.constrainToRoad(car, projection, track.halfWidth, dt);
     let ds = projection.s - previous.s;
     if (ds > track.length / 2)
       ds -= track.length;
@@ -331,6 +358,7 @@
       ds += track.length;
     progress += ds;
     elapsed += dt;
+    ClassicRivals.step(rivals, track, car, progress, dt, elapsed);
     const target = gateIndex < totalGates ? Math.floor(gateIndex / track.gates.length) * track.length + track.gates[gateIndex % track.gates.length] : Infinity;
     const remaining = target - progress;
     // Once a question is on screen, braking cannot make it flicker off during approach.
@@ -347,6 +375,9 @@
     if (lap > oldLap && lap > 0 && lap < LAPS)
       track.gates.forEach((_, i) => gates.set(i, deck[lap * track.gates.length + i]));
     if (progress >= track.length * LAPS && gateIndex === totalGates) {
+      const fraction = ds > 0 ? clamp((track.length * LAPS - from) / ds, 0, 1) : 1;
+      playerFinishedAt = elapsed - dt + fraction * dt;
+      elapsed = playerFinishedAt;
       finish();
       return;
     }
@@ -427,7 +458,8 @@
     setQuestion(null);
     el('feedback').hidden = true;
     el('countdown').hidden = true;
-    openModal('result', '衝線！');
+    const place = standings().findIndex(driver => driver.id === 'player') + 1;
+    openModal('result', '第 ' + place + ' 名衝線！');
     const c = el('dialog-content'), time = document.createElement('div');
     time.className = 'result-time';
     time.textContent = timeText(elapsed);
@@ -594,6 +626,7 @@
 
   function hud() {
     const speed = Math.round(car.speed * 3.6);
+    updateOrder();
     el('speed').textContent = speed;
     gauge(speed);
     el('time').textContent = timeText(elapsed);
@@ -607,6 +640,15 @@
     document.body.classList.toggle('boosting', phase === 'race' && car.boosting);
     mc.clearRect(0, 0, map.width, map.height);
     mc.drawImage(base, 0, 0);
+    for (const rival of rivals) {
+      mc.beginPath();
+      mc.arc(mx(rival.car.x), my(rival.car.z), 4, 0, 2 * Math.PI);
+      mc.fillStyle = rival.color;
+      mc.strokeStyle = '#132d3e';
+      mc.lineWidth = 1.5;
+      mc.fill();
+      mc.stroke();
+    }
     mc.save();
     mc.translate(mx(car.x), my(car.z));
     mc.rotate(car.yaw);
@@ -633,6 +675,13 @@
   }
   stage.insertBefore(lines, el('hud'));
   let hudAge = 0;
+
+  function interpolatePose(target, car, previous, fraction) {
+    Object.assign(target, car);
+    target.x = previous.x + (car.x - previous.x) * fraction;
+    target.z = previous.z + (car.z - previous.z) * fraction;
+    target.yaw = previous.yaw + wrapAngle(car.yaw - previous.yaw) * fraction;
+  }
 
   function frame(now) {
     requestAnimationFrame(frame);
@@ -678,13 +727,15 @@
     }
     else {
       const rig = renderCar.cameraState;
-      Object.assign(renderCar, car);
-      renderCar.cameraState = rig;
       const f = clamp(accum / step, 0, 1);
-      renderCar.x = previousPose.x + (car.x - previousPose.x) * f;
-      renderCar.z = previousPose.z + (car.z - previousPose.z) * f;
-      renderCar.yaw = previousPose.yaw + wrapAngle(car.yaw - previousPose.yaw) * f;
+      interpolatePose(renderCar, car, previousPose, f);
+      renderCar.cameraState = rig;
       ClassicKartArt.update(model, renderCar, moving ? dt : 0);
+      for (const rival of rivals) {
+        const view = rivalViews.get(rival.id);
+        interpolatePose(view.pose, rival.car, rival.previousPose, f);
+        ClassicKartArt.updateRival(view.model, view.pose, moving ? dt : 0);
+      }
       drive.camera(camera, renderCar, dt, cameraMode);
       hudAge += dt;
       if (hudAge >= .04 || dirty) {
@@ -693,12 +744,14 @@
       }
       if (motor)
         motor.update({ elapsed, speed: car.speed * 3.6, boost: car.boosting ? Math.max(car.quizTimer, car.miniTimer, car.tankTimer) : 0,
-          drifting: Math.abs(car.slip) > .12 && car.speed > 8, driftCharge: Math.min(1, Math.abs(car.slip)), skid: car.penalty });
+          drifting: car.skidding, driftCharge: Math.min(1, Math.abs(car.slip)), skid: car.penalty });
     }
     renderer.render(scene, camera);
     dirty = false;
   }
   window.ClassicRace = { telemetry: () => ({ phase, elapsed, car: { ...car, cameraState: undefined }, progress, projection: { ...projection },
+      place: standings().findIndex(r => r.id === 'player') + 1,
+      rivals: rivals.map(r => ({ id: r.id, name: r.name, x: r.car.x, z: r.car.z, speed: r.car.speed, progress: r.progress, finishedAt: r.finishedAt })),
       gateIndex, question: question ? { correctLane: question.correctLane, choices: question.choices.map(w => w.word), meaning: question.answer.chinese } : null,
       correct, wrong: records.length - correct, vocabCount: words.length, cameraMode, fov: camera.fov, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles }) };
   view.addEventListener('webglcontextlost', () => { away(); showFailure('3D 顯示已中斷，請重新整理以載入賽道。'); });

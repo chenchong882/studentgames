@@ -13,6 +13,7 @@
   <script defer src="./kart-drive-audio.js"></script>
   <script defer src="./classic-kart/city.js"></script>
   <script defer src="./classic-kart/drive.js"></script>
+  <script defer src="./classic-kart/rivals.js"></script>
   <script defer src="./classic-kart/kart.js"></script>
   <script defer src="./classic-kart/gates.js"></script>
   <script defer src="./classic-kart/race.js"></script>
@@ -31,7 +32,7 @@
     <symbol id="camera-icon" viewBox="0 0 24 24"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.2"/></symbol>
   </svg>
   <header class="topbar">
-    <a class="brand" id="hub" href="../index.html" aria-label="返回學生遊戲大廳"><b class="flag-tile"><svg><use href="#flag"/></svg></b><span>CLASSIC <i>KART</i></span></a>
+    <a class="brand" id="hub" href="../index.html" aria-label="返回學生遊戲大廳"><b class="flag-tile"><svg><use href="#flag"/></svg></b><span><span class="brand-classic">CLASSIC </span><i>KART</i></span></a>
     <span class="brand-sub">RACING ENGLISH</span>
     <nav aria-label="遊戲工具">
       <button id="camera-button" title="切換鏡頭（C）" aria-label="切換鏡頭" hidden><svg><use href="#camera-icon"/></svg></button>
@@ -45,16 +46,19 @@
     <canvas id="view" aria-label="3D 卡丁車賽道"></canvas>
     <div class="grid-scrim"></div>
     <section id="grid-card" aria-labelledby="course-title">
-      <div class="course-type"><i class="checker"></i> 城市計時賽</div>
+      <div class="course-type"><i class="checker"></i> 城市競速賽</div>
       <h1 id="course-title" lang="en">SUNPORT<br><em>CIRCUIT</em></h1>
       <h2>晴港市街</h2>
-      <p class="race-facts"><span><svg><use href="#flag"/></svg>3 圈</span><span><svg><use href="#route"/></svg>每圈 4 道單字門</span></p>
+      <p class="race-facts"><span><svg><use href="#flag"/></svg>3 圈</span><span>3 位 AI 對手</span><span><svg><use href="#route"/></svg>每圈 4 道單字門</span></p>
       <button class="primary" id="start" disabled>準備賽道中…</button>
       <div id="lesson"></div>
     </section>
     <section id="hud" aria-label="比賽儀表" hidden>
       <div class="clock panel"><svg><use href="#timer"/></svg><strong id="time">0:00.00</strong><span class="divider"></span><span class="score"><b class="good">✓ <span id="hits">0</span></b><b class="bad">× <span id="misses">0</span></b></span></div>
-      <div class="lapbox panel"><i class="checker"></i><span>LAP</span><strong id="lap">1</strong><small>/ 3</small></div>
+      <aside class="race-order" aria-label="比賽名次與圈數">
+        <div class="lapbox panel"><span class="place-label">名次</span><strong id="place">–</strong><small>/ 4</small><i class="divider"></i><span>LAP</span><strong id="lap">1</strong><small>/ 3</small></div>
+        <ol id="field-order" aria-label="車手即時排名"></ol>
+      </aside>
       <div id="question" hidden><span class="question-cap">駛入對應的英文車道</span><strong id="prompt"></strong><div id="choices"><span></span><span></span><span></span></div></div>
       <div id="feedback" role="status" hidden></div>
       <div id="countdown" role="status" hidden></div>

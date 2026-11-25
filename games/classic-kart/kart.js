@@ -97,13 +97,13 @@
     texture.colorSpace = T.SRGBColorSpace;
     return texture;
   }
-  function numberPlate() {
+  function numberPlate(number = '07') {
     return canvasTexture(256, 94, c => {
       c.fillStyle = '#27394a'; c.fillRect(0, 0, 256, 94);
       c.fillStyle = '#f9da78'; c.fillRect(4, 4, 248, 86);
       c.fillStyle = '#eb9d3c'; c.fillRect(4, 73, 248, 17);
       c.fillStyle = '#27394a'; c.font = 'italic 900 78px Arial, sans-serif';
-      c.textAlign = 'center'; c.fillText('07', 125, 73);
+      c.textAlign = 'center'; c.fillText(number, 125, 73);
       for (const x of [13, 243]) for (const y of [13, 80]) {
         c.beginPath(); c.arc(x, y, 4, 0, TAU); c.fill();
       }
@@ -275,7 +275,9 @@
     return wheels;
   }
 
+  let shadowStamp;
   function makeShadow(rig) {
+    if (shadowStamp) { rig.add(shadowStamp.clone()); return; }
     const map = canvasTexture(128,128,c=>{
       const gradient = c.createRadialGradient(64,64,7,64,64,62);
       gradient.addColorStop(0,'rgba(19,31,38,.65)'); gradient.addColorStop(.57,'rgba(24,39,44,.5)');
@@ -285,7 +287,7 @@
     const shadow = new T.Mesh(new T.PlaneGeometry(2.73,3.64),
       new T.MeshBasicMaterial({map,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1}));
     shadow.rotation.x=-Math.PI/2; shadow.position.set(.04,.042,.06); shadow.renderOrder=1;
-    rig.add(shadow);
+    shadowStamp=shadow.clone(); rig.add(shadow);
   }
 
   function jetShape(radius, length) {
@@ -436,7 +438,7 @@
       jet.visible=!!car.boosting;
       if(jet.visible) jet.scale.z=.97+.13*Math.sin(model.time*35+i*2.1)+.08*Math.cos(model.time*58+i);
     });
-    const skid=Math.abs(slip)>.115 && speed>7;
+    const skid=!!car.skidding;
     paintTracks(model.marks,car,skid && dt>0);
     smokeStep(model.smoke,car,dt,skid);
     model.penalty.visible=car.penalty>0;
@@ -455,5 +457,135 @@
     model.marks.previous.fill(null); model.marks.positions.fill(0); model.marks.cursor=0;
     model.marks.mesh.geometry.attributes.position.needsUpdate=true;
   }
-  window.ClassicKartArt={create,update,reset};
+  function rivalHelmet(coat,number) {
+    const color=new T.Color(coat);
+    const dark=color.clone().multiplyScalar(.42).getStyle();
+    return canvasTexture(512,256,c=>{
+      c.fillStyle=color.getStyle(); c.fillRect(0,0,512,256);
+      for(const center of [128,384]) {
+        for(const side of [-1,1]) {
+          c.fillStyle='#fff2d0'; c.beginPath();
+          c.moveTo(center+side*20,0); c.lineTo(center+side*46,0);
+          c.lineTo(center+side*20,130); c.lineTo(center+side*12,130); c.fill();
+        }
+      }
+      c.fillStyle=dark; c.fillRect(0,149,512,107);
+      c.fillStyle='#fff3d4'; c.fillRect(0,152,512,4);
+      c.fillStyle='#263c4c'; c.fillRect(0,167,512,12);
+      // A second race number on the nape remains visible over the rear wing.
+      c.fillStyle=dark; c.beginPath(); c.ellipse(128,111,34,25,0,0,TAU); c.fill();
+      c.fillStyle='#fff3d4'; c.font='italic 900 37px Arial,sans-serif';
+      c.textAlign='center'; c.textBaseline='middle'; c.fillText(number,128,112);
+    });
+  }
+
+  function rivalBody(rig,coat,number) {
+    const b=new Assembly(), p=palette;
+    const shade=new T.Color(coat).multiplyScalar(.51);
+    b.part(hull([[-1.38,.48,.19,.32],[-.96,.65,.16,.40],[.69,.66,.18,.44],[1.2,.51,.22,.43]]),p.ink,0,0,0);
+    b.part(hull([[-1.48,.54,.24,.36],[-1.36,.76,.24,.43],[-1.14,.68,.28,.48]]),coat,0,0,0);
+    b.part(hull([[-1.36,.31,.34,.41],[-1.00,.43,.34,.57],[-.60,.38,.34,.70],[-.39,.27,.38,.61]]),coat,0,0,0);
+    b.part(hull([[-1.36,.067,.40,.425],[-1.0,.073,.561,.578],[-.60,.093,.693,.709]]),p.ivory,0,0,0);
+    b.part(hull([[.49,.40,.29,.53],[.80,.65,.28,.64],[1.17,.61,.28,.57],[1.25,.47,.33,.53]]),shade,0,0,0);
+    b.ellipsoid(p.ink,0,.64,.31,.40,.34,.29,[-.24,0,0]);
+    b.ellipsoid(coat,0,.83,.015,.315,.32,.245);
+    b.part(new T.TorusGeometry(.218,.031,5,16),p.ink,0,.72,-.39,[1,.78,1],[-.48,0,0]);
+    for(const side of [-1,1]) {
+      b.bar(p.ink,[side*.33,.26,-.65],[side*.77,.32,-.85],.05,6);
+      b.bar(p.steel,[side*.4,.31,.78],[side*.81,.35,.81],.074,8);
+      b.part(hull([[-.59,.10,.32,.49],[-.36,.16,.28,.56],[.19,.18,.30,.61],[.57,.12,.35,.66]]),coat,side*.65,0,0);
+      b.part(hull([[-.39,.025,.54,.57],[.18,.036,.59,.62],[.54,.029,.64,.673]]),p.ivory,side*.69,0,0);
+      b.bar(shade,[side*.18,.87,.03],[side*.30,.71,-.19],.108,8);
+      b.bar(p.ivory,[side*.30,.71,-.19],[side*.24,.74,-.37],.084,8);
+      b.bar(p.steel,[side*.40,.48,.88],[side*.50,.81,1.08],.047,8);
+      b.part(hull([[.91,.032,.76,.84],[1.12,.041,.77,.94],[1.27,.035,.77,.94]]),shade,side*.83,0,0);
+      b.bar(p.steel,[side*.35,.36,.88],[side*.37,.38,1.30],.102,12);
+      b.bar(p.ink,[side*.37,.38,1.30],[side*.37,.38,1.312],.077,12);
+      b.part(block(),0xff6654,side*.49,.52,1.196,[.19,.069,.065]);
+      b.part(hull([[-1.45,.105,.336,.375],[-1.34,.116,.39,.429]]),p.white,side*.52,0,0);
+    }
+    b.part(hull([[.93,.68,.77,.805],[1.08,.81,.80,.87],[1.27,.78,.78,.84]]),coat,0,0,0);
+    b.part(hull([[1.175,.74,.842,.856],[1.205,.74,.833,.850]]),p.ivory,0,0,0);
+    b.finish(rig);
+    const plate=new T.Mesh(new T.PlaneGeometry(.57,.21),new T.MeshLambertMaterial({map:numberPlate(number)}));
+    plate.position.set(0,.48,1.258); rig.add(plate);
+  }
+
+  let fleetWheel, fleetFlame;
+  function rivalWheelGeometry() {
+    const p=palette, b=new Assembly();
+    const profile=[[.13,-.174],[.26,-.174],[.326,-.139],[.344,-.083],[.344,.083],[.326,.139],[.26,.174],[.13,.174]];
+    b.part(new T.LatheGeometry(profile.map(([r,w])=>new T.Vector2(r,w)),18),p.rubber,0,0,0,[1,1,1],[0,0,-Math.PI/2]);
+    for(const sign of [-1,1]) {
+      b.part(cylinder(.228,.024,16),p.steel,sign*.174,0,0,[1,1,1],[0,0,Math.PI/2]);
+      b.part(cylinder(.166,.014,12),p.ink,sign*.190,0,0,[1,1,1],[0,0,Math.PI/2]);
+      for(let i=0;i<3;i++) b.part(block(),p.silver,sign*.201,0,0,[.017,.285,.039],[i*Math.PI/3,0,0]);
+      b.part(cylinder(.066,.027,6),p.ivory,sign*.209,0,0,[1,1,1],[0,0,Math.PI/2]);
+    }
+    return b.finish(new T.Group()).geometry;
+  }
+
+  function rivalFlames() {
+    const b=new Assembly();
+    for(const side of [-1,1]) {
+      b.part(jetShape(.085,.47),0xfff1aa,side*.37,0,0);
+      b.part(jetShape(.070,.56),0xff9938,side*.37,0,.26);
+    }
+    const flame=b.finish(new T.Group());
+    flame.material=new T.MeshBasicMaterial({vertexColors:true});
+    return flame;
+  }
+
+  function moveRivalWheels(model,steering) {
+    const t=model.wheelPose;
+    for(let i=0;i<4;i++) {
+      const front=i<2, side=i%2===0?-1:1;
+      t.position.set(side*(front?.76:.79),.345,front?-.85:.81);
+      t.rotation.set(model.spin,front?-steering:0,0,'YXZ');
+      t.scale.setScalar(front?.93:1);
+      t.updateMatrix(); model.wheels.setMatrixAt(i,t.matrix);
+    }
+    model.wheels.instanceMatrix.needsUpdate=true;
+  }
+
+  function createRival(scene,{color,number}) {
+    const root=new T.Group(), head=new T.Group(), p=palette;
+    root.name='Kart '+number; scene.add(root);
+    rivalBody(root,color,number);
+    head.position.set(0,1.50,.055); root.add(head);
+    const shell=new T.Mesh(new T.SphereGeometry(1,24,14),
+      new T.MeshPhongMaterial({map:rivalHelmet(color,number),shininess:32,specular:0x454951}));
+    shell.scale.set(.54,.53,.50); head.add(shell);
+    const face=new Assembly();
+    face.ellipsoid(p.ink,0,-.043,-.346,.465,.288,.209);
+    face.ellipsoid(0xffbe91,0,-.066,-.406,.413,.233,.174);
+    face.ellipsoid(color,0,.159,-.396,.466,.066,.190,[-.10,0,0]);
+    for(const side of [-1,1]) {
+      face.ellipsoid(p.ivory,side*.51,-.04,-.025,.055,.106,.085);
+      face.ellipsoid(p.ink,side*.154,-.044,-.549,.045,.067,.026,[0,-side*.20,0]);
+    }
+    face.finish(head);
+    fleetWheel ||= rivalWheelGeometry(); fleetFlame ||= rivalFlames();
+    const wheels=new T.InstancedMesh(fleetWheel,paint,4);
+    wheels.instanceMatrix.setUsage(T.DynamicDrawUsage);
+    wheels.boundingSphere=new T.Sphere(vec(0,.345,0),1.65);
+    root.add(wheels);
+    const jet=fleetFlame.clone(); jet.position.set(0,.38,1.306); jet.visible=false; root.add(jet);
+    makeShadow(root);
+    const model={root,head,wheels,jet,wheelPose:new T.Object3D(),time:0,spin:0};
+    moveRivalWheels(model,0);
+    return model;
+  }
+
+  function updateRival(model,car,dt) {
+    model.root.position.set(car.x,0,car.z); model.root.rotation.y=-car.yaw;
+    const forward=car.vx*Math.sin(car.yaw)-car.vz*Math.cos(car.yaw);
+    model.spin=(model.spin-forward*dt/.345)%TAU; model.time+=dt;
+    moveRivalWheels(model,car.wheelAngle);
+    model.head.rotation.z=-Math.max(-1,Math.min(1,car.slip*1.7+car.steer*.14))*.15;
+    model.head.rotation.y=-car.steer*.12;
+    model.jet.visible=car.boosting;
+    if(car.boosting) model.jet.scale.z=1+.13*Math.sin(model.time*45);
+  }
+  window.ClassicKartArt={create,update,reset,createRival,updateRival};
 })();
