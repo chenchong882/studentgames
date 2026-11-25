@@ -67,9 +67,9 @@
       const width = track.halfWidth * 2 / 3;
       // Intermediate posts end overhead. A kart can change lanes all the way to the timing line.
       for (const side of [-1, 1]) {
-        addBox(navy, side * (track.halfWidth + .30), 3, 0, .62, 6, .62);
-        addBox(foot, side * (track.halfWidth + .30), .55, 0, 1.06, 1.1, 1);
-        addBox(paint, side * (track.halfWidth + .30), 2.4, 0, .7, .42, .7);
+        addBox(navy, side * (track.halfWidth + .62), 3, 0, .62, 6, .62);
+        addBox(foot, side * (track.halfWidth + .62), .55, 0, 1.06, 1.1, 1);
+        addBox(paint, side * (track.halfWidth + .62), 2.4, 0, .7, .42, .7);
       }
       addBox(navy, 0, 5.85, 0, track.halfWidth * 2 + 1.25, 2.75, .50);
       addBox(paint, 0, 7.24, 0, track.halfWidth * 2 + 1.35, .17, .59);
@@ -121,5 +121,10 @@
     plates.forEach((_, i) => set(i, null));
     return { set };
   }
-  window.ClassicGates = { prepare, questions, build };
+  function answerLane(lateral, halfWidth) {
+    if (Math.abs(lateral) > halfWidth) return null;
+    return Math.min(2, Math.floor((lateral + halfWidth) / (2*halfWidth/3)));
+  }
+
+  window.ClassicGates = { prepare, questions, build, answerLane };
 })();

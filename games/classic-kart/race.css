@@ -318,6 +318,83 @@ h1 em {
   margin: 9px 0 0;
 }
 
+.course-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(100%,305px);
+  margin: -4px 0 14px;
+  font-size: 14px;
+  font-weight: 800;
+  text-shadow: 0 1px 3px #122f46;
+}
+
+.course-choice select {
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  padding: 5px 10px;
+  font: inherit;
+  color: var(--pale);
+  background: #153447f0;
+  border: 1px solid #a6bcc4;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.course-choice select:focus-visible {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+#match-card {
+  position: absolute;
+  top: clamp(12px,7%,64px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(400px,92%);
+  max-height: calc(100% - 24px);
+  overflow: auto;
+  padding: 14px 18px;
+  border: 1px solid #b6cbc6;
+  border-top: 4px solid var(--yellow);
+  border-radius: 10px;
+  background: #102a40f5;
+  box-shadow: 0 5px 20px #0e263d50;
+}
+
+.match-heading,.match-course,#match-rivals,#match-rivals li {
+  display: flex;
+  align-items: center;
+}
+
+.match-heading {
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.match-heading .checker { color: var(--yellow); }
+#match-level { margin-left: auto; color: #ffc957; }
+.match-course { gap: 16px; margin: 12px 0; }
+#match-map { width: 31%; height: auto; border-radius: 6px; background: #1b4052; }
+#match-english { color: var(--yellow); font: italic 800 13px Arial,sans-serif; }
+#match-name { margin: 4px 0 0; font-size: clamp(24px,4vw,34px); line-height: 1.15; }
+#match-rivals { flex-wrap: wrap; gap: 5px 12px; list-style: none; padding: 9px 0; margin: 0 0 9px; border-block: 1px solid #476171; }
+#match-rivals li { gap: 5px; font-size: 13px; font-weight: 750; }
+#match-rivals b { color: #fff; border-left: 5px solid var(--driver-color); padding: 2px 4px; background: #223f53; font: italic 800 13px Arial; }
+#skip-match { min-height: 40px; padding: 6px 16px; }
+
+@media(prefers-reduced-motion:no-preference) {
+  #match-rivals li { animation: show-driver .23s ease-out backwards; }
+  #match-rivals li:nth-child(2) { animation-delay: .12s; }
+  #match-rivals li:nth-child(3) { animation-delay: .24s; }
+  @keyframes show-driver {
+    from { transform: translateY(4px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+}
+
 .primary,.secondary {
   border: 0;
   border-radius: 7px;
@@ -1174,6 +1251,10 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
     font-size: 46px;
     margin: 7px 0;
   }
+  #grid-card h1 br { display: none; }
+  #grid-card h1 em { margin-left: .16em; }
+  .course-choice { margin: 0 0 6px; }
+  .course-choice select { min-height: 35px; }
   #grid-card h2 {
     font-size: 20px;
     margin: 5px 0;
@@ -1225,14 +1306,12 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
 
 @media(max-height:375px) and (orientation:landscape) {
   #grid-card h1 {
-    font-size: clamp(24px,4.7vw,36px);
-    margin: 4px 0;
-  }
-  #grid-card h1 br {
-    display: none;
-  }
-  #grid-card h1 em {
-    margin-left: .18em;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
   #grid-card .course-type {
     display: none;

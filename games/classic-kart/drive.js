@@ -104,6 +104,68 @@
     }
     car.wallCooldown = Math.max(0, car.wallCooldown - dt);
   }
+  // The kart is a disc. Test each solid kerb in world space, including its end
+  // faces, so a nose impact or a reversing kart is pushed back on its own side.
+  function collideIsland(car, island, radius) {
+    if (car.x < island.minX-radius || car.x > island.maxX+radius ||
+        car.z < island.minZ-radius || car.z > island.maxZ+radius) return false;
+    let inside = true, nearest = Infinity, ex = 0, ez = 0, edgeX = 0, edgeZ = 0;
+    const points = island.vertices;
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i], b = points[(i+1) % points.length];
+      const dx = b.x-a.x, dz = b.z-a.z, px = car.x-a.x, pz = car.z-a.z;
+      if (dx*pz - dz*px < 0) inside = false;
+      const t = clamp((px*dx + pz*dz) / (dx*dx + dz*dz), 0, 1);
+      const x = px - t*dx, z = pz - t*dz, d2 = x*x + z*z;
+      if (d2 < nearest) {
+        nearest = d2; ex = x; ez = z; edgeX = dx; edgeZ = dz;
+      }
+    }
+    if (!inside && nearest >= radius*radius) return false;
+    const distance = Math.sqrt(nearest);
+    if (distance > 1e-8) {
+      const sign = inside ? 1 : -1;
+      resolveWallContact(car, sign*ex/distance, sign*ez/distance, radius + sign*distance);
+    } else {
+      const length = Math.hypot(edgeX, edgeZ);
+      resolveWallContact(car, -edgeZ/length, edgeX/length, radius);
+    }
+    return true;
+  }
+
+  function constrainToTrack(car, track, projection, dt) {
+    const radius = config.collisionRadius, side = projection.lateral < 0 ? -1 : 1;
+    const bypass = track.bypassAt(projection.s);
+    const width = track.halfWidth + (side > 0 ? bypass.extra : 0);
+    const slope = side > 0 ? bypass.outerSlope : 0;
+    const scale = 1 / Math.hypot(1, slope);
+    const penetration = (side*projection.lateral - width)*scale + radius;
+    let corrected = false;
+    if (penetration > 0) {
+      // A glancing hit on the merging shoulder follows the taper.
+      const nx = (-side*projection.tz - slope*projection.tx)*scale;
+      const nz = (side*projection.tx - slope*projection.tz)*scale;
+      resolveWallContact(car, nx, nz, penetration);
+      corrected = true;
+    }
+    for (const island of track.islands) {
+      if (collideIsland(car, island, radius)) corrected = true;
+    }
+    car.wallCooldown = Math.max(0, car.wallCooldown - dt);
+    return corrected ? track.project(car.x, car.z, projection.s) : projection;
+  }
+
+  function recoveryPose(track, projection) {
+    const pose = track.sample(projection.s);
+    if (projection.lateral > track.halfWidth) {
+      const island = track.islandAt(projection.s), outer = track.halfWidth + track.bypassAt(projection.s).extra;
+      const inner = island ? island.right : track.halfWidth;
+      const lateral = Math.min((inner+outer)/2, outer-config.collisionRadius);
+      pose.x -= pose.tz*lateral;
+      pose.z += pose.tx*lateral;
+    }
+    return pose;
+  }
   function boost(car) {
     car.quizTimer = config.quizTime;
     car.penalty = 0;
@@ -337,5 +399,5 @@
       view.updateProjectionMatrix();
     }
   }
-  window.ClassicDrive = {config, sliders, step, create, reset, constrainToRoad, resolveWallContact, camera, boost, launch, penalize};
+  window.ClassicDrive = {config, sliders, step, create, reset, recoveryPose, constrainToRoad, constrainToTrack, resolveWallContact, camera, boost, launch, penalize};
 })();

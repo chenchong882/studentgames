@@ -2,16 +2,26 @@
 (() => {
   'use strict';
   const drive = window.ClassicDrive;
-  const drivers = [
-    { id:'breeze', name:'海風', color:'#268be3', number:'11', gridSlot:0, lane:-4.8, bypassOffset:-3.4, runout:56, drift:true },
-    { id:'citrus', name:'柑橘', color:'#eda329', number:'26', gridSlot:2, lane:1.0, bypassOffset:0, runout:47, drift:false },
-    { id:'aster', name:'星芒', color:'#9a64ce', number:'38', gridSlot:3, lane:5.0, bypassOffset:3.4, runout:39, drift:false }
+  const roster = [
+    {id:'breeze', name:'海風', color:'#268be3', number:'11'},
+    {id:'citrus', name:'柑橘', color:'#eda329', number:'26'},
+    {id:'aster', name:'星芒', color:'#9a64ce', number:'38'},
+    {id:'bamboo', name:'青竹', color:'#209d6c', number:'42'},
+    {id:'peach', name:'蜜桃', color:'#e66696', number:'53'},
+    {id:'indigo', name:'夜鷹', color:'#5364b4', number:'64'},
+    {id:'skipper', name:'飛魚', color:'#2bbbc1', number:'75'},
+    {id:'chestnut', name:'栗子', color:'#b87747', number:'86'}
+  ];
+  const driverSlots = [
+    {gridSlot:0, lane:-4.8, bypassOffset:-3.4, runout:56, drift:true},
+    {gridSlot:2, lane:1.0, bypassOffset:0, runout:47, drift:false},
+    {gridSlot:3, lane:5.0, bypassOffset:3.4, runout:39, drift:false}
   ];
   // Pace scales engine thrust and cruising speed. Corner is the driver's target lateral acceleration in m/s².
   const fieldPaces = {
-    easy:   { breeze:{pace:.80, corner:14.3}, citrus:{pace:.75, corner:13.5}, aster:{pace:.70, corner:12.8} },
-    normal: { breeze:{pace:1.08, corner:21.6}, citrus:{pace:1.06, corner:21.2}, aster:{pace:1.04, corner:21.2} },
-    hard:   { breeze:{pace:1.14, corner:23.6}, citrus:{pace:1.115, corner:22.8}, aster:{pace:1.095, corner:22.5} }
+    easy:   [{pace:.80, corner:14.3}, {pace:.75, corner:13.5}, {pace:.70, corner:12.8}],
+    normal: [{pace:1.08, corner:21.6}, {pace:1.06, corner:21.2}, {pace:1.04, corner:21.2}],
+    hard:   [{pace:1.14, corner:23.6}, {pace:1.115, corner:22.8}, {pace:1.095, corner:22.5}]
   };
   const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
   const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -44,12 +54,14 @@
 
   function create(track, laps = 3, difficulty = 'normal') {
     const field = (difficulty === 'easy' || difficulty === 'hard') ? fieldPaces[difficulty] : fieldPaces.normal;
-    return drivers.map(profile => {
-      const driver = {...profile, ...field[profile.id]};
+    const pool = roster.slice();
+    return driverSlots.map((slot, index) => {
+      const [identity] = pool.splice(Math.floor(Math.random()*pool.length), 1);
+      const driver = {...slot, ...field[index]};
       const car = drive.create(startPose(track, driver.gridSlot));
       const startLane = track.gridLanes[driver.gridSlot];
       return {
-        id:driver.id, name:driver.name, color:driver.color, number:driver.number,
+        ...identity,
         car, previousPose:{x:car.x, z:car.z, yaw:car.yaw}, progress:0, finishedAt:null,
         projection:track.project(car.x, car.z, 0), finishDistance:laps * track.length,
         driver, line:startLane, roadLine:startLane, thinkIn:0, driftAgainAt:0, input:{}
@@ -168,18 +180,17 @@
       }
       drive.step(car, rival.input, dt, rival.driver.pace);
       let p = track.project(car.x, car.z, before.s);
-      let bypass = track.bypassAt(p.s);
-      // A badly understeering kart can touch the divider. Resolve against the
-      // local edge normal even on the tapered approach, while the route opens.
+      const bypass = track.bypassAt(p.s);
+      // Keep the AI on its assigned bypass even with extreme live steering
+      // settings. Players may drive across the approach in either direction.
       const over = bypass.inner + drive.config.collisionRadius - p.lateral;
       if (bypass.blend && over > 0) {
         const slope = bypass.innerSlope, scale = 1 / Math.hypot(1, slope);
         const nx = (p.tx * slope + p.tz) * scale, nz = (p.tz * slope - p.tx) * scale;
         drive.resolveWallContact(car, nx, nz, over * scale);
         p = track.project(car.x, car.z, p.s);
-        bypass = track.bypassAt(p.s);
       }
-      drive.constrainToRoad(car, p, track.halfWidth, dt, track.halfWidth + bypass.extra);
+      p = drive.constrainToTrack(car, track, p, dt);
       const distance = alongDifference(before.s, p.s, track.length);
       rival.progress += distance;
       rival.projection = p;

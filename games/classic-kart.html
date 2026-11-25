@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#122b42">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23fb543e'/%3E%3Cpath d='m7 26 5-20h14l-2 10H10' stroke='%23fff8dd' stroke-width='3' fill='none'/%3E%3C/svg%3E">
-  <title>晴港市街｜Classic Kart Racing English</title>
+  <title>單字巡迴賽｜Classic Kart Racing English</title>
   <link rel="stylesheet" href="./classic-kart/race.css">
   <script defer src="./classic-kart/vendor/three.r160.min.js"></script>
   <script defer src="../data/wordbank.js"></script>
   <script defer src="./lesson-data.js"></script>
   <script defer src="./kart-drive-audio.js"></script>
+  <script defer src="./classic-kart/courses.js"></script>
+  <script defer src="./classic-kart/world-extras.js"></script>
+  <script defer src="./classic-kart/landscapes.js"></script>
   <script defer src="./classic-kart/city.js"></script>
   <script defer src="./classic-kart/drive.js"></script>
   <script defer src="./classic-kart/rivals.js"></script>
@@ -43,13 +46,13 @@
       <button id="pause" title="暫停（Esc）" aria-label="暫停" hidden><svg><use href="#pause-icon"/></svg></button>
     </nav>
   </header>
-  <main id="stage" aria-label="晴港市街 3D 賽道">
+  <main id="stage" aria-label="單字卡丁車 3D 賽道">
     <canvas id="view" aria-label="3D 卡丁車賽道"></canvas>
     <div class="grid-scrim"></div>
     <section id="grid-card" aria-labelledby="course-title">
-      <div class="course-type"><i class="checker"></i> 城市競速賽</div>
-      <h1 id="course-title" lang="en">SUNPORT<br><em>CIRCUIT</em></h1>
-      <h2>晴港市街</h2>
+      <div class="course-type"><i class="checker"></i> 單人 AI 競速</div>
+      <h1 id="course-title" lang="en">CIRCUIT<br><em>TOUR</em></h1>
+      <h2>單字巡迴賽</h2>
       <p class="race-facts"><span><svg><use href="#flag"/></svg>3 圈</span><span>3 位 AI 對手</span><span><svg><use href="#route"/></svg>每圈 4 道單字門</span></p>
       <fieldset class="race-difficulty">
         <legend>AI 對手難度</legend>
@@ -59,9 +62,16 @@
           <label><input type="radio" name="difficulty" value="hard"><span>困難<small>甩尾搶冠</small></span></label>
         </div>
       </fieldset>
+      <label class="course-choice" for="course-choice">賽道 <select id="course-choice"><option value="random">隨機抽賽道</option></select></label>
       <button class="primary" id="start" disabled>準備賽道中…</button>
       <p class="launch-tip">倒數到 <b>1</b>，按住油門衝刺起跑。</p>
       <div id="lesson"></div>
+    </section>
+    <section id="match-card" aria-labelledby="match-name" hidden>
+      <div class="match-heading"><i class="checker"></i> 單機 AI 配對 <span id="match-level"></span></div>
+      <div class="match-course"><canvas id="match-map" width="222" height="158" aria-label="本場賽道輪廓"></canvas><div><span id="match-english" lang="en"></span><h2 id="match-name"></h2></div></div>
+      <ul id="match-rivals" aria-label="本場 AI 對手"></ul>
+      <button class="secondary" id="skip-match" aria-describedby="match-name match-rivals">直接倒數</button>
     </section>
     <section id="hud" aria-label="比賽儀表" hidden>
       <div class="clock panel"><svg><use href="#timer"/></svg><strong id="time">0:00.00</strong><span class="divider"></span><span class="score"><b class="good">✓ <span id="hits">0</span></b><b class="bad">× <span id="misses">0</span></b></span></div>
@@ -69,20 +79,20 @@
         <div class="lapbox panel"><span class="place-label">名次</span><strong id="place">–</strong><small>/ 4</small><i class="divider"></i><span>LAP</span><strong id="lap">1</strong><small>/ 3</small></div>
         <ol id="field-order" aria-label="車手即時排名"></ol>
       </aside>
-      <div id="question" hidden><span class="question-cap">駛入對應的英文車道</span><strong id="prompt"></strong><div id="choices"><span></span><span></span><span></span></div></div>
+      <div id="question" hidden><span class="question-cap">開進英文門作答 · 右側繞行算答錯</span><strong id="prompt"></strong><div id="choices"><span></span><span></span><span></span></div></div>
       <div id="feedback" role="status" hidden></div>
       <div id="countdown" role="status" hidden></div>
       <span id="launch-cue">按住油門</span>
-      <div id="map-box"><canvas id="map" width="222" height="158" aria-label="賽道小地圖"></canvas><span>SUNPORT CIRCUIT</span></div>
+      <div id="map-box"><canvas id="map" width="222" height="158" aria-label="賽道小地圖"></canvas><span id="map-name"></span></div>
       <div class="nitro panel"><span class="nitro-label">N₂O</span><div class="charge"><i id="fill"></i></div><span id="slots" aria-label="氮氣儲存格"></span><kbd>Ctrl</kbd></div>
       <div class="speedbox"><svg id="dial" viewBox="0 0 190 115" aria-hidden="true"></svg><strong id="speed">0</strong><span>KM/H</span><i id="drive-status"></i></div>
     </section>
     <div id="touch" hidden><div><button data-drive="left" aria-label="左轉">◀</button><button data-drive="right" aria-label="右轉">▶</button></div><div><button data-drive="nitro">N₂O</button><button data-drive="drift">甩尾</button><button data-drive="brake">煞車</button><button data-drive="throttle" class="gas">油門</button></div></div>
     <aside id="tuning" class="sheet" aria-labelledby="tune-title" hidden><header><h2 id="tune-title">即時調校</h2><button id="close-tune" aria-label="關閉調校">×</button></header><div id="sliders"></div><button id="defaults" class="secondary">恢復預設參數</button></aside>
-    <div id="modal" hidden><section class="sheet dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="course-type"><i class="checker"></i> SUNPORT CIRCUIT</div><h2 id="dialog-title"></h2><div id="dialog-content"></div><div id="dialog-actions"></div></section></div>
+    <div id="modal" hidden><section class="sheet dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="course-type"><i class="checker"></i> <span id="dialog-course">CIRCUIT TOUR</span></div><h2 id="dialog-title"></h2><div id="dialog-content"></div><div id="dialog-actions"></div></section></div>
     <p id="fault" role="alert" hidden></p>
   </main>
-  <footer><div class="footer-track"><i class="checker"></i><b>SUNPORT</b><span>晴港市街</span></div><div class="shortcuts"><span><kbd>↑</kbd> 油門</span><span><kbd>↓</kbd> 煞車</span><span><kbd>← →</kbd> 轉向</span><span><kbd>Shift</kbd> 甩尾</span><span><kbd>Ctrl</kbd> 氮氣</span></div><span class="touch-hint">觸控駕駛</span></footer>
+  <footer><div class="footer-track"><i class="checker"></i><b id="footer-english">CIRCUIT TOUR</b><span id="footer-course">單字巡迴賽</span></div><div class="shortcuts"><span><kbd>↑</kbd> 油門</span><span><kbd>↓</kbd> 煞車</span><span><kbd>← →</kbd> 轉向</span><span><kbd>Shift</kbd> 甩尾</span><span><kbd>Ctrl</kbd> 氮氣</span></div><span class="touch-hint">觸控駕駛</span></footer>
   <noscript>請開啟 JavaScript 以載入 3D 賽道。</noscript>
 </body>
 </html>
