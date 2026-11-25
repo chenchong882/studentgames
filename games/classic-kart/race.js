@@ -177,6 +177,7 @@
   const lobbyMusic = music.getAttribute('src');
   const courseMusic = {
     metro: ['../assets/music/Neon City Dash.mp3'],
+    giant: ['../assets/music/Toy Kart Adventure.mp3'],
     beach: ['../assets/music/Neon Kart Dreams.mp3', '../assets/music/Neon Kart Dreams (1).mp3']
   };
   const remainingSongs = new Map();
