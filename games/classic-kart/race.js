@@ -586,7 +586,6 @@
       return;
     openModal('pause', '比賽暫停');
     const a = action('繼續比賽', resume, true);
-    if (beforePause !== 'matching') action('把車放回路中央', () => { resetOnRoad(); resume(); });
     action('重新開始', () => begin(track));
     action('更換賽道與難度', returnToGrid);
     a.focus();
