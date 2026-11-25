@@ -4,26 +4,25 @@
   'use strict';
   const halfWidth = 13.5;
   const gridLanes = [-7.2,-2.4,2.4,7.2];
-  const diversion = {
+  const sunportDiversion = {
     bypassCenter:23.5, bypassHalfWidth:6.5,
     forkStart:-152, forkEnd:-52, mergeStart:24, mergeEnd:124,
     islandStart:-60, islandEnd:32
   };
-  const {bypassCenter,bypassHalfWidth,forkStart,forkEnd,mergeStart,mergeEnd,islandStart,islandEnd} = diversion;
-  const islandTaper = 10;
-  const bypassExtra = bypassCenter+bypassHalfWidth-halfWidth;
-  const noBypass = {blend:0, center:bypassCenter, extra:0, inner:-halfWidth, innerSlope:0, outerSlope:0};
-  const fullBypass = {blend:1, center:bypassCenter, extra:bypassExtra, inner:bypassCenter-bypassHalfWidth, innerSlope:0, outerSlope:0};
-
-  function createTrack(id, name, english, layout) {
+  function createTrack(id, name, english, layout, diversion = sunportDiversion) {
+    const {bypassCenter,bypassHalfWidth,forkStart,forkEnd,mergeStart,mergeEnd,islandStart,islandEnd} = diversion;
+    const islandTaper = 10;
+    const bypassExtra = bypassCenter+bypassHalfWidth-halfWidth;
+    const noBypass = {blend:0, center:bypassCenter, extra:0, inner:-halfWidth, innerSlope:0, outerSlope:0};
+    const fullBypass = {blend:1, center:bypassCenter, extra:bypassExtra, inner:bypassCenter-bypassHalfWidth, innerSlope:0, outerSlope:0};
     const path = [{ x: 0, z: 0, s: 0 }];
     let length = 0;
     const gates = [];
     const last = () => path[path.length - 1];
-    function point(x, z) {
+    function point(x, z, arc) {
       const previous = last();
-      length += Math.hypot(x - previous.x, z - previous.z);
-      path.push({ x, z, s: length });
+      length += arc ? arc.span : Math.hypot(x - previous.x, z - previous.z);
+      path.push({ x, z, s: length, arc });
     }
     function straight(x, z) {
       const a = last();
@@ -44,7 +43,7 @@
       gates.push(length + gateOffset);
       straight(x,z);
     }
-    layout({straight,curve,quizStraight});
+    const landmarks = layout({point, straight, curve, quizStraight, distance:() => length, gates}) || {};
     const wrap = s => (s % length + length) % length;
 
     function bypassAt(distance) {
@@ -57,8 +56,13 @@
         const t = (d-(entry ? forkStart : mergeEnd))/span;
         const blend = t*t*(3-2*t), slope = 6*t*(1-t)/span;
         const sweep = fullBypass.inner-noBypass.inner;
-        return {blend, center:bypassCenter, extra:bypassExtra*blend, inner:noBypass.inner+sweep*blend,
-          innerSlope:sweep*slope, outerSlope:bypassExtra*slope};
+        const inner = noBypass.inner+sweep*blend, extra = bypassExtra*blend;
+        // A metre of centre line is shorter at the inside rail of a bend.
+        // Express each taper's slope along its own edge for wall contact.
+        const curvature = path[segmentIndex(s)+1].arc?.curvature || 0;
+        return {blend, center:bypassCenter, extra, inner,
+          innerSlope:sweep*slope/(1-curvature*inner),
+          outerSlope:bypassExtra*slope/(1-curvature*(halfWidth+extra))};
       }
       return noBypass;
     }
@@ -71,18 +75,43 @@
       }
       return low;
     }
-    function sample(distance) {
-      const s = wrap(distance), i = segmentIndex(s), a = path[i], b = path[i+1];
+    function sampleSegment(i,offset) {
+      const a = path[i], b = path[i+1], arc = b.arc;
+      if (arc) {
+        const angle = arc.startAngle + offset*arc.curvature;
+        const rx = Math.cos(angle), rz = Math.sin(angle), side = Math.sign(arc.curvature);
+        return {x:arc.cx+arc.r*rx, z:arc.cz+arc.r*rz, tx:-side*rz, tz:side*rx};
+      }
       const span = b.s-a.s, tx = (b.x-a.x)/span, tz = (b.z-a.z)/span;
-      return { x:a.x + tx*(s-a.s), z:a.z + tz*(s-a.s), tx, tz };
+      return {x:a.x+tx*offset, z:a.z+tz*offset, tx, tz};
+    }
+    function sample(distance) {
+      const s = wrap(distance), i = segmentIndex(s);
+      return sampleSegment(i,s-path[i].s);
     }
     function project(x,z,hintDistance) {
       let best = Infinity, bestIndex = 0, bestT = 0;
       const count = path.length-1;
       function check(i) {
-        const a = path[i], b = path[i+1], dx=b.x-a.x, dz=b.z-a.z;
-        const t = Math.min(1,Math.max(0,((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz)));
-        const ex = x-(a.x+t*dx), ez = z-(a.z+t*dz), d2 = ex*ex+ez*ez;
+        const a = path[i], b = path[i+1], dx=b.x-a.x, dz=b.z-a.z, arc=b.arc;
+        let t = ((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz), d2;
+        if (arc) {
+          // Project onto the circle between its two radii. Rounded shoulders
+          // and vehicles keep the same station even at the joins of short arcs.
+          const rx=x-arc.cx, rz=z-arc.cz, ax=a.x-arc.cx, az=a.z-arc.cz;
+          const side=Math.sign(arc.curvature), fromStart=ax*rz-az*rx, toEnd=rx*(b.z-arc.cz)-rz*(b.x-arc.cx);
+          if (side*fromStart>=0 && side*toEnd>=0) {
+            t=Math.atan2(fromStart,ax*rx+az*rz)/(arc.curvature*arc.span);
+            d2=(Math.hypot(rx,rz)-arc.r)**2;
+          } else {
+            t=t<.5 ? 0 : 1;
+          }
+        }
+        t=Math.min(1,Math.max(0,t));
+        if (d2===undefined) {
+          const ex=x-(a.x+t*dx), ez=z-(a.z+t*dz);
+          d2=ex*ex+ez*ez;
+        }
         if (d2 < best) { best = d2; bestIndex = i; bestT = t; }
       }
       let scanAll = !Number.isFinite(hintDistance);
@@ -97,9 +126,9 @@
       const searchMargin=halfWidth+7;
       if(scanAll || (best>searchMargin**2 && best>(searchMargin+bypassAt(path[bestIndex].s).extra)**2))
         for(let i=0;i<count;i++)check(i);
-      const a=path[bestIndex], b=path[bestIndex+1], span=b.s-a.s;
-      const tx=(b.x-a.x)/span, tz=(b.z-a.z)/span, cx=a.x+bestT*(b.x-a.x), cz=a.z+bestT*(b.z-a.z);
-      return {s:wrap(a.s+bestT*span),lateral:-(x-cx)*tz+(z-cz)*tx, x:cx,z:cz,tx,tz};
+      const a=path[bestIndex], offset=bestT*(path[bestIndex+1].s-a.s);
+      const p=sampleSegment(bestIndex,offset);
+      return {s:wrap(a.s+offset),lateral:-(x-p.x)*p.tz+(z-p.z)*p.tx, ...p};
     }
     function islandEdges(d) {
       const taper = Math.min(1, Math.max(0,d-islandStart)/islandTaper, Math.max(0,islandEnd-d)/islandTaper);
@@ -126,7 +155,7 @@
       const xs = vertices.map(v=>v.x), zs = vertices.map(v=>v.z);
       return {vertices, minX:Math.min(...xs), maxX:Math.max(...xs), minZ:Math.min(...zs), maxZ:Math.max(...zs)};
     });
-    return {id,name,english,length,halfWidth,gates,sample,project,gridLanes,diversion,bypassAt,islandAt,islands};
+    return {id,name,english,length,halfWidth,gates,sample,project,gridLanes,diversion,bypassAt,islandAt,islands,landmarks};
   }
 
   function sunport({straight, curve, quizStraight}) {
@@ -147,85 +176,107 @@
     straight(0,0);
   }
 
-  function dunes({straight, curve, quizStraight}) {
-    quizStraight(0,-302,162);
-    curve(0,-343,-32,-378,-74,-378);
-    quizStraight(-389,-378,166);
-    curve(-423,-378,-452,-350,-452,-316);
-    quizStraight(-452,-18,161);
-    // Two linked bends drop into a left-hand hairpin around the western bluff.
-    curve(-452,29,-514,21,-514,67);
-    curve(-514,96,-538,120,-567,120);
-    straight(-620,120);
-    curve(-645,120,-663,140,-663,164);
-    curve(-663,188,-643,208,-619,208);
-    quizStraight(-134,208,215);
-    curve(-99,208,-96,173,-69,157);
-    curve(-32,135,0,122,0,73);
-    straight(0,0);
+  // Each vertex specifies the intersection of two tangents and the bend radius.
+  // Replace the corner with a circular arc tangent to both legs. Measure gate
+  // and landmark stations on the completed road to keep art and timing aligned.
+  function roundedCircuit(vertices, gateStations, landmarkStations) {
+    const corners = vertices.map(([x,z,r], i) => {
+      const [px,pz] = vertices[(i+vertices.length-1)%vertices.length];
+      const [nx,nz] = vertices[(i+1)%vertices.length];
+      const incoming = Math.hypot(x-px,z-pz), outgoing = Math.hypot(nx-x,nz-z);
+      const ux = (x-px)/incoming, uz = (z-pz)/incoming;
+      const vx = (nx-x)/outgoing, vz = (nz-z)/outgoing;
+      const turn = Math.atan2(ux*vz-uz*vx, ux*vx+uz*vz);
+      const trim = r*Math.tan(Math.abs(turn)/2);
+      const entryX = x-ux*trim, entryZ = z-uz*trim;
+      const side = Math.sign(turn);
+      return {entryX, entryZ, r, turn,
+        cx:entryX-uz*r*side, cz:entryZ+ux*r*side,
+        startAngle:Math.atan2(-ux*side,uz*side)};
+    });
+    return ({point, straight, distance, gates}) => {
+      const sections = [];
+      for (let i=0; i<corners.length; i++) {
+        const c = corners[i], next = corners[(i+1)%corners.length], bendStart = distance();
+        const count = Math.ceil(c.r*Math.abs(c.turn)/1.8);
+        for (let j=1; j<=count; j++) {
+          const a = c.startAngle+c.turn*j/count;
+          const arc = {cx:c.cx,cz:c.cz,r:c.r,curvature:Math.sign(c.turn)/c.r,
+            startAngle:c.startAngle+c.turn*(j-1)/count,span:c.r*Math.abs(c.turn)/count};
+          point(c.cx+c.r*Math.cos(a),c.cz+c.r*Math.sin(a),arc);
+        }
+        const legStart = distance();
+        straight(next.entryX,next.entryZ);
+        sections.push({bendStart,legStart,end:distance()});
+      }
+      function alongLeg(i,fraction) {
+        const section = sections[i];
+        return section.legStart + fraction*(section.end-section.legStart);
+      }
+      for (const [i,fraction] of gateStations) gates.push(alongLeg(i,fraction));
+      const landmarks = {};
+      for (const [name,station] of Object.entries(landmarkStations)) {
+        if (station.leg !== undefined) {
+          landmarks[name] = alongLeg(station.leg,station.at);
+        } else {
+          const section = sections[station.bend];
+          landmarks[name] = section.bendStart + station.at*(section.legStart-section.bendStart);
+        }
+      }
+      return landmarks;
+    };
   }
 
-  function metro({straight, curve, quizStraight}) {
-    quizStraight(0,-320,172);
-    // The northern hook opens onto a diagonal boulevard and a downtown S.
-    curve(0,-381,59,-409,105,-363);
-    quizStraight(335,-133,165);
-    curve(371,-97,406,-127,437,-100);
-    curve(461,-79,459,-36,459,-6);
-    quizStraight(459,310,164);
-    curve(459,352,429,385,385,385);
-    curve(349,385,336,355,312,345);
-    curve(275,330,254,309,210,309);
-    quizStraight(-116,309,168);
-    curve(-151,309,-176,279,-176,247);
-    curve(-176,213,-154,185,-120,185);
-    straight(-68,185);
-    curve(-28,185,0,152,0,112);
-    straight(0,0);
-  }
+  // Two sweeping switchbacks fold three diagonals across opposite faces of the canyon.
+  const dunes = roundedCircuit([
+    [0,0,0], [0,-65,55], [-108,-187,60], [-330,-275,50],
+    [-428,-271,35], [-448,-182,35], [-218,-28,56], [-127,60,40],
+    [-173,143,35], [-333,92,56], [-489,-27,36], [-570,-40,42],
+    [-586,78,50], [-443,223,57], [-217,331,61], [-58,292,55],
+    [0,166,68]
+  ], [[2,.53],[5,.60],[9,.55],[13,.56]],
+  {arch:{leg:1,at:.33}, canyonEntry:{bend:7,at:.53}});
 
-  function giant({straight, curve, quizStraight}) {
-    quizStraight(0,-308,162);
-    // Fold the track around the toy drum and return down its opposite side.
-    curve(0,-339,25,-364,56,-364);
-    curve(87,-364,112,-339,112,-308);
-    quizStraight(112,35,171);
-    curve(112,80,148,116,193,116);
-    quizStraight(506,116,168);
-    curve(546,116,577,147,577,187);
-    curve(577,238,507,244,507,294);
-    curve(507,342,484,393,430,393);
-    quizStraight(76,393,178);
-    curve(34,393,0,359,0,317);
-    straight(0,0);
-  }
+  // A stepped market district, two back-to-back left turns around the station, then a finishing boulevard.
+  const metro = roundedCircuit([
+    [0,0,0], [0,-276,54], [180,-276,39], [180,-434,36],
+    [416,-434,44], [416,-314,38], [564,-314,46], [564,-97,49],
+    [300,-97,37], [300,37,36], [444,37,38], [444,227,60],
+    [0,227,63]
+  ], [[0,.80],[3,.58],[7,.53],[11,.38]],
+  {station:{leg:4,at:.45}, plaza:{bend:10,at:.52}});
 
-  function beach({straight, curve, quizStraight}) {
-    quizStraight(0,-310,163);
-    curve(0,-352,-38,-384,-80,-384);
-    curve(-125,-384,-150,-360,-178,-336);
-    quizStraight(-430,-120,170);
-    // Two diagonal straights wrap around the sandy point at the west tip.
-    curve(-465,-90,-486,-66,-486,-32);
-    curve(-486,9,-462,32,-434,60);
-    quizStraight(-204,290,173);
-    curve(-167,327,-141,358,-94,358);
-    curve(-62,358,-53,334,-17,334);
-    quizStraight(302,334,170);
-    curve(340,334,370,303,370,265);
-    curve(370,226,342,195,302,195);
-    straight(213,195);
-    curve(151,195,134,124,79,124);
-    curve(30,124,0,103,0,55);
-    straight(0,0);
-  }
+  // Three lobes around the playroom: a book alcove, the drum carousel and two opposing turns through the toy chests.
+  const giant = roundedCircuit([
+    [0,0,0], [0,-84,52], [-182,-84,42], [-182,-372,71],
+    [64,-372,61], [64,-238,47], [173,-141,35], [335,-232,55],
+    [487,-139,78], [446,53,71], [255,91,59], [164,32,37],
+    [85,71,33], [116,249,59], [-92,352,68], [-207,247,53],
+    [-144,109,48], [0,109,41]
+  ], [[2,.55],[6,.57],[9,.58],[13,.58]],
+  {drum:{bend:9,at:.48}, desk:{leg:15,at:.62}});
+
+  // Two broad bays meet at a narrow waist. Enter the first bay to the right,
+  // cut back through the neck and sweep around a longer second headland.
+  const beach = roundedCircuit([
+    [0,0,0], [0,-67,52], [224,-201,79], [205,-352,92],
+    [-125,-406,96], [-209,-276,87], [-182,-152,73], [-121,-64,71],
+    [-112,13,67], [-213,73,62], [-390,87,92], [-500,210,107],
+    [-482,362,99], [-334,467,111], [-103,443,93], [-14,319,87],
+    [-62,205,66], [-58,137,53], [0,84,54]
+  ], [[1,.62],[3,.46],[9,.60],[13,.62]],
+  {cape:{bend:11,at:.57}, lagoon:{leg:6,at:.43}});
 
   const tracks = [
     createTrack('sunport','晴港市街','Sunport Circuit',sunport),
-    createTrack('dunes','赤砂峽谷','Saffron Dunes',dunes),
-    createTrack('metro','霓虹夜城','Neon City',metro),
-    createTrack('giant','巨人玩具屋',"Giant's Playroom",giant),
-    createTrack('beach','珊瑚海灘','Coral Beach',beach)
+    createTrack('dunes','赤砂峽谷','Saffron Dunes',dunes,
+      {...sunportDiversion, forkStart:-132, forkEnd:-48, mergeStart:22, mergeEnd:106, islandStart:-56, islandEnd:30}),
+    createTrack('metro','霓虹夜城','Neon City',metro,
+      {...sunportDiversion, forkStart:-118, forkEnd:-42, mergeStart:18, mergeEnd:88, islandStart:-50, islandEnd:26}),
+    createTrack('giant','巨人玩具屋',"Giant's Playroom",giant,
+      {...sunportDiversion, forkStart:-112, forkEnd:-40, mergeStart:16, mergeEnd:84, islandStart:-48, islandEnd:24}),
+    createTrack('beach','珊瑚海灘','Coral Beach',beach,
+      {...sunportDiversion, forkStart:-126, forkEnd:-48, mergeStart:24, mergeEnd:102, islandStart:-56, islandEnd:32})
   ];
   window.ClassicCourses = {tracks};
 })();

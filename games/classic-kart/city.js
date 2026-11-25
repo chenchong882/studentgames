@@ -111,10 +111,14 @@
     const paving=texture(pavers); paving.wrapS=paving.wrapT=T.RepeatWrapping;
     const pavingMaterial=flatMaterial(theme.pavers,paving);
     const outerTrim=flatMaterial(0xb8a38d);
-    ribbon(-21,-13.45,.12,pavingMaterial);
-    ribbon(outer(13.45),outer(21),.12,pavingMaterial);
-    ribbon(-21.18,-20.86,.14,outerTrim);
-    ribbon(outer(20.86),outer(21.18),.14,outerTrim);
+    const pier=track.id==='beach'?{start:track.landmarks.lagoon-44,end:track.landmarks.lagoon+44}:null;
+    const footways=pier?[[0,pier.start],[pier.end,length]]:[[0,length]];
+    for(const [start,end] of footways){
+      ribbon(-21,-13.45,.12,pavingMaterial,3.2,start,end);
+      ribbon(outer(13.45),outer(21),.12,pavingMaterial,3.2,start,end);
+      ribbon(-21.18,-20.86,.14,outerTrim,3.2,start,end);
+      ribbon(outer(20.86),outer(21.18),.14,outerTrim,3.2,start,end);
+    }
     const grass = canvas(96,96), gc=grass.getContext('2d');
     gc.fillStyle=theme.ground[0];gc.fillRect(0,0,96,96);
     for(let i=0;i<450;i++){gc.fillStyle=rand()<.5?theme.ground[1]:theme.ground[2];gc.fillRect(rand()*96,rand()*96,range(.7,2.1),1);}
@@ -168,7 +172,9 @@
       const p=roadside(gate+forkStart+26,1,halfWidth+2.4),yaw=Math.atan2(-p.tx,-p.tz);
       radial(p.x,1.75,p.z,.13,3.5,theme.post);put(plate,bypassBoard,'#fff',p.x,3.7,p.z,4.9,1.99,1,yaw);
       const islandPositions=[],triangles=[];
-      for(let s=start,i=0;s<=end;s+=2,i++){
+      const sections=Math.ceil((end-start)/2);
+      for(let i=0;i<=sections;i++){
+        const s=i===sections?end:start+(end-start)*i/sections;
         const edge=track.islandAt(s);
         const inner=along(s,edge.left),outerEdge=along(s,edge.right);
         islandPositions.push(inner.x,.018,inner.z,inner.x,.20,inner.z,
@@ -397,8 +403,8 @@
         put(plate,plain,flagColors[Math.floor(s/32)%4],f.x,4.14,f.z,1.05,1.6,1,Math.atan2(-p.tx,-p.tz));
       }
     }
-    for(let s=24;s<length;s+=32)for(const side of [-1,1])lamp(s+(side<0?11:0),side);
-    for(let s=47;s<length;s+=78){
+    if(sunport||night)for(let s=24;s<length;s+=32)for(const side of [-1,1])lamp(s+(side<0?11:0),side);
+    if(sunport||night)for(let s=47;s<length;s+=78){
       const a=roadside(s,s%3>1?-1:1,17.1),yaw=Math.atan2(a.tx,a.tz);
       box(a.x,.63,a.z,1.05,.21,2.3,'#a4774d',yaw);
       for(const k of [-1,1])box(a.x+k*a.tx*.77,.31,a.z+k*a.tz*.77,.65,.55,.15,'#647f79',yaw);
@@ -542,7 +548,7 @@
         put(flagGeo,cloth,flagColors[i%4],c.x,c.y-.08,c.z,1.35,1.18,1,Math.atan2(-a.tx,-a.tz));
       }
     }
-    bunting(56);bunting(gates[1]+40);bunting(gates[3]+42);
+    if(sunport){bunting(56);bunting(gates[1]+40);bunting(gates[3]+42);}
 
     // Café parasols, kiosks and flower troughs break up the waterfront promenade.
     function parasol(x,z,ink){
@@ -571,7 +577,7 @@
     }
     if(!sunport)window.ClassicLandscapes.decorate(track,{
       T,city,plain,unlit,put,box,boxGeo,tube,radial,ball,cloudBall,cone,cylinder,plate,shadow,
-      roof:hipRoof,roofMat,panelTexture,along,roadside,range,rand
+      roof:hipRoof,roofMat,panelTexture,along,roadside,range,rand,pier,ribbon
     });
     // Low-detail hills and roof silhouettes complete the horizon where streets open up.
     if(sunport){

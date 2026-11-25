@@ -161,7 +161,7 @@
       }
       shadow(p.x,p.z,25,22);
     }
-    // On the home straight the race actually passes under the drawing table.
+    // The long return through the playroom passes under the drawing table.
     // Register the four feet as scenery sites. The beams under the tabletop
     // stay 19 metres above the road, clear of every camera and kart.
     function drawingTable(s){
@@ -185,7 +185,19 @@
       tube(x,26.8,z,x+1.2,36.2,z,.49,'#b08b5d');tube(x+1.2,36.2,z,x+3.5,40.7,z,.45,'#b08b5d');
       put(d.cone,plain,'#6bad9e',x+3.5,38.8,z,4.7,4.8,4.7);shadow(p.x,p.z,65,43);
     }
-    drawingTable(track.length-141);
+    drawingTable(track.landmarks.desk);
+    const drumTurn=track.landmarks.drum, turnSide=d.insideBend(drumTurn);
+    const drumSite=site(drumTurn,turnSide,21,17);
+    if(drumSite){
+      radial(drumSite.x,.01,drumSite.z,15.2,.15,'#739da2');
+      drum(drumSite);
+      const yaw=faceRoad(drumSite,turnSide),{point,beam}=local(drumSite,yaw);
+      for(const k of [-1,1]){
+        beam(k*12.7,1.15,4,k*5.3,16.1,-1,.46,'#ddae76');
+        const [x,z]=point(k*5.3,-1);
+        put(cloudBall,plain,'#edd8ad',x,16.1,z,1.36,1.36,1.36);
+      }
+    }
     for(const [s,side,dist,r,kind] of [[72,-1,45,30,'desk'],[track.gates[1],1,50,30,'desk'],[track.gates[2]+60,-1,47,30,'desk'],
       [185,-1,27,16,'chair'],[track.gates[2]-40,-1,29,16,'chair'],[track.gates[3],1,30,16,'chair']]){
       const p=site(s,side,dist,r);if(p)furniture(p,faceRoad(p,side),kind);
@@ -205,35 +217,50 @@
     }
   }
 
-  // A radial shoreline encloses every sample of the road, including the
-  // right-hand diversions. The beach widens into coves between headlands.
+  // The high-water line follows both headlands and the concave neck between them.
   function beach(track,d) {
     const {T,city,plain,unlit,put,ball,cloudBall,cone,tube,radial,shadow,local,site,clear,faceRoad,range,rand}=d;
-    const road=[];
-    let cx=0,cz=0;
-    for(let s=0;s<track.length;s+=4){
-      const p=track.sample(s),extra=track.bypassAt(s).extra;
-      const x=p.x-p.tz*extra/2,z=p.z+p.tx*extra/2;
-      const margin=20+7.1*Math.sin(s*.019)+4.5*Math.sin(s*.034);
-      road.push({x,z,r:track.halfWidth+extra/2+margin});cx+=x;cz+=z;
-    }
-    cx/=road.length;cz/=road.length;
-    const shore=[];
-    function coast(a,r){return{x:cx+r*Math.cos(a),z:cz+r*Math.sin(a)};}
-    const n=256;
+    const n=256,road=Array.from({length:n},(_,i)=>track.sample(i*track.length/n));
+    let area=0;
     for(let i=0;i<n;i++){
-      const a=tau*i/n, dx=Math.cos(a),dz=Math.sin(a);
-      let radius=0;
-      for(const p of road){
-        const x=p.x-cx,z=p.z-cz,dot=x*dx+z*dz,perp=x*dz-z*dx;
-        if(Math.abs(perp)<=p.r)radius=Math.max(radius,dot+Math.sqrt(p.r*p.r-perp*perp));
+      const a=road[i],b=road[(i+1)%n];area+=a.x*b.z-a.z*b.x;
+    }
+    const outside=-Math.sign(area);
+    const shore=road.map((p,i)=>{
+      const s=i*track.length/n, extra=outside>0?track.bypassAt(s).extra:0;
+      const beachWidth=19+4*Math.sin(s*.019)+2*Math.sin(s*.034),offset=track.halfWidth+extra+beachWidth;
+      const nx=-outside*p.tz,nz=outside*p.tx,a=track.sample(s-12),b=track.sample(s+12);
+      const inwardTurn=outside*Math.atan2(a.tx*b.tz-a.tz*b.tx,a.tx*b.tx+a.tz*b.tz);
+      // Shorten the underwater shelf on the inside of a curve, before its normals intersect.
+      const shelf=inwardTurn>0?Math.max(.14,Math.min(1,(24/inwardTurn-offset-6)/96)):1;
+      return {x:p.x+nx*offset,z:p.z+nz*offset,nx,nz,shelf,a:tau*i/n};
+    });
+    const coast=(p,offset)=>({x:p.x+p.nx*offset,z:p.z+p.nz*offset});
+    function shoreDistance(p){
+      let inside=false,distance2=Infinity;
+      for(let i=0;i<n;i++){
+        const a=shore[i],b=shore[(i+1)%n],dx=b.x-a.x,dz=b.z-a.z;
+        if((a.z>p.z)!==(b.z>p.z)&&p.x<a.x+dx*(p.z-a.z)/dz)inside=!inside;
+        const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.z-a.z)*dz)/(dx*dx+dz*dz)));
+        distance2=Math.min(distance2,(p.x-a.x-t*dx)**2+(p.z-a.z-t*dz)**2);
       }
-      shore.push({a,r:radius});
+      return (inside?1:-1)*Math.sqrt(distance2);
+    }
+    const onIsland=(p,r)=>shoreDistance(p)>r;
+    // Cut a lagoon in the actual sand mesh. Its long axis passes under the bridge.
+    const mid=track.sample(track.landmarks.lagoon);
+    const basin=[];
+    for(let i=0;i<60;i++){
+      const a=tau*i/60,ripple=1+.065*Math.sin(3*a)+.035*Math.cos(5*a);
+      const u=Math.cos(a)*80*ripple,v=Math.sin(a)*35*ripple;
+      const dx=-mid.tz*u+mid.tx*v,dz=mid.tx*u+mid.tz*v;
+      let f=1;
+      while(f>.05&&!onIsland({x:mid.x+dx*f,z:mid.z+dz*f},4))f-=.03;
+      basin.push(new T.Vector2(mid.x+dx*f,mid.z+dz*f));
     }
     function drySand(p,r){
-      const angle=(Math.atan2(p.z-cz,p.x-cx)+tau)%tau, ix=angle*n/tau, i=Math.floor(ix), f=ix-i;
-      const edge=shore[i].r+(shore[(i+1)%n].r-shore[i].r)*f;
-      return Math.hypot(p.x-cx,p.z-cz)+r<edge+2;
+      const dx=p.x-mid.x,dz=p.z-mid.z,u=-mid.tz*dx+mid.tx*dz,v=mid.tx*dx+mid.tz*dz;
+      return onIsland(p,r)&&(u/(89+r))**2+(v/(40+r))**2>1;
     }
     // Fade from a sloped, wet sand bank through the reef into deep water.
     const verts=[], colors=[], color=new T.Color();
@@ -241,17 +268,33 @@
       verts.push(...a,...b,...c);color.set(ink);
       for(let j=0;j<3;j++)colors.push(color.r,color.g,color.b);
     }
-    const ring=(p,extend,y)=>{const w=coast(p.a,p.r+extend);return[w.x,y,w.z];};
+    const ring=(p,extend,y)=>{const w=coast(p,extend*p.shelf);return[w.x,y,w.z];};
     const wave=p=>Math.sin(p.a*17)*1.3+Math.sin(p.a*36)*.72;
+    const outline=shore.map(p=>new T.Vector2(p.x,p.z));
+    const sandPoints=outline.concat(basin);
+    const sandAt=i=>[sandPoints[i].x,-.135,sandPoints[i].y];
+    for(const [a,b,c] of T.ShapeUtils.triangulateShape(outline,[basin])){
+      triangle(sandAt(a),sandAt(b),sandAt(c),'#e9c58b');
+    }
+    const lagoonRing=(p,f,y)=>[mid.x+(p.x-mid.x)*f,y,mid.z+(p.y-mid.z)*f];
+    const reef=[[1,-.135],[.95,-.57,'#dfc797'],[.88,-1.36,'#a6dccc'],[.73,-1.36,'#72d0bf']];
+    for(let i=0;i<basin.length;i++){
+      const a=basin[i],b=basin[(i+1)%basin.length];
+      for(let j=1;j<reef.length;j++){
+        const [prev,py]=reef[j-1],[next,ny,ink]=reef[j];
+        const A=lagoonRing(a,prev,py),B=lagoonRing(b,prev,py),C=lagoonRing(b,next,ny),D=lagoonRing(a,next,ny);
+        triangle(A,B,C,ink);triangle(A,C,D,ink);
+      }
+      triangle(lagoonRing(a,.73,-1.36),lagoonRing(b,.73,-1.36),[mid.x,-1.36,mid.z],'#3db9b4');
+    }
     for(let i=0;i<n;i++){
       const a=shore[i],b=shore[(i+1)%n],wa=wave(a),wb=wave(b);
       const da=6+4*Math.sin(a.a*6),db=6+4*Math.sin(b.a*6);
-      triangle([cx,-.135,cz],ring(a,0,-.135),ring(b,0,-.135),'#e9c58b');
       const bands=[
         [0,0,-.135,'#e9c58b'],[9+wa,9+wb,-.49,'#e6bf86'],[13+da+wa,13+db+wb,-1.19,'#d7b58b'],
         [15+da+wa,15+db+wb,-1.18,'#e0e4bf'],[21+da,21+db,-1.20,'#8bdbc7'],
         [37+da+wa,37+db+wb,-1.20,'#58c9ba'],[72+da*2,72+db*2,-1.20,'#3bb5b2'],
-        [140+da*3,140+db*3,-1.20,'#309eab'],[1100,1100,-1.20,'#358da5']
+        [96,96,-1.24,'#358da5']
       ];
       for(let j=1;j<bands.length;j++){
         const prev=bands[j-1],next=bands[j],a0=ring(a,prev[0],prev[2]),b0=ring(b,prev[1],prev[2]);
@@ -267,6 +310,30 @@
     const sandSea=new T.BufferGeometry();sandSea.setAttribute('position',new T.Float32BufferAttribute(verts,3));
     sandSea.setAttribute('color',new T.Float32BufferAttribute(colors,3));sandSea.computeBoundingSphere();
     const water=new T.Mesh(sandSea,new T.MeshBasicMaterial({vertexColors:true,side:T.DoubleSide}));water.name='Sand island, surf and coral shelf';city.add(water);
+
+    const ocean=new T.Mesh(new T.PlaneGeometry(3900,3900),new T.MeshBasicMaterial({color:'#358da5'}));
+    ocean.name='Open water';ocean.rotation.x=-Math.PI/2;ocean.position.y=-1.7;city.add(ocean);
+
+    const boards=d.panelTexture(256,256,c=>{
+      for(let i=0;i<8;i++){
+        const y=i*32;c.fillStyle=['#be946b','#b99067','#c19b72','#b98d62'][i%4];c.fillRect(0,y,256,32);
+        c.fillStyle='#8e725a';c.fillRect(0,y,256,2);c.fillStyle='#d9b38a';c.fillRect(0,y+2,256,1);
+        for(let j=0;j<6;j++){c.fillStyle='rgba(123,88,61,.19)';c.fillRect((23*i+31*j)%212,y+5+j*4,40,1);}
+        for(const x of [9,241]){c.fillStyle='#846e59';c.fillRect(x,y+14,2,3);}
+      }
+    });
+    boards.map.wrapS=boards.map.wrapT=T.RepeatWrapping;
+    const width=track.halfWidth+1.0;
+    d.ribbon(-width,width,.029,boards,1.7,d.pier.start,d.pier.end);
+    for(const side of [-1,1])for(let s=d.pier.start;s<=d.pier.end;s+=8){
+      const p=d.along(s,width*side);
+      radial(p.x,-.42,p.z,.46,3.92,'#966f55');
+      radial(p.x,1.49,p.z,.48,.22,'#eee0b5');
+      if(s===d.pier.end)continue;
+      const q=d.along(s+8,width*side);
+      tube(p.x,-.15,p.z,q.x,-.15,q.z,.39,'#9b7359');
+      tube(p.x,1.26,p.z,q.x,1.26,q.z,.085,'#e4c695');
+    }
 
     function geometry(triangles){
       const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(triangles,3));g.computeVertexNormals();return g;
@@ -367,13 +434,13 @@
       radial(p.x,34.1,p.z,3.45,.45,'#466f77');put(cone,plain,'#c76654',p.x,35.7,p.z,4.1,3.05,4.1);
       radial(p.x,38,p.z,.14,1.7,'#856a54');shadow(p.x,p.z,17,14);
     }
-    for(const [dist,side] of [[204,1],[track.gates[3]+43,1]]){
-      const p=site(dist,side,20,8.7);if(p)lighthouse(p);
-    }
+    const cape=track.landmarks.cape;
+    const beacon=site(cape,d.insideBend(cape),21,8.7);
+    if(beacon)lighthouse(beacon);
     // Offshore limestone cays make a different skyline on the two long coasts.
     for(const [index,scale] of [[55,1],[211,1.28]]){
-      const heading=shore[index],p=coast(heading.a,heading.r+105),yaw=heading.a+.7;
-      if(!clear(p,34*scale))continue;
+      const heading=shore[index],p=coast(heading,105),yaw=heading.a+.7;
+      if(!clear(p,34*scale)||shoreDistance(p)>-34*scale)continue;
       put(cloudBall,plain,'#eed39a',p.x,-1.33,p.z,31*scale,4.2*scale,15*scale,yaw);
       put(ball,plain,'#b79b87',p.x,1.4*scale,p.z,19*scale,11*scale,9*scale,yaw);
       put(ball,plain,'#88aa85',p.x,7.1*scale,p.z,15*scale,6.8*scale,8.8*scale,yaw);
@@ -384,15 +451,17 @@
     }
     for(let i=0;i<n;i++){
       const p=shore[i];
-      if(i%19===7)sailboat(coast(p.a,p.r+range(52,99)),i);
+      if(i%19===7){
+        const mooring=coast(p,range(52,99));if(shoreDistance(mooring)<-13)sailboat(mooring,i);
+      }
       // Low, wind-shaped rock clusters break up the north and west headlands.
       if(i%5===0 && (p.a>2.35&&p.a<3.9||p.a>4.8&&p.a<5.5)){
-        const rock=coast(p.a,p.r+range(8,26));
+        const rock=coast(p,range(8,26));
         if(clear(rock,6.6))for(let k=0;k<3;k++)put(ball,plain,['#b18579','#bd9982','#a77970'][k],
           rock.x+range(-2.2,2.2),-.64,rock.z+range(-1.6,1.6),range(1.6,3.4),range(1.6,4.08),range(2,3.5),range(0,6));
       }
       if(i%2===0) {
-        const p1=coast(p.a,p.r+range(26,102));
+        const p1=coast(p,range(26,102));
         put(cloudBall,unlit,'#a7dcd2',p1.x,-1.13,p1.z,range(.7,2.5),.022,.13,p.a+.5);
       }
     }
@@ -416,7 +485,7 @@
       }
     }
     for(let i=0;i<30;i++){
-      const cloud=shore[(i*19)%n],p=coast(cloud.a,cloud.r+range(120,260)),y=range(43,80),s=range(4.5,8.5);
+      const cloud=shore[(i*19)%n],p=coast(cloud,range(120,260)),y=range(43,80),s=range(4.5,8.5);
       for(let k=-1;k<=1;k++)put(cloudBall,unlit,k?'#e8f3e7':'#fff9e9',p.x+k*s,y+(k?0:s*.21),p.z+k*.6,s*(k?.79:1.1),s*(k?.38:.6),s*.68);
     }
   }

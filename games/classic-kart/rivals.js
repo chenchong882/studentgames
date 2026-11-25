@@ -19,9 +19,9 @@
   ];
   // Pace scales engine thrust and cruising speed. Corner is the driver's target lateral acceleration in m/s².
   const fieldPaces = {
-    easy:   [{pace:.80, corner:14.3}, {pace:.75, corner:13.5}, {pace:.70, corner:12.8}],
-    normal: [{pace:1.08, corner:21.6}, {pace:1.06, corner:21.2}, {pace:1.04, corner:21.2}],
-    hard:   [{pace:1.14, corner:23.6}, {pace:1.115, corner:22.8}, {pace:1.095, corner:22.5}]
+    easy:   [{pace:.82, corner:14.5}, {pace:.79, corner:14.1}, {pace:.76, corner:13.8}],
+    normal: [{pace:1.13, corner:22.7}, {pace:1.11, corner:22.3}, {pace:1.09, corner:22.2}],
+    hard:   [{pace:1.175, corner:24.3}, {pace:1.16, corner:23.7}, {pace:1.14, corner:23.5}]
   };
   const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
   const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));

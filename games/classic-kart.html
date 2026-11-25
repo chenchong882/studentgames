@@ -62,16 +62,20 @@
           <label><input type="radio" name="difficulty" value="hard"><span>困難<small>甩尾搶冠</small></span></label>
         </div>
       </fieldset>
-      <label class="course-choice" for="course-choice">賽道 <select id="course-choice"><option value="random">隨機抽賽道</option></select></label>
+      <label class="course-choice" for="course-choice">賽道 <select id="course-choice"><option value="random">隨機抽賽道</option></select><canvas id="choice-map" width="222" height="158" aria-hidden="true" hidden></canvas></label>
       <button class="primary" id="start" disabled>準備賽道中…</button>
       <p class="launch-tip">倒數到 <b>1</b>，按住油門衝刺起跑。</p>
       <div id="lesson"></div>
     </section>
-    <section id="match-card" aria-labelledby="match-name" hidden>
+    <section id="match-card" aria-labelledby="match-status" hidden>
       <div class="match-heading"><i class="checker"></i> 單機 AI 配對 <span id="match-level"></span></div>
+      <div class="match-state" role="status" aria-live="polite" aria-atomic="true">
+        <i class="match-indicator" aria-hidden="true"></i><h2 id="match-status">配對中，請稍候</h2>
+        <span id="match-count"></span>
+      </div>
       <div class="match-course"><canvas id="match-map" width="222" height="158" aria-label="本場賽道輪廓"></canvas><div><span id="match-english" lang="en"></span><h2 id="match-name"></h2></div></div>
       <ul id="match-rivals" aria-label="本場 AI 對手"></ul>
-      <button class="secondary" id="skip-match" aria-describedby="match-name match-rivals">直接倒數</button>
+      <button class="secondary" id="skip-match" aria-describedby="match-status match-name">略過等待</button>
     </section>
     <section id="hud" aria-label="比賽儀表" hidden>
       <div class="clock panel"><svg><use href="#timer"/></svg><strong id="time">0:00.00</strong><span class="divider"></span><span class="score"><b class="good">✓ <span id="hits">0</span></b><b class="bad">× <span id="misses">0</span></b></span></div>

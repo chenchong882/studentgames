@@ -35,7 +35,9 @@
   const difficultyNames = { easy: '簡單', normal: '普通', hard: '困難' };
   const courseChoice = el('course-choice');
   for (const course of tracks) courseChoice.add(new Option(course.name, course.id));
-  let courseBag = [], lastCourse = null, matchRemaining = 0;
+  let courseBag = [], lastCourse = null;
+  let matchElapsed = 0, arrivalTimes = [], joined = 0;
+  const matchConfirmationTime = 1.35;
 
   function drawCourse() {
     const specified = tracks.find(course => course.id === courseChoice.value);
@@ -263,6 +265,7 @@
     el('camera-button').hidden = onGrid || beforeGrid;
     el('pause').hidden = !['matching', 'countdown', 'race', 'paused'].includes(value);
     const showTour = onGrid && courseChoice.value === 'random';
+    el('choice-map').hidden = !onGrid || showTour;
     el('footer-english').textContent = showTour ? 'CIRCUIT TOUR' : track.english.toUpperCase();
     el('footer-course').textContent = showTour ? '單字巡迴賽' : track.name;
     el('touch').hidden = !['countdown', 'race'].includes(value);
@@ -325,7 +328,6 @@
         const kart = ClassicKartArt.createRival(rivalGroup, rival);
         rivalViews.set(rival.id, { model: kart, pose: {} });
       }
-      rivalViews.get(rival.id).model.root.visible = true;
     }
     el('field-order').replaceChildren();
     playerFinishedAt = null;
@@ -401,6 +403,55 @@
     phaseTo('grid');
   });
 
+  function prepareMatch() {
+    matchElapsed = 0;
+    joined = 0;
+    let arrival = 0;
+    arrivalTimes = rivals.map(() => {
+      arrival += .8 + Math.random() * .35;
+      return arrival;
+    });
+    el('match-name').textContent = track.name;
+    el('match-english').textContent = track.english;
+    el('match-level').textContent = difficultyNames[difficulty];
+    el('match-card').dataset.ready = 'false';
+    el('match-status').textContent = '配對中，請稍候';
+    el('match-count').textContent = '對手 0 / ' + rivals.length;
+    el('skip-match').textContent = '略過等待';
+    el('match-rivals').replaceChildren(...rivals.map(rival => {
+      rivalViews.get(rival.id).model.root.visible = false;
+      const item = document.createElement('li'), number = document.createElement('b');
+      number.textContent = '··';
+      number.setAttribute('aria-hidden', 'true');
+      const name = document.createElement('span');
+      name.textContent = '等待加入';
+      item.append(number, name);
+      return item;
+    }));
+  }
+
+  function advanceMatch(time) {
+    matchElapsed = time;
+    while (joined < rivals.length && time >= arrivalTimes[joined]) {
+      const rival = rivals[joined], slot = el('match-rivals').children[joined];
+      slot.firstChild.textContent = rival.number;
+      slot.style.setProperty('--driver-color', rival.color);
+      slot.lastChild.textContent = rival.name;
+      slot.classList.add('joined');
+      rivalViews.get(rival.id).model.root.visible = true;
+      joined++;
+      el('match-count').textContent = '對手 ' + joined + ' / ' + rivals.length;
+      if (joined === rivals.length) {
+        el('match-card').dataset.ready = 'true';
+        el('match-status').textContent = '配對完成';
+        el('skip-match').textContent = '開始倒數';
+        beep(580, .09);
+        beep(780, .13, .09);
+      }
+    }
+    if (time >= arrivalTimes[rivals.length - 1] + matchConfirmationTime) startCountdown();
+  }
+
   function begin(replayCourse) {
     if (hasNextPayload)
       returnToGrid();
@@ -417,17 +468,7 @@
     difficulty = document.querySelector('input[name="difficulty"]:checked').value;
     lineUpRivals();
     track.gates.forEach((_, i) => gates.set(i, deck[i]));
-    el('match-name').textContent = track.name;
-    el('match-english').textContent = track.english;
-    el('match-level').textContent = difficultyNames[difficulty];
-    el('match-rivals').replaceChildren(...rivals.map(rival => {
-      const item = document.createElement('li'), number = document.createElement('b');
-      number.textContent = rival.number;
-      number.style.setProperty('--driver-color', rival.color);
-      item.append(number, rival.name);
-      return item;
-    }));
-    matchRemaining = 2.4;
+    prepareMatch();
     countdown = 3;
     accum = 0;
     last = 0;
@@ -450,7 +491,11 @@
     hud();
   }
   el('start').onclick = () => begin();
-  el('skip-match').onclick = startCountdown;
+  el('skip-match').onclick = () => {
+    if (phase !== 'matching') return;
+    if (joined === rivals.length) startCountdown();
+    else advanceMatch(arrivalTimes[rivals.length - 1]);
+  };
 
   function tryLaunch() {
     if (launchUsed || !inputs.throttle || inputs.brake) return;
@@ -806,9 +851,23 @@
     bg.strokeStyle = '#f5efcf';
     bg.stroke();
     track.gates.forEach(s => { const p = track.sample(s); bg.fillStyle = '#ffc354'; bg.fillRect(mx(p.x) - 2.5, my(p.z) - 2.5, 5, 5); });
-    const preview = el('match-map').getContext('2d');
-    preview.clearRect(0, 0, base.width, base.height);
-    preview.drawImage(base, 0, 0);
+    const start = points[0];
+    for (const id of ['match-map', 'choice-map']) {
+      const preview = el(id).getContext('2d');
+      preview.clearRect(0, 0, base.width, base.height);
+      preview.drawImage(base, 0, 0);
+      preview.save();
+      preview.translate(mx(start.x), my(start.z));
+      preview.rotate(Math.atan2(start.tx, -start.tz));
+      preview.beginPath();
+      preview.moveTo(0, -7);
+      preview.lineTo(5.5, 5);
+      preview.lineTo(-5.5, 5);
+      preview.closePath();
+      preview.fillStyle = '#ff7955';
+      preview.fill();
+      preview.restore();
+    }
     el('map-name').textContent = track.english.toUpperCase();
   }
   rebuildMap();
@@ -892,8 +951,7 @@
       }
     }
     if (phase === 'matching') {
-      matchRemaining -= dt;
-      if (matchRemaining <= 0) startCountdown();
+      advanceMatch(matchElapsed + dt);
     }
     else if (phase === 'countdown') {
       const tick = Math.ceil(countdown);

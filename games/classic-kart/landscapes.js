@@ -49,11 +49,15 @@
       return {point,block,beam};
     }
     const faceRoad=(p,side)=>Math.atan2(side*p.tz,-side*p.tx);
+    function insideBend(s) {
+      const a=track.sample(s-14),b=track.sample(s+14);
+      return a.tx*b.tz-a.tz*b.tx>=0?1:-1;
+    }
     const sign=(text,background,ink)=>panelTexture(384,96,(c,w,h)=>{
       c.fillStyle=background;c.fillRect(0,0,w,h);c.strokeStyle=ink;c.lineWidth=3;c.strokeRect(5,5,w-10,h-10);
       c.fillStyle=ink;c.textAlign='center';c.textBaseline='middle';c.font='bold 55px sans-serif';c.fillText(text,w/2,h*.52,w*.91);
     });
-    const context={...d,site,clear,local,faceRoad,sign,bounds:{minX,maxX,minZ,maxZ}};
+    const context={...d,site,clear,local,faceRoad,insideBend,sign,bounds:{minX,maxX,minZ,maxZ}};
     if(track.id==='giant'||track.id==='beach'){
       window.ClassicExtraWorlds.decorate(track,context);return;
     }
@@ -117,7 +121,13 @@
         const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setAttribute('color',new T.Float32BufferAttribute(colors,3));g.computeVertexNormals();city.add(new T.Mesh(g,sandstoneWall));
         for(const p of [a,b]){mesa(p,6.0,9.2,Math.atan2(dz,dx));occupied.push({x:p.x,z:p.z,r:6.5});}
       }
-      arch(102);arch(track.gates[2]+96);
+      arch(track.landmarks.arch);
+      // Taller, close-set bluffs on the outside trace the canyon switchback.
+      const entry=track.landmarks.canyonEntry,outer=-insideBend(entry);
+      for(let i=-2;i<=3;i++){
+        const s=entry+i*18,r=10+2*Math.cos(i),p=site(s,outer,r+8,r*1.1);
+        if(p)mesa(p,r,18+(3-Math.abs(i))*4,Math.atan2(p.tx,p.tz));
+      }
       for(const side of [-1,1])for(let s=23;s<track.length;s+=range(26,49)){
         const r=range(9,19),p=site(s,side,r+range(10,23),r*1.06);if(p)mesa(p,r,range(12,29),range(0,2));
         const big=range(22,42),q=site(s,side,big+range(46,78),big*1.06);if(q)mesa(q,big,range(29,61),range(0,2));
@@ -199,10 +209,10 @@
         for(const v of [-1.69,1.69])for(const i of [-3.6,-1.8,0,1.8,3.6])block(u+i,14.07,v,1.35,1.13,.09,'#c5e1ea',true);
       }
     }
-    // A tiered jade tower rises above the smaller blocks on the opening boulevard.
+    // The jade tower marks the inside of the plaza bend.
     function jadeTower(){
-      const side=1;
-      let p=null;for(const s of [233,252,209,285]){p=site(s,side,53,17.5);if(p)break;}
+      const s=track.landmarks.plaza, side=insideBend(s);
+      let p=null;for(const delta of [0,-16,16,-32,32]){p=site(s+delta,side,24,17.5);if(p)break;}
       if(!p)return;
       const yaw=faceRoad(p,side),{block}=local(p,yaw);
       block(0,6,0,22,12,20,'#396367');block(0,12.2,0,23,.8,21,'#bec7ab');
@@ -223,7 +233,18 @@
       put(cone,plain,'#679c9e',p.x,y+8,p.z,3.45,5.7,3.45,yaw);radial(p.x,y+14,p.z,.21,7.2,'#bfd6ce');
       put(cloudBall,unlit,'#ffb398',p.x,y+17.72,p.z,.41,.50,.41);shadow(p.x,p.z,25,24);
     }
-    jadeTower();metroViaduct(111);metroViaduct(track.gates[2]+100);
+    jadeTower();
+    const station=track.landmarks.station;
+    metroViaduct(station);
+    for(const side of [-1,1]){
+      const p=site(station-18,side,18,12.4);if(!p)continue;
+      const yaw=faceRoad(p,side),{block,point}=local(p,yaw);
+      block(0,1.8,0,16,3.6,8,'#51657c');
+      for(const u of [-5.4,0,5.4])block(u,1.65,4.07,3.8,3.2,.16,'#253643');
+      block(0,3.89,1.2,19,.63,9.8,'#a9c7cc');block(0,4.28,1.2,19.2,.16,10,'#81dcda',true);
+      const [x,z]=point(0,5.06);
+      put(plate,sign('CENTRAL STATION','#234653','#9de8db'),'#fff',x,4.98,z,11.6,1.56,1,yaw);
+    }
     for(const side of [-1,1])for(let s=24,i=0;s<track.length;s+=range(21,30),i++){
       const p=site(s,side,range(18,25),11.6);if(p)highrise(p,side,i,true);
       const q=site(s,side,range(42,75),16);if(q)highrise(q,side,i+2,false);
