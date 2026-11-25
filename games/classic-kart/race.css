@@ -451,6 +451,10 @@ kbd {
   font-variant-numeric: tabular-nums;
 }
 
+#field-order.level-start li::before {
+  content: '=';
+}
+
 #field-order li > i {
   width: 9px;
   height: 9px;

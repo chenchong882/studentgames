@@ -244,11 +244,18 @@
     });
   }
 
+  function levelAtStart() {
+    return elapsed < 1 && Math.abs(progress) < .1 && rivals.every(r => Math.abs(r.progress) < .1);
+  }
+
   function updateOrder() {
-    const field = standings(), key = field.map(r => r.id).join('/');
+    const field = standings(), tied = levelAtStart();
+    const key = (tied ? '=' : '') + field.map(r => r.id).join('/');
     if (key === displayedOrder) return;
     displayedOrder = key;
-    el('place').textContent = field.findIndex(r => r.id === 'player') + 1;
+    el('place').textContent = tied ? '–' : field.findIndex(r => r.id === 'player') + 1;
+    el('field-order').classList.toggle('level-start', tied);
+    el('field-order').setAttribute('aria-label', tied ? '四位車手並排起跑' : '車手即時排名');
     for (const driver of field) {
       if (!orderRows.has(driver.id)) {
         const row = document.createElement('li'), marker = document.createElement('i');
@@ -275,7 +282,7 @@
     closeModal();
     el('tuning').hidden = true;
     el('tune').setAttribute('aria-expanded', 'false');
-    car = drive.create(track.sample(0));
+    car = drive.create(ClassicRivals.playerStart(track));
     resetPose();
     projection = track.project(car.x, car.z, 0);
     records = [];
@@ -294,7 +301,7 @@
     last = 0;
     phaseTo('countdown');
     camera.clearViewOffset();
-    drive.camera(camera, renderCar, 0, cameraMode, true);
+    drive.camera(camera, renderCar, 0, cameraMode, true, 1);
     el('countdown').textContent = '3';
     el('countdown').hidden = false;
     beep(460, .12);
@@ -447,7 +454,7 @@
     }
     content.appendChild(list);
     const p = document.createElement('p');
-    p.textContent = '有效甩尾後，放開再踩油門即可小噴。讀上方的中文，開進對應的英文門；答對加速 2.5 秒，答錯會短暫緩速。';
+    p.textContent = '讀上方的中文，開進對應的英文門。答對加速 ' + cfg.quizTime + ' 秒，答錯會短暫緩速。AI 會走右側專用道。有效甩尾後，放開再踩油門即可小噴。';
     content.appendChild(p);
     action(interrupted ? '回到比賽' : '回到起跑線', interrupted ? resume : closeModal, true).focus();
   }
@@ -611,6 +618,21 @@
   const mx = x => (x - minX - dx / 2) * mapScale + map.width / 2, my = z => (z - minZ - dz / 2) * mapScale + map.height / 2;
   const bg = base.getContext('2d');
   bg.beginPath();
+  let onBypass = false;
+  for (const [i, p] of points.entries()) {
+    const branch = track.bypassAt(i * track.length / points.length);
+    if (branch.blend > 0) {
+      const offset = branch.center * branch.blend;
+      const x = mx(p.x - p.tz * offset), y = my(p.z + p.tx * offset);
+      if (onBypass) bg.lineTo(x, y);
+      else bg.moveTo(x, y);
+    }
+    onBypass = branch.blend > 0;
+  }
+  bg.lineWidth = 2;
+  bg.strokeStyle = '#87bdc4';
+  bg.stroke();
+  bg.beginPath();
   points.forEach((p, i) => i ? bg.lineTo(mx(p.x), my(p.z)) : bg.moveTo(mx(p.x), my(p.z)));
   bg.closePath();
   bg.lineJoin = 'round';
@@ -736,7 +758,8 @@
         interpolatePose(view.pose, rival.car, rival.previousPose, f);
         ClassicKartArt.updateRival(view.model, view.pose, moving ? dt : 0);
       }
-      drive.camera(camera, renderCar, dt, cameraMode);
+      const gridView = 1 - clamp(elapsed / cfg.gridViewSeconds, 0, 1);
+      drive.camera(camera, renderCar, dt, cameraMode, false, gridView);
       hudAge += dt;
       if (hudAge >= .04 || dirty) {
         hud();
@@ -750,7 +773,7 @@
     dirty = false;
   }
   window.ClassicRace = { telemetry: () => ({ phase, elapsed, car: { ...car, cameraState: undefined }, progress, projection: { ...projection },
-      place: standings().findIndex(r => r.id === 'player') + 1,
+      place: levelAtStart() ? null : standings().findIndex(r => r.id === 'player') + 1,
       rivals: rivals.map(r => ({ id: r.id, name: r.name, x: r.car.x, z: r.car.z, speed: r.car.speed, progress: r.progress, finishedAt: r.finishedAt })),
       gateIndex, question: question ? { correctLane: question.correctLane, choices: question.choices.map(w => w.word), meaning: question.answer.chinese } : null,
       correct, wrong: records.length - correct, vocabCount: words.length, cameraMode, fov: camera.fov, drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles }) };

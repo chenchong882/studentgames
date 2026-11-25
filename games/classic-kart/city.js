@@ -27,13 +27,13 @@
             u*u*u*a.z + 3*u*u*t*bz + 3*u*t*t*cz + t*t*t*z);
     }
   }
-  gates.push(length + 225);
+  gates.push(length + 160);
   straight(0, -290);
   curve(0, -329, 31, -360, 70, -360);
-  gates.push(length + 222);
+  gates.push(length + 157);
   straight(370,-360);
   curve(410,-360,442,-328,442,-288);
-  gates.push(length + 219);
+  gates.push(length + 154);
   straight(442, 6);
   curve(442,61,510,65,510,136); // offset S through the gardens
   straight(510,220);
@@ -41,13 +41,35 @@
   curve(455.6,255,440,239.4,440,220); // 35 m radius quay hairpin
   straight(440,174);
   curve(440,145,416,121,387,121);
-  gates.push(length + 219);
+  gates.push(length + 154);
   straight(104,121);
   curve(78,121,72,143,48,143);
   curve(20,143,0,123,0,95);
   straight(0,0);
 
   const wrap = s => (s % length + length) % length;
+  // The right-hand service road opens on each long straight. Both the city
+  // mesh and the rivals use this profile; the learner's road stays 27 m wide.
+  const bypassCenter = 23.5, bypassHalfWidth = 6.5;
+  const bypassExtra = bypassCenter + bypassHalfWidth - halfWidth;
+  const forkStart=-152, forkEnd=-52, mergeStart=24, mergeEnd=124;
+  const noBypass = { blend:0, center:bypassCenter, extra:0, inner:-halfWidth, innerSlope:0 };
+  const fullBypass = { blend:1, center:bypassCenter, extra:bypassExtra, inner:bypassCenter-bypassHalfWidth, innerSlope:0 };
+  function bypassAt(distance) {
+    const s = wrap(distance);
+    for (const gate of gates) {
+      const d = s - gate;
+      if (d <= forkStart || d >= mergeEnd) continue;
+      if (d >= forkEnd && d <= mergeStart) return fullBypass;
+      const entry = d < forkEnd, span = entry ? forkEnd-forkStart : mergeStart-mergeEnd;
+      const t = (d-(entry ? forkStart : mergeEnd))/span;
+      const blend = t * t * (3 - 2 * t);
+      const sweep = fullBypass.inner-noBypass.inner;
+      return { blend, center:bypassCenter, extra:bypassExtra * blend,
+        inner:noBypass.inner + sweep*blend, innerSlope:sweep*6*t*(1-t)/span };
+    }
+    return noBypass;
+  }
   function segmentIndex(s) {
     let low = 0, high = path.length - 1;
     while (high - low > 1) {
@@ -75,12 +97,15 @@
       const near = segmentIndex(wrap(hintDistance));
       for (let j=-16; j<=16; j++) check((near+j+count)%count);
     }
-    if (best > (halfWidth+7)**2) for (let i=0;i<count;i++) check(i);
+    const searchMargin=halfWidth+7;
+    if(best>searchMargin**2 && best>(searchMargin+bypassAt(path[bestIndex].s).extra)**2)
+      for(let i=0;i<count;i++)check(i);
     const a=path[bestIndex], b=path[bestIndex+1], span=b.s-a.s;
     const tx=(b.x-a.x)/span, tz=(b.z-a.z)/span, cx=a.x+bestT*(b.x-a.x), cz=a.z+bestT*(b.z-a.z);
     return {s:wrap(a.s+bestT*span),lateral:-(x-cx)*tz+(z-cz)*tx, x:cx,z:cz,tx,tz};
   }
-  const track = { length, halfWidth, gates, sample, project };
+  const gridLanes = [-7.2,-2.4,2.4,7.2];
+  const track = { length, halfWidth, gates, sample, project, bypassAt, gridLanes };
 
   function build(scene) {
     const T = window.THREE;
@@ -140,6 +165,9 @@
     function along(s,offset) {
       const p=sample(s); return {x:p.x-p.tz*offset,z:p.z+p.tx*offset,tx:p.tx,tz:p.tz};
     }
+    function roadside(s,side,distance) {
+      return along(s, side*distance + (side>0 ? bypassAt(s).extra : 0));
+    }
     const roadTex=canvas(192,192), roadCtx=roadTex.getContext('2d');
     roadCtx.fillStyle='#64768a'; roadCtx.fillRect(0,0,192,192);
     for (let i=0;i<10500;i++) {
@@ -147,12 +175,14 @@
       roadCtx.fillRect(rand()*192,rand()*192,range(.6,2),range(.5,1.6));
     }
     const asphalt=texture(roadTex); asphalt.wrapS=asphalt.wrapT=T.RepeatWrapping;
-    function ribbon(left,right,y,material,step=3.2) {
-      const n=Math.ceil(length/step),positions=[],uv=[],indices=[];
+    function ribbon(left,right,y,material,step=3.2,start=0,end=length) {
+      const n=Math.ceil((end-start)/step),positions=[],uv=[],indices=[];
       for(let i=0;i<=n;i++){
-        const s=length*i/n,a=along(s,left),b=along(s,right);
+        const s=start+(end-start)*i/n;
+        const l=typeof left==='function'?left(s):left, r=typeof right==='function'?right(s):right;
+        const a=along(s,l),b=along(s,r);
         positions.push(a.x,y,a.z,b.x,y,b.z);
-        uv.push(0,s/8,(right-left)/8,s/8);
+        uv.push(l/8,s/8,r/8,s/8);
         if(i<n){const k=i*2;indices.push(k,k+1,k+2,k+1,k+3,k+2);}
       }
       const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(positions,3));
@@ -160,10 +190,15 @@
       city.add(new T.Mesh(g,material));
     }
     const flatMaterial=(color,map=null)=>new T.MeshLambertMaterial({color,map,side:T.DoubleSide});
+    const outer = offset => s => offset+bypassAt(s).extra;
     // Asphalt and footways are separate surfaces so the bright edge lines keep their width in bends.
-    ribbon(-halfWidth,halfWidth,0,flatMaterial(0xffffff,asphalt),2.5);
-    ribbon(-halfWidth+.4,-halfWidth+.58,.012,flatMaterial(0xffe9aa));
-    ribbon(halfWidth-.58,halfWidth-.4,.012,flatMaterial(0xffe9aa));
+    ribbon(-halfWidth,outer(halfWidth),0,flatMaterial(0xffffff,asphalt),2.5);
+    const edgePaint=flatMaterial(0xffe9aa);
+    ribbon(-halfWidth+.4,-halfWidth+.58,.012,edgePaint);
+    ribbon(halfWidth-.58,halfWidth-.4,.012,edgePaint);
+    for(const gate of gates){
+      ribbon(outer(halfWidth-.56),outer(halfWidth-.38),.014,edgePaint,2,gate+forkStart,gate+mergeEnd);
+    }
     const pavers=canvas(256,256),pc=pavers.getContext('2d');
     pc.fillStyle='#c5b99c';pc.fillRect(0,0,256,256);
     const paverTones=['#e4d5b4','#e9dabc','#e7d8b6','#e2d2ae'];
@@ -174,10 +209,11 @@
     }
     const paving=texture(pavers); paving.wrapS=paving.wrapT=T.RepeatWrapping;
     const pavingMaterial=flatMaterial(0xffffff,paving);
-    for(const side of [-1,1]){
-      ribbon(...(side<0?[-21,-13.45]:[13.45,21]),.12,pavingMaterial);
-      ribbon(...(side<0?[-21.18,-20.86]:[20.86,21.18]),.14,flatMaterial(0xb8a38d));
-    }
+    const outerTrim=flatMaterial(0xb8a38d);
+    ribbon(-21,-13.45,.12,pavingMaterial);
+    ribbon(outer(13.45),outer(21),.12,pavingMaterial);
+    ribbon(-21.18,-20.86,.14,outerTrim);
+    ribbon(outer(20.86),outer(21.18),.14,outerTrim);
     const grass = canvas(96,96), gc=grass.getContext('2d');
     gc.fillStyle='#a2c776';gc.fillRect(0,0,96,96);
     for(let i=0;i<450;i++){gc.fillStyle=rand()<.5?'#99c16e':'#afcc80';gc.fillRect(rand()*96,rand()*96,range(.7,2.1),1);}
@@ -193,13 +229,13 @@
     // Poured kerbs alternate light and coloured concrete, with substantial barriers on bends.
     for(const side of [-1,1]){
       for(let s=0;s<length;s+=4.4){
-        const end=Math.min(s+4.4,length),a=along(s,side*(halfWidth+.19)),b=along(end,side*(halfWidth+.19));
+        const end=Math.min(s+4.4,length),a=roadside(s,side,halfWidth+.19),b=roadside(end,side,halfWidth+.19);
         const dx=b.x-a.x,dz=b.z-a.z,turn=sample(s+9),start=sample(s-8);
         const bend=Math.abs(start.tx*turn.tz-start.tz*turn.tx)>.08;
         const ink=(Math.floor(s/4.4)%2)?'#fff0d8':bend?'#e66149':'#4cbeb0';
         box((a.x+b.x)/2,.14,(a.z+b.z)/2,.64,.29,Math.hypot(dx,dz)+.04,ink,Math.atan2(dx,dz));
         if(bend || (s<300 && side<0)){
-          const a1=along(s,side*(halfWidth+1.02)),b1=along(end,side*(halfWidth+1.02));
+          const a1=roadside(s,side,halfWidth+1.02),b1=roadside(end,side,halfWidth+1.02);
           const bx=b1.x-a1.x,bz=b1.z-a1.z;
           box((a1.x+b1.x)/2,.87,(a1.z+b1.z)/2,.24,.27,Math.hypot(bx,bz)+.05,'#c6d7d6',Math.atan2(bx,bz));
           box(a1.x,.62,a1.z,.31,1.17,.34,'#617d83');
@@ -209,6 +245,42 @@
     function panelTexture(w,h,paint) {
       const img=canvas(w,h); paint(img.getContext('2d'),w,h);
       return new T.MeshBasicMaterial({map:texture(img),side:T.DoubleSide});
+    }
+    // A raised, tapered island encloses each gate's right support. Paint the
+    // rival route on the asphalt so it cannot be mistaken for a fourth answer.
+    const islandMaterial=flatMaterial(0xe7d5b4);
+    const rivalStencil=panelTexture(384,256,(c,w,h)=>{
+      c.fillStyle='#f5edcf'; c.textAlign='center'; c.textBaseline='middle';
+      c.beginPath();c.moveTo(w/2,16);c.lineTo(w*.67,68);c.lineTo(w*.55,68);
+      c.lineTo(w*.55,98);c.lineTo(w*.45,98);c.lineTo(w*.45,68);c.lineTo(w*.33,68);c.closePath();c.fill();
+      c.font='bold 72px Arial, sans-serif';c.fillText('AI 專用',w/2,158,w*.9);
+    });
+    rivalStencil.transparent=true; rivalStencil.depthWrite=false;
+    for(const gate of gates){
+      const start=gate+forkEnd-8,end=gate+mergeStart+8;
+      const islandPositions=[],triangles=[];
+      for(let s=start,i=0;s<=end;s+=2,i++){
+        const taper=Math.min(1,(s-start)/10,(end-s)/10);
+        const inner=along(s,halfWidth-.04),outerEdge=along(s,halfWidth+2.45*taper);
+        islandPositions.push(inner.x,.018,inner.z,inner.x,.20,inner.z,
+          outerEdge.x,.20,outerEdge.z,outerEdge.x,.018,outerEdge.z);
+        if(i)for(let k=0;k<3;k++){
+          const j=(i-1)*4+k;triangles.push(j,j+1,j+4,j+1,j+5,j+4);
+        }
+      }
+      const island=new T.BufferGeometry();
+      island.setAttribute('position',new T.Float32BufferAttribute(islandPositions,3));island.setIndex(triangles);island.computeVertexNormals();
+      city.add(new T.Mesh(island,islandMaterial));
+      for(let d=forkEnd+2;d<=mergeStart;d+=9){
+        if(Math.abs(d)<3)continue;
+        const p=along(gate+d,halfWidth+1.03);
+        radial(p.x,.26,p.z,.29,.14,'#677c7d');radial(p.x,.62,p.z,.15,.65,'#d4814e');radial(p.x,.79,p.z,.16,.14,'#fff5d9');
+      }
+      for(const d of [(forkStart+forkEnd)/2,forkEnd,10]){
+        const offset=d<forkEnd ? halfWidth+bypassAt(gate+d).extra/2 : bypassCenter;
+        const p=along(gate+d,offset);
+        put(plate,rivalStencil,'#ffffff',p.x,.032,p.z,4.8,5.4,1,Math.atan2(-p.tx,-p.tz),-Math.PI/2);
+      }
     }
     // Lightweight baked contact shadows under trees, stalls and landmark bases.
     const shadowCanvas=canvas(64,64),sh=shadowCanvas.getContext('2d');
@@ -387,33 +459,36 @@
       for(let s=17;s<length;s+=range(19,26)){
         // Open waterfront promenades and park gaps reveal the large landmarks.
         const open=(side<0 && ((s>82&&s<235)||(s>length*.57&&s<length*.63))) || (side>0 && s>720&&s<790);
-        const w=range(15,24),d=range(10,17),h=range(12,20),p=along(s,side*(22+d*.5+range(0,5)));
+        const w=range(15,24),d=range(10,17),h=range(12,20);
+        // Set the whole frontage, including its nearer corner, behind the widened footway.
+        const frontageShift=side>0?Math.max(bypassAt(s-w*.55).extra,bypassAt(s).extra,bypassAt(s+w*.55).extra):0;
+        const p=along(s,side*(22+d*.5+range(0,5))+frontageShift);
         const r=Math.hypot(w,d)*.49;
         if(open || !available(p.x,p.z,r) || Math.abs(project(p.x,p.z).lateral)<halfWidth+d*.52+1.5) continue;
         const kind=Math.floor(rand()*shops.length);reserve(p.x,p.z,r);
         building(p.x,p.z,Math.atan2(side*p.tz,-side*p.tx),w,d,h,kind);
       }
       for(let s=16;s<length;s+=range(21,30)){
-        const p=along(s,side*range(17.25,19.9));
+        const p=roadside(s,side,range(17.25,19.9));
         if(available(p.x,p.z,2.9))tree(p.x,p.z,range(7,10.3),Math.floor(rand()*3));
       }
     }
     // One-metre lamp fixtures, with pennants and benches alongside the footway.
     const flagColors=['#e66c46','#4cafa7','#f1bf58','#638daf'];
     function lamp(s,side){
-      const p=along(s,side*(halfWidth+2.1)),arm=along(s,side*(halfWidth+.95));
+      const p=roadside(s,side,halfWidth+2.1),arm=roadside(s,side,halfWidth+.95);
       radial(p.x,.25,p.z,.43,.5,'#778c88');radial(p.x,2.9,p.z,.13,5.45,'#527b7d');
       tube(p.x,5.42,p.z,arm.x,5.87,arm.z,.095,'#4b777b');
       radial(arm.x,5.73,arm.z,.35,.22,'#4c6d71');
       put(cloudBall,plain,'#fff1b5',arm.x,5.49,arm.z,.24,.28,.24);
       if(side>0){
-        const f=along(s,side*(halfWidth+2.84));
+        const f=roadside(s,side,halfWidth+2.84);
         put(plate,plain,flagColors[Math.floor(s/32)%4],f.x,4.14,f.z,1.05,1.6,1,Math.atan2(-p.tx,-p.tz));
       }
     }
     for(let s=24;s<length;s+=32)for(const side of [-1,1])lamp(s+(side<0?11:0),side);
     for(let s=47;s<length;s+=78){
-      const a=along(s,(s%3>1?-1:1)*17.1),yaw=Math.atan2(a.tx,a.tz);
+      const a=roadside(s,s%3>1?-1:1,17.1),yaw=Math.atan2(a.tx,a.tz);
       box(a.x,.63,a.z,1.05,.21,2.3,'#a4774d',yaw);
       for(const k of [-1,1])box(a.x+k*a.tx*.77,.31,a.z+k*a.tz*.77,.65,.55,.15,'#647f79',yaw);
     }
@@ -525,10 +600,9 @@
     for(let j=0;j<2;j++)for(let i=0;i<24;i++){cc.fillStyle=(i+j)%2?'#fdf1cd':'#354c58';cc.fillRect(i*32,j*32,32,32);}
     const finish=new T.Mesh(new T.PlaneGeometry(halfWidth*2,2.25),new T.MeshBasicMaterial({map:texture(check)}));
     finish.rotation.x=-Math.PI/2;finish.position.y=.025;city.add(finish);
-    for(let i=0;i<6;i++){
-      const s=-7-i*4,x=(i%2?1:-1)*3.4;
-      box(x,.021,-s,2.65,.012,.16,'#fae4ac');
-      for(const dx of [-1.23,1.23])box(x+dx,.021,-s+.48,.15,.012,1,'#fae4ac');
+    for(const x of gridLanes){
+      box(x,.021,2.5,2.9,.012,.16,'#fae4ac');
+      for(const dx of [-1.38,1.38])box(x+dx,.021,2.02,.15,.012,1,'#fae4ac');
     }
     const chevron=panelTexture(128,88,c=>{
       c.fillStyle='#324e56';c.fillRect(0,0,128,88);c.fillStyle='#ffce66';c.fillRect(4,4,120,80);
@@ -538,13 +612,13 @@
       const a=sample(s-10),b=sample(s+10),bend=a.tx*b.tz-a.tz*b.tx;
       if(Math.abs(bend)<.19)continue;
       // Positive signed turning is to the right. Boards sit beyond the outside barrier.
-      const side=bend>0?-1:1,q=along(s,side*(halfWidth+2.7)),toward=sample(s-13);
+      const side=bend>0?-1:1,q=roadside(s,side,halfWidth+2.7),toward=sample(s-13);
       const yaw=Math.atan2(toward.x-q.x,toward.z-q.z);
       box(q.x,1.5,q.z,.16,2.7,.16,'#837c67');
       put(plate,chevron,'#ffffff',q.x,2.65,q.z,bend>0?2.8:-2.8,1.7,1,yaw);
     }
     function bunting(s){
-      const a=along(s,-15.8),b=along(s,15.8);
+      const a=roadside(s,-1,15.8),b=roadside(s,1,15.8);
       for(const p of [a,b]){radial(p.x,5.1,p.z,.15,10.2,'#578c84');put(cloudBall,plain,'#f9bc61',p.x,10.3,p.z,.3,.3,.3);}
       const flagGeo=new T.BufferGeometry();flagGeo.setAttribute('position',new T.Float32BufferAttribute([-.5,.1,0,.5,.1,0,-.13,-1,0],3));flagGeo.computeVertexNormals();
       const cloth=new T.MeshLambertMaterial({side:T.DoubleSide});
@@ -579,7 +653,7 @@
       }
     }
     for(let s=38;s<length;s+=57){
-      const side=Math.floor(s/57)%2?1:-1,p=along(s,side*17);
+      const side=Math.floor(s/57)%2?1:-1,p=roadside(s,side,17);
       planter(p.x,p.z,Math.atan2(p.tz,p.tx)*-1);
     }
     // Low-detail hills and roof silhouettes complete the horizon where streets open up.
@@ -593,12 +667,14 @@
     }
     for(let i=0;i<72;i++){
       const x=range(75,365),z=range(-296,72),w=range(13,28),h=range(12,29),d=range(13,23);
-      if(!available(x,z,19) || Math.abs(project(x,z).lateral)<42)continue;
+      const p=project(x,z);
+      if(!available(x,z,19) || Math.abs(p.lateral)<42+(p.lateral>0?bypassAt(p.s).extra:0))continue;
       reserve(x,z,18);building(x,z,rand()<.55?0:Math.PI*.5,w,d,h,i%shops.length);
     }
     for(let i=0;i<120;i++){
       const x=range(-48,562),z=range(-424,302);
-      if(!available(x,z,4.2)||Math.abs(project(x,z).lateral)<23)continue;
+      const p=project(x,z);
+      if(!available(x,z,4.2)||Math.abs(p.lateral)<23+(p.lateral>0?bypassAt(p.s).extra:0))continue;
       tree(x,z,range(7,13),i%3);
     }
     for(let i=0;i<52;i++){

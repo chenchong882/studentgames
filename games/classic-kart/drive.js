@@ -61,7 +61,7 @@
     settledSlip: 4 * rad, miniWindow: .86, miniForce: 10.5,
     miniSpeedGain: 23, slots: 2, speedSteerFalloff: 21, cameraBodyMix: .25,
     aimHeight: 1.08, farDistance: 2.7, farHeight: 1.25, farLookAhead: 1.8,
-    cameraBoostIn: 3.6, cameraBoostOut: 2.05
+    cameraBoostIn: 3.6, cameraBoostOut: 2.05, gridHalfSpan: 12, gridViewSeconds: 1.4
   });
 
   function create(pose) {
@@ -77,23 +77,27 @@
       penalty: 0, boostKind: '', boosting: false, cameraState: null, wallCooldown: 0
     });
   }
-  function constrainToRoad(car, projection, halfWidth, dt) {
-    const side = Math.sign(projection.lateral), rim = halfWidth - config.collisionRadius;
-    if (Math.abs(projection.lateral) > rim) {
-      const nx = -projection.tz * side, nz = projection.tx * side, over = Math.abs(projection.lateral) - rim;
-      car.x -= nx * over;
-      car.z -= nz * over;
-      const outward = car.vx * nx + car.vz * nz;
-      if (outward > 0) {
-        car.vx -= nx * outward * (1 + config.wallRestitution);
-        car.vz -= nz * outward * (1 + config.wallRestitution);
-        if (outward > config.wallImpactSpeed && car.wallCooldown <= 0) {
-          car.vx *= config.wallSpeedRetention;
-          car.vz *= config.wallSpeedRetention;
-          car.wallCooldown = config.wallDebounce;
-        }
+  function resolveWallContact(car, nx, nz, penetration) {
+    car.x -= nx * penetration;
+    car.z -= nz * penetration;
+    const outward = car.vx * nx + car.vz * nz;
+    if (outward > 0) {
+      car.vx -= nx * outward * (1 + config.wallRestitution);
+      car.vz -= nz * outward * (1 + config.wallRestitution);
+      if (outward > config.wallImpactSpeed && car.wallCooldown <= 0) {
+        car.vx *= config.wallSpeedRetention;
+        car.vz *= config.wallSpeedRetention;
+        car.wallCooldown = config.wallDebounce;
       }
-      car.speed = Math.hypot(car.vx, car.vz);
+    }
+    car.speed = Math.hypot(car.vx, car.vz);
+  }
+
+  function constrainToRoad(car, projection, halfWidth, dt, rightHalfWidth = halfWidth) {
+    const side = Math.sign(projection.lateral);
+    const rim = (side > 0 ? rightHalfWidth : halfWidth) - config.collisionRadius;
+    if (Math.abs(projection.lateral) > rim) {
+      resolveWallContact(car, -projection.tz * side, projection.tx * side, Math.abs(projection.lateral) - rim);
       projection.lateral = side * rim;
     }
     car.wallCooldown = Math.max(0, car.wallCooldown - dt);
@@ -184,7 +188,7 @@
     }
   }
 
-  function step(car, input, dt) {
+  function step(car, input, dt, pace = 1) {
     const cfg = config;
     if (input.nitro && !car.prevNitro && car.stock > 0 && car.tankTimer <= 0 && car.penalty <= 0) {
       car.stock--;
@@ -229,14 +233,15 @@
     const mini = !penalized && car.miniTimer > 0;
     car.boostKind = penalized ? '' : car.quizTimer > 0 ? 'quiz' : car.tankTimer > 0 ? 'tank' : mini ? 'mini' : '';
     car.boosting = !!car.boostKind;
-    let speedLimit = (largeBoost ? Math.max(cfg.boostSpeed, cfg.topSpeed + 5) :
-      cfg.topSpeed + (mini ? cfg.miniSpeedGain : 0)) / 3.6;
+    const cruisingSpeed = cfg.topSpeed * pace;
+    let speedLimit = (largeBoost ? Math.max(cfg.boostSpeed, cruisingSpeed + 5) :
+      cruisingSpeed + (mini ? cfg.miniSpeedGain : 0)) / 3.6;
     const brakingPenalty = penalized && car.penalty < cfg.penaltyTime - cfg.penaltyOnset;
     if (brakingPenalty) speedLimit = cfg.slowSpeed / 3.6;
     let thrust = 0;
     const drag = cfg.rollingDrag * Math.min(speed * 2, 1) + cfg.aeroDrag * speed * speed;
     if ((input.throttle || car.boosting) && !input.brake) {
-      const motor = cfg.acceleration + (largeBoost ? cfg.boostForce : mini ? cfg.miniForce : 0);
+      const motor = cfg.acceleration * pace + (largeBoost ? cfg.boostForce : mini ? cfg.miniForce : 0);
       const throttle = clamp((speedLimit - forward) / cfg.throttleTaper, 0, 1);
       thrust = motor * throttle + drag * clamp(forward / speedLimit, 0, 1);
       if (forward < -cfg.lowSpeedCrossover) thrust = cfg.braking;
@@ -277,7 +282,7 @@
     car.prevThrottle = !!input.throttle;
   }
 
-  function camera(view, car, dt, mode = 0, snap = false) {
+  function camera(view, car, dt, mode = 0, snap = false, gridView = 0) {
     const cfg = config;
     let state = car.cameraState;
     const initial = snap || !state;
@@ -297,8 +302,11 @@
     state.boost += (wantBoost - state.boost) * mix(wantBoost > state.boost ? cfg.cameraBoostIn : cfg.cameraBoostOut);
     const ratio = clamp(car.speed / (cfg.topSpeed / 3.6), 0, 1.28);
     const far = mode === 1;
-    const distance = cfg.distance + (far ? cfg.farDistance : 0) + ratio * cfg.speedPullback + state.boost * cfg.boostPullback;
-    const height = cfg.height + (far ? cfg.farHeight : 0) + .45 * ratio;
+    const chaseDistance = cfg.distance + (far ? cfg.farDistance : 0) + ratio * cfg.speedPullback + state.boost * cfg.boostPullback;
+    const gridDistance = cfg.gridHalfSpan / (view.aspect * Math.tan(cfg.baseFov * rad / 2));
+    const pullback = gridView * Math.max(0, gridDistance - chaseDistance);
+    const distance = chaseDistance + pullback;
+    const height = cfg.height + (far ? cfg.farHeight : 0) + .45 * ratio + .26 * pullback;
     const dx = Math.sin(state.heading), dz = -Math.cos(state.heading);
     // Translate the rig with the kart, then damp the offset. This keeps it in frame
     // even on a slow display where smoothing absolute coordinates would add metres of lag.
@@ -319,5 +327,5 @@
       view.updateProjectionMatrix();
     }
   }
-  window.ClassicDrive = {config, sliders, step, create, reset, constrainToRoad, camera, boost, penalize};
+  window.ClassicDrive = {config, sliders, step, create, reset, constrainToRoad, resolveWallContact, camera, boost, penalize};
 })();
