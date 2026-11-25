@@ -1,4 +1,4 @@
-/* Short bilingual examples for reading. Game clues are kept in wordbank.js. */
+/* Short bilingual examples for the preview and the built-in games' cloze questions. */
 window.READING_EXAMPLES = new Map([
   ["blanket", { sentence: "My dog sleeps on this blanket.", sentence_chinese: "我的狗睡在這條毯子上。" }],
   ["scientist", { sentence: "My mom is a scientist.", sentence_chinese: "我媽媽是科學家。" }],

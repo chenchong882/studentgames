@@ -434,6 +434,10 @@ body.battle-active #boss-banner > div > div { min-width:40px; }
 
 <script src="../data/word-audio-manifest.js"></script>
 <script src="word-audio.js"></script>
+<script src="word-example.js"></script>
+<script src="../data/reading-examples.js"></script>
+<script src="../data/cloze-options.js"></script>
+<script src="cloze-bank.js"></script>
 <script src="round-review.js"></script>
 <script>
 const BASE_CONFIG = {
@@ -911,16 +915,6 @@ function shuffle(arr){
   for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
   return a;
 }
-function wordsConflict(a,b){
-  const ak=String(a&&a.word||'').toLowerCase(), bk=String(b&&b.word||'').toLowerCase();
-  return (a&&a.avoidWith||[]).includes(bk) || (b&&b.avoidWith||[]).includes(ak);
-}
-function clozeChoices(target,pool,count){
-  const others=pool.filter(w=>w.word!==target.word);
-  const safe=others.filter(w=>!wordsConflict(target,w));
-  return shuffle(safe.length>=count ? safe : others).slice(0,count);
-}
-
 function uniqueTexts(items){
   return [...new Set(items.filter(Boolean).map(x => String(x).trim()).filter(Boolean))];
 }
@@ -936,7 +930,6 @@ function makeQuestion(type, prompt, answer, choices, audio){
 
 function buildQuestionPools(payload){
   payload = GameData.prepare(payload);
-  const isBuiltin = !!payload.builtin;
   const words = GameData.uniqueWords(payload.words.filter(w =>
     w && w.word && w.chinese && !BATTLE_EXCLUDED_WORDS.has(String(w.word).trim().toLowerCase())
   ));
@@ -949,13 +942,13 @@ function buildQuestionPools(payload){
 
   // ── 強化值題（打 BOSS / 升級用）：內建單字才出「英文填空題」；文法選擇題僅使用傳入題庫，不補示範題 ──
   fillQuestions = [];
-  if(isBuiltin){
-    wordPool.forEach(target => {
-      if(!target.sentence || target.sentence.indexOf('{W}') < 0) return;
-      const sentence = target.sentence.replace(/\{W\}/g, '________');
-      const others = clozeChoices(target, wordPool, 3);
+  if(payload.builtin === true){
+    for(const [target, {cloze, choices}] of ClozeBank.build(wordPool, {builtin:true})){
+      if(choices.length < 3) continue;
+      const sentence = cloze.replace(/\{W\}/g, '________');
+      const others = shuffle(choices).slice(0, 3);
       fillQuestions.push(makeQuestion('英文填空題', sentence, target.word, others.map(w => w.word), target.word));
-    });
+    }
   }
   grammarQuestions = buildGrammarPool(payload);
 
@@ -1072,7 +1065,7 @@ window.addEventListener('message', (event) => {
   if(!event.data || event.data.type !== 'BATTLE_DATA') return;
   battleData = {
     unitTitle: event.data.payload?.unitTitle || '目前單元',
-    builtin: !!event.data.payload?.builtin,
+    builtin: event.data.payload?.builtin === true,
     practice: event.data.payload?.practice,
     practiceSourceOnly: event.data.payload?.practiceSourceOnly,
     words: event.data.payload?.words,
@@ -2447,7 +2440,7 @@ function endGame(result, winType){
     const d = JSON.parse(new URLSearchParams(h).get('lessonData') || '');
     if(d) battleData = {
       unitTitle: d.unitTitle || '目前單元',
-      builtin: !!d.builtin,
+      builtin: d.builtin === true,
       practice: d.practice,
       practiceSourceOnly: d.practiceSourceOnly,
       words: d.words,
@@ -2495,7 +2488,10 @@ GameSetup.register({
   syncExtra:type=>{
     const grammar=document.getElementById('battle-grammar');
     grammar.disabled=type==='picture'||!(fillQuestions.length||grammarQuestions.length);
-    document.getElementById('battle-grammar-note').textContent=grammar.disabled?'圖片題或沒有文法／例句的題庫不加入此練習。':'勾選後，一般關卡與 BOSS 可出文法／填空題，與遊戲難度分開設定。';
+    const note=document.getElementById('battle-grammar-note');
+    if(type==='picture') note.textContent='圖片題只練單字圖片。';
+    else if(grammar.disabled) note.textContent='這組單字無法組出有 3 個明確錯誤選項的填空題，也沒有文法題，本局練習單字。';
+    else note.textContent='勾選後，一般關卡與 BOSS 會加入題庫可用的文法或填空題。';
   },
   hasPictures:hasPicBank, count:()=>wordPool.length, getDifficulty:()=>selectedDifficulty==='hard'?'hard':'simple',
   setDifficulty:m=>selectDifficulty(m==='hard'?'hard':'easy'), onTypeChange:buildVocabByMode,

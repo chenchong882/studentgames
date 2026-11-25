@@ -453,6 +453,9 @@
 <script src="../data/word-audio-manifest.js"></script>
 <script src="word-audio.js"></script>
 <script src="word-example.js"></script>
+<script src="../data/reading-examples.js"></script>
+<script src="../data/cloze-options.js"></script>
+<script src="cloze-bank.js"></script>
 <script src="round-review.js"></script>
 <script>
 "use strict";
@@ -468,6 +471,7 @@ let wordBank = normalizeShipWords([
   { word: "GUARD",   meaning: "守衛",   pos: "動詞/名詞", example: "Two soldiers {W} the castle gate all night." },
   { word: "HIDDEN",  meaning: "隱藏的", pos: "形容詞",  example: "They found a {W} door behind the bookshelf." },
 ]);
+let shipClozes = ClozeBank.build(wordBank, {builtin:true});
 
 const shipColors = [
   { id: "red",    name: "紅色", icon: "🔴", main: "#d6402c", light: "#ff7a5e", dark: "#7e1d10" },
@@ -702,7 +706,6 @@ function unlockSpeech(){
 }
 
 /* ════════════════ 三模式共用判定 ════════════════ */
-let builtinSource = true;
 // 至少 4 個單字有可辨識圖案，才開放圖片題。
 function hasPicBank(){ return GameData.picturePool(wordBank).length >= 4; }
 let allPic = (function(){ try{ return localStorage.getItem('sgAllPic') === '1'; }catch(e){ return false; } })();
@@ -730,7 +733,9 @@ function showToast(text, color) {
 }
 
 /* ════════════════ 回合 / 關卡產生 ════════════════ */
-function hasSentenceCloze(word) { return Boolean(word.clozePrompt); }
+function sentenceTargets(requiredChoices) {
+  return wordBank.filter(word => (shipClozes.get(word)?.choices.length || 0) >= requiredChoices);
+}
 function conditionKeysForLevel(lv) {
   return ["word"];
 }
@@ -777,23 +782,22 @@ function newRound() {
   const type = GameSetup.kind(hasPictures);
   const wantPic = GameSetup.usePicture(hasPictures);
   const wordPool = wantPic ? GameData.picturePool(wordBank) : wordBank;
-  const sentencePool = type === 'text' && shipTextQuestion === 'sentence' ? wordBank.filter(hasSentenceCloze) : [];
+  const count = Math.min(wordPool.length, clamp(2 + lv, 3, compactShipView() ? 3 : 5));
+  const wantsSentence = !wantPic && (type === 'text' && shipTextQuestion === 'sentence' ||
+    type === 'mixed' && $("ship-sentences").checked && Math.random() < 0.5);
+  const sentencePool = wantsSentence ? sentenceTargets(count - 1) : [];
   const target = {
     word:  pick(sentencePool.length ? sentencePool : wordPool),
     color: pick(shipColors),
     flag:  pick(flags),
   };
   game.target = target;
-  const withSentence = sentencePool.length > 0 || (type === 'mixed' && !wantPic && $("ship-sentences").checked && hasSentenceCloze(target.word) && Math.random() < 0.5);
-  game.qType = wantPic ? "en2pic" : withSentence ? "sentence" : (Math.random() < 0.5 ? "cn2en" : "en2cn");
-  RoundReview.begin({prompt:game.qType==="sentence"?target.word.clozePrompt:(game.qType==="cn2en"?target.word.meaning:target.word.word),answer:target.word.word,meaning:target.word.meaning});
+  const cloze = sentencePool.length ? shipClozes.get(target.word) : null;
+  if(cloze) target.clozePrompt = cloze.cloze.replace(/\{W\}/g, "＿＿＿");
+  game.qType = wantPic ? "en2pic" : cloze ? "sentence" : (Math.random() < 0.5 ? "cn2en" : "en2cn");
+  RoundReview.begin({prompt:cloze?target.clozePrompt:(game.qType==="cn2en"?target.word.meaning:target.word.word),answer:target.word.word,meaning:target.word.meaning});
 
-  let count = clamp(2 + lv, 3, compactShipView() ? 3 : 5);
-  // 干擾船：單字必不同；圖片回合的干擾 emoji 也必須與目標不同
-  const otherWordCandidates = wordPool.filter(w => w.word !== target.word.word);
-  const sentenceChoices = game.qType === "sentence" ? otherWordCandidates.filter(w => !wordsConflict(target.word, w)) : otherWordCandidates;
-  const otherWords = shuffle((sentenceChoices.length ? sentenceChoices : otherWordCandidates).slice());
-  count = Math.min(count, otherWords.length + 1);
+  const otherWords = shuffle(cloze ? cloze.choices.slice() : wordPool.filter(w => w.word !== target.word.word));
   const ships = [];
 
   for (let i = 0; i < count; i++) {
@@ -856,7 +860,7 @@ function updateQuestionUI() {
   let title, chips;
   if (game.qType === "sentence") {
     title = `讀句子，擊沉填入空格的正確單字（${t.word.pos}）`;
-    chips = [{ text: `📝 ${t.word.clozePrompt}`, cls: "sentence" }];
+    chips = [{ text: `📝 ${t.clozePrompt}`, cls: "sentence" }];
   } else if (game.qType === "en2pic") {
     // 圖片題：題目顯示英文＋自動發音（發音失效時看字仍可作答），船身掛 emoji
     title = "聽發音，擊沉掛著正確圖片的船";
@@ -2423,21 +2427,16 @@ function normalizeShipWords(words){
     const avoidWith=Array.isArray(w&&w.avoidWith)?w.avoidWith.map(x=>String(x).trim().toLowerCase()).filter(Boolean):[];
     if(!word||!meaning) return;
     const k=word.toLowerCase(); if(seen.has(k)) return; seen.add(k);
-    const clozePrompt=WordExample.clozeTemplate({word,example}).replace(/\{W\}/g,"＿＿＿");
-    out.push({ word: word.toUpperCase(), meaning, pos: pos||"單字", example, clozePrompt, emoji, avoidWith });
+    out.push({ word: word.toUpperCase(), meaning, pos: pos||"單字", example, emoji, avoidWith });
   });
   return out;
-}
-function wordsConflict(a,b){
-  const ak=String(a&&a.word||'').toLowerCase(), bk=String(b&&b.word||'').toLowerCase();
-  return (a&&a.avoidWith||[]).includes(bk) || (b&&b.avoidWith||[]).includes(ak);
 }
 function applyShipData(payload){
   payload = GameData.prepare(payload);
   const next=normalizeShipWords(payload&&payload.words);
   if (!GameData.report(payload, next, 4, '#start-screen', '需有英文與中文。')) return false;
-  builtinSource = payload&&payload.builtin===true;
   wordBank = next;
+  shipClozes = ClozeBank.build(wordBank, {builtin:payload.builtin === true});
   if(typeof refreshModeUI==='function') refreshModeUI();   // 依來源更新模式灰化與全圖檔開關
 }
 function readShipHash(){
@@ -2487,14 +2486,14 @@ GameSetup.register({
       shipTextQuestion=value;
       try{localStorage.setItem('sgShipTextQuestion',value);}catch(e){}
     },
-    available:()=>wordBank.some(hasSentenceCloze),
-    unavailableHint:'這份題庫需要至少 1 個有填空例句的單字才能使用句子題。'
+    available:()=>sentenceTargets(2).length > 0,
+    unavailableHint:'這組單字無法組出有 2 個明確錯誤選項的填空題。'
   },
   syncExtra:type=>{
     const input=document.getElementById('ship-sentences');
     document.getElementById('ship-advanced').hidden=type!=='mixed';
-    input.disabled=type!=='mixed'||!wordBank.some(hasSentenceCloze);
-    document.getElementById('ship-sentence-note').textContent=input.disabled?'這份題庫缺少可填空的例句。':'勾選後，部分文字回合會以例句填空出題。';
+    input.disabled=type!=='mixed'||!sentenceTargets(2).length;
+    document.getElementById('ship-sentence-note').textContent=input.disabled?'這組單字無法組出有 2 個明確錯誤選項的填空題。':'勾選後會穿插填空題。若當回合的選項不足，改練單字。';
   },
   hasPictures:hasPicBank, count:()=>wordBank.length, getDifficulty:()=>selectedShipMode, setDifficulty:selectShipMode,
   hints:{simple:'BOSS 較慢，敵方狙擊手不會反擊。',hard:'BOSS 較快，敵方狙擊手會反擊。'}
