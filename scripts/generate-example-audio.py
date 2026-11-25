@@ -20,11 +20,13 @@ def load_sentences():
     script = """const fs = require('node:fs'), vm = require('node:vm');
 global.window=global;
 require('./data/wordbank.js');
+require('./data/reading-examples.js');
 require('./games/word-example.js');
 const bank=WORD_BANK.getWords();
 const html=fs.readFileSync('games/sniper.html','utf8');
 const fallback=vm.runInNewContext(html.match(/const BUILTIN = (\\[[\\s\\S]*?\\n\\]);/)[1]);
 const entries=bank.concat(fallback.map(w=>({word:w.word.toLowerCase(),example:w.example})));
+for (const [word, reading] of READING_EXAMPLES) entries.push({word, sentence:reading.sentence});
 console.log(JSON.stringify(entries.map(w=>({word:w.word, sentence:WordExample.text(w)}))));"""
     entries = json.loads(subprocess.check_output(['node', '-e', script], cwd=ROOT))
     unique = {}

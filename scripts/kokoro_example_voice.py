@@ -24,6 +24,8 @@ SENTENCE_SPEEDS = {
     'He used a plunger to clear the blocked toilet.': 0.86,
     'She cut the small brown kiwi in half and the inside was bright green.': 0.86,
     'The tall lighthouse flashed its bright light to help ships stay safe.': 0.91,
+    'We watched planes at the airport.': 0.87,
+    'The snail carries its shell everywhere.': 0.87,
 }
 
 

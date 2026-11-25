@@ -4,7 +4,7 @@
 
 首頁「預覽單字」與《狙擊暗殺》的錯題畫面共用 Kokoro 的美式女聲 `af_heart`，預設語速為 0.94 倍，少數句子為了聽清楚子音再放慢。點「聽例句」會播放與畫面完整句子相符的 MP3。相同句子可以共用錄音，同一個字搭配不同句子時各自對應音檔。單字的口音選擇只套用到「聽單字」。
 
-內建主題、狙擊備用題庫更新後，可以在 Mac 上重新執行產檔工具。產檔需 Node、FFmpeg、LAME，以及裝有 NumPy、ONNX Runtime、Misaki 英語 G2P（含 eSpeak fallback）和 spaCy `en_core_web_sm` 的 Python 環境。提供 Kokoro v1.0 ONNX 模型、`af_heart` 原始 float32 聲線檔及對應的 tokenizer JSON。模型和依賴裝好後可在本機離線產檔。學生播放時由遊戲站提供 MP3。
+首頁的兒童短句與繁中翻譯收在 `data/reading-examples.js`。遊戲填空題使用 `data/wordbank.js` 中含線索的句子。更新短句、內建主題或狙擊備用題庫後，可以在 Mac 上重新執行產檔工具。產檔需 Node、FFmpeg、LAME，以及裝有 NumPy、ONNX Runtime、Misaki 英語 G2P（含 eSpeak fallback）和 spaCy `en_core_web_sm` 的 Python 環境。提供 Kokoro v1.0 ONNX 模型、`af_heart` 原始 float32 聲線檔及對應的 tokenizer JSON。模型和依賴裝好後可在本機離線產檔。學生播放時由遊戲站提供 MP3。
 
 ```sh
 python3 scripts/generate-example-audio.py --dry-run

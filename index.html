@@ -102,19 +102,27 @@
     #vocab-preview { margin-top: 14px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(7,13,26,.6); }
     .vocab-preview-head { gap: 8px 14px; margin-bottom: 12px; }
     #vocab-preview-title { color: var(--text); font-size: 15px; font-weight: 800; }
-    .vocab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); align-items: start; gap: 8px; max-height: 340px; overflow-y: auto; }
-    .vocab-card { min-width: 0; overflow-wrap: anywhere; border: 1px solid rgba(255,255,255,.12); border-radius: 11px; background: rgba(255,255,255,.045); }
-    .vocab-item { display: block; width: 100%; padding: 10px 12px; cursor: pointer; text-align: left; font: inherit; line-height: 1.35; color: inherit; border: 0; border-radius: 10px; background: transparent; }
-    .vocab-item:hover, .vocab-example summary:hover { background: rgba(255,224,110,.09); }
+    .vocab-grid { --card-min: 190px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-min)), 1fr)); gap: 10px 8px; max-height: clamp(260px, 56vh, 520px); overflow-y: auto; }
+    .vocab-card { display: flex; flex-direction: column; position: relative; min-width: 0; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.045); }
+    .vocab-card.is-open { border-color: var(--cyan); box-shadow: inset 0 0 0 1px var(--cyan); background: rgba(77,217,255,.09); }
+    .vocab-card.is-open::after { content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 8px solid transparent; border-bottom: 0; border-top-color: var(--cyan); }
+    .vocab-item { flex: 1; display: block; width: 100%; min-height: 44px; padding: 10px 12px; cursor: pointer; text-align: left; font: inherit; line-height: 1.35; color: inherit; border: 0; border-radius: 10px; background: transparent; }
+    .vocab-item:hover, .example-toggle:hover { background: rgba(255,224,110,.09); }
     .vocab-item:active { transform: scale(.98); }
     .vocab-en { display: block; color: #ffe06e; font-size: 14px; font-weight: 900; }
     .vocab-zh { display: block; margin-top: 3px; color: #aebbd0; font-size: 12px; }
-    .vocab-example { border-top: 1px solid var(--line); }
-    .vocab-example summary { min-height: 44px; padding: 11px 12px; color: var(--cyan); cursor: pointer; font-size: 14px; line-height: 22px; }
-    .vocab-example p { margin: 0; padding: 0 12px 12px; font: 16px/1.5 Arial, sans-serif; }
+    .example-toggle { min-height: 44px; padding: 9px 12px; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; color: var(--cyan); background: transparent; text-align: left; cursor: pointer; font-size: 14px; font-weight: 700; }
+    .example-toggle::before { content: ""; display: inline-block; margin-right: 7px; border-style: solid; border-width: 5px 0 5px 8px; border-color: transparent transparent transparent currentColor; }
+    .example-toggle[aria-expanded="true"]::before { transform: rotate(90deg); }
+    .vocab-example { grid-column: 1 / -1; min-width: 0; padding: 16px 20px; border: 1px solid #40526c; border-radius: 12px; background: #1b2639; }
+    .vocab-example:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 18px; }
+    .example-copy { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+    .example-copy p { margin: 0; }
+    .example-en { font: 700 clamp(18px, 2.2vw, 24px)/1.4 Arial, sans-serif; }
+    .example-copy .example-zh { margin-top: 4px; color: #c3cfe0; font-size: 16px; line-height: 1.5; }
     .vocab-example strong { color: var(--yellow); }
-    .vocab-example .voice-option { margin: 0 12px 12px; }
-    .vocab-card :is(button, summary):focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
+    #example-play::before { content: "🔊"; margin-right: 6px; }
+    .vocab-grid button:focus-visible { outline: 2px solid #fff; outline-offset: -3px; }
     .games-section { margin-top: 48px; }
     .games-section .section-head { margin-bottom: 20px; }
     .games-count { margin-left: auto; color: var(--muted); font-size: 13px; font-weight: 800; }
@@ -161,6 +169,9 @@
       .panel { padding: 20px 14px; border-radius: 22px; }
       .source-cards, .grid { grid-template-columns: 1fr; }
       .vocab-toggle { width: 100%; }
+      .vocab-grid { --card-min: 128px; }
+      #vocab-preview { padding: 12px; }
+      .vocab-example { padding: 12px 14px; }
       .games-section { margin-top: 36px; }
       .game-card, .game-card.foundation { grid-column: auto; min-height: 210px; }
       .games-count { display: none; }
@@ -242,7 +253,15 @@
             <button type="button" class="voice-option" data-voice="female" aria-pressed="true">女聲</button>
           </div>
         </div>
-        <div class="vocab-grid" id="vocab-grid"></div>
+        <div class="vocab-grid" id="vocab-grid">
+          <section class="vocab-example" id="vocab-example" hidden>
+            <div class="example-copy">
+              <p class="example-en" id="example-en" lang="en"></p>
+              <p class="example-zh" id="example-zh" lang="zh-TW"></p>
+            </div>
+            <button id="example-play" type="button" class="voice-option">聽例句</button>
+          </section>
+        </div>
       </div>
       <div id="theme-section" style="display:none">
         <div class="section-head" style="margin-top:22px;margin-bottom:12px">
@@ -365,6 +384,7 @@
     <p class="note">選「系統主題單字」可複選練習主題；選「本次段考單字」則需由學生教材頁進入。記憶翻牌使用獨立題庫，<span id="memory-game-note">會在新分頁開啟</span>。內建單字與例句使用 AI 合成語音。單字可切換口音，例句採美式女聲。</p>
   </main>
   <script src="./data/wordbank.js"></script>
+  <script src="./data/reading-examples.js"></script>
   <script src="./data/word-audio-manifest.js"></script>
   <script src="./data/word-audio-profiles.js"></script>
   <script src="./games/word-audio.js"></script>
@@ -542,6 +562,10 @@
     const vocabToggleBtn = document.getElementById('vocab-toggle-btn');
     const vocabPreview = document.getElementById('vocab-preview');
     const vocabGrid = document.getElementById('vocab-grid');
+    const examplePanel = document.getElementById('vocab-example');
+    const exampleEn = document.getElementById('example-en');
+    const exampleZh = document.getElementById('example-zh');
+    const examplePlay = document.getElementById('example-play');
     const vocabTitle = document.getElementById('vocab-preview-title');
     const vocabToggleLabel = document.getElementById('vocab-toggle-label');
     const audioStatus = document.getElementById('vocab-audio-status');
@@ -667,15 +691,72 @@
       } catch(e){}
     }
 
-    function buildVocabPreview(){
+    let openExample = null;
+    function closeExample(){
+      if(!openExample) return;
+      const {card, toggle, entry} = openExample;
       window.ExampleAudio?.stop();
+      card.classList.remove('is-open');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', '看 ' + entry.word + ' 的例句');
+      toggle.textContent = '看例句';
+      examplePanel.hidden = true;
+      openExample = null;
+    }
+    function positionExample(){
+      if(!openExample || !vocabOpen) return;
+      // Auto-fill resolves to one pixel width per visible grid column.
+      const columns = getComputedStyle(vocabGrid).gridTemplateColumns.split(/\s+/).length;
+      examplePanel.style.gridRowStart = Math.floor(openExample.index / columns) + 2;
+    }
+    if('ResizeObserver' in window) new ResizeObserver(positionExample).observe(vocabGrid);
+    else window.addEventListener('resize', positionExample);
+
+    function toggleExample(card, toggle, entry, index){
+      const wasOpen = openExample?.card === card;
+      closeExample();
+      if(wasOpen) return;
+      openExample = {card, toggle, entry, index};
+      toggle.textContent = '收起例句';
+      toggle.setAttribute('aria-expanded', 'true');
+      toggle.setAttribute('aria-label', '收起 ' + entry.word + ' 的例句');
+      card.classList.add('is-open');
+      WordExample.render(exampleEn, entry);
+      exampleZh.textContent = entry.sentence_chinese;
+      exampleZh.hidden = !entry.sentence_chinese;
+      examplePlay.hidden = !window.ExampleAudio?.has(entry);
+      examplePlay.textContent = '聽例句';
+      examplePanel.setAttribute('aria-label', entry.word + ' 的例句');
+      // Keep the reading panel next in keyboard order, even for the first card in a row.
+      card.after(examplePanel);
+      positionExample();
+      examplePanel.hidden = false;
+      const grid = vocabGrid.getBoundingClientRect();
+      const top = card.getBoundingClientRect().top - grid.top;
+      const bottom = examplePanel.getBoundingClientRect().bottom - grid.bottom;
+      if(top < 0) vocabGrid.scrollTop += top;
+      else if(bottom > 0) vocabGrid.scrollTop += Math.min(top, bottom);
+    }
+    examplePlay.addEventListener('click', () => {
+      if(!openExample) return;
+      deviceVoice.hidden = true;
+      audioStatus.textContent = '';
+      ExampleAudio.play(openExample.entry, examplePlay);
+    });
+
+    function buildVocabPreview(){
+      closeExample();
       const source = practicePicker?.isDaily() ? practicePicker.words() : practiceSource().words;
-      const words = source.filter(w => w && typeof w === 'object').map(w => ({
-        word: w.word || w.en || w.phrase || '',
-        chinese: w.chinese || w.zh || w.meaning || w.translation || w.definition || '',
-        emoji: w.emoji || w.icon || w.sticker || '',
-        sentence: w.sentence || w.example || ''
-      }));
+      const words = source.filter(w => w && typeof w === 'object').map(w => {
+        const word = w.word || w.en || w.phrase || '';
+        const reading = scope === 'builtin' && window.READING_EXAMPLES?.get(word);
+        return {
+          word, chinese: w.chinese || w.zh || w.meaning || w.translation || w.definition || '',
+          emoji: w.emoji || w.icon || w.sticker || '',
+          sentence: reading ? reading.sentence : w.sentence || w.example || '',
+          sentence_chinese: reading ? reading.sentence_chinese : w.sentence_chinese || ''
+        };
+      });
       if(lastPreviewWord && !words.some(w => w.word === lastPreviewWord)){
         lastPreviewWord = '';
         deviceVoice.hidden = true;
@@ -683,8 +764,8 @@
         if(window.WordAudio) WordAudio.stop();
       }
       vocabTitle.textContent = `共 ${words.length} 個單字・點單字聽發音`;
-      vocabGrid.innerHTML = '';
-      words.forEach(w => {
+      vocabGrid.replaceChildren(examplePanel);
+      words.forEach((w, index) => {
         const card = document.createElement('div');
         card.className = 'vocab-card';
         const listen = document.createElement('button');
@@ -705,32 +786,16 @@
           playPreviewClip(w.word);
         });
         card.append(listen);
-        const sentence = document.createElement('p');
-        sentence.lang = 'en';
-        if(WordExample.render(sentence, w)){
-          const example = document.createElement('details');
-          example.className = 'vocab-example';
-          const toggle = document.createElement('summary');
+        if(WordExample.text(w)){
+          const toggle = document.createElement('button');
+          toggle.type = 'button';
+          toggle.className = 'example-toggle';
           toggle.textContent = '看例句';
+          toggle.setAttribute('aria-controls', examplePanel.id);
+          toggle.setAttribute('aria-expanded', 'false');
           toggle.setAttribute('aria-label', `看 ${w.word} 的例句`);
-          example.append(toggle, sentence);
-          if(window.ExampleAudio?.has(w)){
-            const playSentence = document.createElement('button');
-            playSentence.type = 'button';
-            playSentence.className = 'voice-option';
-            playSentence.textContent = '聽例句';
-            playSentence.title = `播放 ${w.word} 的美式女聲例句`;
-            playSentence.addEventListener('click', () => {
-              deviceVoice.hidden = true;
-              audioStatus.textContent = '';
-              ExampleAudio.play(w, playSentence);
-            });
-            example.addEventListener('toggle', () => {
-              if(!example.open) ExampleAudio.stop(playSentence);
-            });
-            example.append(playSentence);
-          }
-          card.append(example);
+          toggle.addEventListener('click', () => toggleExample(card, toggle, w, index));
+          card.append(toggle);
         }
         vocabGrid.appendChild(card);
       });
@@ -743,6 +808,7 @@
       vocabToggleBtn.setAttribute('aria-expanded', vocabOpen ? 'true' : 'false');
       if(vocabOpen) buildVocabPreview();
       else {
+        closeExample();
         lastPreviewWord = '';
         deviceVoice.hidden = true;
         audioStatus.textContent = '';
