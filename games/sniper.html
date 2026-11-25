@@ -96,6 +96,7 @@
   body.dev-tablet .pad-btn .ico { font-size: 36px; }
   body.dev-tablet #controls { padding: 26px 32px; }
   body.left-handed #controls { flex-direction: row-reverse; }
+  .control-setting { display:grid; grid-template-columns:5em minmax(0,1fr); align-items:center; gap:8px; margin-top:10px; font-size:15px; }
   .set-row { pointer-events: auto; background: rgba(15,23,42,0.8); color: #e2e8f0;
     border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 14px 18px;
     font-size: 15px; cursor: pointer; text-align: left; }
@@ -306,12 +307,29 @@
       </div>
     </details>
   </div>
-  <div id="theme-pick" style="margin-top:16px;width:min(640px,92vw)">
-    <div style="color:#fbbf24;font-size:14px;font-weight:700;margin-bottom:8px">📚 選擇練習主題（可複選，不選＝全部）</div>
-    <div id="theme-chips" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center"></div>
-    <p style="font-size:12px;color:#94a3b8;margin-top:8px">由學生頁面開啟、帶入段考單字時，會自動改用段考單字。</p>
-  </div>
-  <details id="sniper-advanced" class="sg-advanced"><summary>進階設定</summary></details>
+  <details id="sniper-advanced" class="sg-advanced">
+    <summary>進階設定</summary>
+    <div class="control-setting">
+      <strong id="pinch-label">雙指縮放</strong>
+      <div class="sg-options sg-two-options" role="group" aria-labelledby="pinch-label" aria-describedby="pinch-hint">
+        <button type="button" data-setting="pinchInvert" value="0" aria-pressed="true">標準</button>
+        <button type="button" data-setting="pinchInvert" value="1" aria-pressed="false">反轉</button>
+      </div>
+    </div>
+    <p class="sg-note" id="pinch-hint"></p>
+    <div class="control-setting">
+      <strong id="hand-label">慣用手</strong>
+      <div class="sg-options sg-two-options" role="group" aria-labelledby="hand-label">
+        <button type="button" data-setting="leftHanded" value="1" aria-pressed="false">開火在左</button>
+        <button type="button" data-setting="leftHanded" value="0" aria-pressed="true">開火在右</button>
+      </div>
+    </div>
+    <div id="theme-pick" style="margin-top:16px;width:100%">
+      <div style="color:#fbbf24;font-size:14px;font-weight:700;margin-bottom:8px">📚 選擇練習主題（可複選，不選＝全部）</div>
+      <div id="theme-chips" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center"></div>
+      <p style="font-size:12px;color:#94a3b8;margin-top:8px">由學生頁面開啟、帶入段考單字時，會自動改用段考單字。</p>
+    </div>
+  </details>
   <div class="step-label" data-sg-legacy="true">② 題目內容</div>
   <div id="allpic-row"><button class="btn pick-btn" id="allpic-mix">混合練習（推薦）</button><button class="btn pick-btn" id="allpic-only">只玩圖片題</button></div>
   <div id="mix-desc" style="display:none;font-size:13px;color:#94a3b8;margin-top:8px">混合練習：交替出現中英文字題與英文／發音選圖片；簡單圖片較多、困難文字較多。</div>
@@ -324,18 +342,6 @@
   <div id="mode-hint"></div>
   <button class="btn mobile-start-cta" id="start-sniper-btn">開始遊戲</button>
   <button class="btn pick-btn game-menu-return" type="button" onclick="location.href='../index.html'+location.hash">← 返回遊戲選單</button>
-  <button id="open-settings" style="margin-top:14px;background:rgba(255,255,255,0.08);color:#cbd5e1;border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:8px 18px;font-size:13px;cursor:pointer">⚙️ 操控設定</button>
-</div>
-
-<!-- 設定面板 -->
-<div class="overlay hide" id="settings-overlay">
-  <h1 style="font-size:32px">⚙️ 操控設定</h1>
-  <div style="display:flex;flex-direction:column;gap:14px;margin-top:18px;width:min(420px,90vw)">
-    <button class="set-row" id="set-pinch">雙指縮放方向：標準</button>
-    <button class="set-row" id="set-hand">慣用手：左手（開火在左）</button>
-  </div>
-  <p class="help" id="settings-desc" style="margin-top:14px"></p>
-  <button class="btn" id="settings-close">完成</button>
 </div>
 
 <!-- 軍火商商店 -->
@@ -2518,11 +2524,11 @@ function syncPhoneOrientation(){
 /* ---------- 設定(可交換操控, 存 localStorage) ---------- */
 const SETTINGS = {
   pinchInvert: false, // 雙指方向: false=張開進鏡/縮合收鏡(標準), true=相反
-  leftHanded: true,   // 預設右下開鏡、左下射擊；保留玩家已儲存的慣用手
+  leftHanded: false,  // 預設開火在右
 };
 try{
   SETTINGS.pinchInvert = localStorage.getItem('sniperPinchInvert') === '1';
-  SETTINGS.leftHanded  = localStorage.getItem('sniperLeftHanded') !== '0';
+  SETTINGS.leftHanded  = localStorage.getItem('sniperLeftHanded') === '1';
 }catch(e){}
 
 /* ---------- 輸入(對齊 ship.html 的 aim 模式) ---------- */
@@ -2686,16 +2692,16 @@ trainingPanel.addEventListener('click',()=>{
 trainingPanel.addEventListener('keydown',e=>{if(e.repeat)e.preventDefault();});
 
 /* ---------- 設定面板(可交換操控) ---------- */
+const controlChoices = document.querySelectorAll('#sniper-advanced button[data-setting]');
 function applySettings(){
   document.body.classList.toggle('left-handed', SETTINGS.leftHanded);
-  const pinch = document.getElementById('set-pinch');
-  const hand = document.getElementById('set-hand');
-  if(pinch) pinch.textContent = '雙指縮放方向：' + (SETTINGS.pinchInvert ? '相反' : '標準');
-  if(hand) hand.textContent = '慣用手：' + (SETTINGS.leftHanded ? '左手（開火在左）' : '右手（開火在右）');
-  const desc = document.getElementById('settings-desc');
-  if(desc) desc.innerHTML = SETTINGS.pinchInvert
-    ? '雙指<b>縮合</b>進瞄準鏡、<b>張開</b>收鏡（與直覺相反，適合部分人）'
-    : '雙指<b>張開</b>進瞄準鏡、<b>縮合</b>收鏡（標準）';
+  for (const choice of controlChoices) {
+    const selected = SETTINGS[choice.dataset.setting] === (choice.value === '1');
+    choice.setAttribute('aria-pressed', String(selected));
+  }
+  document.getElementById('pinch-hint').textContent = SETTINGS.pinchInvert
+    ? '雙指捏合開鏡，張開收鏡。'
+    : '雙指張開開鏡，捏合收鏡。';
 }
 function saveSettings(){
   try{
@@ -2704,10 +2710,13 @@ function saveSettings(){
   }catch(e){}
 }
 applySettings();
-document.getElementById('open-settings').addEventListener('click', ()=> document.getElementById('settings-overlay').classList.remove('hide'));
-document.getElementById('settings-close').addEventListener('click', ()=> document.getElementById('settings-overlay').classList.add('hide'));
-document.getElementById('set-pinch').addEventListener('click', ()=>{ SETTINGS.pinchInvert = !SETTINGS.pinchInvert; saveSettings(); applySettings(); });
-document.getElementById('set-hand').addEventListener('click', ()=>{ SETTINGS.leftHanded = !SETTINGS.leftHanded; saveSettings(); applySettings(); });
+for (const choice of controlChoices) {
+  choice.addEventListener('click', () => {
+    SETTINGS[choice.dataset.setting] = choice.value === '1';
+    saveSettings();
+    applySettings();
+  });
+}
 
 /* ---------- 流程控制 ---------- */
 function startGame(m){
@@ -2735,7 +2744,6 @@ function startGame(m){
   document.getElementById('supply-overlay').classList.add('hide');
   document.getElementById('start-overlay').classList.add('hide');
   document.getElementById('end-overlay').classList.add('hide');
-  document.getElementById('settings-overlay').classList.add('hide');
   document.getElementById('pause-overlay').classList.add('hide');
   document.getElementById('pause-btn').style.display = 'block';
   audio();
@@ -2981,7 +2989,6 @@ function returnToMainMenu(){
   document.getElementById('shop-overlay').classList.add('hide');
   document.getElementById('end-overlay').classList.add('hide');
   document.getElementById('supply-overlay').classList.add('hide');
-  document.getElementById('settings-overlay').classList.add('hide');
   document.getElementById('start-overlay').classList.remove('hide');
   document.getElementById('pause-btn').style.display = 'none';
   document.getElementById('fire-btn').disabled = true;
@@ -3026,9 +3033,6 @@ GameSetup.register({
   hints:{simple:'每層最多 2 段石牆；目標較慢、無風，射偏不觸發反擊。第 4、7 關後屋頂敵人限時 10 秒，逾時扣 1 顆生命；存活後免費選彈藥或生命補給。',hard:'有限穿甲彈、商店與風偏；射偏需收鏡躲避。第 3 關後可能遭遇屋頂敵襲，暫停英文計時，10 秒未擊倒扣 1 顆生命。'}
 });
 document.getElementById('theme-chips').addEventListener('click',()=>setTimeout(()=>GameSetup.refresh(),0));
-// 收起額外設定，主畫面保留一致的兩組選項。
-document.getElementById('sniper-advanced').append(document.getElementById('open-settings'), document.getElementById('theme-pick'));
-document.getElementById('theme-pick').style.width='100%';
 
 // 實機排查專用；一般遊戲不載入診斷程式，也不收集紀錄。
 if(new URLSearchParams(location.search).get('debugControls')==='1'){
