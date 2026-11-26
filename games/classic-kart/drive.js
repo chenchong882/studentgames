@@ -24,17 +24,17 @@
   setting(engine, 'nitroTime', '儲存氮氣秒數', 2.7, 1, 5, .1, 's');
   setting(engine, 'quizTime', '答對獎勵秒數', 2.5, 1, 5, .1, 's');
   setting(engine, 'penaltyTime', '答錯緩速秒數', 1.8, .7, 4, .1, 's');
-  setting(tire, 'steerLow', '低速最大舵角', 33, 15, 46, 1, '°');
-  setting(tire, 'steerHigh', '高速最大舵角', 11.5, 6, 17, .5, '°');
-  setting(tire, 'steerResponse', '方向盤反應', 6.4, 3, 12, .2, '/s');
+  setting(tire, 'steerLow', '低速最大舵角', 35, 15, 46, 1, '°');
+  setting(tire, 'steerHigh', '高速最大舵角', 12.5, 6, 17, .5, '°');
+  setting(tire, 'steerResponse', '方向盤反應', 7.2, 3, 12, .2, '/s');
   setting(tire, 'frontStiffness', '前輪側向剛度', 154, 100, 240, 2);
   setting(tire, 'rearStiffness', '後輪側向剛度', 192, 110, 270, 2);
   setting(tire, 'yawDamping', '車身迴轉阻尼', 6.6, 4, 15, .1, '/s');
   setting(slide, 'entryTime', '入甩反應時間', .035, .02, .12, .005, 's');
   setting(slide, 'driftRearGrip', '甩尾後輪抓地比例', .37, .25, .85, .01);
-  setting(slide, 'driftSteer', '甩尾舵角倍率', 1.55, 1, 1.75, .05);
+  setting(slide, 'driftSteer', '甩尾舵角倍率', 1.65, 1, 1.75, .05);
   setting(slide, 'driftCarry', '放開甩尾後續滑時間', .58, .18, .9, .02, 's');
-  setting(slide, 'gripReturn', '後輪回抓速率', 2.4, 1.1, 5, .1, '/s');
+  setting(slide, 'gripReturn', '後輪回抓速率', 3.9, 1.1, 5, .1, '/s');
   setting(slide, 'scrub', '大角度側滑失速', 17, 5, 32, 1, 'm/s²');
   setting(slide, 'chargeRate', '甩尾集氣速率', .9, .2, 1.4, .05, '/s');
   setting(slide, 'miniTime', '小噴持續時間', .56, .25, 1, .01, 's');
@@ -52,15 +52,19 @@
   // Secondary chassis constants stay together with the live calibration.
   Object.assign(config, {
     fixedStep: 1 / 120, collisionRadius: 1.14, wallRestitution: .1,
-    wallSpeedRetention: .87, wallImpactSpeed: 5, wallDebounce: .35, frontAxle: 1.08, rearAxle: 1.15, yawInertia: 2.5, tireDragFraction: .36,
+    wallSpeedRetention: .87, wallImpactSpeed: 5, wallDebounce: .35, wallReleaseGap: .55,
+    frontAxle: 1.08, rearAxle: 1.15, yawInertia: 2.5, tireDragFraction: .36,
     frontLimit: 55, rearLimit: 65, slipFloorSpeed: 7, angularDrag: 1.15,
     rollingDrag: .60, aeroDrag: .00092, overspeedDrag: .85, throttleTaper: 8,
     reverseAcceleration: 8, lowSpeedCrossover: 1.0, slowSpeed: 86, penaltyBrake: 24,
     launchLead: 1, launchGrace: .5,
     penaltyOnset: .15, entryYawImpulse: 3.35, driftMinSpeed: 11.5, gripRelease: 32,
     skidMinSpeed: 7, bodySkidAngle: .115, rearSkidAngle: 3.5 * rad, skidGrip: .93,
-    counterGrip: .75, counterSteerResponse: 1.5, qualifyingSlip: 8 * rad, qualifyingTime: .22,
+    counterSteerResponse: 1.85, alignmentRate: 4.5, alignmentResponse: 7,
+    shallowSlide: 6 * rad, deepSlide: 27 * rad, deepSlideSpeedLoss: .33, slideScrubRate: 4.4,
+    qualifyingSlip: 8 * rad, qualifyingTime: .22,
     settledSlip: 4 * rad, miniWindow: .86, miniForce: 10.5,
+    miniAutoDelay: .8,
     miniSpeedGain: 23, slots: 2, speedSteerFalloff: 21, cameraBodyMix: .25,
     aimHeight: 1.08, farDistance: 2.7, farHeight: 1.25, farLookAhead: 1.8,
     cameraBoostIn: 3.6, cameraBoostOut: 2.05, gridHalfSpan: 15, gridViewSeconds: 1.4
@@ -79,11 +83,30 @@
       x: pose.x, z: pose.z, vx: 0, vz: 0, yaw: Math.atan2(pose.tx, -pose.tz),
       yawRate: 0, speed: 0, slip: 0, rearSlip: 0, skidding: false, steer: 0, wheelAngle: 0,
       phase: 'grip', grip: 1, entryLoad: 0, driftSide: 0, driftSeconds: 0, effectiveSeconds: 0,
-      driftLatched: false, releasedFor: 0, driftFinished: false, miniReady: 0,
-      throttleLifted: false, cameraState: null, wallCooldown: 0
+      driftLatched: false, driftEntrySpeed: 0, releasedFor: 0, miniReady: 0,
+      rewardChargeBefore: null, rewardStockBefore: 0,
+      throttleLifted: false, cameraState: null, wallCooldown: 0, wallContact: false
     });
   }
   function resolveWallContact(car, nx, nz, penetration) {
+    // The solver advances before checking the rail. Discard only this tick's
+    // provisional drift credit, including a tank it might just have filled.
+    if (Number.isFinite(car.rewardChargeBefore)) {
+      car.charge = car.rewardChargeBefore;
+      car.stock = car.rewardStockBefore;
+      car.rewardChargeBefore = null;
+    }
+    if (!car.wallContact) car.yawRate = 0;
+    car.wallContact = true;
+    car.phase = 'grip';
+    car.grip = 1;
+    car.driftSide = car.driftSeconds = car.effectiveSeconds = car.entryLoad = 0;
+    car.miniReady = car.miniTimer = 0;
+    car.skidding = false;
+    if (car.boostKind === 'mini') {
+      car.boostKind = '';
+      car.boosting = false;
+    }
     car.x -= nx * penetration;
     car.z -= nz * penetration;
     const outward = car.vx * nx + car.vz * nz;
@@ -97,16 +120,20 @@
       }
     }
     car.speed = Math.hypot(car.vx, car.vz);
+    const forward = car.vx * Math.sin(car.yaw) - car.vz * Math.cos(car.yaw);
+    car.slip = forward > 1 ? arc(car.yaw - Math.atan2(car.vx, -car.vz)) : 0;
+    car.rearSlip = 0;
   }
 
   function constrainToRoad(car, projection, halfWidth, dt, rightHalfWidth = halfWidth) {
     const side = Math.sign(projection.lateral);
     const rim = (side > 0 ? rightHalfWidth : halfWidth) - config.collisionRadius;
-    const hit = Math.abs(projection.lateral) > rim;
+    const hit = Math.abs(projection.lateral) >= rim;
     if (hit) {
       resolveWallContact(car, -projection.tz * side, projection.tx * side, Math.abs(projection.lateral) - rim);
       projection.lateral = side * rim;
-    }
+    } else if (rim - Math.abs(projection.lateral) >= config.wallReleaseGap) car.wallContact = false;
+    car.rewardChargeBefore = null;
     car.wallCooldown = Math.max(0, car.wallCooldown - dt);
     return hit;
   }
@@ -141,72 +168,76 @@
     car.launchTimer = 0;
     car.quizTimer = 0;
     car.miniTimer = car.miniReady = 0;
+    car.effectiveSeconds = 0;
     car.boostKind = '';
     car.boosting = false;
   }
   function openMiniWindow(car, throttle) {
-    if (car.effectiveSeconds >= config.qualifyingTime) {
+    if (car.miniReady <= 0 && car.penalty <= 0 && !car.wallContact && car.effectiveSeconds >= config.qualifyingTime) {
       car.miniReady = config.miniWindow;
       car.throttleLifted = !throttle;
     }
     car.effectiveSeconds = 0;
   }
   function useMini(car) {
-    if (car.miniReady <= 0 || car.penalty > 0) return false;
+    if (car.wallContact || car.miniReady <= 0 || car.penalty > 0) return false;
     car.miniReady = 0;
     car.miniTimer = config.miniTime;
     return true;
   }
   function updateDrift(car, input, steerInput, forward, dt) {
-    const requested = input.drift && forward > config.driftMinSpeed;
+    car.rewardChargeBefore = null;
+    if (car.wallContact) {
+      // A held drift button cannot re-arm between small bounces along the rail.
+      car.driftLatched = !!input.drift;
+      return;
+    }
+    const fastEnough = forward > config.driftMinSpeed;
+    const requested = input.drift && fastEnough;
     if (!input.drift) car.driftLatched = false;
     if (requested && !car.driftLatched && steerInput &&
         (car.phase === 'grip' || car.phase === 'recover')) {
       car.phase = 'entry';
       car.driftSide = steerInput;
+      car.driftEntrySpeed = car.speed;
       // A rear axle that is still sliding has less grip left to break on a second tap.
       car.entryLoad = clamp((car.grip - config.driftRearGrip) / (1 - config.driftRearGrip), 0, 1);
       car.driftLatched = true;
       car.driftSeconds = car.effectiveSeconds = car.releasedFor = 0;
-      car.driftFinished = false;
-      car.miniReady = 0;
     }
-    const active = car.phase === 'entry' || car.phase === 'slide' || car.phase === 'counter';
-    let carrying = false;
-    if (active) {
+    if (car.phase === 'entry' || car.phase === 'slide') {
       car.driftSeconds += dt;
       car.releasedFor = requested ? 0 : car.releasedFor + dt;
-      // A tap of Shift can initiate a whole corner. Keeping the same steering loads
-      // the sliding tires briefly; countersteering unloads them and ends the drift.
-      carrying = !requested && !car.driftFinished && forward > config.driftMinSpeed &&
-        steerInput === car.driftSide && car.releasedFor < config.driftCarry;
-      if (!requested && !carrying) {
-        if (!car.driftFinished) openMiniWindow(car, input.throttle);
-        car.driftFinished = true;
-        const correcting = steerInput === -car.driftSide &&
-          car.releasedFor < config.driftCarry && Math.abs(car.slip) > config.settledSlip;
-        car.phase = correcting ? 'counter' : 'recover';
-      } else if (steerInput === -car.driftSide) {
-        car.phase = 'counter';
-      } else if (car.driftSeconds > config.entryTime) {
+      // Holding the original direction briefly carries a tapped drift. Neutral
+      // begins recovery; an opposite press catches the existing slide once.
+      const loaded = steerInput === car.driftSide && fastEnough &&
+        (requested || car.releasedFor < config.driftCarry);
+      if (!loaded) {
+        openMiniWindow(car, input.throttle);
+        car.phase = steerInput === -car.driftSide ? 'counter' : 'recover';
+      } else if (car.driftSeconds >= config.entryTime) {
         car.phase = 'slide';
       }
     }
-    if (car.phase === 'recover' && car.grip > .94 && Math.abs(car.slip) < config.settledSlip) {
+    const settled = car.slip * car.driftSide <= config.settledSlip || !fastEnough;
+    if (car.phase === 'recover' && !settled && steerInput === -car.driftSide) car.phase = 'counter';
+    if (car.phase === 'counter' && (settled || steerInput !== -car.driftSide)) car.phase = 'recover';
+    if (car.phase === 'recover' && car.grip > .94 && (settled || steerInput === car.driftSide)) {
       car.phase = 'grip';
       car.driftSide = 0;
     }
     const reduced = car.phase === 'entry' || car.phase === 'slide';
-    const gripTarget = reduced ? config.driftRearGrip :
-      car.phase === 'counter' ? Math.max(config.counterGrip, config.driftRearGrip) : 1;
-    const response = gripTarget < car.grip ? config.gripRelease : config.gripReturn;
+    const gripTarget = reduced ? config.driftRearGrip : 1;
+    const response = reduced ? config.gripRelease : config.gripReturn;
     car.grip += (gripTarget - car.grip) * fade(response, dt);
 
     const slip = Math.abs(car.slip);
     // Only a moving, loaded rear axle in a genuine slide counts. A stationary spin cannot farm nitro.
-    if (active && (requested || carrying) && slip > config.qualifyingSlip && car.slip * car.driftSide > 0) {
+    if (reduced && car.penalty <= 0 && car.slip * car.driftSide > config.qualifyingSlip) {
       car.effectiveSeconds += dt;
       if (car.stock < config.slots) {
+        car.rewardChargeBefore = car.charge;
+        car.rewardStockBefore = car.stock;
         const load = clamp(slip / (.55 + slip * .45), .25, 1);
         car.charge += dt * config.chargeRate * load * clamp(forward / 36, .25, 1.25);
         if (car.charge >= 1) {
@@ -216,9 +247,16 @@
         }
       }
     }
-    car.miniReady = Math.max(0, car.miniReady - dt);
-    if (car.miniReady > 0 && !input.throttle) car.throttleLifted = true;
-    if (car.throttleLifted && input.throttle && !car.prevThrottle && !input.brake) useMini(car);
+    if (car.miniReady > 0) {
+      // On touch the pedal release restores cruise. Only a tap can spend the mini early.
+      // If the player is still braking at the deadline, fire when the pedal is released.
+      const assistAt = input.autoMini ? config.miniWindow - config.miniAutoDelay : 0;
+      car.miniReady = Math.max(assistAt, car.miniReady - dt);
+      if (!input.throttle) car.throttleLifted = true;
+      const reapplied = !input.autoThrottle && car.throttleLifted && input.throttle && !car.prevThrottle;
+      const due = input.autoMini && car.miniReady <= assistAt;
+      if ((reapplied || due) && !input.brake) useMini(car);
+    }
   }
 
   function step(car, input, dt, pace = 1) {
@@ -232,12 +270,17 @@
     const steerInput = Number(!!input.right) - Number(!!input.left);
     updateDrift(car, input, steerInput, forward, dt);
     // When catching a slide the front wheels must track the opposite input promptly.
-    const steerResponse = car.phase === 'counter' ? cfg.steerResponse * cfg.counterSteerResponse : cfg.steerResponse;
+    const catching = car.phase === 'counter';
+    const steerResponse = catching || !steerInput ? cfg.steerResponse * cfg.counterSteerResponse : cfg.steerResponse;
     car.steer += (steerInput - car.steer) * fade(steerResponse, dt);
     const highSpeedFraction = 1 / (1 + (speed / cfg.speedSteerFalloff) ** 2);
     const steerMax = cfg.steerHigh + (cfg.steerLow - cfg.steerHigh) * highSpeedFraction;
     const driftAmount = clamp((1 - car.grip) / (1 - cfg.driftRearGrip), 0, 1);
     car.wheelAngle = rad * steerMax * (1 + (cfg.driftSteer - 1) * driftAmount) * car.steer;
+    if (catching && car.wheelAngle * car.driftSide < 0) {
+      // Point into the path the tires are already travelling before steering into the next bend.
+      car.wheelAngle = -car.driftSide * Math.min(Math.abs(car.wheelAngle), Math.abs(car.slip) + cfg.settledSlip);
+    }
 
     // Each axle sees a different side velocity from the yaw rate. Project the front contact
     // into its steered wheel frame first, then return its cornering force to chassis space.
@@ -251,14 +294,23 @@
     const rearForce = -cfg.rearLimit * car.grip * Math.tanh(car.rearSlip * cfg.rearStiffness / cfg.rearLimit);
     const frontLateral = frontForce * c;
     const cornerForce = frontLateral + rearForce;
+    const tireLong = -frontForce * s;
+    const sliding = car.phase === 'entry' || car.phase === 'slide';
     // Integrate the decaying handbrake moment over this tick. A shorter time
     // delivers the same angular impulse earlier while yaw and the travel path stay continuous.
-    const handbrakeImpulse = (car.phase === 'entry' || car.phase === 'slide') ?
+    const handbrakeImpulse = sliding ?
       cfg.entryYawImpulse * car.entryLoad * car.driftSide *
         Math.exp(-(car.driftSeconds - dt) / cfg.entryTime) * fade(1 / cfg.entryTime, dt) : 0;
     const torque = (cfg.frontAxle * frontLateral - cfg.rearAxle * rearForce) / cfg.yawInertia;
     car.yawRate += (torque - (cfg.yawDamping + cfg.angularDrag * Math.abs(car.yawRate)) * car.yawRate) * dt;
     car.yawRate += handbrakeImpulse;
+    if (forward > cfg.lowSpeedCrossover && (catching || (car.phase === 'recover' && !steerInput))) {
+      // Carve along the current velocity arc as the nose realigns. The tires still
+      // turn the velocity vector continuously, including during a left/right switch.
+      const pathYawRate = (cornerForce * forward - tireLong * lateral) / (speed * speed);
+      const alignment = pathYawRate - cfg.alignmentRate * car.slip;
+      car.yawRate += (alignment - car.yawRate) * fade(cfg.alignmentResponse, dt);
+    }
 
     const penalized = car.penalty > 0;
     const largeBoost = !penalized && (car.quizTimer > 0 || car.tankTimer > 0 || car.launchTimer > 0);
@@ -271,30 +323,35 @@
       cruisingSpeed + (mini ? cfg.miniSpeedGain : 0)) / 3.6;
     const brakingPenalty = penalized && car.penalty < cfg.penaltyTime - cfg.penaltyOnset;
     if (brakingPenalty) speedLimit = cfg.slowSpeed / 3.6;
+    const bodySlip = Math.atan2(Math.abs(lateral), Math.max(1, Math.abs(forward)));
+    const slideLoad = clamp((bodySlip - cfg.shallowSlide) / (cfg.deepSlide - cfg.shallowSlide), 0, 1);
+    // Scrub approaches a fraction of this drift's entry speed. Unwinding early
+    // preserves momentum; active boost still adds its usual extra headroom.
+    const boostHeadroom = car.boosting ? Math.max(0, speedLimit - cruisingSpeed / 3.6) : 0;
+    const slideLimit = sliding ? car.driftEntrySpeed * (1 - cfg.deepSlideSpeedLoss * slideLoad) + boostHeadroom : Infinity;
     let thrust = 0;
     const drag = cfg.rollingDrag * Math.min(speed * 2, 1) + cfg.aeroDrag * speed * speed;
     if ((input.throttle || car.boosting) && !input.brake) {
       const motor = cfg.acceleration * pace + (largeBoost ? cfg.boostForce : mini ? cfg.miniForce : 0);
-      const throttle = clamp((speedLimit - forward) / cfg.throttleTaper, 0, 1);
+      const engineDemand = (speedLimit - forward) / cfg.throttleTaper;
+      const slideDemand = (slideLimit - speed) / (cfg.throttleTaper * car.grip);
+      const throttle = clamp(Math.min(engineDemand, slideDemand), 0, 1);
       thrust = motor * throttle + drag * clamp(forward / speedLimit, 0, 1);
       if (forward < -cfg.lowSpeedCrossover) thrust = cfg.braking;
     } else if (input.brake) {
       thrust = forward > cfg.lowSpeedCrossover ? -cfg.braking :
         -cfg.reverseAcceleration * clamp(1 + forward / (cfg.reverseSpeed / 3.6), 0, 1);
     }
-    const overspeed = Math.max(0, speed - speedLimit) * cfg.overspeedDrag;
+    const overspeed = Math.max(0, (speed - speedLimit) * cfg.overspeedDrag, (speed - slideLimit) * cfg.slideScrubRate);
     // Tire scrub removes kinetic energy as the car ploughs across its own path.
-    const bodySlip = Math.atan2(Math.abs(lateral), Math.max(1, Math.abs(forward)));
     const scrub = cfg.scrub * Math.sin(bodySlip) ** 2 * Math.min(1, speed / 12);
     let resistance = drag + overspeed + scrub;
     if (brakingPenalty && speed > speedLimit) resistance += cfg.penaltyBrake;
     const decel = speed > .0001 ? Math.min(resistance / speed, 1 / dt) : 0;
-    // A pneumatic tire redirects momentum largely sideways. Blend the dissipative
-    // part of its impulse with rolling contact; the separate scrub term above
-    // accounts for the sustained energy cost of an excessively wide slide.
-    const tireLong = -frontForce * s;
+    // As rear grip breaks, tire forces mostly redirect momentum. The explicit
+    // scrub above accounts for sliding friction, so a deep drift isn't charged twice.
     const tireWork = speed > .1 ? (tireLong * forward + cornerForce * lateral) / speed : 0;
-    const returned = speed > .1 ? -Math.min(0, tireWork) * (1 - cfg.tireDragFraction) / speed : 0;
+    const returned = speed > .1 ? -Math.min(0, tireWork) * (1 - cfg.tireDragFraction * car.grip) / speed : 0;
     const longitudinal = thrust + tireLong;
     car.vx += (longitudinal * fx + cornerForce * rx + (returned - decel) * car.vx) * dt;
     car.vz += (longitudinal * fz + cornerForce * rz + (returned - decel) * car.vz) * dt;
@@ -304,7 +361,7 @@
     car.speed = Math.hypot(car.vx, car.vz);
     // Positive sideslip means the nose is to the right of the forward travel direction.
     car.slip = forward > 1 ? arc(car.yaw - Math.atan2(car.vx, -car.vz)) : 0;
-    car.skidding = car.speed > cfg.skidMinSpeed && (Math.abs(car.slip) > cfg.bodySkidAngle ||
+    car.skidding = !car.wallContact && car.speed > cfg.skidMinSpeed && (Math.abs(car.slip) > cfg.bodySkidAngle ||
       (car.grip < cfg.skidGrip && Math.abs(car.rearSlip) > cfg.rearSkidAngle));
     car.launchTimer = Math.max(0, car.launchTimer - dt);
     car.quizTimer = Math.max(0, car.quizTimer - dt);

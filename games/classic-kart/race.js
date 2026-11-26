@@ -88,12 +88,39 @@
   let progress = 0, projection = track.project(car.x, car.z, 0), gateIndex = 0, deck = [], records = [], correct = 0;
   let question = null, feedbackTime = 0, goTime = 0, cameraMode = 0, dirty = true, accum = 0, last = 0;
   let pixelLimit = Math.min(window.devicePixelRatio || 1, 1.5), slowFrames = 0;
-  const keys = new Set(), pointers = new Map(), inputs = {}, requested = {}, inputEvents = [];
-  const touchInputs = {}, touchLayout = matchMedia('(any-pointer:coarse),(max-width:700px)');
+  const keys = new Set(), pointers = new Map(), inputs = { autoMini: true }, requested = {}, inputEvents = [];
+  const steeringPad = document.querySelector('.touch-steering');
+  const steeringButtons = { left: steeringPad.querySelector('[data-drive="left"]'), right: steeringPad.querySelector('[data-drive="right"]') };
+  const steeringSources = new Map();
+  let steeringDirection = null;
+  const touchInputs = { autoThrottle: true }, touchLayout = matchMedia('(any-pointer:coarse),(max-width:700px)');
   let touchDriving = matchMedia('(pointer:coarse),(max-width:700px)').matches;
   const keyMap = { ArrowUp: 'throttle', ArrowDown: 'brake', ArrowLeft: 'left', ArrowRight: 'right',
     ShiftLeft: 'drift', ShiftRight: 'drift', ControlLeft: 'nitro', ControlRight: 'nitro' };
-  const pressed = name => Object.keys(keyMap).some(key => keyMap[key] === name && keys.has(key)) || [...pointers.values()].some(b => b.dataset.drive === name);
+  const pressed = name => steeringButtons[name] ? name === steeringDirection :
+    Object.keys(keyMap).some(key => keyMap[key] === name && keys.has(key)) || [...pointers.values()].some(b => b.dataset.drive === name);
+
+  // The latest direction wins. Lifting that finger/key restores any direction still held.
+  // A pointer in the middle stays captured with a null direction until it moves or lifts.
+  function setSteering(source, direction) {
+    if (steeringSources.get(source) === direction) return;
+    steeringSources.delete(source);
+    if (direction !== undefined) steeringSources.set(source, direction);
+    const previous = steeringDirection;
+    steeringDirection = null;
+    for (const held of steeringSources.values()) {
+      if (held) steeringDirection = held;
+    }
+    if (steeringDirection === previous) return;
+    if (previous) {
+      steeringButtons[previous].classList.remove('held');
+      recordInput(previous);
+    }
+    if (steeringDirection) {
+      steeringButtons[steeringDirection].classList.add('held');
+      recordInput(steeringDirection);
+    }
+  }
 
   function holdButton(source, button) {
     const before = pointers.get(source);
@@ -144,6 +171,8 @@
     launchArmed = false;
     keys.clear();
     pointers.clear();
+    steeringSources.clear();
+    steeringDirection = null;
     inputEvents.length = 0;
     for (const name of Object.values(keyMap))
       inputs[name] = requested[name] = false;
@@ -606,8 +635,6 @@
     if (touchDriving && touchLayout.matches) {
       Object.assign(touchInputs, inputs);
       touchInputs.throttle = !inputs.brake;
-      // Give the flame button the first half of the window, then assist on touch.
-      if (!inputs.brake && car.miniReady > 0 && car.miniReady <= cfg.miniWindow / 2) drive.useMini(car);
       drive.step(car, touchInputs, dt);
     } else drive.step(car, inputs, dt);
     projection = track.project(car.x, car.z, previous.s);
@@ -623,7 +650,7 @@
     const target = gateIndex < totalGates ? Math.floor(gateIndex / track.gates.length) * track.length + track.gates[gateIndex % track.gates.length] : Infinity;
     const remaining = target - progress;
     // Once a question is on screen, braking cannot make it flicker off during approach.
-    const readingDistance = question ? 278 : clamp(45 + car.speed * 3.65, 140, 268);
+    const readingDistance = question ? 335 : clamp(45 + car.speed * 3.65, 140, 325);
     if (from < target && remaining <= 0 && ds > 0) {
       const fraction = clamp((target - from) / ds, 0, 1);
       scoreGate(gateIndex, previous.lateral + (projection.lateral - previous.lateral) * fraction);
@@ -703,12 +730,12 @@
     const list = document.createElement('dl');
     const controls = touchLayout.matches ? [
       ['起步', '倒數到 1 時按住可衝刺。起跑後自動踩油門。'],
-      ['‹ ›', '按住左、右箭頭轉向，也能滑到另一邊反打。'],
-      ['DRIFT', '按住方向鍵和 DRIFT 甩尾。出彎時小火焰亮起淡藍色，點一下就能小噴。沒點也會自動發動。'],
+      ['‹ ›', '按住箭頭轉向。拇指滑到兩鍵中間就回正，繼續滑到另一側就反打。'],
+      ['DRIFT', '按住方向鍵和 DRIFT 甩尾。外側後輪亮藍光時就能收尾。出彎後點淡藍小火焰可立即小噴，等約 0.8 秒會自動噴。'],
       ['踏板', '按住煞車，放開恢復加速。停下後繼續按住可倒車。'],
       ['N₂O', '點亮起的氮氣加速，甩尾最多存兩罐。'],
       ['回正', '點排名下方的回轉箭頭，回到賽道中央。']
-    ] : [['↑ / ↓', '油門／煞車。倒數到 1 時按住油門可衝刺起跑，停下後按煞車可倒車。'], ['← / →', '轉向，甩尾中按反方向拉正'], ['Shift', '與方向鍵同按進入甩尾，結束後鬆開再踩油門即可小噴'], ['Ctrl', '使用一格甩尾集滿的氮氣，最多存兩罐'], ['R / C', '回到賽道中央／切換跟車鏡頭'], ['Esc / T', '暫停／即時調校']];
+    ] : [['↑ / ↓', '油門／煞車。倒數到 1 時按住油門可衝刺起跑，停下後按煞車可倒車。'], ['← / →', '轉向，甩尾中按反方向拉正'], ['Shift', '配合方向鍵甩尾。出彎後點火焰或鬆開再踩油門可立即小噴，等約 0.8 秒會自動噴。'], ['Ctrl', '使用一格甩尾集滿的氮氣，最多存兩罐'], ['R / C', '回到賽道中央／切換跟車鏡頭'], ['Esc / T', '暫停／即時調校']];
     for (const [key, label] of controls) {
       const term = document.createElement('dt'), desc = document.createElement('dd'), k = document.createElement('kbd');
       k.textContent = key;
@@ -835,6 +862,10 @@
       e.preventDefault();
       if (e.repeat) return;
       if (e.code === 'ArrowUp') touchDriving = false;
+      if (steeringButtons[keyMap[e.code]]) {
+        setSteering(e.code, keyMap[e.code]);
+        return;
+      }
       keys.add(e.code);
       recordInput(keyMap[e.code]);
     }
@@ -847,6 +878,7 @@
     }
   });
   window.addEventListener('keyup', e => {
+    setSteering(e.code, undefined);
     if (pointers.has(e.code)) holdButton(e.code, null);
     keys.delete(e.code);
     recordInput(keyMap[e.code]);
@@ -863,6 +895,33 @@
   window.addEventListener('pageshow', syncAudio);
   stage.addEventListener('pointerdown', e => {
     if (e.pointerType === 'touch' && ['grid', 'matching'].includes(phase)) touchDriving = true;
+  });
+  function steerAt(e) {
+    const bounds = steeringPad.getBoundingClientRect();
+    const offset = e.clientX - (bounds.left + bounds.width / 2);
+    const neutral = clamp(bounds.width * .045, 5, 12);
+    const inside = e.clientX >= bounds.left && e.clientX <= bounds.right && e.clientY >= bounds.top && e.clientY <= bounds.bottom;
+    setSteering(e.pointerId, !inside || Math.abs(offset) <= neutral ? null : offset < 0 ? 'left' : 'right');
+  }
+  steeringPad.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    touchDriving = true;
+    steeringPad.setPointerCapture(e.pointerId);
+    steerAt(e);
+  });
+  steeringPad.addEventListener('pointermove', e => {
+    if (steeringSources.has(e.pointerId)) steerAt(e);
+  });
+  for (const event of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    steeringPad.addEventListener(event, e => {
+      if (event !== 'lostpointercapture' || e.target === steeringPad) setSteering(e.pointerId, undefined);
+    });
+  }
+  window.addEventListener('orientationchange', () => {
+    for (const source of steeringSources.keys()) {
+      if (typeof source === 'number') setSteering(source, undefined);
+    }
   });
   for (const b of document.querySelectorAll('[data-drive]')) {
     b.addEventListener('contextmenu', e => e.preventDefault());
@@ -884,24 +943,21 @@
       });
       continue;
     }
+    b.addEventListener('keydown', e => {
+      if (e.code !== 'Space' && e.code !== 'Enter') return;
+      e.preventDefault();
+      if (e.repeat) return;
+      touchDriving = true;
+      if (steeringButtons[b.dataset.drive]) setSteering(e.code, b.dataset.drive);
+      else holdButton(e.code, b);
+    });
+    if (steeringButtons[b.dataset.drive]) continue;
     b.addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
       e.preventDefault();
       touchDriving = true;
       b.setPointerCapture(e.pointerId);
       holdButton(e.pointerId, b);
-    });
-    if (b.closest('.touch-steering')) b.addEventListener('pointermove', e => {
-      if (!pointers.has(e.pointerId)) return;
-      const next = document.elementFromPoint(e.clientX, e.clientY)?.closest('.touch-steering button');
-      if (next) holdButton(e.pointerId, next);
-    });
-    b.addEventListener('keydown', e => {
-      if (e.code !== 'Space' && e.code !== 'Enter') return;
-      e.preventDefault();
-      if (e.repeat) return;
-      touchDriving = true;
-      holdButton(e.code, b);
     });
     const release = e => holdButton(e.pointerId, null);
     b.addEventListener('lostpointercapture', release);

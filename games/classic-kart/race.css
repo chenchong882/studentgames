@@ -1209,7 +1209,7 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
   }
-  #touch button.held,#touch button:enabled:active {
+  #touch button.held,#touch button:enabled:active:not([data-drive="left"]):not([data-drive="right"]) {
     --button-glass: rgba(26,85,122,.85);
     --button-edge: #adf2ff;
     color: white;
@@ -1221,6 +1221,10 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
     display: flex;
     align-items: end;
     gap: clamp(3px,.7vw,12px);
+    pointer-events: auto;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
   .touch-steering button { width: var(--steer-size); height: calc(var(--steer-size) * 1.12); }
   .touch-steering [data-drive="right"] svg { transform: scaleX(-1); }

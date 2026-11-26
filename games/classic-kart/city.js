@@ -71,6 +71,8 @@
     function roadside(s,side,distance) {
       return along(s, side*distance);
     }
+    const warningSites=track.warnings.map(q=>({...q,r:6}));
+    const nearWarning=p=>warningSites.some(q=>Math.hypot(p.x-q.x,p.z-q.z)<q.r);
     const roadTex=canvas(192,192), roadCtx=roadTex.getContext('2d');
     roadCtx.fillStyle=theme.asphalt; roadCtx.fillRect(0,0,192,192);
     for (let i=0;i<10500;i++) {
@@ -241,7 +243,7 @@
     }));
     const mansard=new T.CylinderGeometry(.49,.71,1,4,1,false,Math.PI/4);
     const roofColors=['#be6650','#aa6757','#688b93','#c67e53','#5b8990','#be7058'];
-    const sites=[];
+    const sites=warningSites.slice();
     function reserve(x,z,r) { sites.push({x,z,r}); }
     function available(x,z,r) {
       return sites.every(a=>(x-a.x)**2+(z-a.z)**2>(r+a.r)**2);
@@ -321,7 +323,7 @@
     if(sunport)for(const side of [-1,1]){
       for(let s=17;s<length;s+=range(19,26)){
         // Open waterfront promenades and park gaps reveal the large landmarks.
-        const open=(side<0 && ((s>82&&s<235)||(s>length*.57&&s<length*.63))) || (side>0 && s>720&&s<790);
+        const open=(side<0 && ((s>82&&s<235)||(s>length*.57&&s<length*.63))) || (side>0 && s>gates[1]+158&&s<gates[1]+232);
         const w=range(15,24),d=range(10,17),h=range(12,20);
         const p=roadside(s,side,22+d*.5+range(0,5));
         const r=Math.hypot(w,d)*.49;
@@ -338,6 +340,7 @@
     const flagColors=['#e66c46','#4cafa7','#f1bf58','#638daf'];
     function lamp(s,side){
       const p=roadside(s,side,halfWidth+2.1),arm=roadside(s,side,halfWidth+.95);
+      if(nearWarning(p))return;
       radial(p.x,.25,p.z,.43,.5,'#778c88');radial(p.x,2.9,p.z,.13,5.45,'#527b7d');
       tube(p.x,5.42,p.z,arm.x,5.87,arm.z,.095,'#4b777b');
       radial(arm.x,5.73,arm.z,.35,.22,'#4c6d71');
@@ -350,6 +353,7 @@
     if(sunport||night)for(let s=24;s<length;s+=32)for(const side of [-1,1])lamp(s+(side<0?11:0),side);
     if(sunport||night)for(let s=47;s<length;s+=78){
       const a=roadside(s,s%3>1?-1:1,17.1),yaw=Math.atan2(a.tx,a.tz);
+      if(nearWarning(a))continue;
       box(a.x,.63,a.z,1.05,.21,2.3,'#a4774d',yaw);
       for(const k of [-1,1])box(a.x+k*a.tx*.77,.31,a.z+k*a.tz*.77,.65,.55,.15,'#647f79',yaw);
     }
@@ -467,7 +471,35 @@
       box(x,.021,2.5,2.9,.012,.16,'#fae4ac');
       for(const dx of [-1.38,1.38])box(x+dx,.021,2.02,.15,.012,1,'#fae4ac');
     }
-    const chevron=panelTexture(128,88,c=>{
+    // Mirror the painting, not the instance scale: all boards keep a forward
+    // face, including left arrows on renderers that cull mirrored instances.
+    function arrowFaces(w,h,paint){
+      const faces={};
+      for(const direction of [-1,1]){
+        const face=panelTexture(w,h,c=>{
+          if(direction<0){c.translate(w,0);c.scale(-1,1);}
+          paint(c,w,h);
+        });
+        face.side=T.FrontSide;
+        faces[direction]=face;
+      }
+      return faces;
+    }
+    const warningFace=arrowFaces(192,112,(c,w,h)=>{
+      c.fillStyle='#243640';c.fillRect(0,0,w,h);
+      c.strokeStyle='#ffd567';c.lineWidth=5;c.strokeRect(5,5,w-10,h-10);
+      c.fillStyle='#ffe181';c.beginPath();c.moveTo(43,94);c.lineTo(43,66);
+      c.quadraticCurveTo(43,32,83,32);c.lineTo(114,32);c.lineTo(114,15);
+      c.lineTo(151,43);c.lineTo(114,73);c.lineTo(114,55);c.lineTo(86,55);
+      c.quadraticCurveTo(66,55,66,71);c.lineTo(66,94);c.fill();
+    });
+    for(const q of warningSites){
+      const yaw=Math.atan2(-q.tx,-q.tz);
+      box(q.x,1.3,q.z,.26,2.6,.26,'#726955');
+      box(q.x,3.65,q.z,5.8,3.35,.15,'#334550',yaw);
+      put(plate,warningFace[q.direction],'#fff',q.x-q.tx*.09,3.65,q.z-q.tz*.09,5.8,3.35,1,yaw);
+    }
+    const chevron=arrowFaces(128,88,c=>{
       c.fillStyle='#324e56';c.fillRect(0,0,128,88);c.fillStyle='#ffce66';c.fillRect(4,4,120,80);
       c.fillStyle='#3e5357';c.beginPath();c.moveTo(36,13);c.lineTo(64,13);c.lineTo(95,44);c.lineTo(64,75);c.lineTo(36,75);c.lineTo(65,44);c.fill();
     });
@@ -478,7 +510,7 @@
       const side=bend>0?-1:1,q=roadside(s,side,halfWidth+2.7),toward=sample(s-13);
       const yaw=Math.atan2(toward.x-q.x,toward.z-q.z);
       box(q.x,1.5,q.z,.16,2.7,.16,'#837c67');
-      put(plate,chevron,'#ffffff',q.x,2.65,q.z,bend>0?2.8:-2.8,1.7,1,yaw);
+      put(plate,chevron[Math.sign(bend)],'#ffffff',q.x,2.65,q.z,2.8,1.7,1,yaw);
     }
     function bunting(s){
       const a=roadside(s,-1,15.8),b=roadside(s,1,15.8);
@@ -517,36 +549,37 @@
     }
     if(sunport)for(let s=38;s<length;s+=57){
       const side=Math.floor(s/57)%2?1:-1,p=roadside(s,side,17);
+      if(nearWarning(p))continue;
       planter(p.x,p.z,Math.atan2(p.tz,p.tx)*-1);
     }
     if(!sunport)window.ClassicLandscapes.decorate(track,{
       T,city,plain,unlit,put,box,boxGeo,tube,radial,ball,cloudBall,cone,cylinder,plate,shadow,
-      roof:hipRoof,roofMat,panelTexture,along,roadside,range,rand,pier,ribbon
+      roof:hipRoof,roofMat,panelTexture,along,roadside,range,rand,pier,ribbon,warningSites
     });
     // Low-detail hills and roof silhouettes complete the horizon where streets open up.
     if(sunport){
       for(let i=0;i<76;i++){
         const a=i*Math.PI*2/76;
-        let x=210+Math.cos(a)*range(500,645),z=-60+Math.sin(a)*range(500,655);
+        let x=260+Math.cos(a)*range(550,695),z=-75+Math.sin(a)*range(545,700);
         const nearest=project(x,z),distance=Math.hypot(x-nearest.x,z-nearest.z);
         if(distance<150){x+=Math.cos(a)*(160-distance);z+=Math.sin(a)*(160-distance);}
         const h=range(28,66);
         put(ball,plain,i%3?'#a4c4aa':'#aecab0',x,-1,z,range(30,89),h,range(53,90));
       }
       for(let i=0;i<72;i++){
-        const x=range(75,365),z=range(-296,72),w=range(13,28),h=range(12,29),d=range(13,23);
+        const x=range(75,457),z=range(-374,72),w=range(13,28),h=range(12,29),d=range(13,23);
         const p=project(x,z);
         if(!available(x,z,19) || Math.abs(p.lateral)<42)continue;
         reserve(x,z,18);building(x,z,rand()<.55?0:Math.PI*.5,w,d,h,i%shops.length);
       }
       for(let i=0;i<120;i++){
-        const x=range(-48,562),z=range(-424,302);
+        const x=range(-48,654),z=range(-502,334);
         const p=project(x,z);
         if(!available(x,z,4.2)||Math.abs(p.lateral)<23)continue;
         tree(x,z,range(7,13),i%3);
       }
       for(let i=0;i<52;i++){
-        const x=range(-350,760),z=range(-710,460),y=range(67,111),size=range(7,12);
+        const x=range(-350,852),z=range(-788,492),y=range(67,111),size=range(7,12);
         for(let j=-1;j<=1;j++)put(cloudBall,unlit,j===0?'#fffbed':'#f1f8f0',x+j*size*.93,y+(j===0?1.5:0),z+j*1.3,size*range(.83,1.14),size*(j===0?.56:.38),size*.72);
       }
     }

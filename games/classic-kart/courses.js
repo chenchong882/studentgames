@@ -7,7 +7,8 @@
   function createTrack(id, name, english, layout) {
     const path = [{ x: 0, z: 0, s: 0 }];
     let length = 0;
-    const gates = [];
+    const gates = [], bends = [];
+    let straightStart = 0;
     const last = () => path[path.length - 1];
     function point(x, z, arc) {
       const previous = last();
@@ -15,6 +16,7 @@
       path.push({ x, z, s: length, arc });
     }
     function straight(x, z) {
+      straightStart = length;
       const a = last();
       const steps = Math.ceil(Math.hypot(x - a.x, z - a.z) / 2.5);
       for (let j = 1; j <= steps; j++) point(a.x + (x - a.x) * j / steps, a.z + (z - a.z) * j / steps);
@@ -33,7 +35,10 @@
       gates.push(length + gateOffset);
       straight(x,z);
     }
-    const landmarks = layout({point, straight, curve, quizStraight, distance:() => length, gates}) || {};
+    function warn(turn) {
+      bends.push({entry:length, approach:length-straightStart, direction:Math.sign(turn)});
+    }
+    const landmarks = layout({point, straight, curve, quizStraight, warn, distance:() => length, gates}) || {};
     const wrap = s => (s % length + length) % length;
 
     function segmentIndex(s) {
@@ -100,24 +105,48 @@
       const p=sampleSegment(bestIndex,offset);
       return {s:wrap(a.s+offset),lateral:-(x-p.x)*p.tz+(z-p.z)*p.tx, ...p};
     }
-    return {id,name,english,length,halfWidth,gates,sample,project,gridLanes,landmarks};
+    const warnings = [];
+    const portals = [0,...gates];
+    for (const {entry,approach,direction} of bends) {
+      // Put the board on this bend's own approach, clear of the start gantry
+      // and quiz portals. Short linking straights get a later warning.
+      const furthest = Math.min(85, approach-4), nearest = Math.min(14, furthest);
+      const preferred = Math.min(65, approach*.72);
+      const leads = [];
+      for (let lead=nearest; lead<=furthest && lead>0; lead+=2) leads.push(lead);
+      leads.sort((a,b)=>Math.abs(a-preferred)-Math.abs(b-preferred));
+      for (const lead of leads) {
+        const s=entry-lead;
+        if (portals.some(g=>Math.min(wrap(s-g),wrap(g-s))<20)) continue;
+        const p=sample(s), offset=-direction*(halfWidth+4);
+        const x=p.x-p.tz*offset, z=p.z+p.tx*offset, nearestRoad=project(x,z);
+        if (Math.min(wrap(nearestRoad.s-s),wrap(s-nearestRoad.s))>4) continue;
+        warnings.push({s,x,z,tx:p.tx,tz:p.tz,direction});
+        break;
+      }
+    }
+    return {id,name,english,length,halfWidth,gates,sample,project,gridLanes,landmarks,warnings};
   }
 
-  function sunport({straight, curve, quizStraight}) {
-    quizStraight(0, -290, 160);
-    curve(0, -329, 31, -360, 70, -360);
-    quizStraight(370,-360, 157);
-    curve(410,-360,442,-328,442,-288);
-    quizStraight(442, 6, 154);
-    curve(442,61,510,65,510,136); // offset S through the gardens
-    straight(510,220);
-    curve(510,239.4,494.4,255,475,255);
-    curve(455.6,255,440,239.4,440,220); // 35 m radius quay hairpin
-    straight(440,174);
-    curve(440,145,416,121,387,121);
-    quizStraight(104,121, 154);
-    curve(78,121,72,143,48,143);
-    curve(20,143,0,123,0,95);
+  function sunport({straight, curve, quizStraight, warn}) {
+    quizStraight(0,-368,205);
+    warn(1);
+    curve(0,-407,31,-438,70,-438);
+    quizStraight(462,-438,207);
+    warn(1);
+    curve(502,-438,534,-406,534,-366);
+    quizStraight(534,6,196);
+    curve(534,61,602,65,602,136); // offset S through the gardens
+    straight(602,252);
+    warn(1);
+    curve(602,271.4,586.4,287,567,287);
+    curve(547.6,287,532,271.4,532,252); // 35 m radius quay hairpin
+    straight(532,174);
+    warn(-1);
+    curve(532,145,508,121,479,121);
+    quizStraight(48,121,204);
+    warn(1);
+    curve(21.5,121,0,99.5,0,73);
     straight(0,0);
   }
 
@@ -125,9 +154,11 @@
   // Replace the corner with a circular arc tangent to both legs. Measure gate
   // and landmark stations on the completed road to keep art and timing aligned.
   function roundedCircuit(vertices, gateStations, landmarkStations) {
-    const corners = vertices.map(([x,z,r], i) => {
-      const [px,pz] = vertices[(i+vertices.length-1)%vertices.length];
-      const [nx,nz] = vertices[(i+1)%vertices.length];
+    // Give each approach more room while keeping the smaller radii driftable.
+    const expanded = vertices.map(([x,z,r])=>[x*1.25,z*1.25,r*1.1]);
+    const corners = expanded.map(([x,z,r], i) => {
+      const [px,pz] = expanded[(i+expanded.length-1)%expanded.length];
+      const [nx,nz] = expanded[(i+1)%expanded.length];
       const incoming = Math.hypot(x-px,z-pz), outgoing = Math.hypot(nx-x,nz-z);
       const ux = (x-px)/incoming, uz = (z-pz)/incoming;
       const vx = (nx-x)/outgoing, vz = (nz-z)/outgoing;
@@ -139,10 +170,12 @@
         cx:entryX-uz*r*side, cz:entryZ+ux*r*side,
         startAngle:Math.atan2(-ux*side,uz*side)};
     });
-    return ({point, straight, distance, gates}) => {
+    return ({point, straight, distance, gates, warn}) => {
       const sections = [];
       for (let i=0; i<corners.length; i++) {
         const c = corners[i], next = corners[(i+1)%corners.length], bendStart = distance();
+        const degrees=Math.abs(c.turn)*180/Math.PI;
+        if(c.r<=106 && degrees>=(c.r<=61?50:58)) warn(c.turn);
         const count = Math.ceil(c.r*Math.abs(c.turn)/1.8);
         for (let j=1; j<=count; j++) {
           const a = c.startAngle+c.turn*j/count;
@@ -158,7 +191,13 @@
         const section = sections[i];
         return section.legStart + fraction*(section.end-section.legStart);
       }
-      for (const [i,fraction] of gateStations) gates.push(alongLeg(i,fraction));
+      for (const [i,fraction] of gateStations) {
+        const {legStart,end}=sections[i];
+        // Leave time both to unwind the drift and to line up for the next turn.
+        // On a short straight the portal goes exactly halfway between the bends.
+        const margin=Math.min(95,(end-legStart)/2);
+        gates.push(Math.max(legStart+margin,Math.min(end-margin,alongLeg(i,fraction))));
+      }
       const landmarks = {};
       for (const [name,station] of Object.entries(landmarkStations)) {
         if (station.leg !== undefined) {

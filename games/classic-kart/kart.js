@@ -290,25 +290,68 @@
     shadowStamp=shadow.clone(); rig.add(shadow);
   }
 
-  function jetShape(radius, length) {
-    // A pointed, fluted teardrop with its base inside the pipe.
-    const section = [[radius*.64,0],[radius,.12],[radius*.69,.45],[radius*.30,.73],[0,1]];
-    return new T.LatheGeometry(section.map(([r,f])=>new T.Vector2(r,f*length)),10).rotateX(Math.PI/2);
+  // Both exhaust pipes share one mesh. Each kart can switch its geometry without
+  // changing the colours of another kart that is boosting at the same time.
+  let warmJets, blueJets, wheelCueMaterial;
+  const jetMaterial=new T.MeshBasicMaterial({vertexColors:true});
+  const jetLength={mini:.80, tank:2.2, launch:1.20, quiz:1.45};
+  function jetGeometry(radius,midColor,tipColor) {
+    const section=[[radius*.59,0],[radius,.14],[radius*.78,.44],[radius*.40,.72],[0,1]];
+    const profile=section.map(([r,z])=>new T.Vector2(r,z));
+    const b=new Assembly();
+    for(const side of [-1,1]) {
+      b.part(new T.LatheGeometry(profile,10).rotateX(Math.PI/2),0xffffff,side*.375,0,0);
+    }
+    const geometry=b.finish(new T.Group()).geometry;
+    const {position,color}=geometry.attributes;
+    const white=new T.Color(0xfffff3), mid=new T.Color(midColor), tip=new T.Color(tipColor), tint=new T.Color();
+    for(let i=0;i<position.count;i++) {
+      const z=position.getZ(i);
+      if(z<.44) tint.lerpColors(white,mid,z/.44);
+      else tint.lerpColors(mid,tip,(z-.44)/.56);
+      color.setXYZ(i,tint.r,tint.g,tint.b);
+    }
+    return geometry;
   }
-  function makeJets(rig) {
-    const inner = new T.MeshBasicMaterial({color:0xfff3ad});
-    const tip = new T.MeshBasicMaterial({color:0xff8130,transparent:true,opacity:.78,depthWrite:false});
-    const glint = new T.MeshBasicMaterial({color:0xffc346});
-    const jets = [-1,1].map(side=>{
-      const jet = new T.Group();
-      jet.position.set(side*.38,.38,1.30); rig.add(jet);
-      const plume = new T.Mesh(jetShape(.120,1.23),tip);
-      const mid = new T.Mesh(jetShape(.095,.79),glint);
-      const core = new T.Mesh(jetShape(.076,.50),inner);
-      jet.add(plume,mid,core); jet.visible=false;
-      return jet;
-    });
-    return jets;
+  function makeJet(rig) {
+    warmJets ||= jetGeometry(.132,0xffc044,0xff5028);
+    blueJets ||= jetGeometry(.113,0xabefff,0x39a9ff);
+    const jet=new T.Mesh(warmJets,jetMaterial);
+    jet.position.set(0,.38,1.30); jet.visible=false; rig.add(jet);
+    return jet;
+  }
+  function makeWheelCue(rig) {
+    if(!wheelCueMaterial) {
+      const map=canvasTexture(64,64,c=>{
+        const halo=c.createRadialGradient(32,32,2,32,32,31);
+        halo.addColorStop(0,'#e6ffff'); halo.addColorStop(.32,'rgba(106,223,255,.96)');
+        halo.addColorStop(1,'rgba(29,161,255,0)');
+        c.fillStyle=halo; c.fillRect(0,0,64,64);
+        c.fillStyle='#edffff'; c.beginPath();
+        c.moveTo(32,5); c.lineTo(36,28); c.lineTo(57,32); c.lineTo(36,36);
+        c.lineTo(32,58); c.lineTo(28,36); c.lineTo(8,32); c.lineTo(28,28);
+        c.closePath(); c.fill();
+      });
+      wheelCueMaterial=new T.SpriteMaterial({map,transparent:true,depthWrite:false});
+    }
+    const cue=new T.Sprite(wheelCueMaterial);
+    cue.position.set(0,.32,1.05); cue.renderOrder=5; cue.visible=false; rig.add(cue);
+    return cue;
+  }
+  function updateDriveEffects(model,car) {
+    const cue=model.wheelCue, kind=car.boostKind;
+    cue.visible=(car.phase==='entry' || car.phase==='slide') && !car.wallContact && car.penalty<=0 &&
+      car.effectiveSeconds>=ClassicDrive.config.qualifyingTime;
+    if(cue.visible) {
+      cue.position.x=-car.driftSide*.98;
+      cue.scale.setScalar(.75+.12*Math.cos(model.time*11));
+    }
+    model.jet.visible=!!kind;
+    if(!kind) return;
+    const mini=kind==='mini';
+    model.jet.geometry=mini ? blueJets : warmJets;
+    const fade=mini ? .70+.30*Math.min(1,car.miniTimer/.15) : 1;
+    model.jet.scale.z=jetLength[kind]*fade*(1+.065*Math.sin(model.time*37));
   }
 
   function makeMarks(scene) {
@@ -414,9 +457,9 @@
     const root=new T.Group(), body=new T.Group();
     root.name='Gull 07'; root.add(body); scene.add(root);
     makeChassis(body);
-    const head=makeDriver(body), wheels=addWheels(root), jets=makeJets(body);
+    const head=makeDriver(body), wheels=addWheels(root), jet=makeJet(body), wheelCue=makeWheelCue(root);
     makeShadow(root);
-    return {root,body,head,wheels,jets,penalty:makePenalty(root),marks:makeMarks(scene),smoke:makeSmoke(scene),time:0,spin:0,lean:0};
+    return {root,body,head,wheels,jet,wheelCue,penalty:makePenalty(root),marks:makeMarks(scene),smoke:makeSmoke(scene),time:0,spin:0,lean:0};
   }
   function update(model,car,dt) {
     // Render interpolation supplies an independent pose; physics owns the velocity.
@@ -431,13 +474,11 @@
       pivot.rotation.y=front ? -wheelAngle : 0; wheel.rotation.x=model.spin;
     }
     const blend=1-Math.exp(-10*dt);
-    model.lean+=(Math.max(-1,Math.min(1,slip*1.7+steer*.14))*Math.min(1,speed/12)-model.lean)*blend;
+    if(car.wallContact) model.lean=0;
+    else model.lean+=(Math.max(-1,Math.min(1,slip*1.7+steer*.14))*Math.min(1,speed/12)-model.lean)*blend;
     model.body.rotation.z=model.lean*.045;
     model.head.rotation.z=-model.lean*.16; model.head.rotation.y=-steer*.12;
-    model.jets.forEach((jet,i)=>{
-      jet.visible=!!car.boosting;
-      if(jet.visible) jet.scale.z=.97+.13*Math.sin(model.time*35+i*2.1)+.08*Math.cos(model.time*58+i);
-    });
+    updateDriveEffects(model,car);
     const skid=!!car.skidding;
     paintTracks(model.marks,car,skid && dt>0);
     smokeStep(model.smoke,car,dt,skid);
@@ -450,7 +491,7 @@
   }
   function reset(model) {
     model.spin=0; model.lean=0; model.time=0;
-    model.jets.forEach(jet=>{jet.visible=false;});
+    model.jet.visible=false; model.wheelCue.visible=false;
     model.penalty.visible=false;
     model.smoke.clock=0; model.smoke.particles.forEach(p=>{p.life=0;p.age=1;});
     model.smoke.mesh.visible=false;
@@ -511,7 +552,7 @@
     plate.position.set(0,.48,1.258); rig.add(plate);
   }
 
-  let fleetWheel, fleetFlame;
+  let fleetWheel;
   function rivalWheelGeometry() {
     const p=palette, b=new Assembly();
     const profile=[[.13,-.174],[.26,-.174],[.326,-.139],[.344,-.083],[.344,.083],[.326,.139],[.26,.174],[.13,.174]];
@@ -523,17 +564,6 @@
       b.part(cylinder(.066,.027,6),p.ivory,sign*.209,0,0,[1,1,1],[0,0,Math.PI/2]);
     }
     return b.finish(new T.Group()).geometry;
-  }
-
-  function rivalFlames() {
-    const b=new Assembly();
-    for(const side of [-1,1]) {
-      b.part(jetShape(.085,.47),0xfff1aa,side*.37,0,0);
-      b.part(jetShape(.070,.56),0xff9938,side*.37,0,.26);
-    }
-    const flame=b.finish(new T.Group());
-    flame.material=new T.MeshBasicMaterial({vertexColors:true});
-    return flame;
   }
 
   function moveRivalWheels(model,steering) {
@@ -565,14 +595,14 @@
       face.ellipsoid(p.ink,side*.154,-.044,-.549,.045,.067,.026,[0,-side*.20,0]);
     }
     face.finish(head);
-    fleetWheel ||= rivalWheelGeometry(); fleetFlame ||= rivalFlames();
+    fleetWheel ||= rivalWheelGeometry();
     const wheels=new T.InstancedMesh(fleetWheel,paint,4);
     wheels.instanceMatrix.setUsage(T.DynamicDrawUsage);
     wheels.boundingSphere=new T.Sphere(vec(0,.345,0),1.65);
     root.add(wheels);
-    const jet=fleetFlame.clone(); jet.position.set(0,.38,1.306); jet.visible=false; root.add(jet);
+    const jet=makeJet(root), wheelCue=makeWheelCue(root);
     makeShadow(root);
-    const model={root,head,wheels,jet,wheelPose:new T.Object3D(),time:0,spin:0};
+    const model={root,head,wheels,jet,wheelCue,wheelPose:new T.Object3D(),time:0,spin:0};
     moveRivalWheels(model,0);
     return model;
   }
@@ -582,10 +612,9 @@
     const forward=car.vx*Math.sin(car.yaw)-car.vz*Math.cos(car.yaw);
     model.spin=(model.spin-forward*dt/.345)%TAU; model.time+=dt;
     moveRivalWheels(model,car.wheelAngle);
-    model.head.rotation.z=-Math.max(-1,Math.min(1,car.slip*1.7+car.steer*.14))*.15;
+    model.head.rotation.z=car.wallContact ? 0 : -Math.max(-1,Math.min(1,car.slip*1.7+car.steer*.14))*.15;
     model.head.rotation.y=-car.steer*.12;
-    model.jet.visible=car.boosting;
-    if(car.boosting) model.jet.scale.z=1+.13*Math.sin(model.time*45);
+    updateDriveEffects(model,car);
   }
   window.ClassicKartArt={create,update,reset,createRival,updateRival};
 })();

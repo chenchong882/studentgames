@@ -22,7 +22,7 @@
   function decorate(track, d) {
     const {T,city,plain,unlit,put,box,boxGeo,tube,radial,ball,cloudBall,cone,plate,shadow,roof,roofMat,panelTexture,roadside,range,rand}=d;
     // Allow for the road width on nearby parallel straights as well.
-    const road=[], occupied=[];
+    const road=[], occupied=d.warningSites.slice();
     let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
     for(let s=0;s<track.length;s+=5){
       const p=track.sample(s);
