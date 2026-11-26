@@ -82,6 +82,7 @@
     rebuildMap();
   }
   const boostLabels = { launch: '起步衝刺', mini: '小噴', tank: '氮氣', quiz: '氮氣' };
+  const launchButton = el('launch-button'), driftButton = el('drift-button');
   let difficulty = 'normal', launchArmed = false, launchUsed = false;
   let car = drive.create(track.sample(0)), renderCar = { ...car }, previousPose = { x: car.x, z: car.z, yaw: car.yaw };
   let phase = 'grid', beforePause = 'grid', modalKind = '', elapsed = 0, countdown = 3;
@@ -322,6 +323,13 @@
   catch (_) { } };
   audioLabel();
 
+  function syncLaunchButton() {
+    const available = phase === 'race' && goTime > 0 && !launchUsed;
+    launchButton.hidden = !available;
+    driftButton.hidden = available;
+    driftButton.disabled = phase !== 'race';
+  }
+
   function phaseTo(value) {
     phase = value;
     document.body.dataset.phase = value;
@@ -339,6 +347,7 @@
     el('footer-english').textContent = showTour ? 'CIRCUIT TOUR' : track.english.toUpperCase();
     el('footer-course').textContent = showTour ? '單字巡迴賽' : track.name;
     el('touch').hidden = !['countdown', 'race'].includes(value);
+    syncLaunchButton();
     if (!['race', 'countdown'].includes(value))
       document.body.classList.remove('boosting');
     syncAudio();
@@ -565,7 +574,7 @@
     el('skip-match').blur();
     el('countdown').textContent = '3';
     delete el('countdown').dataset.launch;
-    el('launch-cue').textContent = touchDriving && touchLayout.matches ? '按住右下「起步」' : '按住油門';
+    el('launch-cue').textContent = touchDriving && touchLayout.matches ? '等 GO! 再點衝刺' : '按住油門';
     el('countdown').hidden = false;
     beep(460, .12);
     hud();
@@ -578,8 +587,9 @@
   };
 
   function tryLaunch() {
-    if (launchUsed || !inputs.throttle || inputs.brake) return;
+    if (phase !== 'race' || goTime <= 0 || launchUsed || requested.brake) return;
     launchUsed = true;
+    syncLaunchButton();
     drive.launch(car);
     el('countdown').dataset.launch = 'boost';
     el('launch-cue').textContent = '起步衝刺！';
@@ -671,8 +681,10 @@
     }
     if (feedbackTime > 0 && (feedbackTime -= dt) <= 0)
       el('feedback').hidden = true;
-    if (goTime > 0 && (goTime -= dt) <= 0)
+    if (goTime > 0 && (goTime -= dt) <= 0) {
       el('countdown').hidden = true;
+      syncLaunchButton();
+    }
   }
 
   function hideTuning() { el('tuning').hidden = true; el('tune').setAttribute('aria-expanded', 'false'); }
@@ -729,11 +741,11 @@
     const content = el('dialog-content');
     const list = document.createElement('dl');
     const controls = touchLayout.matches ? [
-      ['起步', '倒數到 1 時按住可衝刺。起跑後自動踩油門。'],
+      ['衝刺', '看到 GO! 時，右下的 DRIFT 會變成「衝刺」。點一下就能衝刺起跑，每場限一次。起跑後自動踩油門。'],
       ['‹ ›', '按住箭頭轉向。拇指滑到兩鍵中間就回正，繼續滑到另一側就反打。'],
       ['DRIFT', '按住方向鍵和 DRIFT 甩尾。外側後輪亮藍光時就能收尾。出彎後點淡藍小火焰可立即小噴，等約 0.8 秒會自動噴。'],
       ['踏板', '按住煞車，放開恢復加速。停下後繼續按住可倒車。'],
-      ['N₂O', '點亮起的氮氣加速，甩尾最多存兩罐。'],
+      ['N₂O', '點 DRIFT 上方亮起的氮氣瓶就能大衝刺，最多存兩瓶。'],
       ['回正', '點排名下方的回轉箭頭，回到賽道中央。']
     ] : [['↑ / ↓', '油門／煞車。倒數到 1 時按住油門可衝刺起跑，停下後按煞車可倒車。'], ['← / →', '轉向，甩尾中按反方向拉正'], ['Shift', '配合方向鍵甩尾。出彎後點火焰或鬆開再踩油門可立即小噴，等約 0.8 秒會自動噴。'], ['Ctrl', '使用一格甩尾集滿的氮氣，最多存兩罐'], ['R / C', '回到賽道中央／切換跟車鏡頭'], ['Esc / T', '暫停／即時調校']];
     for (const [key, label] of controls) {
@@ -893,6 +905,20 @@
   });
   window.addEventListener('pagehide', () => music.pause());
   window.addEventListener('pageshow', syncAudio);
+  // Drive buttons act on Pointer Events. On iPad also cancel the native tap
+  // that follows them, while leaving click-based HUD buttons and sheets usable.
+  function preventDriveGesture(e) {
+    if (!e.cancelable || (phase !== 'countdown' && phase !== 'race')) return;
+    const target = e.target instanceof Element ? e.target : e.target.parentElement;
+    if (!target || target.closest('#tuning, #modal')) return;
+    if (e.type === 'touchend' && target.closest('button:not([data-drive]), a, input, select')) return;
+    e.preventDefault();
+  }
+  if (navigator.maxTouchPoints > 0 || matchMedia('(any-pointer:coarse)').matches) {
+    for (const type of ['touchend', 'dblclick', 'selectstart', 'contextmenu', 'gesturestart']) {
+      stage.addEventListener(type, preventDriveGesture, { passive: false });
+    }
+  }
   stage.addEventListener('pointerdown', e => {
     if (e.pointerType === 'touch' && ['grid', 'matching'].includes(phase)) touchDriving = true;
   });
@@ -924,11 +950,13 @@
     }
   });
   for (const b of document.querySelectorAll('[data-drive]')) {
-    b.addEventListener('contextmenu', e => e.preventDefault());
-    if (b.dataset.drive === 'nitro' || b.dataset.drive === 'mini') {
+    if (['launch', 'mini', 'nitro'].includes(b.dataset.drive)) {
       const activate = () => {
-        if (phase !== 'race' || b.disabled) return;
-        if (b.dataset.drive === 'mini') {
+        if (phase !== 'race' || b.hidden || b.disabled) return;
+        if (b.dataset.drive === 'launch') {
+          touchDriving = true;
+          tryLaunch();
+        } else if (b.dataset.drive === 'mini') {
           if (!requested.brake && drive.useMini(car)) hud();
         } else if (car.stock >= Number(b.dataset.slot) && drive.useNitro(car)) hud();
       };
@@ -1163,11 +1191,11 @@
       }
       if (!countdown) {
         Object.assign(inputs, requested);
+        goTime = 1;
         phaseTo('race');
         ClassicRivals.launchPack(rivals);
-        goTime = .72;
         delete el('countdown').dataset.launch;
-        if (launchArmed) tryLaunch();
+        if (launchArmed && inputs.throttle) tryLaunch();
         launchArmed = false;
         accum = 0;
       }

@@ -1,5 +1,6 @@
 :root {
   color-scheme: dark;
+  touch-action: manipulation;
   --ink: #102a40;
   --pale: #fff9e6;
   --yellow: #ffd05d;
@@ -153,11 +154,20 @@ svg {
   background: #81d3ef;
 }
 
+.topbar,footer,#view,#hud,#touch {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#view,#hud,#touch {
+  touch-action: none;
+}
+
 #view {
   width: 100%;
   height: 100%;
   display: block;
-  touch-action: none;
 }
 
 .grid-scrim {
@@ -1204,9 +1214,6 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
     color: #f4f7fe;
     pointer-events: auto;
     touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
   }
   #touch button.held,#touch button:enabled:active:not([data-drive="left"]):not([data-drive="right"]) {
@@ -1223,8 +1230,6 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
     gap: clamp(3px,.7vw,12px);
     pointer-events: auto;
     touch-action: none;
-    -webkit-user-select: none;
-    user-select: none;
   }
   .touch-steering button { width: var(--steer-size); height: calc(var(--steer-size) * 1.12); }
   .touch-steering [data-drive="right"] svg { transform: scaleX(-1); }
@@ -1242,13 +1247,13 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
     width: var(--flame-size);
     height: var(--flame-size);
   }
-  #touch [data-drive="drift"],#touch [data-drive="throttle"],#touch [data-drive="nitro"] {
+  #touch [data-drive="drift"],#touch [data-drive="launch"],#touch [data-drive="nitro"] {
     border-radius: 50%;
     border: 2px solid var(--button-edge);
     background: radial-gradient(circle at 48% 40%,rgba(128,157,182,.16),transparent 65%),var(--button-glass);
     box-shadow: inset 0 0 0 3px rgba(10,29,54,.25),inset 0 0 0 5px rgba(193,217,238,.16);
   }
-  #touch [data-drive="drift"],#touch [data-drive="throttle"] {
+  #touch [data-drive="drift"],#touch [data-drive="launch"] {
     width: 100%;
     height: 100%;
     align-content: center;
@@ -1259,13 +1264,14 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
     letter-spacing: -.04em;
   }
   #touch [data-drive="drift"] svg { width: 54%; height: auto; }
-  #touch [data-drive="throttle"] {
+  #touch [data-drive="launch"] {
+    --button-glass: #654522e0;
+    --button-edge: #ffe297;
     font-size: calc(var(--drift-size) * .24);
     font-weight: 850;
-    color: #fff4c1;
+    color: #fff1be;
   }
-  body[data-phase="countdown"] #touch [data-drive="drift"],
-  body:not([data-phase="countdown"]) #touch [data-drive="throttle"] { display: none; }
+  #touch [data-drive="drift"]:disabled { opacity: .55; }
   #touch [data-drive="brake"] {
     position: absolute;
     right: calc(100% + clamp(6px,3.7vw,60px));

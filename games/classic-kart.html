@@ -96,7 +96,7 @@
       </fieldset>
       <label class="course-choice" for="course-choice">賽道 <select id="course-choice"><option value="random">隨機抽賽道</option></select><canvas id="choice-map" width="222" height="158" aria-hidden="true" hidden></canvas></label>
       <button class="primary" id="start" disabled>準備賽道中…</button>
-      <p class="launch-tip">倒數到 <b>1</b>，按住<span class="launch-key">油門</span><span class="launch-touch">右下「起步」</span>衝刺起跑。</p>
+      <p class="launch-tip"><span class="launch-key">倒數到 <b>1</b>，按住油門衝刺起跑。</span><span class="launch-touch">看到 <b>GO!</b> 時，點右下「衝刺」起跑。</span></p>
       <div id="lesson"></div>
     </section>
     <section id="match-card" aria-labelledby="match-status" hidden>
@@ -161,8 +161,8 @@
           <button data-drive="nitro" data-slot="2" aria-label="使用第二格氮氣" disabled><svg aria-hidden="true"><use href="#nitro-cartridge"/></svg></button>
         </div>
         <button data-drive="brake" aria-label="煞車踏板"><svg aria-hidden="true"><use href="#brake-pedal"/></svg></button>
-        <button data-drive="drift" aria-label="甩尾"><b lang="en">DRIFT</b><svg aria-hidden="true"><use href="#drift-tire"/></svg></button>
-        <button data-drive="throttle" aria-label="起步油門">起步</button>
+        <button id="drift-button" data-drive="drift" aria-label="甩尾" disabled><b lang="en">DRIFT</b><svg aria-hidden="true"><use href="#drift-tire"/></svg></button>
+        <button id="launch-button" data-drive="launch" aria-label="起步衝刺" hidden>衝刺</button>
       </div>
     </div>
     <aside id="tuning" class="sheet" aria-labelledby="tune-title" hidden><header><h2 id="tune-title">即時調校</h2><button id="close-tune" aria-label="關閉調校">×</button></header><div id="sliders"></div><button id="defaults" class="secondary">恢復預設參數</button></aside>
