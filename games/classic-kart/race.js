@@ -435,6 +435,10 @@
     document.querySelector('input[name="difficulty"]:checked').focus({ preventScroll: true });
   }
 
+  function returnToHub() {
+    location.href = el('hub').href;
+  }
+
   courseChoice.addEventListener('change', () => {
     if (phase !== 'grid') return;
     const preview = tracks.find(course => course.id === courseChoice.value);
@@ -684,7 +688,8 @@
     openModal('pause', '比賽暫停');
     const a = action('繼續比賽', resume, true);
     action('重新開始', () => begin(track));
-    action('更換賽道與難度', returnToGrid);
+    action('返回主畫面', returnToGrid);
+    action('返回遊戲大廳', returnToHub);
     a.focus();
   }
 
@@ -749,7 +754,7 @@
     }
     action(courseChoice.value === 'random' ? '下一場隨機賽' : '重新開始', () => begin(), true).focus();
     action('更換賽道與難度', returnToGrid);
-    action('返回遊戲大廳', () => location.href = el('hub').href);
+    action('返回遊戲大廳', returnToHub);
     beep(660, .18);
     beep(880, .22, .16);
     hud();
