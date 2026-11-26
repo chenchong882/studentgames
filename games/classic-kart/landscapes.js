@@ -21,16 +21,16 @@
 
   function decorate(track, d) {
     const {T,city,plain,unlit,put,box,boxGeo,tube,radial,ball,cloudBall,cone,plate,shadow,roof,roofMat,panelTexture,roadside,range,rand}=d;
-    // Spatially check the full width of every road (including nearby parallel straights and the forks).
+    // Allow for the road width on nearby parallel straights as well.
     const road=[], occupied=[];
     let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
     for(let s=0;s<track.length;s+=5){
-      const p=track.sample(s), extra=track.bypassAt(s).extra;
-      road.push({x:p.x-p.tz*extra/2,z:p.z+p.tx*extra/2,r:track.halfWidth+extra/2+2});
+      const p=track.sample(s);
+      road.push(p);
       minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z);
     }
     function clear(p,r){
-      return road.every(a=>(a.x-p.x)**2+(a.z-p.z)**2>(a.r+r)**2);
+      return road.every(a=>(a.x-p.x)**2+(a.z-p.z)**2>(track.halfWidth+2+r)**2);
     }
     function site(s,side,setback,r){
       const p=roadside(s,side,track.halfWidth+setback);

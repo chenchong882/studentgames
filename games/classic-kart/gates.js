@@ -122,8 +122,8 @@
     return { set };
   }
   function answerLane(lateral, halfWidth) {
-    if (Math.abs(lateral) > halfWidth) return null;
-    return Math.min(2, Math.floor((lateral + halfWidth) / (2*halfWidth/3)));
+    if (lateral < -halfWidth/3) return 0;
+    return lateral < halfWidth/3 ? 1 : 2;
   }
 
   window.ClassicGates = { prepare, questions, build, answerLane };

@@ -875,6 +875,38 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
   color: #ffd765;
 }
 
+.nitro .mini-boost,#touch .mini-boost {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 2px solid #d0e7fb66;
+  border-radius: 50%;
+  background: #1a3652aa;
+  color: #a4c3d8;
+  pointer-events: auto;
+  touch-action: none;
+}
+.mini-boost:disabled { opacity: .48; cursor: default; }
+.nitro .mini-boost:enabled,#touch .mini-boost:enabled {
+  color: #a8ecff;
+  border-color: #b6f0ff;
+  background: radial-gradient(circle,#347fa2,#214661 75%);
+  box-shadow: 0 0 8px #8de3ffd9, inset 0 0 6px #9aeaffb3;
+}
+.nitro .mini-boost.firing,#touch .mini-boost.firing {
+  color: #abefff;
+  border-color: #77bfd7;
+  opacity: .9;
+}
+.nitro .mini-boost svg,#touch .mini-boost svg {
+  width: 56%;
+  height: 66%;
+  stroke: none;
+  pointer-events: none;
+}
+
 .charge {
   width: clamp(50px,9vw,145px);
   height: 9px;
@@ -1196,6 +1228,15 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
     right: 11%;
     width: var(--drift-size);
     height: var(--drift-size);
+  }
+  .nitro .mini-boost { display: none; }
+  #touch .mini-boost {
+    --flame-size: clamp(44px,min(5.5vw,12vh),76px);
+    position: absolute;
+    right: calc(100% + clamp(5px,2.8vw,45px));
+    bottom: calc(100% - var(--flame-size) * .37);
+    width: var(--flame-size);
+    height: var(--flame-size);
   }
   #touch [data-drive="drift"],#touch [data-drive="throttle"],#touch [data-drive="nitro"] {
     border-radius: 50%;

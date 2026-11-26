@@ -1,20 +1,10 @@
 // Circuit layouts are measured in metres. All renderers and cars share these
-// sampled centre lines and the same physical edges for each quiz bypass.
+// sampled centre lines, road widths and quiz gate positions.
 (() => {
   'use strict';
   const halfWidth = 13.5;
   const gridLanes = [-11.2,-8,-4.8,-1.6,1.6,4.8,8,11.2];
-  const sunportDiversion = {
-    bypassCenter:23.5, bypassHalfWidth:6.5,
-    forkStart:-152, forkEnd:-52, mergeStart:24, mergeEnd:124,
-    islandStart:-60, islandEnd:32
-  };
-  function createTrack(id, name, english, layout, diversion = sunportDiversion) {
-    const {bypassCenter,bypassHalfWidth,forkStart,forkEnd,mergeStart,mergeEnd,islandStart,islandEnd} = diversion;
-    const islandTaper = 10;
-    const bypassExtra = bypassCenter+bypassHalfWidth-halfWidth;
-    const noBypass = {blend:0, center:bypassCenter, extra:0, inner:-halfWidth, innerSlope:0, outerSlope:0};
-    const fullBypass = {blend:1, center:bypassCenter, extra:bypassExtra, inner:bypassCenter-bypassHalfWidth, innerSlope:0, outerSlope:0};
+  function createTrack(id, name, english, layout) {
     const path = [{ x: 0, z: 0, s: 0 }];
     let length = 0;
     const gates = [];
@@ -46,26 +36,6 @@
     const landmarks = layout({point, straight, curve, quizStraight, distance:() => length, gates}) || {};
     const wrap = s => (s % length + length) % length;
 
-    function bypassAt(distance) {
-      const s = wrap(distance);
-      for (const gate of gates) {
-        const d = s-gate;
-        if (d <= forkStart || d >= mergeEnd) continue;
-        if (d >= forkEnd && d <= mergeStart) return fullBypass;
-        const entry = d < forkEnd, span = entry ? forkEnd-forkStart : mergeStart-mergeEnd;
-        const t = (d-(entry ? forkStart : mergeEnd))/span;
-        const blend = t*t*(3-2*t), slope = 6*t*(1-t)/span;
-        const sweep = fullBypass.inner-noBypass.inner;
-        const inner = noBypass.inner+sweep*blend, extra = bypassExtra*blend;
-        // A metre of centre line is shorter at the inside rail of a bend.
-        // Express each taper's slope along its own edge for wall contact.
-        const curvature = path[segmentIndex(s)+1].arc?.curvature || 0;
-        return {blend, center:bypassCenter, extra, inner,
-          innerSlope:sweep*slope/(1-curvature*inner),
-          outerSlope:bypassExtra*slope/(1-curvature*(halfWidth+extra))};
-      }
-      return noBypass;
-    }
     function segmentIndex(s) {
       let low = 0, high = path.length - 1;
       while (high - low > 1) {
@@ -124,38 +94,13 @@
           (bestIndex===(near+16)%count && bestT===1);
       }
       const searchMargin=halfWidth+7;
-      if(scanAll || (best>searchMargin**2 && best>(searchMargin+bypassAt(path[bestIndex].s).extra)**2))
+      if(scanAll || best>searchMargin**2)
         for(let i=0;i<count;i++)check(i);
       const a=path[bestIndex], offset=bestT*(path[bestIndex+1].s-a.s);
       const p=sampleSegment(bestIndex,offset);
       return {s:wrap(a.s+offset),lateral:-(x-p.x)*p.tz+(z-p.z)*p.tx, ...p};
     }
-    function islandEdges(d) {
-      const taper = Math.min(1, Math.max(0,d-islandStart)/islandTaper, Math.max(0,islandEnd-d)/islandTaper);
-      return {left:halfWidth-.04, right:halfWidth+2.45*taper};
-    }
-    function islandAt(distance) {
-      const s = wrap(distance);
-      for (const gate of gates) {
-        const d = s-gate;
-        if (d >= islandStart-1e-7 && d <= islandEnd+1e-7) return islandEdges(d);
-      }
-      return null;
-    }
-
-    // Quiz areas lie on straights. Their six true kerb corners form a convex
-    // footprint, also used for contacts with the narrow leading/trailing faces.
-    const islands = gates.map(gate => {
-      function corner(d, side) {
-        const p = sample(gate+d), offset = islandEdges(d)[side];
-        return {x:p.x-p.tz*offset, z:p.z+p.tx*offset};
-      }
-      const vertices = [corner(islandStart,'left'), corner(islandEnd,'left'), corner(islandEnd,'right'),
-        corner(islandEnd-islandTaper,'right'), corner(islandStart+islandTaper,'right'), corner(islandStart,'right')];
-      const xs = vertices.map(v=>v.x), zs = vertices.map(v=>v.z);
-      return {vertices, minX:Math.min(...xs), maxX:Math.max(...xs), minZ:Math.min(...zs), maxZ:Math.max(...zs)};
-    });
-    return {id,name,english,length,halfWidth,gates,sample,project,gridLanes,diversion,bypassAt,islandAt,islands,landmarks};
+    return {id,name,english,length,halfWidth,gates,sample,project,gridLanes,landmarks};
   }
 
   function sunport({straight, curve, quizStraight}) {
@@ -269,14 +214,10 @@
 
   const tracks = [
     createTrack('sunport','晴港市街','Sunport Circuit',sunport),
-    createTrack('dunes','赤砂峽谷','Saffron Dunes',dunes,
-      {...sunportDiversion, forkStart:-132, forkEnd:-48, mergeStart:22, mergeEnd:106, islandStart:-56, islandEnd:30}),
-    createTrack('metro','霓虹夜城','Neon City',metro,
-      {...sunportDiversion, forkStart:-118, forkEnd:-42, mergeStart:18, mergeEnd:88, islandStart:-50, islandEnd:26}),
-    createTrack('giant','巨人玩具屋',"Giant's Playroom",giant,
-      {...sunportDiversion, forkStart:-112, forkEnd:-40, mergeStart:16, mergeEnd:84, islandStart:-48, islandEnd:24}),
-    createTrack('beach','珊瑚海灘','Coral Beach',beach,
-      {...sunportDiversion, forkStart:-126, forkEnd:-48, mergeStart:24, mergeEnd:102, islandStart:-56, islandEnd:32})
+    createTrack('dunes','赤砂峽谷','Saffron Dunes',dunes),
+    createTrack('metro','霓虹夜城','Neon City',metro),
+    createTrack('giant','巨人玩具屋',"Giant's Playroom",giant),
+    createTrack('beach','珊瑚海灘','Coral Beach',beach)
   ];
   window.ClassicCourses = {tracks};
 })();

@@ -24,15 +24,15 @@
   setting(engine, 'nitroTime', '儲存氮氣秒數', 2.7, 1, 5, .1, 's');
   setting(engine, 'quizTime', '答對獎勵秒數', 2.5, 1, 5, .1, 's');
   setting(engine, 'penaltyTime', '答錯緩速秒數', 1.8, .7, 4, .1, 's');
-  setting(tire, 'steerLow', '低速最大舵角', 31, 15, 46, 1, '°');
-  setting(tire, 'steerHigh', '高速最大舵角', 10.5, 6, 17, .5, '°');
+  setting(tire, 'steerLow', '低速最大舵角', 33, 15, 46, 1, '°');
+  setting(tire, 'steerHigh', '高速最大舵角', 11.5, 6, 17, .5, '°');
   setting(tire, 'steerResponse', '方向盤反應', 6.4, 3, 12, .2, '/s');
   setting(tire, 'frontStiffness', '前輪側向剛度', 154, 100, 240, 2);
   setting(tire, 'rearStiffness', '後輪側向剛度', 192, 110, 270, 2);
   setting(tire, 'yawDamping', '車身迴轉阻尼', 6.6, 4, 15, .1, '/s');
   setting(slide, 'entryTime', '入甩反應時間', .035, .02, .12, .005, 's');
   setting(slide, 'driftRearGrip', '甩尾後輪抓地比例', .37, .25, .85, .01);
-  setting(slide, 'driftSteer', '甩尾舵角倍率', 1.35, 1, 1.75, .05);
+  setting(slide, 'driftSteer', '甩尾舵角倍率', 1.55, 1, 1.75, .05);
   setting(slide, 'driftCarry', '放開甩尾後續滑時間', .58, .18, .9, .02, 's');
   setting(slide, 'gripReturn', '後輪回抓速率', 2.4, 1.1, 5, .1, '/s');
   setting(slide, 'scrub', '大角度側滑失速', 17, 5, 32, 1, 'm/s²');
@@ -57,9 +57,9 @@
     rollingDrag: .60, aeroDrag: .00092, overspeedDrag: .85, throttleTaper: 8,
     reverseAcceleration: 8, lowSpeedCrossover: 1.0, slowSpeed: 86, penaltyBrake: 24,
     launchLead: 1, launchGrace: .5,
-    penaltyOnset: .15, entryYawImpulse: 2.72, driftMinSpeed: 11.5, gripRelease: 32,
+    penaltyOnset: .15, entryYawImpulse: 3.35, driftMinSpeed: 11.5, gripRelease: 32,
     skidMinSpeed: 7, bodySkidAngle: .115, rearSkidAngle: 3.5 * rad, skidGrip: .93,
-    counterGrip: .75, qualifyingSlip: 8 * rad, qualifyingTime: .22,
+    counterGrip: .75, counterSteerResponse: 1.5, qualifyingSlip: 8 * rad, qualifyingTime: .22,
     settledSlip: 4 * rad, miniWindow: .86, miniForce: 10.5,
     miniSpeedGain: 23, slots: 2, speedSteerFalloff: 21, cameraBodyMix: .25,
     aimHeight: 1.08, farDistance: 2.7, farHeight: 1.25, farLookAhead: 1.8,
@@ -102,60 +102,17 @@
   function constrainToRoad(car, projection, halfWidth, dt, rightHalfWidth = halfWidth) {
     const side = Math.sign(projection.lateral);
     const rim = (side > 0 ? rightHalfWidth : halfWidth) - config.collisionRadius;
-    if (Math.abs(projection.lateral) > rim) {
+    const hit = Math.abs(projection.lateral) > rim;
+    if (hit) {
       resolveWallContact(car, -projection.tz * side, projection.tx * side, Math.abs(projection.lateral) - rim);
       projection.lateral = side * rim;
     }
     car.wallCooldown = Math.max(0, car.wallCooldown - dt);
-  }
-  // The kart is a disc. Test each solid kerb in world space, including its end
-  // faces, so a nose impact or a reversing kart is pushed back on its own side.
-  function collideIsland(car, island, radius) {
-    if (car.x < island.minX-radius || car.x > island.maxX+radius ||
-        car.z < island.minZ-radius || car.z > island.maxZ+radius) return false;
-    let inside = true, nearest = Infinity, ex = 0, ez = 0, edgeX = 0, edgeZ = 0;
-    const points = island.vertices;
-    for (let i = 0; i < points.length; i++) {
-      const a = points[i], b = points[(i+1) % points.length];
-      const dx = b.x-a.x, dz = b.z-a.z, px = car.x-a.x, pz = car.z-a.z;
-      if (dx*pz - dz*px < 0) inside = false;
-      const t = clamp((px*dx + pz*dz) / (dx*dx + dz*dz), 0, 1);
-      const x = px - t*dx, z = pz - t*dz, d2 = x*x + z*z;
-      if (d2 < nearest) {
-        nearest = d2; ex = x; ez = z; edgeX = dx; edgeZ = dz;
-      }
-    }
-    if (!inside && nearest >= radius*radius) return false;
-    const distance = Math.sqrt(nearest);
-    if (distance > 1e-8) {
-      const sign = inside ? 1 : -1;
-      resolveWallContact(car, sign*ex/distance, sign*ez/distance, radius + sign*distance);
-    } else {
-      const length = Math.hypot(edgeX, edgeZ);
-      resolveWallContact(car, -edgeZ/length, edgeX/length, radius);
-    }
-    return true;
+    return hit;
   }
 
   function constrainToTrack(car, track, projection, dt) {
-    const radius = config.collisionRadius, side = projection.lateral < 0 ? -1 : 1;
-    const bypass = track.bypassAt(projection.s);
-    const width = track.halfWidth + (side > 0 ? bypass.extra : 0);
-    const slope = side > 0 ? bypass.outerSlope : 0;
-    const scale = 1 / Math.hypot(1, slope);
-    const penetration = (side*projection.lateral - width)*scale + radius;
-    let corrected = false;
-    if (penetration > 0) {
-      // A glancing hit on the merging shoulder follows the taper.
-      const nx = (-side*projection.tz - slope*projection.tx)*scale;
-      const nz = (side*projection.tx - slope*projection.tz)*scale;
-      resolveWallContact(car, nx, nz, penetration);
-      corrected = true;
-    }
-    for (const island of track.islands) {
-      if (collideIsland(car, island, radius)) corrected = true;
-    }
-    car.wallCooldown = Math.max(0, car.wallCooldown - dt);
+    const corrected = constrainToRoad(car, projection, track.halfWidth, dt);
     return corrected ? track.project(car.x, car.z, projection.s) : projection;
   }
 
@@ -193,6 +150,12 @@
       car.throttleLifted = !throttle;
     }
     car.effectiveSeconds = 0;
+  }
+  function useMini(car) {
+    if (car.miniReady <= 0 || car.penalty > 0) return false;
+    car.miniReady = 0;
+    car.miniTimer = config.miniTime;
+    return true;
   }
   function updateDrift(car, input, steerInput, forward, dt) {
     const requested = input.drift && forward > config.driftMinSpeed;
@@ -255,10 +218,7 @@
     }
     car.miniReady = Math.max(0, car.miniReady - dt);
     if (car.miniReady > 0 && !input.throttle) car.throttleLifted = true;
-    if (car.miniReady > 0 && car.throttleLifted && input.throttle && !car.prevThrottle && car.penalty <= 0) {
-      car.miniTimer = config.miniTime;
-      car.miniReady = 0;
-    }
+    if (car.throttleLifted && input.throttle && !car.prevThrottle && !input.brake) useMini(car);
   }
 
   function step(car, input, dt, pace = 1) {
@@ -271,7 +231,9 @@
     const speed = Math.hypot(forward, lateral);
     const steerInput = Number(!!input.right) - Number(!!input.left);
     updateDrift(car, input, steerInput, forward, dt);
-    car.steer += (steerInput - car.steer) * fade(cfg.steerResponse, dt);
+    // When catching a slide the front wheels must track the opposite input promptly.
+    const steerResponse = car.phase === 'counter' ? cfg.steerResponse * cfg.counterSteerResponse : cfg.steerResponse;
+    car.steer += (steerInput - car.steer) * fade(steerResponse, dt);
     const highSpeedFraction = 1 / (1 + (speed / cfg.speedSteerFalloff) ** 2);
     const steerMax = cfg.steerHigh + (cfg.steerLow - cfg.steerHigh) * highSpeedFraction;
     const driftAmount = clamp((1 - car.grip) / (1 - cfg.driftRearGrip), 0, 1);
@@ -348,7 +310,8 @@
     car.quizTimer = Math.max(0, car.quizTimer - dt);
     // A wrong gate suppresses propulsion but preserves the remainder of a paid-for tank.
     if (!penalized) car.tankTimer = Math.max(0, car.tankTimer - dt);
-    car.miniTimer = Math.max(0, car.miniTimer - dt);
+    // Save the mini boost until the higher-priority boost finishes.
+    if (!largeBoost) car.miniTimer = Math.max(0, car.miniTimer - dt);
     car.penalty = Math.max(0, car.penalty - dt);
     car.prevNitro = !!input.nitro;
     car.prevThrottle = !!input.throttle;
@@ -399,5 +362,5 @@
       view.updateProjectionMatrix();
     }
   }
-  window.ClassicDrive = {config, sliders, step, create, reset, recoveryPose, constrainToRoad, constrainToTrack, resolveWallContact, camera, useNitro, boost, launch, penalize};
+  window.ClassicDrive = {config, sliders, step, create, reset, recoveryPose, constrainToRoad, constrainToTrack, resolveWallContact, camera, useNitro, useMini, boost, launch, penalize};
 })();

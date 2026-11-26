@@ -3,8 +3,7 @@
   'use strict';
   const {tracks} = window.ClassicCourses;
   function build(scene, track=tracks[0]) {
-    const {length,gates,halfWidth,sample,project,bypassAt,gridLanes} = track;
-    const {forkStart,forkEnd,mergeStart,bypassCenter,islandStart,islandEnd} = track.diversion;
+    const {length,gates,halfWidth,sample,project,gridLanes} = track;
     const T = window.THREE;
     const city = new T.Group();
     const theme = window.ClassicLandscapes.themeFor(track.id), sunport = track.id === 'sunport';
@@ -70,7 +69,7 @@
       const p=sample(s); return {x:p.x-p.tz*offset,z:p.z+p.tx*offset,tx:p.tx,tz:p.tz};
     }
     function roadside(s,side,distance) {
-      return along(s, side*distance + (side>0 ? bypassAt(s).extra : 0));
+      return along(s, side*distance);
     }
     const roadTex=canvas(192,192), roadCtx=roadTex.getContext('2d');
     roadCtx.fillStyle=theme.asphalt; roadCtx.fillRect(0,0,192,192);
@@ -83,10 +82,9 @@
       const n=Math.ceil((end-start)/step),positions=[],uv=[],indices=[];
       for(let i=0;i<=n;i++){
         const s=start+(end-start)*i/n;
-        const l=typeof left==='function'?left(s):left, r=typeof right==='function'?right(s):right;
-        const a=along(s,l),b=along(s,r);
+        const a=along(s,left),b=along(s,right);
         positions.push(a.x,y,a.z,b.x,y,b.z);
-        uv.push(l/8,s/8,r/8,s/8);
+        uv.push(left/8,s/8,right/8,s/8);
         if(i<n){const k=i*2;indices.push(k,k+1,k+2,k+1,k+3,k+2);}
       }
       const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(positions,3));
@@ -94,12 +92,11 @@
       city.add(new T.Mesh(g,material));
     }
     const flatMaterial=(color,map=null)=>new T.MeshLambertMaterial({color,map,side:T.DoubleSide});
-    const outer = offset => s => offset+bypassAt(s).extra;
     // Asphalt and footways are separate surfaces so the bright edge lines keep their width in bends.
-    ribbon(-halfWidth,outer(halfWidth),0,flatMaterial(0xffffff,asphalt),2.5);
+    ribbon(-halfWidth,halfWidth,0,flatMaterial(0xffffff,asphalt),2.5);
     const edgePaint=flatMaterial(0xffe9aa);
     ribbon(-halfWidth+.4,-halfWidth+.58,.012,edgePaint);
-    ribbon(outer(halfWidth-.58),outer(halfWidth-.4),.012,edgePaint,2);
+    ribbon(halfWidth-.58,halfWidth-.4,.012,edgePaint);
     const pavers=canvas(256,256),pc=pavers.getContext('2d');
     pc.fillStyle='#c5b99c';pc.fillRect(0,0,256,256);
     const paverTones=['#e4d5b4','#e9dabc','#e7d8b6','#e2d2ae'];
@@ -115,9 +112,9 @@
     const footways=pier?[[0,pier.start],[pier.end,length]]:[[0,length]];
     for(const [start,end] of footways){
       ribbon(-21,-13.45,.12,pavingMaterial,3.2,start,end);
-      ribbon(outer(13.45),outer(21),.12,pavingMaterial,3.2,start,end);
+      ribbon(13.45,21,.12,pavingMaterial,3.2,start,end);
       ribbon(-21.18,-20.86,.14,outerTrim,3.2,start,end);
-      ribbon(outer(20.86),outer(21.18),.14,outerTrim,3.2,start,end);
+      ribbon(20.86,21.18,.14,outerTrim,3.2,start,end);
     }
     const grass = canvas(96,96), gc=grass.getContext('2d');
     gc.fillStyle=theme.ground[0];gc.fillRect(0,0,96,96);
@@ -131,7 +128,6 @@
         const a=along(s,lane);box(a.x,.014,a.z,.16,.012,4.5,'#f1eee0',yaw);
       }
     }
-    // The visible rails follow the actual outer road edge, including each open diversion.
     for(const side of [-1,1]){
       for(let s=0;s<length;s+=4.4){
         const end=Math.min(s+4.4,length),a=roadside(s,side,halfWidth+.19),b=roadside(end,side,halfWidth+.19);
@@ -148,56 +144,6 @@
     function panelTexture(w,h,paint) {
       const img=canvas(w,h); paint(img.getContext('2d'),w,h);
       return new T.MeshBasicMaterial({map:texture(img),side:T.DoubleSide});
-    }
-    // A raised, tapered island encloses each gate's right support. Paint the
-    // open diversion on the asphalt to distinguish it from the three answer lanes.
-    const islandMaterial=flatMaterial(0xe7d5b4);
-    const bypassStencil=panelTexture(384,256,(c,w,h)=>{
-      c.fillStyle='#f5edcf'; c.textAlign='center'; c.textBaseline='middle';
-      c.beginPath();c.moveTo(w/2,16);c.lineTo(w*.67,68);c.lineTo(w*.55,68);
-      c.lineTo(w*.55,98);c.lineTo(w*.45,98);c.lineTo(w*.45,68);c.lineTo(w*.33,68);c.closePath();c.fill();
-      c.font='bold 72px Arial, sans-serif';c.fillText('繞行',w/2,146,w*.92);
-      c.font='bold 37px Arial, sans-serif';c.fillText('略過答題',w/2,204,w*.90);
-    });
-    bypassStencil.transparent=true; bypassStencil.depthWrite=false;
-    const bypassBoard=panelTexture(512,208,(c,w,h)=>{
-      c.fillStyle='#26576b';c.fillRect(0,0,w,h);c.strokeStyle='#f9d995';c.lineWidth=8;c.strokeRect(7,7,w-14,h-14);
-      c.fillStyle='#fff3cc';c.font='bold 90px sans-serif';c.fillText('繞行',40,103);
-      c.font='bold 52px sans-serif';c.fillText('略過答題',40,176);
-      c.lineCap='square';c.strokeStyle='#ffdc89';c.lineWidth=17;c.beginPath();c.moveTo(341,137);c.lineTo(432,48);
-      c.lineTo(378,48);c.moveTo(432,48);c.lineTo(432,100);c.stroke();
-    });
-    for(const gate of gates){
-      const start=gate+islandStart,end=gate+islandEnd;
-      const p=roadside(gate+forkStart+26,1,halfWidth+2.4),yaw=Math.atan2(-p.tx,-p.tz);
-      radial(p.x,1.75,p.z,.13,3.5,theme.post);put(plate,bypassBoard,'#fff',p.x,3.7,p.z,4.9,1.99,1,yaw);
-      const islandPositions=[],triangles=[];
-      const sections=Math.ceil((end-start)/2);
-      for(let i=0;i<=sections;i++){
-        const s=i===sections?end:start+(end-start)*i/sections;
-        const edge=track.islandAt(s);
-        const inner=along(s,edge.left),outerEdge=along(s,edge.right);
-        islandPositions.push(inner.x,.018,inner.z,inner.x,.20,inner.z,
-          outerEdge.x,.20,outerEdge.z,outerEdge.x,.018,outerEdge.z);
-        if(i)for(let k=0;k<3;k++){
-          const j=(i-1)*4+k;triangles.push(j,j+1,j+4,j+1,j+5,j+4);
-        }
-      }
-      const tip=islandPositions.length/3-4;
-      triangles.push(0,3,1,1,3,2,tip,tip+1,tip+3,tip+1,tip+2,tip+3);
-      const island=new T.BufferGeometry();
-      island.setAttribute('position',new T.Float32BufferAttribute(islandPositions,3));island.setIndex(triangles);island.computeVertexNormals();
-      city.add(new T.Mesh(island,islandMaterial));
-      for(let d=forkEnd+2;d<=mergeStart;d+=9){
-        if(Math.abs(d)<3)continue;
-        const edge=track.islandAt(gate+d),p=along(gate+d,(edge.left+edge.right)/2);
-        radial(p.x,.26,p.z,.29,.14,'#677c7d');radial(p.x,.62,p.z,.15,.65,'#d4814e');radial(p.x,.79,p.z,.16,.14,'#fff5d9');
-      }
-      for(const d of [(forkStart+forkEnd)/2,forkEnd,10]){
-        const offset=d<forkEnd ? halfWidth+bypassAt(gate+d).extra/2 : bypassCenter;
-        const p=along(gate+d,offset);
-        put(plate,bypassStencil,'#ffffff',p.x,.032,p.z,4.8,5.4,1,Math.atan2(-p.tx,-p.tz),-Math.PI/2);
-      }
     }
     // Lightweight baked contact shadows under trees, stalls and landmark bases.
     const shadowCanvas=canvas(64,64),sh=shadowCanvas.getContext('2d');
@@ -377,9 +323,7 @@
         // Open waterfront promenades and park gaps reveal the large landmarks.
         const open=(side<0 && ((s>82&&s<235)||(s>length*.57&&s<length*.63))) || (side>0 && s>720&&s<790);
         const w=range(15,24),d=range(10,17),h=range(12,20);
-        // Set the whole frontage, including its nearer corner, behind the widened footway.
-        const frontageShift=side>0?Math.max(bypassAt(s-w*.55).extra,bypassAt(s).extra,bypassAt(s+w*.55).extra):0;
-        const p=along(s,side*(22+d*.5+range(0,5))+frontageShift);
+        const p=roadside(s,side,22+d*.5+range(0,5));
         const r=Math.hypot(w,d)*.49;
         if(open || !available(p.x,p.z,r) || Math.abs(project(p.x,p.z).lateral)<halfWidth+d*.52+1.5) continue;
         const kind=Math.floor(rand()*shops.length);reserve(p.x,p.z,r);
@@ -592,13 +536,13 @@
       for(let i=0;i<72;i++){
         const x=range(75,365),z=range(-296,72),w=range(13,28),h=range(12,29),d=range(13,23);
         const p=project(x,z);
-        if(!available(x,z,19) || Math.abs(p.lateral)<42+(p.lateral>0?bypassAt(p.s).extra:0))continue;
+        if(!available(x,z,19) || Math.abs(p.lateral)<42)continue;
         reserve(x,z,18);building(x,z,rand()<.55?0:Math.PI*.5,w,d,h,i%shops.length);
       }
       for(let i=0;i<120;i++){
         const x=range(-48,562),z=range(-424,302);
         const p=project(x,z);
-        if(!available(x,z,4.2)||Math.abs(p.lateral)<23+(p.lateral>0?bypassAt(p.s).extra:0))continue;
+        if(!available(x,z,4.2)||Math.abs(p.lateral)<23)continue;
         tree(x,z,range(7,13),i%3);
       }
       for(let i=0;i<52;i++){

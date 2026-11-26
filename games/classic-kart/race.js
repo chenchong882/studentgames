@@ -580,7 +580,7 @@
   function scoreGate(index, lateral) {
     const lane = ClassicGates.answerLane(lateral, track.halfWidth);
     const q = deck[index], hit = lane === q.correctLane, selected = q.choices[lane];
-    records.push({ word: q.answer.word, chinese: q.answer.chinese, picked: selected?.word ?? null, hit });
+    records.push({ word: q.answer.word, chinese: q.answer.chinese, picked: selected.word, hit });
     if (hit) {
       correct++;
       drive.boost(car);
@@ -590,7 +590,7 @@
     }
     else {
       drive.penalize(car);
-      notify((lane === null ? '未作答 · ' : '') + q.answer.chinese + ' ＝ ' + q.answer.word, true, 2.2);
+      notify(q.answer.chinese + ' ＝ ' + q.answer.word, true, 2.2);
       beep(245, .18);
       beep(175, .18, .10);
     }
@@ -605,8 +605,9 @@
     readInputs(wallTime);
     if (touchDriving && touchLayout.matches) {
       Object.assign(touchInputs, inputs);
-      // Briefly lift and reapply the automatic throttle when a qualifying drift ends.
-      touchInputs.throttle = !inputs.brake && (inputs.throttle || !car.miniReady || car.throttleLifted);
+      touchInputs.throttle = !inputs.brake;
+      // Give the flame button the first half of the window, then assist on touch.
+      if (!inputs.brake && car.miniReady > 0 && car.miniReady <= cfg.miniWindow / 2) drive.useMini(car);
       drive.step(car, touchInputs, dt);
     } else drive.step(car, inputs, dt);
     projection = track.project(car.x, car.z, previous.s);
@@ -703,7 +704,7 @@
     const controls = touchLayout.matches ? [
       ['起步', '倒數到 1 時按住可衝刺。起跑後自動踩油門。'],
       ['‹ ›', '按住左、右箭頭轉向，也能滑到另一邊反打。'],
-      ['DRIFT', '與方向鍵同按甩尾。結束有效甩尾後會自動補油小噴。'],
+      ['DRIFT', '按住方向鍵和 DRIFT 甩尾。出彎時小火焰亮起淡藍色，點一下就能小噴。沒點也會自動發動。'],
       ['踏板', '按住煞車，放開恢復加速。停下後繼續按住可倒車。'],
       ['N₂O', '點亮起的氮氣加速，甩尾最多存兩罐。'],
       ['回正', '點排名下方的回轉箭頭，回到賽道中央。']
@@ -717,7 +718,7 @@
     }
     content.appendChild(list);
     const p = document.createElement('p');
-    p.textContent = '讀上方的中文，開進對應的英文門。答對加速 ' + cfg.quizTime + ' 秒，答錯會短暫緩速。右側繞行道也能開，從那裡經過會算一次答錯。';
+    p.textContent = '讀上方的中文，開進對應的英文門。答對加速 ' + cfg.quizTime + ' 秒，答錯會短暫緩速。';
     content.appendChild(p);
     action(interrupted ? '回到比賽' : '回到起跑線', interrupted ? resume : closeModal, true).focus();
   }
@@ -749,7 +750,7 @@
     c.append(h);
     if (misses.length) {
       const ul = document.createElement('ul');
-      misses.forEach(r => { const li = document.createElement('li'); li.textContent = r.chinese + ' ＝ ' + r.word + (r.picked === null ? '（繞行，未作答）' : '（你選了 ' + r.picked + '）'); ul.append(li); });
+      misses.forEach(r => { const li = document.createElement('li'); li.textContent = r.chinese + ' ＝ ' + r.word + '（你選了 ' + r.picked + '）'; ul.append(li); });
       c.append(ul);
     }
     action(courseChoice.value === 'random' ? '下一場隨機賽' : '重新開始', () => begin(), true).focus();
@@ -863,20 +864,23 @@
   stage.addEventListener('pointerdown', e => {
     if (e.pointerType === 'touch' && ['grid', 'matching'].includes(phase)) touchDriving = true;
   });
-  for (const b of el('touch').querySelectorAll('[data-drive]')) {
+  for (const b of document.querySelectorAll('[data-drive]')) {
     b.addEventListener('contextmenu', e => e.preventDefault());
-    if (b.dataset.drive === 'nitro') {
-      const useBottle = () => {
-        if (phase === 'race' && car.stock >= Number(b.dataset.slot) && drive.useNitro(car)) hud();
+    if (b.dataset.drive === 'nitro' || b.dataset.drive === 'mini') {
+      const activate = () => {
+        if (phase !== 'race' || b.disabled) return;
+        if (b.dataset.drive === 'mini') {
+          if (!requested.brake && drive.useMini(car)) hud();
+        } else if (car.stock >= Number(b.dataset.slot) && drive.useNitro(car)) hud();
       };
       b.addEventListener('pointerdown', e => {
         if (e.button !== 0) return;
         e.preventDefault();
-        useBottle();
+        activate();
       });
-      // Pointer presses already paid. Native keyboard and assistive clicks have zero detail.
+      // Pointer presses already activated the button. Keyboard and assistive clicks have zero detail.
       b.addEventListener('click', e => {
-        if (e.detail === 0) useBottle();
+        if (e.detail === 0) activate();
       });
       continue;
     }
@@ -951,21 +955,6 @@
     const bg = base.getContext('2d');
     bg.clearRect(0, 0, base.width, base.height);
     bg.beginPath();
-    let onBypass = false;
-    for (const [i, p] of points.entries()) {
-      const branch = track.bypassAt(i * track.length / points.length);
-      if (branch.blend > 0) {
-        const offset = branch.center * branch.blend;
-        const x = mx(p.x - p.tz * offset), y = my(p.z + p.tx * offset);
-        if (onBypass) bg.lineTo(x, y);
-        else bg.moveTo(x, y);
-      }
-      onBypass = branch.blend > 0;
-    }
-    bg.lineWidth = 2;
-    bg.strokeStyle = '#87bdc4';
-    bg.stroke();
-    bg.beginPath();
     points.forEach((p, i) => i ? bg.lineTo(mx(p.x), my(p.z)) : bg.moveTo(mx(p.x), my(p.z)));
     bg.closePath();
     bg.lineJoin = 'round';
@@ -999,6 +988,7 @@
   for (let i = 0; i < cfg.slots; i++)
     el('slots').append(document.createElement('i'));
   const bottles = document.querySelectorAll('#touch [data-drive="nitro"]');
+  const flames = document.querySelectorAll('.mini-boost');
   const stockMarkers = el('slots').children;
   const chargeMeter = el('charge'), chargeFill = el('fill');
   let lastCharge = -1, lastStock = -1, lastCanUse = false;
@@ -1012,6 +1002,11 @@
       lastCharge = charge;
     }
     const canUse = phase === 'race' && car.penalty <= 0;
+    const miniDisabled = !canUse || !!requested.brake || car.miniReady <= 0;
+    for (const flame of flames) {
+      if (flame.disabled !== miniDisabled) flame.disabled = miniDisabled;
+      flame.classList.toggle('firing', canUse && car.boostKind === 'mini');
+    }
     if (!changeStock && canUse === lastCanUse) return;
     chargeMeter.classList.toggle('at-capacity', car.stock === cfg.slots);
     for (let i = 0; i < stockMarkers.length; i++)
@@ -1113,6 +1108,7 @@
       if (!countdown) {
         Object.assign(inputs, requested);
         phaseTo('race');
+        ClassicRivals.launchPack(rivals);
         goTime = .72;
         delete el('countdown').dataset.launch;
         if (launchArmed) tryLaunch();

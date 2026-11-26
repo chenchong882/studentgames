@@ -13,13 +13,13 @@
     {id:'chestnut', name:'栗子', color:'#b87747', number:'86'}
   ];
   const driverSlots = [
-    {gridSlot:0, lane:-7.6, bypassOffset:-3.4, runout:56, drift:true},
-    {gridSlot:1, lane:-5.2, bypassOffset:0,    runout:48, drift:false},
-    {gridSlot:2, lane:-2.8, bypassOffset:3.4,  runout:40, drift:false},
-    {gridSlot:4, lane:1.0,  bypassOffset:-3.4, runout:59, drift:false},
-    {gridSlot:5, lane:3.3,  bypassOffset:0,    runout:51, drift:true},
-    {gridSlot:6, lane:5.5,  bypassOffset:3.4,  runout:43, drift:false},
-    {gridSlot:7, lane:7.6,  bypassOffset:0,    runout:35, drift:false}
+    {gridSlot:0, lane:-7.6, runout:56, drift:true},
+    {gridSlot:1, lane:-5.2, runout:48, drift:false},
+    {gridSlot:2, lane:-2.8, runout:40, drift:false},
+    {gridSlot:4, lane:1.0,  runout:59, drift:false},
+    {gridSlot:5, lane:3.3,  runout:51, drift:true},
+    {gridSlot:6, lane:5.5,  runout:43, drift:false},
+    {gridSlot:7, lane:7.6,  runout:35, drift:false}
   ];
   // Spread the field between the fastest and slowest engines and cornering targets of each difficulty.
   const fieldPaces = {
@@ -70,9 +70,18 @@
         ...identity,
         car, previousPose:{x:car.x, z:car.z, yaw:car.yaw}, progress:0, finishedAt:null,
         projection:track.project(car.x, car.z, 0), finishDistance:laps * track.length,
-        driver, line:startLane, roadLine:startLane, thinkIn:0, driftAgainAt:0, input:{}
+        driver, line:startLane, thinkIn:0, driftAgainAt:0, input:{}
       };
     });
+  }
+
+  function launchPack(rivals) {
+    const pool = rivals.slice();
+    const count = Math.min(pool.length, 3 + Math.floor(Math.random() * 3));
+    for (let i = 0; i < count; i++) {
+      const [rival] = pool.splice(Math.floor(Math.random() * pool.length), 1);
+      drive.launch(rival.car);
+    }
   }
 
   function alongDifference(from, to, length) {
@@ -103,7 +112,7 @@
     // so cars don't oscillate from side to side while passing each other.
     for (const shift of [0, -4, 4, -8, 8]) {
       const line = clamp(ideal + shift, -edge, edge);
-      let cost = .08 * (line - ideal) ** 2 + .05 * (line - rival.roadLine) ** 2;
+      let cost = .08 * (line - ideal) ** 2 + .05 * (line - rival.line) ** 2;
       for (const other of traffic) {
         const overlap = Math.max(0, 3.9 - Math.abs(line - other.lateral));
         const weight = clamp(1 - Math.abs(other.gap) / other.look, .16, 1);
@@ -123,10 +132,7 @@
     const traffic = trafficAround(rival, rivals, track, player, playerProgress);
     const edge = track.halfWidth - 3.5;
     const target = rival.finishedAt === null ? chooseLine(rival, ideal, traffic, edge) : Math.sign(driver.lane) * edge;
-    rival.roadLine += clamp(target - rival.roadLine, -6 * steerPeriod, 6 * steerPeriod);
-    // Follow the paved diversion through its merge and exit. It is the same for every language lesson.
-    const bypass = track.bypassAt(p.s + lead);
-    rival.line = rival.roadLine + bypass.blend * (bypass.center + driver.bypassOffset - rival.roadLine);
+    rival.line += clamp(target - rival.line, -6 * steerPeriod, 6 * steerPeriod);
     const next = track.sample(p.s + lead);
     const aim = Math.atan2(next.x - next.tz * rival.line - car.x, -(next.z + next.tx * rival.line - car.z));
     const steer = wrapAngle(aim - car.yaw) + .15 * car.slip - .11 * car.yawRate;
@@ -137,10 +143,6 @@
     let speedLimit = cfg.topSpeed * driver.pace / 3.6;
     const steeringTorque = cfg.frontAxle * cfg.frontStiffness * cfg.steerHigh * Math.PI / 180;
     const yawRate = steeringTorque / (cfg.yawInertia * cfg.yawDamping);
-    if (bypass.blend || track.bypassAt(p.s + lead + 40).blend) {
-      // Low steering authority in live tuning calls for an earlier, slower merge.
-      speedLimit = Math.min(speedLimit, 38 * yawRate, 13 * cfg.steerResponse);
-    }
     for (let look = 0; look <= 120; look += 6) {
       const curvature = bends.at(p.s + look);
       if (Math.abs(curvature) < .002) continue;
@@ -184,18 +186,10 @@
         navigate(rival, rivals, track, player, playerProgress, elapsed);
         rival.thinkIn += steerPeriod;
       }
-      drive.step(car, rival.input, dt, rival.driver.pace);
+      // Even on easy, a successful launch can run alongside the player's kart.
+      const pace = car.launchTimer > 0 ? Math.max(1, rival.driver.pace) : rival.driver.pace;
+      drive.step(car, rival.input, dt, pace);
       let p = track.project(car.x, car.z, before.s);
-      const bypass = track.bypassAt(p.s);
-      // Keep the AI on its assigned bypass even with extreme live steering
-      // settings. Players may drive across the approach in either direction.
-      const over = bypass.inner + drive.config.collisionRadius - p.lateral;
-      if (bypass.blend && over > 0) {
-        const slope = bypass.innerSlope, scale = 1 / Math.hypot(1, slope);
-        const nx = (p.tx * slope + p.tz) * scale, nz = (p.tz * slope - p.tx) * scale;
-        drive.resolveWallContact(car, nx, nz, over * scale);
-        p = track.project(car.x, car.z, p.s);
-      }
       p = drive.constrainToTrack(car, track, p, dt);
       const distance = alongDifference(before.s, p.s, track.length);
       rival.progress += distance;
@@ -206,5 +200,5 @@
     }
   }
 
-  window.ClassicRivals = {create, step, playerStart};
+  window.ClassicRivals = {create, step, playerStart, launchPack};
 })();

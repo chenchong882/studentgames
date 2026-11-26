@@ -227,8 +227,8 @@
     }
     const outside=-Math.sign(area);
     const shore=road.map((p,i)=>{
-      const s=i*track.length/n, extra=outside>0?track.bypassAt(s).extra:0;
-      const beachWidth=19+4*Math.sin(s*.019)+2*Math.sin(s*.034),offset=track.halfWidth+extra+beachWidth;
+      const s=i*track.length/n;
+      const beachWidth=19+4*Math.sin(s*.019)+2*Math.sin(s*.034),offset=track.halfWidth+beachWidth;
       const nx=-outside*p.tz,nz=outside*p.tx,a=track.sample(s-12),b=track.sample(s+12);
       const inwardTurn=outside*Math.atan2(a.tx*b.tz-a.tz*b.tx,a.tx*b.tx+a.tz*b.tz);
       // Shorten the underwater shelf on the inside of a curve, before its normals intersect.
