@@ -34,7 +34,35 @@
     <symbol id="timer" viewBox="0 0 24 24"><circle cx="12" cy="14" r="7.5"/><path d="M9 3h6m-3 0v3m6 1 2-2m-8 5v4l2 1"/></symbol>
     <symbol id="route" viewBox="0 0 24 24"><path d="M12 21s7-6.4 7-12A7 7 0 0 0 5 9c0 5.6 7 12 7 12Z"/><circle cx="12" cy="9" r="2.3"/></symbol>
     <symbol id="camera-icon" viewBox="0 0 24 24"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="3.2"/></symbol>
+    <symbol id="steer-wing" viewBox="0 0 100 112">
+      <path d="M75 4Q96-4 97 23L94 48Q92 56 94 65L97 89Q96 116 77 108L13 75Q-7 59 11 42Z" fill="var(--button-glass)" stroke="var(--button-edge)" stroke-width="3"/>
+      <path d="M62 36 45 54q-3 3 0 6l17 17-8-19Z" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="drift-tire" viewBox="0 0 60 40">
+      <path d="M9 3c4 15 15 31 40 23-13 19-36 12-42-2l-4 5 3-25zm9 3 8-1c2 8 6 13 13 15-9 2-17-3-21-14zm22-3 7-1c4 8 4 14-1 17-4 2-8 0-11-3 10 2 12-2 5-13z" fill="currentColor" stroke="none"/>
+      <path d="m15 23 3-3m3 9 3-4m4 7 3-4m4 5 2-4m5 3 1-3" stroke="#51677d" stroke-width="2.1"/>
+    </symbol>
+    <symbol id="brake-pedal" viewBox="0 0 48 48">
+      <path d="M8 6h32q4 0 3 6l-3 25q0 5-6 5H14q-5 0-6-5L5 12Q4 6 8 6Z" fill="var(--button-glass)" stroke="var(--button-edge)" stroke-width="2.5"/>
+      <path d="M12 16h24m-22 8h20m-18 8h16" stroke="currentColor" stroke-width="3.4"/>
+    </symbol>
+    <symbol id="nitro-cartridge" viewBox="0 0 52 54">
+      <path d="m5 3 40 3q3 0 3 4l2 35q0 4-4 4L8 52q-4 0-4-4L2 8Q2 3 5 3Z" fill="#d83425" stroke="#fff1d9" stroke-width="2.5"/>
+      <path d="m5 6 40 3 1 9-40-5Z" fill="#ff6546" stroke="none"/>
+      <text x="5" y="31" fill="#fff9db" stroke="#90201d" stroke-width=".7" style="font:italic 900 25px Arial,sans-serif;paint-order:stroke">N<tspan dy="2" font-size="12">2</tspan><tspan dy="-1" font-size="19">O</tspan></text>
+      <path d="M15 34c2 4 4 4 4 7l2-4c4 5 0 11-5 11-7 0-10-6-5-12 0 3 2 4 2 4z" fill="#ffdb38" stroke="none"/>
+      <path d="m31 38 12-1 .4 6-12 1Z" stroke="#ffdd57" stroke-width="1.7" fill="#662421"/><path d="m34 40 1 1m3-1 1 1" stroke="#ffdd57" stroke-width="1.5"/>
+    </symbol>
+    <symbol id="recover-icon" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M3 10A9.2 9.2 0 0 1 18.6 5l2.8-2 .4 7.8-7.6-1.3 2.2-1.8A6.1 6.1 0 0 0 5.6 10zm18 4a9.2 9.2 0 0 1-15.6 5l-2.8 2-.4-7.8 7.6 1.3-2.2 1.8A6.1 6.1 0 0 0 18.4 14z"/></symbol>
+    <symbol id="racer-helmet" viewBox="0 0 32 32" stroke="none">
+      <path fill="currentColor" d="M2 19C1 8 8 2 17 2c9 0 14 6 14 15 0 7-4 12-10 14H8c-4-2-6-7-6-12Z"/>
+      <path fill="#fff1c9" d="M15 3h4l-2 7-4 2z"/><path fill="#203448" d="M5 16c6-5 15-6 23-3l-1 7c-4 6-9 8-16 6-4-2-6-5-6-10Z"/>
+      <path fill="#ffc89a" d="M7 17c6-3 13-4 19-3-1 7-6 11-12 11-4 0-7-3-7-8Z"/>
+      <path fill="#263a4b" d="M12 17c0-2 3-3 3-1v3c0 2-3 3-3 1zm9-2c0-2 3-2 3 0l-1 3c0 2-2 2-2 0z"/>
+      <path fill="#fff4de" d="M3 17h3l2 7-4-1zm10 10c4 1 8 0 12-3l-3 4-7 1z"/>
+    </symbol>
   </svg>
+  <template id="driver-row"><li><b class="position"></b><svg class="driver-portrait" aria-hidden="true"><use href="#racer-helmet"/></svg><span></span></li></template>
   <header class="topbar">
     <a class="brand" id="hub" href="../index.html" aria-label="返回學生遊戲大廳"><b class="flag-tile"><svg><use href="#flag"/></svg></b><span><span class="brand-classic">CLASSIC </span><i>KART</i></span></a>
     <span class="brand-sub">RACING ENGLISH</span>
@@ -53,7 +81,7 @@
       <div class="course-type"><i class="checker"></i> 單人 AI 競速</div>
       <h1 id="course-title" lang="en">CIRCUIT<br><em>TOUR</em></h1>
       <h2>單字巡迴賽</h2>
-      <p class="race-facts"><span><svg><use href="#flag"/></svg>3 圈</span><span>3 位 AI 對手</span><span><svg><use href="#route"/></svg>每圈 4 道單字門</span></p>
+      <p class="race-facts"><span><svg><use href="#flag"/></svg>3 圈</span><span>7 位 AI 對手</span><span><svg><use href="#route"/></svg>每圈 4 道單字門</span></p>
       <fieldset class="race-difficulty">
         <legend>AI 對手難度</legend>
         <div class="difficulty-options">
@@ -64,7 +92,7 @@
       </fieldset>
       <label class="course-choice" for="course-choice">賽道 <select id="course-choice"><option value="random">隨機抽賽道</option></select><canvas id="choice-map" width="222" height="158" aria-hidden="true" hidden></canvas></label>
       <button class="primary" id="start" disabled>準備賽道中…</button>
-      <p class="launch-tip">倒數到 <b>1</b>，按住油門衝刺起跑。</p>
+      <p class="launch-tip">倒數到 <b>1</b>，按住<span class="launch-key">油門</span><span class="launch-touch">右下「起步」</span>衝刺起跑。</p>
       <div id="lesson"></div>
     </section>
     <section id="match-card" aria-labelledby="match-status" hidden>
@@ -79,19 +107,56 @@
     </section>
     <section id="hud" aria-label="比賽儀表" hidden>
       <div class="clock panel"><svg><use href="#timer"/></svg><strong id="time">0:00.00</strong><span class="divider"></span><span class="score"><b class="good">✓ <span id="hits">0</span></b><b class="bad">× <span id="misses">0</span></b></span></div>
-      <aside class="race-order" aria-label="比賽名次與圈數">
-        <div class="lapbox panel"><span class="place-label">名次</span><strong id="place">–</strong><small>/ 4</small><i class="divider"></i><span>LAP</span><strong id="lap">1</strong><small>/ 3</small></div>
+      <div class="lapbox" aria-label="目前圈數"><strong id="lap">1</strong> / 3 圈</div>
+      <aside class="race-order" aria-label="比賽名次">
         <ol id="field-order" aria-label="車手即時排名"></ol>
+        <button id="recover" type="button" title="回到賽道中央（R）" aria-label="回到賽道中央"><svg aria-hidden="true"><use href="#recover-icon"/></svg></button>
       </aside>
       <div id="question" hidden><span class="question-cap">開進英文門作答 · 右側繞行算答錯</span><strong id="prompt"></strong><div id="choices"><span></span><span></span><span></span></div></div>
       <div id="feedback" role="status" hidden></div>
       <div id="countdown" role="status" hidden></div>
       <span id="launch-cue">按住油門</span>
       <div id="map-box"><canvas id="map" width="222" height="158" aria-label="賽道小地圖"></canvas><span id="map-name"></span></div>
-      <div class="nitro panel"><span class="nitro-label">N₂O</span><div class="charge"><i id="fill"></i></div><span id="slots" aria-label="氮氣儲存格"></span><kbd>Ctrl</kbd></div>
-      <div class="speedbox"><svg id="dial" viewBox="0 0 190 115" aria-hidden="true"></svg><strong id="speed">0</strong><span>KM/H</span><i id="drive-status"></i></div>
+      <div class="nitro panel"><span class="nitro-label">N₂O</span><div id="charge" class="charge" role="meter" aria-label="甩尾集氣度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="fill"></i></div><span id="slots" aria-label="氮氣儲存格"></span><kbd>Ctrl</kbd></div>
+      <div class="speedbox" role="group" aria-label="時速（公里／小時）">
+        <svg id="dial" viewBox="0 0 190 115" aria-hidden="true"></svg>
+        <svg class="digital-dash" viewBox="0 0 240 52" aria-hidden="true">
+          <defs>
+            <linearGradient id="dash-glass" x2="0" y2="1" gradientUnits="objectBoundingBox">
+              <stop stop-color="#4496b6"/><stop offset=".24" stop-color="#19465e"/><stop offset="1" stop-color="#0c354d"/>
+            </linearGradient>
+            <pattern id="dash-steps" width="24" height="7" patternUnits="userSpaceOnUse">
+              <rect width="24" height="5" fill="#5ffff8"/>
+            </pattern>
+            <path id="dash-wing" d="M3 51Q13 19 53 9Q30 22 28 51Z"/>
+          </defs>
+          <path d="M1 51Q14 9 65 6H175Q225 8 239 51Z" fill="#0689ab"/>
+          <path d="M28 51Q30 11 66 8H174Q209 11 212 51Z" fill="url(#dash-glass)" stroke="#74ddf0" stroke-width="1.5"/>
+          <g fill="url(#dash-steps)"><use href="#dash-wing"/><use href="#dash-wing" transform="translate(240) scale(-1 1)"/></g>
+          <g id="speed-digits" fill="#fffab3" transform="translate(59 17) skewX(-9)">
+            <path/><path transform="translate(22)"/><path transform="translate(44)"/>
+            <circle cx="67" cy="24.5" r="2"/><path transform="translate(73 4) scale(.84)"/>
+          </g>
+          <text x="152" y="42" fill="#ecfffa" font-family="Arial,sans-serif" font-size="13" font-style="italic" font-weight="bold">km/h</text>
+        </svg>
+        <strong id="speed">0.0</strong><span>km/h</span><i id="drive-status"></i>
+      </div>
     </section>
-    <div id="touch" hidden><div><button data-drive="left" aria-label="左轉">◀</button><button data-drive="right" aria-label="右轉">▶</button></div><div><button data-drive="nitro">N₂O</button><button data-drive="drift">甩尾</button><button data-drive="brake">煞車</button><button data-drive="throttle" class="gas">油門</button></div></div>
+    <div id="touch" role="group" aria-label="觸控駕駛" hidden>
+      <div class="touch-steering">
+        <button data-drive="left" aria-label="左轉"><svg aria-hidden="true"><use href="#steer-wing"/></svg></button>
+        <button data-drive="right" aria-label="右轉"><svg aria-hidden="true"><use href="#steer-wing"/></svg></button>
+      </div>
+      <div class="touch-actions">
+        <div class="touch-tanks" role="group" aria-label="儲存氮氣">
+          <button data-drive="nitro" data-slot="1" aria-label="使用第一格氮氣" disabled><svg aria-hidden="true"><use href="#nitro-cartridge"/></svg></button>
+          <button data-drive="nitro" data-slot="2" aria-label="使用第二格氮氣" disabled><svg aria-hidden="true"><use href="#nitro-cartridge"/></svg></button>
+        </div>
+        <button data-drive="brake" aria-label="煞車踏板"><svg aria-hidden="true"><use href="#brake-pedal"/></svg></button>
+        <button data-drive="drift" aria-label="甩尾"><b lang="en">DRIFT</b><svg aria-hidden="true"><use href="#drift-tire"/></svg></button>
+        <button data-drive="throttle" aria-label="起步油門">起步</button>
+      </div>
+    </div>
     <aside id="tuning" class="sheet" aria-labelledby="tune-title" hidden><header><h2 id="tune-title">即時調校</h2><button id="close-tune" aria-label="關閉調校">×</button></header><div id="sliders"></div><button id="defaults" class="secondary">恢復預設參數</button></aside>
     <div id="modal" hidden><section class="sheet dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="course-type"><i class="checker"></i> <span id="dialog-course">CIRCUIT TOUR</span></div><h2 id="dialog-title"></h2><div id="dialog-content"></div><div id="dialog-actions"></div></section></div>
     <p id="fault" role="alert" hidden></p>

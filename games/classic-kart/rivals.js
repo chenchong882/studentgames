@@ -13,15 +13,19 @@
     {id:'chestnut', name:'栗子', color:'#b87747', number:'86'}
   ];
   const driverSlots = [
-    {gridSlot:0, lane:-4.8, bypassOffset:-3.4, runout:56, drift:true},
-    {gridSlot:2, lane:1.0, bypassOffset:0, runout:47, drift:false},
-    {gridSlot:3, lane:5.0, bypassOffset:3.4, runout:39, drift:false}
+    {gridSlot:0, lane:-7.6, bypassOffset:-3.4, runout:56, drift:true},
+    {gridSlot:1, lane:-5.2, bypassOffset:0,    runout:48, drift:false},
+    {gridSlot:2, lane:-2.8, bypassOffset:3.4,  runout:40, drift:false},
+    {gridSlot:4, lane:1.0,  bypassOffset:-3.4, runout:59, drift:false},
+    {gridSlot:5, lane:3.3,  bypassOffset:0,    runout:51, drift:true},
+    {gridSlot:6, lane:5.5,  bypassOffset:3.4,  runout:43, drift:false},
+    {gridSlot:7, lane:7.6,  bypassOffset:0,    runout:35, drift:false}
   ];
-  // Pace scales engine thrust and cruising speed. Corner is the driver's target lateral acceleration in m/s².
+  // Spread the field between the fastest and slowest engines and cornering targets of each difficulty.
   const fieldPaces = {
-    easy:   [{pace:.82, corner:14.5}, {pace:.79, corner:14.1}, {pace:.76, corner:13.8}],
-    normal: [{pace:1.13, corner:22.7}, {pace:1.11, corner:22.3}, {pace:1.09, corner:22.2}],
-    hard:   [{pace:1.175, corner:24.3}, {pace:1.16, corner:23.7}, {pace:1.14, corner:23.5}]
+    easy:   {pace:[.82,.76], corner:[14.5,13.8]},
+    normal: {pace:[1.13,1.09], corner:[22.7,22.2]},
+    hard:   {pace:[1.175,1.14], corner:[24.3,23.5]}
   };
   const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
   const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -50,14 +54,16 @@
     pose.z += pose.tx * lateral;
     return pose;
   }
-  const playerStart = track => startPose(track, 1);
+  const playerStart = track => startPose(track, 3);
 
   function create(track, laps = 3, difficulty = 'normal') {
     const field = (difficulty === 'easy' || difficulty === 'hard') ? fieldPaces[difficulty] : fieldPaces.normal;
     const pool = roster.slice();
     return driverSlots.map((slot, index) => {
       const [identity] = pool.splice(Math.floor(Math.random()*pool.length), 1);
-      const driver = {...slot, ...field[index]};
+      const fraction = index / (driverSlots.length - 1);
+      const driver = {...slot, pace:field.pace[0] + (field.pace[1] - field.pace[0])*fraction,
+        corner:field.corner[0] + (field.corner[1] - field.corner[0])*fraction};
       const car = drive.create(startPose(track, driver.gridSlot));
       const startLane = track.gridLanes[driver.gridSlot];
       return {

@@ -63,20 +63,24 @@
     settledSlip: 4 * rad, miniWindow: .86, miniForce: 10.5,
     miniSpeedGain: 23, slots: 2, speedSteerFalloff: 21, cameraBodyMix: .25,
     aimHeight: 1.08, farDistance: 2.7, farHeight: 1.25, farLookAhead: 1.8,
-    cameraBoostIn: 3.6, cameraBoostOut: 2.05, gridHalfSpan: 12, gridViewSeconds: 1.4
+    cameraBoostIn: 3.6, cameraBoostOut: 2.05, gridHalfSpan: 15, gridViewSeconds: 1.4
   });
 
   function create(pose) {
-    return reset({stock: 0, charge: 0}, pose);
+    // These values belong to the race, so putting the kart back on the road preserves them.
+    return reset({
+      stock: 0, charge: 0, prevThrottle: false, prevNitro: false,
+      launchTimer: 0, tankTimer: 0, quizTimer: 0, miniTimer: 0, penalty: 0,
+      boostKind: '', boosting: false
+    }, pose);
   }
   function reset(car, pose) {
     return Object.assign(car, {
       x: pose.x, z: pose.z, vx: 0, vz: 0, yaw: Math.atan2(pose.tx, -pose.tz),
       yawRate: 0, speed: 0, slip: 0, rearSlip: 0, skidding: false, steer: 0, wheelAngle: 0,
       phase: 'grip', grip: 1, entryLoad: 0, driftSide: 0, driftSeconds: 0, effectiveSeconds: 0,
-      driftLatched: false, releasedFor: 0, driftFinished: false, prevThrottle: false, prevNitro: false, miniReady: 0,
-      throttleLifted: false, launchTimer: 0, tankTimer: 0, quizTimer: 0, miniTimer: 0,
-      penalty: 0, boostKind: '', boosting: false, cameraState: null, wallCooldown: 0
+      driftLatched: false, releasedFor: 0, driftFinished: false, miniReady: 0,
+      throttleLifted: false, cameraState: null, wallCooldown: 0
     });
   }
   function resolveWallContact(car, nx, nz, penetration) {
@@ -156,15 +160,13 @@
   }
 
   function recoveryPose(track, projection) {
-    const pose = track.sample(projection.s);
-    if (projection.lateral > track.halfWidth) {
-      const island = track.islandAt(projection.s), outer = track.halfWidth + track.bypassAt(projection.s).extra;
-      const inner = island ? island.right : track.halfWidth;
-      const lateral = Math.min((inner+outer)/2, outer-config.collisionRadius);
-      pose.x -= pose.tz*lateral;
-      pose.z += pose.tx*lateral;
-    }
-    return pose;
+    return track.sample(projection.s);
+  }
+  function useNitro(car) {
+    if (car.stock <= 0 || car.penalty > 0) return false;
+    car.stock--;
+    car.tankTimer += config.nitroTime;
+    return true;
   }
   function boost(car) {
     car.quizTimer = config.quizTime;
@@ -246,6 +248,7 @@
         car.charge += dt * config.chargeRate * load * clamp(forward / 36, .25, 1.25);
         if (car.charge >= 1) {
           car.stock++;
+          // Filling the last slot discards overflow. Charging resumes only after spending a tank.
           car.charge = car.stock >= config.slots ? 0 : car.charge - 1;
         }
       }
@@ -260,10 +263,7 @@
 
   function step(car, input, dt, pace = 1) {
     const cfg = config;
-    if (input.nitro && !car.prevNitro && car.stock > 0 && car.tankTimer <= 0 && car.penalty <= 0) {
-      car.stock--;
-      car.tankTimer = cfg.nitroTime;
-    }
+    if (input.nitro && !car.prevNitro) useNitro(car);
     const fx = Math.sin(car.yaw), fz = -Math.cos(car.yaw);
     const rx = -fz, rz = fx;
     const forward = car.vx * fx + car.vz * fz;
@@ -399,5 +399,5 @@
       view.updateProjectionMatrix();
     }
   }
-  window.ClassicDrive = {config, sliders, step, create, reset, recoveryPose, constrainToRoad, constrainToTrack, resolveWallContact, camera, boost, launch, penalize};
+  window.ClassicDrive = {config, sliders, step, create, reset, recoveryPose, constrainToRoad, constrainToTrack, resolveWallContact, camera, useNitro, boost, launch, penalize};
 })();

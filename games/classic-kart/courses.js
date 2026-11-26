@@ -3,7 +3,7 @@
 (() => {
   'use strict';
   const halfWidth = 13.5;
-  const gridLanes = [-7.2,-2.4,2.4,7.2];
+  const gridLanes = [-11.2,-8,-4.8,-1.6,1.6,4.8,8,11.2];
   const sunportDiversion = {
     bypassCenter:23.5, bypassHalfWidth:6.5,
     forkStart:-152, forkEnd:-52, mergeStart:24, mergeEnd:124,

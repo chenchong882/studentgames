@@ -89,9 +89,23 @@
   let question = null, feedbackTime = 0, goTime = 0, cameraMode = 0, dirty = true, accum = 0, last = 0;
   let pixelLimit = Math.min(window.devicePixelRatio || 1, 1.5), slowFrames = 0;
   const keys = new Set(), pointers = new Map(), inputs = {}, requested = {}, inputEvents = [];
+  const touchInputs = {}, touchLayout = matchMedia('(any-pointer:coarse),(max-width:700px)');
+  let touchDriving = matchMedia('(pointer:coarse),(max-width:700px)').matches;
   const keyMap = { ArrowUp: 'throttle', ArrowDown: 'brake', ArrowLeft: 'left', ArrowRight: 'right',
     ShiftLeft: 'drift', ShiftRight: 'drift', ControlLeft: 'nitro', ControlRight: 'nitro' };
-  const pressed = name => Object.keys(keyMap).some(key => keyMap[key] === name && keys.has(key)) || [...pointers.values()].includes(name);
+  const pressed = name => Object.keys(keyMap).some(key => keyMap[key] === name && keys.has(key)) || [...pointers.values()].some(b => b.dataset.drive === name);
+
+  function holdButton(source, button) {
+    const before = pointers.get(source);
+    if (button === before) return;
+    if (button) pointers.set(source, button);
+    else pointers.delete(source);
+    for (const b of [before, button]) {
+      if (!b) continue;
+      b.classList.toggle('held', [...pointers.values()].includes(b));
+      recordInput(b.dataset.drive);
+    }
+  }
 
   function recordInput(name) {
     if (!name)
@@ -288,6 +302,7 @@
     el('match-card').hidden = value !== 'matching';
     const beforeGrid = value === 'matching' || (value === 'paused' && beforePause === 'matching');
     el('hud').hidden = onGrid || beforeGrid;
+    el('recover').disabled = value !== 'race';
     el('camera-button').hidden = onGrid || beforeGrid;
     el('pause').hidden = !['matching', 'countdown', 'race', 'paused'].includes(value);
     const showTour = onGrid && courseChoice.value === 'random';
@@ -338,23 +353,19 @@
   }
 
   function resetOnRoad() {
-    const onGrid = phase === 'countdown' || (phase === 'paused' && beforePause === 'countdown');
+    if (phase !== 'countdown' && phase !== 'race') return;
+    const onGrid = phase === 'countdown';
     drive.reset(car, onGrid ? ClassicRivals.playerStart(track) : drive.recoveryPose(track, projection));
     projection = track.project(car.x, car.z, projection.s);
     resetPose();
     drive.camera(camera, renderCar, 0, cameraMode, true, onGrid ? 1 : 0);
     dirty = true;
   }
+  el('recover').onclick = resetOnRoad;
 
   function lineUpRivals() {
     rivals = ClassicRivals.create(track, LAPS, difficulty);
     for (const view of rivalViews.values()) view.model.root.visible = false;
-    for (const rival of rivals) {
-      if (!rivalViews.has(rival.id)) {
-        const kart = ClassicKartArt.createRival(rivalGroup, rival);
-        rivalViews.set(rival.id, { model: kart, pose: {} });
-      }
-    }
     el('field-order').replaceChildren();
     playerFinishedAt = null;
     displayedOrder = '';
@@ -378,18 +389,23 @@
     const key = (tied ? '=' : '') + field.map(r => r.id).join('/');
     if (key === displayedOrder) return;
     displayedOrder = key;
-    el('place').textContent = tied ? '–' : field.findIndex(r => r.id === 'player') + 1;
-    el('field-order').classList.toggle('level-start', tied);
-    el('field-order').setAttribute('aria-label', tied ? '四位車手並排起跑' : '車手即時排名');
-    for (const driver of field) {
+    const list = el('field-order');
+    list.classList.toggle('level-start', tied);
+    list.setAttribute('aria-label', tied ? '八位車手並排起跑' : '車手即時排名');
+    for (const [i, driver] of field.entries()) {
       if (!orderRows.has(driver.id)) {
-        const row = document.createElement('li'), marker = document.createElement('i');
-        marker.style.backgroundColor = driver.color;
-        row.append(marker, driver.name);
-        if (driver.id === 'player') row.className = 'your-row';
+        const row = el('driver-row').content.firstElementChild.cloneNode(true);
+        row.style.setProperty('--driver-color', driver.color);
+        row.lastElementChild.textContent = driver.name;
+        if (driver.id === 'player') {
+          row.className = 'your-row';
+          row.firstElementChild.id = 'place';
+        }
         orderRows.set(driver.id, row);
       }
-      el('field-order').append(orderRows.get(driver.id));
+      const row = orderRows.get(driver.id);
+      row.firstElementChild.textContent = tied ? '–' : i + 1;
+      list.append(row);
     }
   }
 
@@ -434,7 +450,7 @@
     joined = 0;
     let arrival = 0;
     arrivalTimes = rivals.map(() => {
-      arrival += .8 + Math.random() * .35;
+      arrival += .36 + Math.random() * .18;
       return arrival;
     });
     el('match-name').textContent = track.name;
@@ -444,8 +460,7 @@
     el('match-status').textContent = '配對中，請稍候';
     el('match-count').textContent = '對手 0 / ' + rivals.length;
     el('skip-match').textContent = '略過等待';
-    el('match-rivals').replaceChildren(...rivals.map(rival => {
-      rivalViews.get(rival.id).model.root.visible = false;
+    el('match-rivals').replaceChildren(...rivals.map(() => {
       const item = document.createElement('li'), number = document.createElement('b');
       number.textContent = '··';
       number.setAttribute('aria-hidden', 'true');
@@ -464,7 +479,12 @@
       slot.style.setProperty('--driver-color', rival.color);
       slot.lastChild.textContent = rival.name;
       slot.classList.add('joined');
-      rivalViews.get(rival.id).model.root.visible = true;
+      let view = rivalViews.get(rival.id);
+      if (!view) {
+        view = { model: ClassicKartArt.createRival(rivalGroup, rival), pose: {} };
+        rivalViews.set(rival.id, view);
+      }
+      view.model.root.visible = true;
       joined++;
       el('match-count').textContent = '對手 ' + joined + ' / ' + rivals.length;
       if (joined === rivals.length) {
@@ -512,7 +532,7 @@
     el('skip-match').blur();
     el('countdown').textContent = '3';
     delete el('countdown').dataset.launch;
-    el('launch-cue').textContent = '按住油門';
+    el('launch-cue').textContent = touchDriving && touchLayout.matches ? '按住右下「起步」' : '按住油門';
     el('countdown').hidden = false;
     beep(460, .12);
     hud();
@@ -579,7 +599,12 @@
     const previous = projection, from = progress;
     Object.assign(previousPose, { x: car.x, z: car.z, yaw: car.yaw });
     readInputs(wallTime);
-    drive.step(car, inputs, dt);
+    if (touchDriving && touchLayout.matches) {
+      Object.assign(touchInputs, inputs);
+      // Briefly lift and reapply the automatic throttle when a qualifying drift ends.
+      touchInputs.throttle = !inputs.brake && (inputs.throttle || !car.miniReady || car.throttleLifted);
+      drive.step(car, touchInputs, dt);
+    } else drive.step(car, inputs, dt);
     projection = track.project(car.x, car.z, previous.s);
     projection = drive.constrainToTrack(car, track, projection, dt);
     let ds = projection.s - previous.s;
@@ -670,7 +695,15 @@
     openModal('help', '駕駛操作');
     const content = el('dialog-content');
     const list = document.createElement('dl');
-    for (const [key, label] of [['↑ / ↓', '油門／煞車。倒數到 1 時按住油門可衝刺起跑，停下後按煞車可倒車。'], ['← / →', '轉向，甩尾中按反方向拉正'], ['Shift', '與方向鍵同按進入甩尾'], ['Ctrl', '使用一格甩尾集滿的氮氣'], ['R / C', '重置車輛／切換跟車鏡頭'], ['Esc / T', '暫停／即時調校']]) {
+    const controls = touchLayout.matches ? [
+      ['起步', '倒數到 1 時按住可衝刺。起跑後自動踩油門。'],
+      ['‹ ›', '按住左、右箭頭轉向，也能滑到另一邊反打。'],
+      ['DRIFT', '與方向鍵同按甩尾。結束有效甩尾後會自動補油小噴。'],
+      ['踏板', '按住煞車，放開恢復加速。停下後繼續按住可倒車。'],
+      ['N₂O', '點亮起的氮氣加速，甩尾最多存兩罐。'],
+      ['回正', '點排名下方的回轉箭頭，回到賽道中央。']
+    ] : [['↑ / ↓', '油門／煞車。倒數到 1 時按住油門可衝刺起跑，停下後按煞車可倒車。'], ['← / →', '轉向，甩尾中按反方向拉正'], ['Shift', '與方向鍵同按進入甩尾，結束後鬆開再踩油門即可小噴'], ['Ctrl', '使用一格甩尾集滿的氮氣，最多存兩罐'], ['R / C', '回到賽道中央／切換跟車鏡頭'], ['Esc / T', '暫停／即時調校']];
+    for (const [key, label] of controls) {
       const term = document.createElement('dt'), desc = document.createElement('dd'), k = document.createElement('kbd');
       k.textContent = key;
       term.appendChild(k);
@@ -679,7 +712,7 @@
     }
     content.appendChild(list);
     const p = document.createElement('p');
-    p.textContent = '讀上方的中文，開進對應的英文門。答對加速 ' + cfg.quizTime + ' 秒，答錯會短暫緩速。右側繞行道也能開，從那裡經過會算一次答錯。有效甩尾後，放開再踩油門即可小噴。';
+    p.textContent = '讀上方的中文，開進對應的英文門。答對加速 ' + cfg.quizTime + ' 秒，答錯會短暫緩速。右側繞行道也能開，從那裡經過會算一次答錯。';
     content.appendChild(p);
     action(interrupted ? '回到比賽' : '回到起跑線', interrupted ? resume : closeModal, true).focus();
   }
@@ -795,6 +828,7 @@
     if (keyMap[e.code]) {
       e.preventDefault();
       if (e.repeat) return;
+      if (e.code === 'ArrowUp') touchDriving = false;
       keys.add(e.code);
       recordInput(keyMap[e.code]);
     }
@@ -806,7 +840,11 @@
         resetOnRoad();
     }
   });
-  window.addEventListener('keyup', e => { keys.delete(e.code); recordInput(keyMap[e.code]); });
+  window.addEventListener('keyup', e => {
+    if (pointers.has(e.code)) holdButton(e.code, null);
+    keys.delete(e.code);
+    recordInput(keyMap[e.code]);
+  });
 
   function away() { if (['matching', 'race', 'countdown'].includes(phase))
     pauseRace(); clearInputs(); }
@@ -817,13 +855,49 @@
   });
   window.addEventListener('pagehide', () => music.pause());
   window.addEventListener('pageshow', syncAudio);
-  for (const b of document.querySelectorAll('[data-drive]')) {
-    b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); pointers.set(e.pointerId, b.dataset.drive); recordInput(b.dataset.drive); b.classList.add('held'); });
-    const release = e => { pointers.delete(e.pointerId); recordInput(b.dataset.drive); b.classList.toggle('held', [...pointers.values()].includes(b.dataset.drive)); };
+  stage.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch' && ['grid', 'matching'].includes(phase)) touchDriving = true;
+  });
+  for (const b of el('touch').querySelectorAll('[data-drive]')) {
+    b.addEventListener('contextmenu', e => e.preventDefault());
+    if (b.dataset.drive === 'nitro') {
+      const useBottle = () => {
+        if (phase === 'race' && car.stock >= Number(b.dataset.slot) && drive.useNitro(car)) hud();
+      };
+      b.addEventListener('pointerdown', e => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        useBottle();
+      });
+      // Pointer presses already paid. Native keyboard and assistive clicks have zero detail.
+      b.addEventListener('click', e => {
+        if (e.detail === 0) useBottle();
+      });
+      continue;
+    }
+    b.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      touchDriving = true;
+      b.setPointerCapture(e.pointerId);
+      holdButton(e.pointerId, b);
+    });
+    if (b.closest('.touch-steering')) b.addEventListener('pointermove', e => {
+      if (!pointers.has(e.pointerId)) return;
+      const next = document.elementFromPoint(e.clientX, e.clientY)?.closest('.touch-steering button');
+      if (next) holdButton(e.pointerId, next);
+    });
+    b.addEventListener('keydown', e => {
+      if (e.code !== 'Space' && e.code !== 'Enter') return;
+      e.preventDefault();
+      if (e.repeat) return;
+      touchDriving = true;
+      holdButton(e.code, b);
+    });
+    const release = e => holdButton(e.pointerId, null);
     b.addEventListener('lostpointercapture', release);
     b.addEventListener('pointerup', release);
     b.addEventListener('pointercancel', release);
-    b.addEventListener('contextmenu', e => e.preventDefault());
   }
 
   function drawDial() {
@@ -840,6 +914,25 @@
     return v => needle.setAttribute('transform', 'rotate(' + (-90 + clamp(v / 300, 0, 1) * 180) + ' 95 96)');
   }
   const gauge = drawDial();
+  // Seven-segment strokes run clockwise from the top, followed by the middle bar.
+  const segments = [
+    'M2 0h14l2 1.5-3 1.5H4z', 'M16 4l3-2v9l-2 2-1-2z',
+    'M17 14l2 2v8l-3-2v-6z', 'M2 25l2-2h11l3 2-2 1H3z',
+    'M0 16l2-2 1 2v6l-3 2z', 'M0 2l3 2v7l-1 2-2-2z', 'M2 13l2-1.5h11l2 1.5-2 1.5H4z'
+  ];
+  const digitPaths = ['012345', '12', '01346', '01236', '1256', '02356', '023456', '012', '0123456', '012356']
+    .map(digit => Array.from(digit, segment => segments[segment]).join(' '));
+  const digitNodes = el('speed-digits').querySelectorAll('path');
+  let lastSpeed = '';
+  function updateSpeed(kmh) {
+    const reading = kmh.toFixed(1);
+    if (reading === lastSpeed) return;
+    lastSpeed = reading;
+    el('speed').textContent = reading;
+    gauge(kmh);
+    const digits = reading.replace('.', '').padStart(4, ' ');
+    digitNodes.forEach((path, i) => path.setAttribute('d', digitPaths[digits[i]] || ''));
+  }
   const map = el('map'), mc = map.getContext('2d'), base = document.createElement('canvas');
   base.width = map.width;
   base.height = map.height;
@@ -900,18 +993,41 @@
   rebuildMap();
   for (let i = 0; i < cfg.slots; i++)
     el('slots').append(document.createElement('i'));
+  const bottles = document.querySelectorAll('#touch [data-drive="nitro"]');
+  const stockMarkers = el('slots').children;
+  const chargeMeter = el('charge'), chargeFill = el('fill');
+  let lastCharge = -1, lastStock = -1, lastCanUse = false;
+  function updateNitro() {
+    const charge = Math.floor(car.charge * 100);
+    const changeStock = lastStock !== car.stock;
+    if (charge !== lastCharge || changeStock) {
+      chargeFill.style.transform = 'scaleX(' + charge / 100 + ')';
+      chargeMeter.setAttribute('aria-valuenow', charge);
+      chargeMeter.setAttribute('aria-valuetext', car.stock === cfg.slots ? '兩瓶已滿' : charge + '%');
+      lastCharge = charge;
+    }
+    const canUse = phase === 'race' && car.penalty <= 0;
+    if (!changeStock && canUse === lastCanUse) return;
+    chargeMeter.classList.toggle('at-capacity', car.stock === cfg.slots);
+    for (let i = 0; i < stockMarkers.length; i++)
+      stockMarkers[i].classList.toggle('full', i < car.stock);
+    bottles.forEach(button => {
+      const full = Number(button.dataset.slot) <= car.stock;
+      button.classList.toggle('full', full);
+      button.disabled = !full || !canUse;
+    });
+    lastStock = car.stock;
+    lastCanUse = canUse;
+  }
 
   function hud() {
-    const speed = Math.round(car.speed * 3.6);
     updateOrder();
-    el('speed').textContent = speed;
-    gauge(speed);
+    updateSpeed(car.speed * 3.6);
+    updateNitro();
     el('time').textContent = timeText(elapsed);
     el('lap').textContent = clamp(Math.floor(progress / track.length) + 1, 1, LAPS);
     el('hits').textContent = correct;
     el('misses').textContent = records.length - correct;
-    el('fill').style.transform = 'scaleX(' + car.charge + ')';
-    [...el('slots').children].forEach((s, i) => s.classList.toggle('full', i < car.stock));
     const mode = car.penalty ? '緩速' : car.boosting ? boostLabels[car.boostKind] : car.miniReady ? '補油小噴' : ({ entry: '甩尾', slide: '甩尾', counter: '反打', recover: '回抓' })[car.phase] || '';
     el('drive-status').textContent = mode;
     document.body.classList.toggle('boosting', phase === 'race' && car.boosting);
@@ -1018,6 +1134,7 @@
       ClassicKartArt.update(model, renderCar, moving ? dt : 0);
       for (const rival of rivals) {
         const view = rivalViews.get(rival.id);
+        if (!view || !view.model.root.visible) continue;
         interpolatePose(view.pose, rival.car, rival.previousPose, f);
         ClassicKartArt.updateRival(view.model, view.pose, moving ? dt : 0);
       }
