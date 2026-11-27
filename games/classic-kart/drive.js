@@ -60,7 +60,7 @@
     driftEntryPathGrip: .25, driftSlidePathGrip: .90, driftPathResponse: 3.6,
     skidMinSpeed: 7, bodySkidAngle: .115, rearSkidAngle: 3.5 * rad, skidGrip: .93,
     counterSteerResponse: 1.85, alignmentRate: 4.5, alignmentResponse: 7,
-    shallowSlide: 6 * rad, deepSlide: 27 * rad, deepSlideSpeedLoss: .40, slideScrubRate: 4.4,
+    shallowSlide: 6 * rad, deepSlide: 27 * rad, deepSlideSpeedLoss: .36, slideScrubRate: 4.4,
     qualifyingSlip: 8 * rad, qualifyingTime: .22,
     settledSlip: 4 * rad, miniWindow: .86, miniForce: 10.5,
     miniAutoDelay: .8,

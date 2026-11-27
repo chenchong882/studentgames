@@ -803,13 +803,19 @@ kbd {
 
 #feedback {
   top: 23%;
-  background: #143d42f2;
-  border: 2px solid #a8efd6;
+  background: #0c2930a6;
+  border: 2px solid #a8efd699;
   border-radius: 30px;
   padding: 8px 18px;
   box-shadow: 0 2px 0 #1a344c55;
   font-size: clamp(15px,1.7vw,22px);
   max-width: 90%;
+}
+
+#feedback:not(.wrong) {
+  top: 14%;
+  padding: 5px 14px;
+  text-shadow: 0 1px 2px #102a40;
 }
 
 #feedback.wrong {
