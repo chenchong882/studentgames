@@ -56,7 +56,7 @@
     rollingDrag: .60, aeroDrag: .00092, overspeedDrag: .85, throttleTaper: 8,
     reverseAcceleration: 8, lowSpeedCrossover: 1.0, slowSpeed: 86, penaltyBrake: 24,
     launchLead: 1, launchGrace: .5,
-    penaltyOnset: .15, entryYawImpulse: 3.35, driftMinSpeed: 11.5, gripRelease: 32,
+    penaltyOnset: .15, entryYawImpulse: 3.35, driftTurnMultiplier: 1.5, driftMinSpeed: 11.5, gripRelease: 32,
     skidMinSpeed: 7, bodySkidAngle: .115, rearSkidAngle: 3.5 * rad, skidGrip: .93,
     counterSteerResponse: 1.85, alignmentRate: 4.5, alignmentResponse: 7,
     shallowSlide: 6 * rad, deepSlide: 27 * rad, deepSlideSpeedLoss: .40, slideScrubRate: 4.4,
@@ -286,18 +286,20 @@
     const frontLateral = frontForce * c;
     const cornerForce = frontLateral + rearForce;
     const tireLong = -frontForce * s;
+    const pathYawRate = speed > cfg.lowSpeedCrossover ? (cornerForce * forward - tireLong * lateral) / (speed * speed) : 0;
+    const turnMultiplier = sliding ? cfg.driftTurnMultiplier : 1;
     // Integrate the decaying handbrake moment over this tick. A shorter time
     // delivers the same angular impulse earlier while yaw and the travel path stay continuous.
     const handbrakeImpulse = sliding ?
       cfg.entryYawImpulse * car.entryLoad * car.driftSide *
         Math.exp(-(car.driftSeconds - dt) / cfg.entryTime) * fade(1 / cfg.entryTime, dt) : 0;
     const torque = (cfg.frontAxle * frontLateral - cfg.rearAxle * rearForce) / cfg.yawInertia;
-    car.yawRate += (torque - (cfg.yawDamping + cfg.angularDrag * Math.abs(car.yawRate)) * car.yawRate) * dt;
-    car.yawRate += handbrakeImpulse;
+    const steeringTorque = torque * (torque * car.driftSide > 0 ? turnMultiplier : 1);
+    car.yawRate += (steeringTorque - (cfg.yawDamping + cfg.angularDrag * Math.abs(car.yawRate)) * car.yawRate) * dt;
+    car.yawRate += handbrakeImpulse * turnMultiplier;
     if (forward > cfg.lowSpeedCrossover && (catching || (car.phase === 'recover' && !steerInput))) {
       // Carve along the current velocity arc as the nose realigns. The tires still
       // turn the velocity vector continuously, including during a left/right switch.
-      const pathYawRate = (cornerForce * forward - tireLong * lateral) / (speed * speed);
       const alignment = pathYawRate - cfg.alignmentRate * car.slip;
       car.yawRate += (alignment - car.yawRate) * fade(cfg.alignmentResponse, dt);
     }
@@ -343,6 +345,13 @@
     const longitudinal = thrust + tireLong;
     car.vx += (longitudinal * fx + cornerForce * rx + (returned - decel) * car.vx) * dt;
     car.vz += (longitudinal * fz + cornerForce * rz + (returned - decel) * car.vz) * dt;
+    if (sliding && pathYawRate * car.driftSide > 0) {
+      // Bend the travel path with the tires while preserving speed and allowing sideslip.
+      const extraTurn = (turnMultiplier - 1) * pathYawRate * dt;
+      const cos = Math.cos(extraTurn), sin = Math.sin(extraTurn), vx = car.vx;
+      car.vx = vx * cos - car.vz * sin;
+      car.vz = vx * sin + car.vz * cos;
+    }
     car.yaw = arc(car.yaw + car.yawRate * dt);
     car.x += car.vx * dt;
     car.z += car.vz * dt;
