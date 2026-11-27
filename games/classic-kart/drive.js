@@ -22,7 +22,6 @@
   setting(engine, 'reverseSpeed', '倒車極速', 29, 10, 45, 1, 'km/h');
   setting(engine, 'launchTime', '起步衝刺秒數', 1.25, .5, 2, .05, 's');
   setting(engine, 'nitroTime', '儲存氮氣秒數', 2.7, 1, 5, .1, 's');
-  setting(engine, 'quizTime', '答對獎勵秒數', 2.5, 1, 5, .1, 's');
   setting(engine, 'penaltyTime', '答錯緩速秒數', 1.8, .7, 4, .1, 's');
   setting(tire, 'steerLow', '低速最大舵角', 35, 15, 46, 1, '°');
   setting(tire, 'steerHigh', '高速最大舵角', 12.5, 6, 17, .5, '°');
@@ -36,7 +35,6 @@
   setting(slide, 'driftCarry', '放開甩尾後續滑時間', .58, .18, .9, .02, 's');
   setting(slide, 'gripReturn', '後輪回抓速率', 3.9, 1.1, 5, .1, '/s');
   setting(slide, 'scrub', '大角度側滑失速', 17, 5, 32, 1, 'm/s²');
-  setting(slide, 'chargeRate', '甩尾集氣速率', .9, .2, 1.4, .05, '/s');
   setting(slide, 'miniTime', '小噴持續時間', .56, .25, 1, .01, 's');
   setting(cam, 'distance', '基本跟車距離', 7.1, 5, 12, .1, 'm');
   setting(cam, 'height', '基本跟車高度', 3.65, 2.4, 6.5, .05, 'm');
@@ -73,8 +71,8 @@
   function create(pose) {
     // These values belong to the race, so putting the kart back on the road preserves them.
     return reset({
-      stock: 0, charge: 0, prevThrottle: false, prevNitro: false,
-      launchTimer: 0, tankTimer: 0, quizTimer: 0, miniTimer: 0, penalty: 0,
+      stock: 0, prevThrottle: false, prevNitro: false,
+      launchTimer: 0, tankTimer: 0, miniTimer: 0, penalty: 0,
       boostKind: '', boosting: false
     }, pose);
   }
@@ -84,18 +82,10 @@
       yawRate: 0, speed: 0, slip: 0, rearSlip: 0, skidding: false, steer: 0, wheelAngle: 0,
       phase: 'grip', grip: 1, entryLoad: 0, driftSide: 0, driftSeconds: 0, effectiveSeconds: 0,
       driftLatched: false, driftEntrySpeed: 0, releasedFor: 0, miniReady: 0,
-      rewardChargeBefore: null, rewardStockBefore: 0,
       throttleLifted: false, cameraState: null, wallCooldown: 0, wallContact: false
     });
   }
   function resolveWallContact(car, nx, nz, penetration) {
-    // The solver advances before checking the rail. Discard only this tick's
-    // provisional drift credit, including a tank it might just have filled.
-    if (Number.isFinite(car.rewardChargeBefore)) {
-      car.charge = car.rewardChargeBefore;
-      car.stock = car.rewardStockBefore;
-      car.rewardChargeBefore = null;
-    }
     if (!car.wallContact) car.yawRate = 0;
     car.wallContact = true;
     car.phase = 'grip';
@@ -133,7 +123,6 @@
       resolveWallContact(car, -projection.tz * side, projection.tx * side, Math.abs(projection.lateral) - rim);
       projection.lateral = side * rim;
     } else if (rim - Math.abs(projection.lateral) >= config.wallReleaseGap) car.wallContact = false;
-    car.rewardChargeBefore = null;
     car.wallCooldown = Math.max(0, car.wallCooldown - dt);
     return hit;
   }
@@ -152,11 +141,11 @@
     car.tankTimer += config.nitroTime;
     return true;
   }
-  function boost(car) {
-    car.quizTimer = config.quizTime;
+  function awardQuizNitro(car) {
     car.penalty = 0;
-    car.boostKind = 'quiz';
-    car.boosting = true;
+    if (car.stock >= config.slots) return false;
+    car.stock++;
+    return true;
   }
   function launch(car) {
     car.launchTimer = config.launchTime;
@@ -166,14 +155,17 @@
   function penalize(car) {
     car.penalty = config.penaltyTime;
     car.launchTimer = 0;
-    car.quizTimer = 0;
     car.miniTimer = car.miniReady = 0;
     car.effectiveSeconds = 0;
     car.boostKind = '';
     car.boosting = false;
   }
+  function miniCharge(car) {
+    if (car.wallContact || car.penalty > 0 || car.miniTimer > 0) return 0;
+    return car.miniReady > 0 ? 1 : Math.min(1, car.effectiveSeconds / config.qualifyingTime);
+  }
   function openMiniWindow(car, throttle) {
-    if (car.miniReady <= 0 && car.penalty <= 0 && !car.wallContact && car.effectiveSeconds >= config.qualifyingTime) {
+    if (car.miniReady <= 0 && miniCharge(car) === 1) {
       car.miniReady = config.miniWindow;
       car.throttleLifted = !throttle;
     }
@@ -186,7 +178,6 @@
     return true;
   }
   function updateDrift(car, input, steerInput, forward, dt) {
-    car.rewardChargeBefore = null;
     if (car.wallContact) {
       // A held drift button cannot re-arm between small bounces along the rail.
       car.driftLatched = !!input.drift;
@@ -231,21 +222,10 @@
     const response = reduced ? config.gripRelease : config.gripReturn;
     car.grip += (gripTarget - car.grip) * fade(response, dt);
 
-    const slip = Math.abs(car.slip);
-    // Only a moving, loaded rear axle in a genuine slide counts. A stationary spin cannot farm nitro.
-    if (reduced && car.penalty <= 0 && car.slip * car.driftSide > config.qualifyingSlip) {
+    // A mini waiting behind a tank occupies the same slot as a ready or firing mini.
+    if (reduced && car.miniReady <= 0 && car.miniTimer <= 0 && car.penalty <= 0 &&
+        car.slip * car.driftSide > config.qualifyingSlip) {
       car.effectiveSeconds += dt;
-      if (car.stock < config.slots) {
-        car.rewardChargeBefore = car.charge;
-        car.rewardStockBefore = car.stock;
-        const load = clamp(slip / (.55 + slip * .45), .25, 1);
-        car.charge += dt * config.chargeRate * load * clamp(forward / 36, .25, 1.25);
-        if (car.charge >= 1) {
-          car.stock++;
-          // Filling the last slot discards overflow. Charging resumes only after spending a tank.
-          car.charge = car.stock >= config.slots ? 0 : car.charge - 1;
-        }
-      }
     }
     if (car.miniReady > 0) {
       // On touch the pedal release restores cruise. Only a tap can spend the mini early.
@@ -323,9 +303,9 @@
     }
 
     const penalized = car.penalty > 0;
-    const largeBoost = !penalized && (car.quizTimer > 0 || car.tankTimer > 0 || car.launchTimer > 0);
+    const largeBoost = !penalized && (car.tankTimer > 0 || car.launchTimer > 0);
     const mini = !penalized && car.miniTimer > 0;
-    car.boostKind = penalized ? '' : car.quizTimer > 0 ? 'quiz' : car.tankTimer > 0 ? 'tank' :
+    car.boostKind = penalized ? '' : car.tankTimer > 0 ? 'tank' :
       car.launchTimer > 0 ? 'launch' : mini ? 'mini' : '';
     car.boosting = !!car.boostKind;
     let speedLimit = speedLimitFor(pace, car.boostKind);
@@ -372,7 +352,6 @@
     car.skidding = !car.wallContact && car.speed > cfg.skidMinSpeed && (Math.abs(car.slip) > cfg.bodySkidAngle ||
       (car.grip < cfg.skidGrip && Math.abs(car.rearSlip) > cfg.rearSkidAngle));
     car.launchTimer = Math.max(0, car.launchTimer - dt);
-    car.quizTimer = Math.max(0, car.quizTimer - dt);
     // A wrong gate suppresses propulsion but preserves the remainder of a paid-for tank.
     if (!penalized) car.tankTimer = Math.max(0, car.tankTimer - dt);
     // Save the mini boost until the higher-priority boost finishes.
@@ -427,5 +406,5 @@
       view.updateProjectionMatrix();
     }
   }
-  window.ClassicDrive = {config, sliders, speedLimitFor, step, create, reset, recoveryPose, constrainToRoad, constrainToTrack, resolveWallContact, camera, useNitro, useMini, boost, launch, penalize};
+  window.ClassicDrive = {config, sliders, speedLimitFor, step, create, reset, recoveryPose, constrainToRoad, constrainToTrack, resolveWallContact, camera, awardQuizNitro, useNitro, miniCharge, useMini, launch, penalize};
 })();

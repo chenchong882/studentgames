@@ -81,7 +81,7 @@
     totalGates = LAPS * track.gates.length;
     rebuildMap();
   }
-  const boostLabels = { launch: '起步衝刺', mini: '小噴', tank: '氮氣', quiz: '氮氣' };
+  const boostLabels = { launch: '起步衝刺', mini: '小噴', tank: '氮氣' };
   const launchButton = el('launch-button'), driftButton = el('drift-button');
   let difficulty = 'normal', launchArmed = false, launchUsed = false;
   let car = drive.create(track.sample(0)), renderCar = { ...car }, previousPose = { x: car.x, z: car.z, yaw: car.yaw };
@@ -616,14 +616,13 @@
     feedbackTime = seconds;
   }
 
-  function scoreGate(index, lateral) {
-    const lane = ClassicGates.answerLane(lateral, track.halfWidth);
+  function scoreGate(index, lane) {
     const q = deck[index], hit = lane === q.correctLane, selected = q.choices[lane];
     records.push({ word: q.answer.word, chinese: q.answer.chinese, picked: selected.word, hit });
     if (hit) {
       correct++;
-      drive.boost(car);
-      notify('Correct!  氮氣加速');
+      const stored = drive.awardQuizNitro(car);
+      notify(stored ? '答對！氮氣 +1（' + car.stock + '/' + cfg.slots + '）' : '答對！兩瓶氮氣已滿');
       beep(740, .13);
       beep(990, .16, .08);
     }
@@ -656,14 +655,14 @@
       ds += track.length;
     progress += ds;
     elapsed += dt;
-    ClassicRivals.step(rivals, track, car, progress, dt, elapsed);
-    const target = gateIndex < totalGates ? Math.floor(gateIndex / track.gates.length) * track.length + track.gates[gateIndex % track.gates.length] : Infinity;
+    ClassicRivals.step(rivals, track, car, progress, dt, elapsed, deck);
+    const target = gateIndex < totalGates ? ClassicGates.stationFor(track, gateIndex) : Infinity;
     const remaining = target - progress;
     // Once a question is on screen, braking cannot make it flicker off during approach.
     const readingDistance = question ? 335 : clamp(45 + car.speed * 3.65, 140, 325);
-    if (from < target && remaining <= 0 && ds > 0) {
-      const fraction = clamp((target - from) / ds, 0, 1);
-      scoreGate(gateIndex, previous.lateral + (projection.lateral - previous.lateral) * fraction);
+    const lane = ClassicGates.crossingLane(track, target, from, progress, previous.lateral, projection.lateral);
+    if (lane !== null) {
+      scoreGate(gateIndex, lane);
     }
     else if (remaining >= 0 && remaining <= readingDistance)
       setQuestion(deck[gateIndex]);
@@ -743,11 +742,11 @@
     const controls = touchLayout.matches ? [
       ['衝刺', '看到 GO! 時，右下的 DRIFT 會變成「衝刺」。點一下就能衝刺起跑，每場限一次。起跑後自動踩油門。'],
       ['‹ ›', '按住箭頭轉向。拇指滑到兩鍵中間就回正，繼續滑到另一側就反打。'],
-      ['DRIFT', '按住方向鍵和 DRIFT 甩尾。外側後輪亮藍光時就能收尾。出彎後點淡藍小火焰可立即小噴，等約 0.8 秒會自動噴。'],
+      ['DRIFT', '按住方向鍵和 DRIFT 甩尾。外側後輪亮藍光就能收尾，出彎可獲得一次小噴。點淡藍火焰立即噴，等約 0.8 秒會自動噴。'],
       ['踏板', '按住煞車，放開恢復加速。停下後繼續按住可倒車。'],
-      ['N₂O', '點 DRIFT 上方亮起的氮氣瓶就能大衝刺，最多存兩瓶。'],
+      ['N₂O', '答對一題得一瓶氮氣，最多存兩瓶。點 DRIFT 上方亮起的瓶子就能衝刺。'],
       ['回正', '點排名下方的回轉箭頭，回到賽道中央。']
-    ] : [['↑ / ↓', '油門／煞車。倒數到 1 時按住油門可衝刺起跑，停下後按煞車可倒車。'], ['← / →', '轉向，甩尾中按反方向拉正'], ['Shift', '配合方向鍵甩尾。出彎後點火焰或鬆開再踩油門可立即小噴，等約 0.8 秒會自動噴。'], ['Ctrl', '使用一格甩尾集滿的氮氣，最多存兩罐'], ['R / C', '回到賽道中央／切換跟車鏡頭'], ['Esc / T', '暫停／即時調校']];
+    ] : [['↑ / ↓', '油門／煞車。倒數到 1 時按住油門可衝刺起跑，停下後按煞車可倒車。'], ['← / →', '轉向，甩尾中按反方向拉正'], ['Shift', '配合方向鍵甩尾。出彎後點火焰或鬆開再踩油門可立即小噴，等約 0.8 秒會自動噴。'], ['Ctrl', '使用一瓶答題拿到的氮氣衝刺，也可以直接點亮起的瓶子。'], ['R / C', '回到賽道中央／切換跟車鏡頭'], ['Esc / T', '暫停／即時調校']];
     for (const [key, label] of controls) {
       const term = document.createElement('dt'), desc = document.createElement('dd'), k = document.createElement('kbd');
       k.textContent = key;
@@ -757,7 +756,7 @@
     }
     content.appendChild(list);
     const p = document.createElement('p');
-    p.textContent = '讀上方的中文，開進對應的英文門。答對加速 ' + cfg.quizTime + ' 秒，答錯會短暫緩速。';
+    p.textContent = '讀上方的中文，開進對應的英文門。氮氣已滿時答對仍計分，答錯會短暫緩速。';
     content.appendChild(p);
     action(interrupted ? '回到比賽' : '回到起跑線', interrupted ? resume : closeModal, true).focus();
   }
@@ -1069,20 +1068,16 @@
     el('map-name').textContent = track.english.toUpperCase();
   }
   rebuildMap();
-  for (let i = 0; i < cfg.slots; i++)
-    el('slots').append(document.createElement('i'));
-  const bottles = document.querySelectorAll('#touch [data-drive="nitro"]');
+  const bottles = document.querySelectorAll('[data-drive="nitro"]');
   const flames = document.querySelectorAll('.mini-boost');
-  const stockMarkers = el('slots').children;
   const chargeMeter = el('charge'), chargeFill = el('fill');
   let lastCharge = -1, lastStock = -1, lastCanUse = false;
   function updateNitro() {
-    const charge = Math.floor(car.charge * 100);
+    const charge = Math.floor(drive.miniCharge(car) * 100);
     const changeStock = lastStock !== car.stock;
-    if (charge !== lastCharge || changeStock) {
+    if (charge !== lastCharge) {
       chargeFill.style.transform = 'scaleX(' + charge / 100 + ')';
       chargeMeter.setAttribute('aria-valuenow', charge);
-      chargeMeter.setAttribute('aria-valuetext', car.stock === cfg.slots ? '兩瓶已滿' : charge + '%');
       lastCharge = charge;
     }
     const canUse = phase === 'race' && car.penalty <= 0;
@@ -1092,9 +1087,6 @@
       flame.classList.toggle('firing', canUse && car.boostKind === 'mini');
     }
     if (!changeStock && canUse === lastCanUse) return;
-    chargeMeter.classList.toggle('at-capacity', car.stock === cfg.slots);
-    for (let i = 0; i < stockMarkers.length; i++)
-      stockMarkers[i].classList.toggle('full', i < car.stock);
     bottles.forEach(button => {
       const full = Number(button.dataset.slot) <= car.stock;
       button.classList.toggle('full', full);
@@ -1231,7 +1223,7 @@
         hudAge = 0;
       }
       if (motor)
-        motor.update({ elapsed, speed: car.speed * 3.6, boost: car.boosting ? Math.max(car.quizTimer, car.miniTimer, car.tankTimer, car.launchTimer) : 0,
+        motor.update({ elapsed, speed: car.speed * 3.6, boost: car.boosting ? Math.max(car.miniTimer, car.tankTimer, car.launchTimer) : 0,
           drifting: car.skidding, driftCharge: Math.min(1, Math.abs(car.slip)), skid: car.penalty });
     }
     renderer.render(scene, camera);

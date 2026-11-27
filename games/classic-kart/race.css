@@ -881,8 +881,9 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
 }
 
 .nitro-label {
-  font: 900 italic 19px Arial;
-  color: #ffd765;
+  font: 900 14px Arial,sans-serif;
+  white-space: nowrap;
+  color: #b0f0ff;
 }
 
 .nitro .mini-boost,#touch .mini-boost {
@@ -927,7 +928,7 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
 }
 
 .charge i {
-  background: linear-gradient(90deg,#ff803f,#ffdc63);
+  background: linear-gradient(90deg,#34a8df,#bcf6ff);
   height: 100%;
   display: block;
   width: 100%;
@@ -940,20 +941,18 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
   gap: 3px;
 }
 
-#slots i {
-  display: block;
-  width: 12px;
-  height: 17px;
-  border: 1px solid #83949c;
-  border-radius: 3px;
-  transform: skew(-9deg);
-  background: #26455b;
+#slots button {
+  width: 32px;
+  height: 32px;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
 }
 
-#slots i.full {
-  border-color: #ffe9af;
-  background: linear-gradient(#ffdf7d,#ff9347);
-}
+#slots svg { width: 100%; height: 100%; pointer-events: none; }
+#slots button:not(.full) svg { opacity: .4; filter: grayscale(1); }
+#slots button:disabled { cursor: default; }
 
 .speedbox {
   position: absolute;
@@ -1628,22 +1627,10 @@ body.boosting .streaks {
     position: relative;
     width: 100%;
     height: clamp(8px,1.35vh,14px);
-    border: 1px solid #e4dcba;
+    border: 1px solid #aedbea;
     border-radius: 1px;
     background: linear-gradient(#172b43de,#536073e6,#243247ed);
-    box-shadow: 0 0 3px #ffdb80;
-  }
-  .charge i { background: linear-gradient(90deg,#ffae27,#fff16b); }
-  .charge.at-capacity::after {
-    content: 'MAX';
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-content: center;
-    background: #5e421d;
-    color: #fff2b0;
-    font: 800 clamp(8px,1.05vh,10px)/1 Arial,sans-serif;
-    letter-spacing: .1em;
+    box-shadow: 0 0 3px #82cce4;
   }
 }
 

@@ -290,16 +290,15 @@
     shadowStamp=shadow.clone(); rig.add(shadow);
   }
 
-  // Both exhaust pipes share one mesh. Each kart can switch its geometry without
-  // changing the colours of another kart that is boosting at the same time.
-  let warmJets, blueJets, wheelCueMaterial;
+  // The mini uses the right pipe. A tank or launch lights both pipes in one draw call.
+  let warmJets, blueJet, wheelCueMaterial;
   const jetMaterial=new T.MeshBasicMaterial({vertexColors:true});
-  const jetLength={mini:.80, tank:2.2, launch:1.20, quiz:1.45};
-  function jetGeometry(radius,midColor,tipColor) {
+  const jetLength={mini:.80, tank:2.2, launch:1.20};
+  function jetGeometry(radius,midColor,tipColor,sides) {
     const section=[[radius*.59,0],[radius,.14],[radius*.78,.44],[radius*.40,.72],[0,1]];
     const profile=section.map(([r,z])=>new T.Vector2(r,z));
     const b=new Assembly();
-    for(const side of [-1,1]) {
+    for(const side of sides) {
       b.part(new T.LatheGeometry(profile,10).rotateX(Math.PI/2),0xffffff,side*.375,0,0);
     }
     const geometry=b.finish(new T.Group()).geometry;
@@ -314,8 +313,8 @@
     return geometry;
   }
   function makeJet(rig) {
-    warmJets ||= jetGeometry(.132,0xffc044,0xff5028);
-    blueJets ||= jetGeometry(.113,0xabefff,0x39a9ff);
+    warmJets ||= jetGeometry(.132,0xffc044,0xff5028,[-1,1]);
+    blueJet ||= jetGeometry(.113,0xabefff,0x39a9ff,[1]);
     const jet=new T.Mesh(warmJets,jetMaterial);
     jet.position.set(0,.38,1.30); jet.visible=false; rig.add(jet);
     return jet;
@@ -340,8 +339,7 @@
   }
   function updateDriveEffects(model,car) {
     const cue=model.wheelCue, kind=car.boostKind;
-    cue.visible=(car.phase==='entry' || car.phase==='slide') && !car.wallContact && car.penalty<=0 &&
-      car.effectiveSeconds>=ClassicDrive.config.qualifyingTime;
+    cue.visible=(car.phase==='entry' || car.phase==='slide') && car.miniReady<=0 && ClassicDrive.miniCharge(car)===1;
     if(cue.visible) {
       cue.position.x=-car.driftSide*.98;
       cue.scale.setScalar(.75+.12*Math.cos(model.time*11));
@@ -349,7 +347,7 @@
     model.jet.visible=!!kind;
     if(!kind) return;
     const mini=kind==='mini';
-    model.jet.geometry=mini ? blueJets : warmJets;
+    model.jet.geometry=mini ? blueJet : warmJets;
     const fade=mini ? .70+.30*Math.min(1,car.miniTimer/.15) : 1;
     model.jet.scale.z=jetLength[kind]*fade*(1+.065*Math.sin(model.time*37));
   }

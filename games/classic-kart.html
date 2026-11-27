@@ -115,14 +115,18 @@
         <ol id="field-order" aria-label="車手即時排名"></ol>
         <button id="recover" type="button" title="回到賽道中央（R）" aria-label="回到賽道中央"><svg aria-hidden="true"><use href="#recover-icon"/></svg></button>
       </aside>
-      <div id="question" hidden><span class="question-cap">開進對應的英文門作答</span><strong id="prompt"></strong><div id="choices"><span></span><span></span><span></span></div></div>
+      <div id="question" hidden><span class="question-cap">開進正確的英文門，答對得氮氣</span><strong id="prompt"></strong><div id="choices"><span></span><span></span><span></span></div></div>
       <div id="feedback" role="status" hidden></div>
       <div id="countdown" role="status" hidden></div>
       <span id="launch-cue">按住油門</span>
       <div id="map-box"><canvas id="map" width="222" height="158" aria-label="賽道小地圖"></canvas><span id="map-name"></span></div>
       <div class="nitro panel">
         <button class="mini-boost" data-drive="mini" aria-label="發動甩尾小噴" title="甩尾小噴" disabled><svg aria-hidden="true"><use href="#mini-flame"/></svg></button>
-        <span class="nitro-label">N₂O</span><div id="charge" class="charge" role="meter" aria-label="甩尾集氣度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="fill"></i></div><span id="slots" aria-label="氮氣儲存格"></span><kbd>Ctrl</kbd>
+        <span class="nitro-label">小噴</span><div id="charge" class="charge" role="meter" aria-label="甩尾小噴集氣進度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="fill"></i></div>
+        <div id="slots" role="group" aria-label="答題獲得的氮氣">
+          <button data-drive="nitro" data-slot="1" aria-label="使用第一瓶氮氣" disabled><svg aria-hidden="true"><use href="#nitro-cartridge"/></svg></button>
+          <button data-drive="nitro" data-slot="2" aria-label="使用第二瓶氮氣" disabled><svg aria-hidden="true"><use href="#nitro-cartridge"/></svg></button>
+        </div><kbd>Ctrl</kbd>
       </div>
       <div class="speedbox" role="group" aria-label="時速（公里／小時）">
         <svg id="dial" viewBox="0 0 190 115" aria-hidden="true"></svg>
@@ -155,7 +159,7 @@
       </div>
       <div class="touch-actions">
         <button class="mini-boost" data-drive="mini" aria-label="發動甩尾小噴" disabled><svg aria-hidden="true"><use href="#mini-flame"/></svg></button>
-        <div class="touch-tanks" role="group" aria-label="儲存氮氣">
+        <div class="touch-tanks" role="group" aria-label="答題獲得的氮氣">
           <button data-drive="nitro" data-slot="1" aria-label="使用第一格氮氣" disabled><svg aria-hidden="true"><use href="#nitro-cartridge"/></svg></button>
           <button data-drive="nitro" data-slot="2" aria-label="使用第二格氮氣" disabled><svg aria-hidden="true"><use href="#nitro-cartridge"/></svg></button>
         </div>

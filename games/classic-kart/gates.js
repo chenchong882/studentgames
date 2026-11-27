@@ -126,5 +126,16 @@
     return lateral < halfWidth/3 ? 1 : 2;
   }
 
-  window.ClassicGates = { prepare, questions, build, answerLane };
+  function stationFor(track, gateIndex) {
+    const count = track.gates.length;
+    return Math.floor(gateIndex / count) * track.length + track.gates[gateIndex % count];
+  }
+
+  function crossingLane(track, station, from, to, previousLateral, lateral) {
+    if (!(from < station && station <= to)) return null;
+    const fraction = (station - from) / (to - from);
+    return answerLane(previousLateral + (lateral - previousLateral) * fraction, track.halfWidth);
+  }
+
+  window.ClassicGates = { prepare, questions, build, answerLane, stationFor, crossingLane };
 })();

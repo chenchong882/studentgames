@@ -69,7 +69,7 @@
         ...identity,
         car, previousPose:{x:car.x, z:car.z, yaw:car.yaw}, progress:0, finishedAt:null,
         projection:track.project(car.x, car.z, 0), finishDistance:laps * track.length,
-        driver, line:startLane, thinkIn:0, driftAgainAt:0, input:{}
+        driver, line:startLane, thinkIn:0, driftAgainAt:0, gateIndex:0, input:{}
       };
     });
   }
@@ -176,7 +176,7 @@
       car.stock > 0 && car.speed > 26 && rival.finishedAt === null;
   }
 
-  function step(rivals, track, player, playerProgress, dt, elapsed) {
+  function step(rivals, track, player, playerProgress, dt, elapsed, deck = []) {
     for (const rival of rivals) {
       const car = rival.car, before = rival.projection;
       rival.previousPose.x = car.x; rival.previousPose.z = car.z; rival.previousPose.yaw = car.yaw;
@@ -197,8 +197,18 @@
       let p = track.project(car.x, car.z, before.s);
       p = drive.constrainToTrack(car, track, p, dt);
       const distance = alongDifference(before.s, p.s, track.length);
+      const from = rival.progress;
       rival.progress += distance;
       rival.projection = p;
+      const question = deck[rival.gateIndex];
+      if (question && rival.finishedAt === null) {
+        const station = ClassicGates.stationFor(track, rival.gateIndex);
+        const lane = ClassicGates.crossingLane(track, station, from, rival.progress, before.lateral, p.lateral);
+        if (lane !== null) {
+          if (lane === question.correctLane) drive.awardQuizNitro(car);
+          rival.gateIndex++;
+        }
+      }
       if (rival.finishedAt === null && rival.progress >= rival.finishDistance && distance > 0) {
         rival.finishedAt = elapsed - dt * (rival.progress - rival.finishDistance) / distance;
       }
