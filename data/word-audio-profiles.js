@@ -26,7 +26,7 @@ window.WORD_AUDIO_PROFILES = {
     },
     "in-male": {
       "directory": "profiles/in-male/",
-      "version": "75346cddc9a1"
+      "version": "2d4a779263c4"
     }
   },
   "files": [
