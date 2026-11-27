@@ -599,6 +599,7 @@
       deviceVoice.hidden = true;
       const profile = accentButton.dataset.accent + '-' + voiceButton.dataset.voice;
       const label = accentButton.textContent + voiceButton.textContent;
+      word = word || (profile === 'in-female' ? 'blanket' : 'tomato');
       audioStatus.textContent = label + '・' + word;
       const fallback = () => { audioStatus.textContent = word + ' 的' + label + '音檔播放失敗，請再點一次。'; };
       if(!window.WordAudio || !WordAudio.play(word, {profile, fallback})){
@@ -616,12 +617,12 @@
     function selectAccent(button){
       accentButton = button;
       accentButtons.forEach(b => b.setAttribute('aria-pressed', String(b === button)));
-      playPreviewClip(lastPreviewWord || 'tomato');
+      playPreviewClip(lastPreviewWord);
     }
     voiceButtons.forEach(button => button.addEventListener('click', () => {
       voiceButton = button;
       voiceButtons.forEach(b => b.setAttribute('aria-pressed', String(b === button)));
-      playPreviewClip(lastPreviewWord || 'tomato');
+      playPreviewClip(lastPreviewWord);
     }));
     document.addEventListener('click', event => {
       if(!usButton.contains(event.target)) usClickCount = 0;
