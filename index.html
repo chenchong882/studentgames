@@ -392,7 +392,7 @@
         </a>
       </div>
     </section>
-    <p class="note">選「系統主題單字」可複選練習主題；選「本次段考單字」則需由學生教材頁進入。記憶翻牌使用獨立題庫，<span id="memory-game-note">會在新分頁開啟</span>。內建單字與例句使用 AI 合成語音。單字可切換口音，例句採美式女聲。</p>
+    <p class="note">選「系統主題單字」可複選練習主題；選「本次段考單字」則需由學生教材頁進入。記憶翻牌使用獨立題庫，<span id="memory-game-note">會在新分頁開啟</span>。內建單字與例句使用 AI 合成語音。部分例句已支援印度口音，其餘採美式女聲。</p>
   </main>
   <script src="./data/wordbank.js"></script>
   <script src="./data/reading-examples.js"></script>
@@ -401,6 +401,7 @@
   <script src="./games/word-audio.js"></script>
   <script src="./games/word-example.js"></script>
   <script src="./data/example-audio-manifest.js"></script>
+  <script src="./data/example-audio-profiles.js"></script>
   <script src="./games/example-audio.js"></script>
   <script src="./assets/practice-set.js"></script>
   <script>
@@ -596,9 +597,13 @@
     let firstUsClick = 0;
     let vocabOpen = false;
 
+    function selectedAudioProfile(){
+      return accentButton.dataset.accent + '-' + voiceButton.dataset.voice;
+    }
+
     function playPreviewClip(word){
       deviceVoice.hidden = true;
-      const profile = accentButton.dataset.accent + '-' + voiceButton.dataset.voice;
+      const profile = selectedAudioProfile();
       const label = accentButton.textContent + voiceButton.textContent;
       audioStatus.textContent = label + '・' + word;
       const fallback = () => { audioStatus.textContent = word + ' 的' + label + '音檔播放失敗，請再點一次。'; };
@@ -624,11 +629,13 @@
       accentButton = button;
       accentButtons.forEach(b => b.setAttribute('aria-pressed', String(b === button)));
       clearPreviewAudio();
+      updateExamplePlay();
     }
     voiceButtons.forEach(button => button.addEventListener('click', () => {
       voiceButton = button;
       voiceButtons.forEach(b => b.setAttribute('aria-pressed', String(b === button)));
       clearPreviewAudio();
+      updateExamplePlay();
     }));
     document.addEventListener('click', event => {
       if(!usButton.contains(event.target)) usClickCount = 0;
@@ -708,6 +715,23 @@
     }
 
     let openExample = null;
+    function examplePlayback(entry){
+      const isIndian = accentButton === indiaButton;
+      const profile = selectedAudioProfile();
+      if(isIndian && window.ExampleAudio?.has(entry, profile)){
+        return { profile, label: '聽例句' };
+      }
+      return { label: isIndian ? '聽美式例句' : '聽例句' };
+    }
+
+    function updateExamplePlay(){
+      if(!openExample) return;
+      const { entry } = openExample;
+      const { profile, label } = examplePlayback(entry);
+      examplePlay.hidden = !window.ExampleAudio?.has(entry, profile);
+      examplePlay.textContent = label;
+    }
+
     function closeExample(){
       if(!openExample) return;
       const {card, toggle, entry} = openExample;
@@ -740,8 +764,7 @@
       WordExample.render(exampleEn, entry);
       exampleZh.textContent = entry.sentence_chinese;
       exampleZh.hidden = !entry.sentence_chinese;
-      examplePlay.hidden = !window.ExampleAudio?.has(entry);
-      examplePlay.textContent = '聽例句';
+      updateExamplePlay();
       examplePanel.setAttribute('aria-label', entry.word + ' 的例句');
       // Keep the reading panel next in keyboard order, even for the first card in a row.
       card.after(examplePanel);
@@ -757,7 +780,7 @@
       if(!openExample) return;
       deviceVoice.hidden = true;
       audioStatus.textContent = '';
-      ExampleAudio.play(openExample.entry, examplePlay);
+      ExampleAudio.play(openExample.entry, examplePlay, examplePlayback(openExample.entry));
     });
 
     function renderPreviewCards(source){
