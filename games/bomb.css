@@ -30,38 +30,3 @@ html, body {
   cursor: crosshair;
   touch-action: none;
 }
-
-/* Portrait mode warning */
-#rotateWarning {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(10, 20, 40, 0.97);
-  z-index: 9999;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  text-align: center;
-  font-size: 20px;
-}
-
-.rotate-content {
-  padding: 40px;
-}
-
-.rotate-icon {
-  font-size: 60px;
-  margin-bottom: 20px;
-  animation: rotateAnim 1.5s ease-in-out infinite alternate;
-}
-
-@keyframes rotateAnim {
-  from { transform: rotate(-15deg); }
-  to   { transform: rotate(15deg); }
-}
-
-@media (orientation: portrait) {
-  #rotateWarning {
-    display: flex;
-  }
-}

@@ -96,15 +96,7 @@
   let steeringDirection = null;
   const touchInputs = { autoThrottle: true }, touchLayout = matchMedia('(any-pointer:coarse),(max-width:700px)');
   let touchDriving = matchMedia('(pointer:coarse),(max-width:700px)').matches;
-  const ua = navigator.userAgent;
-  const tablet = /iPad|Tablet|Silk/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
-    (/Android/i.test(ua) && !/Mobile/i.test(ua));
-  const phone = !tablet && (/iPhone|iPod|Android.*Mobile/i.test(ua) ||
-    (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600));
-  const portraitView = matchMedia('(orientation: portrait)');
-  const phoneInPortrait = () => phone && portraitView.matches;
-  const orientationNotice = el('orientation-notice');
-  let orientationFocus;
+  const phoneInPortrait = GameOrientation.blocked;
   const keyMap = { ArrowUp: 'throttle', ArrowDown: 'brake', ArrowLeft: 'left', ArrowRight: 'right',
     ShiftLeft: 'drift', ShiftRight: 'drift', ControlLeft: 'nitro', ControlRight: 'nitro' };
   const pressed = name => steeringButtons[name] ? name === steeringDirection :
@@ -206,7 +198,6 @@
     el('start').disabled = !GameData.ready();
     if (raw) {
       el('hub').href = '../index.html#lessonData=' + encodeURIComponent(JSON.stringify(raw));
-      el('orientation-hub').href = el('hub').href;
     }
   }
   const incoming = new URLSearchParams(location.hash.slice(1)).get('lessonData');
@@ -921,24 +912,10 @@
     clearInputs();
   }
 
-  function syncPhoneOrientation() {
-    const blocked = phoneInPortrait();
-    if (blocked === document.body.classList.contains('phone-portrait')) return;
-    if (blocked) {
-      away();
-      orientationFocus = document.activeElement;
-    }
-    orientationNotice.hidden = !blocked;
-    document.body.classList.toggle('phone-portrait', blocked);
-    if (blocked) orientationNotice.focus({ preventScroll: true });
-    else if (orientationFocus?.isConnected) orientationFocus.focus({ preventScroll: true });
+  GameOrientation.onChange(blocked => {
+    if (blocked) away();
     syncAudio();
-  }
-  if (phone) {
-    portraitView.addEventListener?.('change', syncPhoneOrientation);
-    window.addEventListener('resize', syncPhoneOrientation);
-    window.addEventListener('pageshow', syncPhoneOrientation);
-  }
+  });
   window.addEventListener('blur', away);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) away();
@@ -1279,7 +1256,6 @@
   view.addEventListener('webglcontextlost', () => { away(); showFailure('3D 顯示已中斷，請重新整理以載入賽道。'); });
   el('start').disabled = !GameData.ready();
   el('start').innerHTML = '開始競速 <svg aria-hidden="true"><use href="#arrow"/></svg>';
-  syncPhoneOrientation();
   resize();
   requestAnimationFrame(frame);
 })();

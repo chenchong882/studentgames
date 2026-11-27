@@ -343,6 +343,8 @@
   }
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
+<link rel="stylesheet" href="game-orientation.css">
+<script src="game-orientation.js"></script>
 <script src="lesson-data.js"></script>
 <script src="game-setup.js"></script>
 <script src="game-runtime.js"></script>
@@ -1126,7 +1128,7 @@ function togglePause() {
     game.state = "paused";
     stopBgm();
     $("pause-screen").classList.remove("hidden");
-  } else if (game.state === "paused") {
+  } else if (game.state === "paused" && !GameOrientation.blocked()) {
     game.state = "playing";
     startBgm();
     $("pause-screen").classList.add("hidden");
@@ -1701,7 +1703,7 @@ function drawBoss(now) {
 }
 
 function startGame(difficulty) {
-  if (!GameData.ready()) return;
+  if (GameOrientation.blocked() || !GameData.ready()) return;
   gameActions = [];
   unlockSpeech();   // 真實按鈕點擊：解鎖 iOS 發音
   RoundReview.reset();
@@ -2452,6 +2454,7 @@ addEventListener('visibilitychange',()=>{
   if(!document.hidden)return;
   if(game.state==='playing')togglePause(); else stopBgm();
 });
+GameOrientation.onChange(blocked => { if (blocked && game.state === 'playing') togglePause(); });
 (function(){ const d=readShipHash(); if(d) applyShipData(d); })();
 
 /* 暫停後的返回確認面板：記住目前單字，返回時帶回主機 */

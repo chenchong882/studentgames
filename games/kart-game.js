@@ -153,7 +153,7 @@
     frameId = 0; lastFrame = null;
   }
   function launchStage(mode, car, stageIndex, results) {
-    if (!GameData.ready() || vocab.length < 3) return false;
+    if (GameOrientation.blocked() || !GameData.ready() || vocab.length < 3) return false;
     stopFrame(); clearControls();
     state = newRace(mode, car, stageIndex, results);
     itemBag = []; gateIndex = 0; feedbackTime = 0;
@@ -177,7 +177,7 @@
     stopFrame(); clearControls(); notify(); draw();
   }
   function resume() {
-    if (state.phase !== 'paused' || document.hidden) return;
+    if (state.phase !== 'paused' || document.hidden || GameOrientation.blocked()) return;
     state.phase = beforePause;
     notify(); wake();
   }
@@ -497,6 +497,7 @@
   }
   window.addEventListener('blur', pause);
   window.addEventListener('pagehide', pause);
+  GameOrientation.onChange(blocked => { if (blocked) pause(); });
   document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
   window.KartGame = { start, nextStage, pause, resume, garage, useItem, cycleItem, cars:CARS, tracks:TRACKS, itemNames:ITEMS,
     setControl, getState: () => state, getLessonHash: () => lessonHash };

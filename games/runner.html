@@ -331,6 +331,8 @@
   }
 </style>
 <link rel="stylesheet" href="game-menu-ui.css">
+<link rel="stylesheet" href="game-orientation.css">
+<script src="game-orientation.js"></script>
 <script src="lesson-data.js"></script>
 <script src="game-setup.js"></script>
 <script src="game-runtime.js"></script>
@@ -1313,7 +1315,7 @@ window.addEventListener('blur', () => { if (slideHeld) endSlideHold(); });
 
 /* ================= 開始 / 結束 ================= */
 function startGame(){
-  if (!GameData.ready()) return;
+  if (GameOrientation.blocked() || !GameData.ready()) return;
   unlockSpeech();   // iOS：趁真實按鈕點擊解鎖語音
   RoundReview.reset();
   obstacles.forEach(o => { stopGateSpeech(o); o.el.remove(); });
@@ -1377,6 +1379,7 @@ $('replayBtn').addEventListener('click', startGame);
 let paused = false, guideOpen = false;
 function togglePause(){
   if (state !== 'play' && state !== 'crash') return;
+  if (paused && GameOrientation.blocked()) return;
   paused = !paused;
   $('pauseScreen').classList.toggle('hidden', !paused);
   if (paused) { if(window.WordAudio)WordAudio.stop(); try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){} }

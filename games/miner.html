@@ -539,13 +539,6 @@
         #miner-action-hint{font-size:12px;}
         #miner-progress{width:min(220px,calc(100vw - 300px));height:26px;}
     }
-    #miner-rotate-warning{display:none;position:fixed;inset:0;z-index:10000;align-items:center;justify-content:center;
-        padding:32px;background:rgba(16,10,5,.98);color:#fff3cf;text-align:center;font:800 21px/1.6 Arial,"Noto Sans TC",sans-serif;}
-    #miner-rotate-warning .rotate-icon{font-size:64px;line-height:1;margin-bottom:18px;animation:minerRotate 1.5s ease-in-out infinite alternate;}
-    #miner-rotate-warning small{display:block;margin-top:5px;color:rgba(255,243,207,.7);font-size:14px;}
-    @keyframes minerRotate{from{transform:rotate(-15deg)}to{transform:rotate(15deg)}}
-    @media (orientation:portrait){#miner-rotate-warning{display:flex;}}
-
     /* 固定一個螢幕：資訊、礦坑、操作各有空間，canvas 由可用尺寸等比例縮放。 */
     html { width:100%; height:100%; overflow:hidden; }
     body { height:100vh; height:100dvh; min-height:0; overflow:hidden;
@@ -647,14 +640,13 @@
 
 </style>
     <link rel="stylesheet" href="game-menu-ui.css">
+    <link rel="stylesheet" href="game-orientation.css">
+<script src="game-orientation.js" data-all-devices></script>
 <script src="lesson-data.js"></script>
 <script src="game-setup.js"></script>
 <script src="game-runtime.js"></script>
 </head>
 <body>
-    <div id="miner-rotate-warning" role="status">
-        <div><div class="rotate-icon">📱→📲</div><div>請橫放手機遊玩</div><small>Please rotate to landscape</small></div>
-    </div>
     <main class="shell">
         <section class="hud" aria-label="遊戲狀態">
             <div class="stat-row">
