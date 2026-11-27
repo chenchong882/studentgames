@@ -31,7 +31,7 @@
   setting(tire, 'yawDamping', '車身迴轉阻尼', 6.6, 4, 15, .1, '/s');
   setting(slide, 'entryTime', '入甩反應時間', .035, .02, .12, .005, 's');
   setting(slide, 'driftRearGrip', '甩尾後輪抓地比例', .37, .25, .85, .01);
-  setting(slide, 'driftSteer', '甩尾舵角倍率', 1.8, 1, 2, .05);
+  setting(slide, 'driftSteer', '甩尾舵角倍率', 2.16, 1, 2.4, .01);
   setting(slide, 'driftCarry', '放開甩尾後續滑時間', .58, .18, .9, .02, 's');
   setting(slide, 'gripReturn', '後輪回抓速率', 3.9, 1.1, 5, .1, '/s');
   setting(slide, 'scrub', '大角度側滑失速', 17, 5, 32, 1, 'm/s²');
@@ -52,14 +52,14 @@
     fixedStep: 1 / 120, collisionRadius: 1.14, wallRestitution: .1,
     wallSpeedRetention: .87, wallImpactSpeed: 5, wallDebounce: .35, wallReleaseGap: .55,
     frontAxle: 1.08, rearAxle: 1.15, yawInertia: 2.5, tireDragFraction: .36,
-    frontLimit: 55, rearLimit: 65, driftFrontGripGain: .12, slipFloorSpeed: 7, angularDrag: 1.15,
+    frontLimit: 55, rearLimit: 65, driftFrontGripGain: .22, slipFloorSpeed: 7, angularDrag: 1.15,
     rollingDrag: .60, aeroDrag: .00092, overspeedDrag: .85, throttleTaper: 8,
     reverseAcceleration: 8, lowSpeedCrossover: 1.0, slowSpeed: 86, penaltyBrake: 24,
     launchLead: 1, launchGrace: .5,
     penaltyOnset: .15, entryYawImpulse: 3.35, driftMinSpeed: 11.5, gripRelease: 32,
     skidMinSpeed: 7, bodySkidAngle: .115, rearSkidAngle: 3.5 * rad, skidGrip: .93,
     counterSteerResponse: 1.85, alignmentRate: 4.5, alignmentResponse: 7,
-    shallowSlide: 6 * rad, deepSlide: 27 * rad, deepSlideSpeedLoss: .33, slideScrubRate: 4.4,
+    shallowSlide: 6 * rad, deepSlide: 27 * rad, deepSlideSpeedLoss: .40, slideScrubRate: 4.4,
     qualifyingSlip: 8 * rad, qualifyingTime: .22,
     settledSlip: 4 * rad, miniWindow: .86, miniForce: 10.5,
     miniAutoDelay: .8,
