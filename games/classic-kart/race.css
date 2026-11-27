@@ -1026,6 +1026,43 @@ body[data-phase="race"] #countdown[data-launch="boost"]:not([hidden]) + #launch-
   border-radius: 12px;
 }
 
+body.phone-portrait > :is(.topbar,#stage,footer) {
+  visibility: hidden;
+}
+
+#orientation-notice {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: max(20px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(20px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));
+  overflow: auto;
+  background: var(--ink);
+  text-align: center;
+}
+
+#orientation-notice .sheet {
+  width: min(100%,330px);
+  padding: 24px;
+}
+
+#orientation-notice svg {
+  width: 72px;
+  height: 58px;
+  color: #9e3b2f;
+}
+
+#orientation-notice h2 { margin: 14px 0 8px; font-size: 23px; }
+#orientation-notice p { margin: 0 0 12px; line-height: 1.6; }
+#orientation-hub {
+  display: inline-block;
+  padding: 12px;
+  color: var(--ink);
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
+
 .dialog {
   padding: clamp(17px,3vw,35px);
   width: min(465px,100%);

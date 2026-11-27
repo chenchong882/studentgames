@@ -96,6 +96,15 @@
   let steeringDirection = null;
   const touchInputs = { autoThrottle: true }, touchLayout = matchMedia('(any-pointer:coarse),(max-width:700px)');
   let touchDriving = matchMedia('(pointer:coarse),(max-width:700px)').matches;
+  const ua = navigator.userAgent;
+  const tablet = /iPad|Tablet|Silk/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+    (/Android/i.test(ua) && !/Mobile/i.test(ua));
+  const phone = !tablet && (/iPhone|iPod|Android.*Mobile/i.test(ua) ||
+    (matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600));
+  const portraitView = matchMedia('(orientation: portrait)');
+  const phoneInPortrait = () => phone && portraitView.matches;
+  const orientationNotice = el('orientation-notice');
+  let orientationFocus;
   const keyMap = { ArrowUp: 'throttle', ArrowDown: 'brake', ArrowLeft: 'left', ArrowRight: 'right',
     ShiftLeft: 'drift', ShiftRight: 'drift', ControlLeft: 'nitro', ControlRight: 'nitro' };
   const pressed = name => steeringButtons[name] ? name === steeringDirection :
@@ -195,8 +204,10 @@
     words = options;
     GameData.report(payload, distinct.size < 3 ? options.filter((w, i, a) => a.findIndex(v => v.chinese.toLowerCase() === w.chinese.toLowerCase()) === i) : options, 3, '#lesson', '每座門有 3 個不同選項。');
     el('start').disabled = !GameData.ready();
-    if (raw)
+    if (raw) {
       el('hub').href = '../index.html#lessonData=' + encodeURIComponent(JSON.stringify(raw));
+      el('orientation-hub').href = el('hub').href;
+    }
   }
   const incoming = new URLSearchParams(location.hash.slice(1)).get('lessonData');
   if (incoming !== null) {
@@ -277,7 +288,7 @@
   }
 
   function syncAudio() {
-    const audible = sound && audioUnlocked && !document.hidden;
+    const audible = sound && audioUnlocked && !document.hidden && !phoneInPortrait();
     const driving = phase === 'countdown' || phase === 'race';
     if (audible && (phase === 'grid' || phase === 'matching' || driving)) {
       const src = phase === 'grid' ? lobbyMusic : raceMusic;
@@ -541,6 +552,7 @@
   }
 
   function begin(replayCourse) {
+    if (phoneInPortrait()) return;
     if (hasNextPayload)
       returnToGrid();
     if (!GameData.ready() || words.length < 3)
@@ -705,7 +717,15 @@
   function closeModal() { el('modal').hidden = true; modalKind = ''; if (focusBack?.isConnected && !focusBack.closest('[hidden]'))
     focusBack.focus({ preventScroll: true }); }
 
-  function resume() { closeModal(); clearInputs(); unlock(); phaseTo(beforePause); last = 0; accum = 0; }
+  function resume() {
+    if (phoneInPortrait()) return;
+    closeModal();
+    clearInputs();
+    unlock();
+    phaseTo(beforePause);
+    last = 0;
+    accum = 0;
+  }
 
   function stopRace() {
     if (['matching', 'countdown', 'race'].includes(phase)) {
@@ -851,6 +871,7 @@
     }
   });
   window.addEventListener('keydown', e => {
+    if (phoneInPortrait()) return;
     if (e.code === 'Escape') {
       e.preventDefault();
       if (e.repeat)
@@ -895,8 +916,29 @@
     recordInput(keyMap[e.code]);
   });
 
-  function away() { if (['matching', 'race', 'countdown'].includes(phase))
-    pauseRace(); clearInputs(); }
+  function away() {
+    if (['matching', 'race', 'countdown'].includes(phase)) pauseRace();
+    clearInputs();
+  }
+
+  function syncPhoneOrientation() {
+    const blocked = phoneInPortrait();
+    if (blocked === document.body.classList.contains('phone-portrait')) return;
+    if (blocked) {
+      away();
+      orientationFocus = document.activeElement;
+    }
+    orientationNotice.hidden = !blocked;
+    document.body.classList.toggle('phone-portrait', blocked);
+    if (blocked) orientationNotice.focus({ preventScroll: true });
+    else if (orientationFocus?.isConnected) orientationFocus.focus({ preventScroll: true });
+    syncAudio();
+  }
+  if (phone) {
+    portraitView.addEventListener?.('change', syncPhoneOrientation);
+    window.addEventListener('resize', syncPhoneOrientation);
+    window.addEventListener('pageshow', syncPhoneOrientation);
+  }
   window.addEventListener('blur', away);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) away();
@@ -1156,7 +1198,7 @@
     requestAnimationFrame(frame);
     const raw = last ? (now - last) / 1000 : 0, dt = clamp(raw, 0, .18);
     last = now;
-    if (document.hidden)
+    if (document.hidden || phoneInPortrait())
       return;
     const moving = ['race', 'countdown', 'matching'].includes(phase);
     if (!moving && !dirty)
@@ -1237,6 +1279,7 @@
   view.addEventListener('webglcontextlost', () => { away(); showFailure('3D 顯示已中斷，請重新整理以載入賽道。'); });
   el('start').disabled = !GameData.ready();
   el('start').innerHTML = '開始競速 <svg aria-hidden="true"><use href="#arrow"/></svg>';
+  syncPhoneOrientation();
   resize();
   requestAnimationFrame(frame);
 })();

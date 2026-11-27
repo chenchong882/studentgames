@@ -129,24 +129,25 @@
   }
 
   function sunport({straight, curve, quizStraight, warn}) {
-    quizStraight(0,-368,205);
+    // Extend the waterfront straights while keeping each bend's original shape.
+    quizStraight(0,-628,205);
     warn(1);
-    curve(0,-407,31,-438,70,-438);
-    quizStraight(462,-438,207);
+    curve(0,-667,31,-698,70,-698);
+    quizStraight(652,-698,300);
     warn(1);
-    curve(502,-438,534,-406,534,-366);
-    quizStraight(534,6,196);
-    curve(534,61,602,65,602,136); // offset S through the gardens
-    straight(602,252);
+    curve(692,-698,724,-666,724,-626);
+    quizStraight(724,61,435);
+    curve(724,116,792,120,792,191); // offset S through the gardens
+    straight(792,307);
     warn(1);
-    curve(602,271.4,586.4,287,567,287);
-    curve(547.6,287,532,271.4,532,252); // 35 m radius quay hairpin
-    straight(532,174);
+    curve(792,326.4,776.4,342,757,342);
+    curve(737.6,342,722,326.4,722,307); // 35 m radius quay hairpin
+    straight(722,229);
     warn(-1);
-    curve(532,145,508,121,479,121);
-    quizStraight(48,121,204);
+    curve(722,200,698,176,669,176);
+    quizStraight(48,176,184);
     warn(1);
-    curve(21.5,121,0,99.5,0,73);
+    curve(21.5,176,0,154.5,0,128);
     straight(0,0);
   }
 
@@ -155,7 +156,7 @@
   // and landmark stations on the completed road to keep art and timing aligned.
   function roundedCircuit(vertices, gateStations, landmarkStations) {
     // Give each approach more room while keeping the smaller radii driftable.
-    const expanded = vertices.map(([x,z,r])=>[x*1.25,z*1.25,r*1.1]);
+    const expanded = vertices.map(([x,z,r])=>[x*1.5,z*1.5,r*1.1]);
     const corners = expanded.map(([x,z,r], i) => {
       const [px,pz] = expanded[(i+expanded.length-1)%expanded.length];
       const [nx,nz] = expanded[(i+1)%expanded.length];
@@ -195,7 +196,7 @@
         const {legStart,end}=sections[i];
         // Leave time both to unwind the drift and to line up for the next turn.
         // On a short straight the portal goes exactly halfway between the bends.
-        const margin=Math.min(95,(end-legStart)/2);
+        const margin=Math.min(65,(end-legStart)/2);
         gates.push(Math.max(legStart+margin,Math.min(end-margin,alongLeg(i,fraction))));
       }
       const landmarks = {};
@@ -218,7 +219,7 @@
     [-173,143,35], [-333,92,56], [-489,-27,36], [-570,-40,42],
     [-586,78,50], [-443,223,57], [-217,331,61], [-58,292,55],
     [0,166,68]
-  ], [[2,.53],[5,.60],[9,.55],[13,.56]],
+  ], [[2,.19],[5,.675],[9,.46],[13,.48]],
   {arch:{leg:1,at:.33}, canyonEntry:{bend:7,at:.53}});
 
   // A stepped market district, two back-to-back left turns around the station, then a finishing boulevard.
@@ -227,7 +228,7 @@
     [416,-434,44], [416,-314,38], [564,-314,46], [564,-97,49],
     [300,-97,37], [300,37,36], [444,37,38], [444,227,60],
     [0,227,63]
-  ], [[0,.80],[3,.58],[7,.53],[11,.38]],
+  ], [[0,.54],[3,.53],[7,.35],[11,.30]],
   {station:{leg:4,at:.45}, plaza:{bend:10,at:.52}});
 
   // Three lobes around the playroom: a book alcove, the drum carousel and two opposing turns through the toy chests.
@@ -237,18 +238,18 @@
     [487,-139,78], [446,53,71], [255,91,59], [164,32,37],
     [85,71,33], [116,249,59], [-92,352,68], [-207,247,53],
     [-144,109,48], [0,109,41]
-  ], [[2,.55],[6,.57],[9,.58],[13,.58]],
+  ], [[2,.36],[6,.35],[9,.36],[13,.36]],
   {drum:{bend:9,at:.48}, desk:{leg:15,at:.62}});
 
   // Two broad bays meet at a narrow waist. Enter the first bay to the right,
   // cut back through the neck and sweep around a longer second headland.
   const beach = roundedCircuit([
-    [0,0,0], [0,-67,52], [224,-201,79], [205,-352,92],
-    [-125,-406,96], [-209,-276,87], [-182,-152,73], [-121,-64,71],
+    [0,0,0], [0,-67,52], [224,-201,79], [205,-412,92],
+    [-125,-466,96], [-209,-276,87], [-182,-152,73], [-121,-64,71],
     [-112,13,67], [-213,73,62], [-390,87,92], [-500,210,107],
     [-482,362,99], [-334,467,111], [-103,443,93], [-14,319,87],
     [-62,205,66], [-58,137,53], [0,84,54]
-  ], [[1,.62],[3,.46],[9,.60],[13,.62]],
+  ], [[1,.24],[3,.54],[9,.35],[13,.39]],
   {cape:{bend:11,at:.57}, lagoon:{leg:6,at:.43}});
 
   const tracks = [

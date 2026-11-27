@@ -558,11 +558,16 @@
     });
     // Low-detail hills and roof silhouettes complete the horizon where streets open up.
     if(sunport){
+      const bounds=new T.Box2(), point=new T.Vector2();
+      for(let s=0;s<length;s+=12){
+        const p=sample(s);
+        bounds.expandByPoint(point.set(p.x,p.z));
+      }
+      const centre=bounds.getCenter(new T.Vector2()), half=bounds.getSize(new T.Vector2()).multiplyScalar(.5);
       for(let i=0;i<76;i++){
-        const a=i*Math.PI*2/76;
-        let x=260+Math.cos(a)*range(550,695),z=-75+Math.sin(a)*range(545,700);
-        const nearest=project(x,z),distance=Math.hypot(x-nearest.x,z-nearest.z);
-        if(distance<150){x+=Math.cos(a)*(160-distance);z+=Math.sin(a)*(160-distance);}
+        const a=i*Math.PI*2/76, dx=Math.cos(a), dz=Math.sin(a), margin=range(130,210);
+        const reach=Math.min((half.x+margin)/Math.max(.001,Math.abs(dx)),(half.y+margin)/Math.max(.001,Math.abs(dz)));
+        const x=centre.x+dx*reach,z=centre.y+dz*reach;
         const h=range(28,66);
         put(ball,plain,i%3?'#a4c4aa':'#aecab0',x,-1,z,range(30,89),h,range(53,90));
       }
