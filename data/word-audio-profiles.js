@@ -22,7 +22,7 @@ window.WORD_AUDIO_PROFILES = {
     },
     "in-female": {
       "directory": "profiles/in-female/",
-      "version": "5de0bc189906"
+      "version": "9e0e531038e5"
     },
     "in-male": {
       "directory": "profiles/in-male/",

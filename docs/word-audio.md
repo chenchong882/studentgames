@@ -22,7 +22,7 @@ python3 scripts/generate-example-audio.py --verify-only
 
 ### 印度口音女聲 · elevenlabs.io
 
-The Mumbai Storyteller 已覆蓋「原始 30 字」及另外 200 個主題單字。來源標示收錄於各 MP3 的標題。選擇口音或男女聲後，點單字即可用所選聲音朗讀。口音按鈕的國旗圖檔來自 [Flagpedia](https://flagpedia.net/download/images)。
+全部 380 個內建主題單字的印度口音女聲均使用 The Mumbai Storyteller。來源標示收錄於各 MP3 的標題。選擇口音或男女聲後，點單字即可用所選聲音朗讀。口音按鈕的國旗圖檔來自 [Flagpedia](https://flagpedia.net/download/images)。
 
 產檔在老師的電腦上執行，完成品質核對與發布後才供學生播放。匯入題庫本身不會呼叫 OpenAI API；API key 不可放進網頁或 Git。
 
