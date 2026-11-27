@@ -20,9 +20,9 @@ python3 scripts/generate-example-audio.py --verify-only
 
 遊戲與複習預設播放美式 Marin 音檔，產檔語速為 0.9 倍。首頁的主題單字預覽另提供美式、英式、澳式和隱藏的印度口音，每種都可選女聲或男聲。重複出現在不同主題的單字共用同一份發音。段考單字若缺少所選錄音，預覽會提示，並可另外點「使用裝置朗讀」。
 
-### 「原始 30 字」印度口音女聲 · elevenlabs.io
+### 印度口音女聲 · elevenlabs.io
 
-這 30 個單字的印度口音女聲由 ElevenLabs 的 The Mumbai Storyteller 錄製，來源標示收錄於各 MP3 的標題。進入印度口音女聲時，若還沒選字，會先播放 `blanket`。
+The Mumbai Storyteller 已覆蓋「原始 30 字」及另外 200 個主題單字。來源標示收錄於各 MP3 的標題。選擇口音或男女聲後，點單字即可用所選聲音朗讀。口音按鈕的國旗圖檔來自 [Flagpedia](https://flagpedia.net/download/images)。
 
 產檔在老師的電腦上執行，完成品質核對與發布後才供學生播放。匯入題庫本身不會呼叫 OpenAI API；API key 不可放進網頁或 Git。
 
