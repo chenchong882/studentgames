@@ -29,7 +29,7 @@
   setting(tire, 'frontStiffness', '前輪側向剛度', 154, 100, 240, 2);
   setting(tire, 'rearStiffness', '後輪側向剛度', 192, 110, 270, 2);
   setting(tire, 'yawDamping', '車身迴轉阻尼', 6.6, 4, 15, .1, '/s');
-  setting(slide, 'entryTime', '入甩反應時間', .035, .02, .12, .005, 's');
+  setting(slide, 'entryTime', '入甩反應時間', .08, .02, .12, .005, 's');
   setting(slide, 'driftRearGrip', '甩尾後輪抓地比例', .37, .25, .85, .01);
   setting(slide, 'driftSteer', '甩尾舵角倍率', 2.16, 1, 2.4, .01);
   setting(slide, 'driftCarry', '放開甩尾後續滑時間', .58, .18, .9, .02, 's');
@@ -57,6 +57,7 @@
     reverseAcceleration: 8, lowSpeedCrossover: 1.0, slowSpeed: 86, penaltyBrake: 24,
     launchLead: 1, launchGrace: .5,
     penaltyOnset: .15, entryYawImpulse: 3.35, driftTurnMultiplier: 1.5, driftMinSpeed: 11.5, gripRelease: 32,
+    driftEntryPathGrip: .25, driftSlidePathGrip: .90, driftPathResponse: 3.6,
     skidMinSpeed: 7, bodySkidAngle: .115, rearSkidAngle: 3.5 * rad, skidGrip: .93,
     counterSteerResponse: 1.85, alignmentRate: 4.5, alignmentResponse: 7,
     shallowSlide: 6 * rad, deepSlide: 27 * rad, deepSlideSpeedLoss: .40, slideScrubRate: 4.4,
@@ -80,7 +81,7 @@
     return Object.assign(car, {
       x: pose.x, z: pose.z, vx: 0, vz: 0, yaw: Math.atan2(pose.tx, -pose.tz),
       yawRate: 0, speed: 0, slip: 0, rearSlip: 0, skidding: false, steer: 0, wheelAngle: 0,
-      phase: 'grip', grip: 1, entryLoad: 0, driftSide: 0, driftSeconds: 0, effectiveSeconds: 0,
+      phase: 'grip', grip: 1, pathGrip: 1, entryLoad: 0, driftSide: 0, driftSeconds: 0, effectiveSeconds: 0,
       driftLatched: false, driftEntrySpeed: 0, releasedFor: 0, miniReady: 0,
       throttleLifted: false, cameraState: null, wallCooldown: 0, wallContact: false
     });
@@ -89,7 +90,7 @@
     if (!car.wallContact) car.yawRate = 0;
     car.wallContact = true;
     car.phase = 'grip';
-    car.grip = 1;
+    car.grip = car.pathGrip = 1;
     car.driftSide = car.driftSeconds = car.effectiveSeconds = car.entryLoad = 0;
     car.miniReady = car.miniTimer = 0;
     car.skidding = false;
@@ -193,6 +194,7 @@
       car.driftEntrySpeed = car.speed;
       // A rear axle that is still sliding has less grip left to break on a second tap.
       car.entryLoad = clamp((car.grip - config.driftRearGrip) / (1 - config.driftRearGrip), 0, 1);
+      car.pathGrip = Math.min(car.pathGrip, 1 - car.entryLoad * (1 - config.driftEntryPathGrip));
       car.driftLatched = true;
       car.driftSeconds = car.effectiveSeconds = car.releasedFor = 0;
     }
@@ -221,6 +223,8 @@
     const gripTarget = reduced ? config.driftRearGrip : 1;
     const response = reduced ? config.gripRelease : config.gripReturn;
     car.grip += (gripTarget - car.grip) * fade(response, dt);
+    const pathGripTarget = reduced ? config.driftSlidePathGrip : 1;
+    car.pathGrip += (pathGripTarget - car.pathGrip) * fade(reduced ? config.driftPathResponse : config.gripReturn, dt);
 
     // A mini waiting behind a tank occupies the same slot as a ready or firing mini.
     if (reduced && car.miniReady <= 0 && car.miniTimer <= 0 && car.penalty <= 0 &&
@@ -286,7 +290,6 @@
     const frontLateral = frontForce * c;
     const cornerForce = frontLateral + rearForce;
     const tireLong = -frontForce * s;
-    const pathYawRate = speed > cfg.lowSpeedCrossover ? (cornerForce * forward - tireLong * lateral) / (speed * speed) : 0;
     const turnMultiplier = sliding ? cfg.driftTurnMultiplier : 1;
     // Integrate the decaying handbrake moment over this tick. A shorter time
     // delivers the same angular impulse earlier while yaw and the travel path stay continuous.
@@ -297,12 +300,6 @@
     const steeringTorque = torque * (torque * car.driftSide > 0 ? turnMultiplier : 1);
     car.yawRate += (steeringTorque - (cfg.yawDamping + cfg.angularDrag * Math.abs(car.yawRate)) * car.yawRate) * dt;
     car.yawRate += handbrakeImpulse * turnMultiplier;
-    if (forward > cfg.lowSpeedCrossover && (catching || (car.phase === 'recover' && !steerInput))) {
-      // Carve along the current velocity arc as the nose realigns. The tires still
-      // turn the velocity vector continuously, including during a left/right switch.
-      const alignment = pathYawRate - cfg.alignmentRate * car.slip;
-      car.yawRate += (alignment - car.yawRate) * fade(cfg.alignmentResponse, dt);
-    }
 
     const penalized = car.penalty > 0;
     const largeBoost = !penalized && (car.tankTimer > 0 || car.launchTimer > 0);
@@ -343,14 +340,17 @@
     const tireWork = speed > .1 ? (tireLong * forward + cornerForce * lateral) / speed : 0;
     const returned = speed > .1 ? -Math.min(0, tireWork) * (1 - cfg.tireDragFraction * car.grip) / speed : 0;
     const longitudinal = thrust + tireLong;
-    car.vx += (longitudinal * fx + cornerForce * rx + (returned - decel) * car.vx) * dt;
-    car.vz += (longitudinal * fz + cornerForce * rz + (returned - decel) * car.vz) * dt;
-    if (sliding && pathYawRate * car.driftSide > 0) {
-      // Bend the travel path with the tires while preserving speed and allowing sideslip.
-      const extraTurn = (turnMultiplier - 1) * pathYawRate * dt;
-      const cos = Math.cos(extraTurn), sin = Math.sin(extraTurn), vx = car.vx;
-      car.vx = vx * cos - car.vz * sin;
-      car.vz = vx * sin + car.vz * cos;
+    // Only force across the current velocity bends the path. Let that grip build back
+    // through the slide while keeping acceleration and braking along the travel direction.
+    const pathYawRate = speed > cfg.lowSpeedCrossover ? (cornerForce * forward - longitudinal * lateral) / (speed * speed) : 0;
+    const lostTurnRate = (1 - car.pathGrip) * pathYawRate;
+    const forwardForce = longitudinal + lateral * lostTurnRate;
+    const sideForce = cornerForce - forward * lostTurnRate;
+    car.vx += (forwardForce * fx + sideForce * rx + (returned - decel) * car.vx) * dt;
+    car.vz += (forwardForce * fz + sideForce * rz + (returned - decel) * car.vz) * dt;
+    if (forward > cfg.lowSpeedCrossover && (catching || (car.phase === 'recover' && !steerInput))) {
+      const alignment = car.pathGrip * pathYawRate - cfg.alignmentRate * car.slip;
+      car.yawRate += (alignment - car.yawRate) * fade(cfg.alignmentResponse, dt);
     }
     car.yaw = arc(car.yaw + car.yawRate * dt);
     car.x += car.vx * dt;
