@@ -57,10 +57,10 @@
     reverseAcceleration: 8, lowSpeedCrossover: 1.0, slowSpeed: 86, penaltyBrake: 24,
     launchLead: 1, launchGrace: .5,
     penaltyOnset: .15, entryYawImpulse: 3.35, driftTurnMultiplier: 1.5, driftMinSpeed: 11.5, gripRelease: 32,
-    driftEntryPathGrip: .25, driftSlidePathGrip: .90, driftPathResponse: 3.6,
+    driftEntryPathGrip: .25, driftSlidePathGrip: .90, driftPathResponse: 3.6, coastGripReturnScale: .75,
     skidMinSpeed: 7, bodySkidAngle: .115, rearSkidAngle: 3.5 * rad, skidGrip: .93,
     counterSteerResponse: 1.85, alignmentRate: 4.5, alignmentResponse: 7,
-    shallowSlide: 6 * rad, deepSlide: 27 * rad, deepSlideSpeedLoss: .36, slideScrubRate: 4.4,
+    shallowSlide: 6 * rad, deepSlide: 27 * rad, deepSlideSpeedLoss: .33, slideScrubRate: 4.4,
     qualifyingSlip: 8 * rad, qualifyingTime: .22,
     settledSlip: 4 * rad, miniWindow: .86, miniForce: 10.5,
     miniAutoDelay: .8,
@@ -220,11 +220,13 @@
       car.driftSide = 0;
     }
     const reduced = car.phase === 'entry' || car.phase === 'slide';
+    const coastingOut = car.phase === 'recover' && steerInput * car.driftSide >= 0;
+    const returnRate = config.gripReturn * (coastingOut ? config.coastGripReturnScale : 1);
     const gripTarget = reduced ? config.driftRearGrip : 1;
-    const response = reduced ? config.gripRelease : config.gripReturn;
+    const response = reduced ? config.gripRelease : returnRate;
     car.grip += (gripTarget - car.grip) * fade(response, dt);
     const pathGripTarget = reduced ? config.driftSlidePathGrip : 1;
-    car.pathGrip += (pathGripTarget - car.pathGrip) * fade(reduced ? config.driftPathResponse : config.gripReturn, dt);
+    car.pathGrip += (pathGripTarget - car.pathGrip) * fade(reduced ? config.driftPathResponse : returnRate, dt);
 
     // A mini waiting behind a tank occupies the same slot as a ready or firing mini.
     if (reduced && car.miniReady <= 0 && car.miniTimer <= 0 && car.penalty <= 0 &&
@@ -283,14 +285,16 @@
       Math.max(cfg.slipFloorSpeed, Math.abs(forward * c + frontSide * s)));
     car.rearSlip = Math.atan2(rearSide, Math.max(cfg.slipFloorSpeed, Math.abs(forward)));
     const sliding = car.phase === 'entry' || car.phase === 'slide';
-    // A loaded front tire needs extra lateral grip to tighten the actual path at full drift lock.
-    const frontGrip = sliding ? 1 + cfg.driftFrontGripGain * driftAmount * Math.max(0, car.steer * car.driftSide) : 1;
+    // Let the extra cornering force fade with steering and rear grip on exit.
+    // An explicit countersteer takes control immediately.
+    const steeringLoad = steerInput * car.driftSide < 0 ? 0 : driftAmount * Math.max(0, car.steer * car.driftSide);
+    const frontGrip = 1 + cfg.driftFrontGripGain * steeringLoad;
     const frontForce = -frontGrip * cfg.frontLimit * Math.tanh(frontSlip * cfg.frontStiffness / cfg.frontLimit);
     const rearForce = -cfg.rearLimit * car.grip * Math.tanh(car.rearSlip * cfg.rearStiffness / cfg.rearLimit);
     const frontLateral = frontForce * c;
     const cornerForce = frontLateral + rearForce;
     const tireLong = -frontForce * s;
-    const turnMultiplier = sliding ? cfg.driftTurnMultiplier : 1;
+    const turnMultiplier = 1 + (cfg.driftTurnMultiplier - 1) * (sliding ? 1 : steeringLoad);
     // Integrate the decaying handbrake moment over this tick. A shorter time
     // delivers the same angular impulse earlier while yaw and the travel path stay continuous.
     const handbrakeImpulse = sliding ?
@@ -350,7 +354,8 @@
     car.vz += (forwardForce * fz + sideForce * rz + (returned - decel) * car.vz) * dt;
     if (forward > cfg.lowSpeedCrossover && (catching || (car.phase === 'recover' && !steerInput))) {
       const alignment = car.pathGrip * pathYawRate - cfg.alignmentRate * car.slip;
-      car.yawRate += (alignment - car.yawRate) * fade(cfg.alignmentResponse, dt);
+      const response = cfg.alignmentResponse * (catching ? 1 : 1 - .5 * driftAmount);
+      car.yawRate += (alignment - car.yawRate) * fade(response, dt);
     }
     car.yaw = arc(car.yaw + car.yawRate * dt);
     car.x += car.vx * dt;
