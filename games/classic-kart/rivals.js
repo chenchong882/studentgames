@@ -23,8 +23,7 @@
   ];
   // Spread the field between the fastest and slowest engines and cornering targets of each difficulty.
   const fieldPaces = {
-    easy:   {pace:[.82,.76], corner:[14.5,13.8]},
-    normal: {pace:[1.13,1.09], corner:[22.7,22.2]},
+    normal: {pace:[1.155,1.12], corner:[23.6,23.0]},
     hard:   {pace:[1.175,1.14], corner:[24.3,23.5]}
   };
   const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
@@ -57,7 +56,7 @@
   const playerStart = track => startPose(track, 3);
 
   function create(track, laps = 3, difficulty = 'normal') {
-    const field = (difficulty === 'easy' || difficulty === 'hard') ? fieldPaces[difficulty] : fieldPaces.normal;
+    const field = difficulty === 'hard' ? fieldPaces.hard : fieldPaces.normal;
     const pool = roster.slice();
     return driverSlots.map((slot, index) => {
       const [identity] = pool.splice(Math.floor(Math.random()*pool.length), 1);
@@ -95,7 +94,7 @@
     const nearby = [];
     function add(progress, lateral, speed) {
       const gap = alongDifference(rival.progress, progress, track.length);
-      const look = 17 + Math.max(0, rival.car.speed - speed) * .9;
+      const look = 17 + Math.max(0, rival.car.speed - speed) * 1.35;
       if (gap > -6 && gap < look) nearby.push({gap, lateral, speed, look});
     }
     for (const other of rivals) {
@@ -123,7 +122,7 @@
     return chosen;
   }
 
-  function navigate(rival, rivals, track, player, playerProgress, elapsed) {
+  function navigate(rival, rivals, track, player, playerProgress, elapsed, pace) {
     const { car, driver, projection:p, input } = rival;
     const bends = curvatureMap(track), lead = clamp(6 + car.speed * .45, 9, 36);
     const bend = bends.at(p.s + lead);
@@ -139,11 +138,14 @@
     input.left = steer < -.018;
     input.right = steer > .018;
 
-    const cfg = drive.config, brake = Math.min(18, cfg.braking * .68);
-    let speedLimit = cfg.topSpeed * driver.pace / 3.6;
+    const cfg = drive.config, brake = Math.min(22, cfg.braking * .74);
+    let speedLimit = drive.speedLimitFor(pace, car.boostKind);
     const steeringTorque = cfg.frontAxle * cfg.frontStiffness * cfg.steerHigh * Math.PI / 180;
     const yawRate = steeringTorque / (cfg.yawInertia * cfg.yawDamping);
-    for (let look = 0; look <= 120; look += 6) {
+    // A tank can carry the kart beyond cruising speed. Look far enough ahead
+    // to brake for a hairpin even on a boosted straight.
+    const brakeHorizon = Math.max(120, car.speed ** 2 / (2 * brake) + 12);
+    for (let look = 0; look <= brakeHorizon; look += 6) {
       const curvature = bends.at(p.s + look);
       if (Math.abs(curvature) < .002) continue;
       const radius = Math.max(10, 1 / Math.abs(curvature) - Math.sign(curvature) * rival.line);
@@ -170,7 +172,8 @@
     input.drift = elapsed < (rival.driftUntil || 0);
     input.throttle = car.speed < speedLimit - .2 && speedLimit > 0;
     input.brake = car.speed > speedLimit + .65;
-    input.nitro = !input.brake && !bend && car.stock > 0 && car.speed > 26 && rival.finishedAt === null;
+    input.nitro = !input.brake && !car.boosting && Math.abs(bend) < .002 &&
+      car.stock > 0 && car.speed > 26 && rival.finishedAt === null;
   }
 
   function step(rivals, track, player, playerProgress, dt, elapsed) {
@@ -181,13 +184,15 @@
         car.vx = car.vz = car.speed = 0;
         continue;
       }
+      // Use total race progress so the gain stays continuous across the finish line.
+      // The extra pace rises from zero at 30 m behind to 4% of the base pace at 150 m.
+      const pursuit = clamp((playerProgress - rival.progress - 30) / 120, 0, 1);
+      const pace = rival.driver.pace + .04 * pursuit;
       rival.thinkIn -= dt;
       if (rival.thinkIn <= 0) {
-        navigate(rival, rivals, track, player, playerProgress, elapsed);
+        navigate(rival, rivals, track, player, playerProgress, elapsed, pace);
         rival.thinkIn += steerPeriod;
       }
-      // Even on easy, a successful launch can run alongside the player's kart.
-      const pace = car.launchTimer > 0 ? Math.max(1, rival.driver.pace) : rival.driver.pace;
       drive.step(car, rival.input, dt, pace);
       let p = track.project(car.x, car.z, before.s);
       p = drive.constrainToTrack(car, track, p, dt);

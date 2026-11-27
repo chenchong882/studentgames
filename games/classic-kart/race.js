@@ -32,7 +32,7 @@
   racers.add(rivalGroup);
   rivalGroup.visible = false;
   let rivals = [], playerFinishedAt = null, displayedOrder = '';
-  const difficultyNames = { easy: '簡單', normal: '普通', hard: '困難' };
+  const difficultyNames = { normal: '普通', hard: '困難' };
   const courseChoice = el('course-choice');
   for (const course of tracks) courseChoice.add(new Option(course.name, course.id));
   let courseBag = [], lastCourse = null;
@@ -554,7 +554,7 @@
     raceMusic = drawRaceMusic(track.id);
     resetRace(ClassicRivals.playerStart(track));
     deck = ClassicGates.questions(words, totalGates);
-    difficulty = document.querySelector('input[name="difficulty"]:checked').value;
+    difficulty = document.querySelector('input[name="difficulty"][value="hard"]:checked') ? 'hard' : 'normal';
     lineUpRivals();
     track.gates.forEach((_, i) => gates.set(i, deck[i]));
     prepareMatch();

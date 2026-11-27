@@ -32,7 +32,7 @@
   setting(tire, 'yawDamping', '車身迴轉阻尼', 6.6, 4, 15, .1, '/s');
   setting(slide, 'entryTime', '入甩反應時間', .035, .02, .12, .005, 's');
   setting(slide, 'driftRearGrip', '甩尾後輪抓地比例', .37, .25, .85, .01);
-  setting(slide, 'driftSteer', '甩尾舵角倍率', 1.65, 1, 1.75, .05);
+  setting(slide, 'driftSteer', '甩尾舵角倍率', 1.8, 1, 2, .05);
   setting(slide, 'driftCarry', '放開甩尾後續滑時間', .58, .18, .9, .02, 's');
   setting(slide, 'gripReturn', '後輪回抓速率', 3.9, 1.1, 5, .1, '/s');
   setting(slide, 'scrub', '大角度側滑失速', 17, 5, 32, 1, 'm/s²');
@@ -54,7 +54,7 @@
     fixedStep: 1 / 120, collisionRadius: 1.14, wallRestitution: .1,
     wallSpeedRetention: .87, wallImpactSpeed: 5, wallDebounce: .35, wallReleaseGap: .55,
     frontAxle: 1.08, rearAxle: 1.15, yawInertia: 2.5, tireDragFraction: .36,
-    frontLimit: 55, rearLimit: 65, slipFloorSpeed: 7, angularDrag: 1.15,
+    frontLimit: 55, rearLimit: 65, driftFrontGripGain: .12, slipFloorSpeed: 7, angularDrag: 1.15,
     rollingDrag: .60, aeroDrag: .00092, overspeedDrag: .85, throttleTaper: 8,
     reverseAcceleration: 8, lowSpeedCrossover: 1.0, slowSpeed: 86, penaltyBrake: 24,
     launchLead: 1, launchGrace: .5,
@@ -259,6 +259,14 @@
     }
   }
 
+  // Both the driver and the chassis use this forward speed limit in metres per second.
+  function speedLimitFor(pace, boostKind) {
+    const cruise = config.topSpeed * pace;
+    if (!boostKind) return cruise / 3.6;
+    if (boostKind === 'mini') return (cruise + config.miniSpeedGain) / 3.6;
+    return Math.max(config.boostSpeed, cruise + 5) / 3.6;
+  }
+
   function step(car, input, dt, pace = 1) {
     const cfg = config;
     if (input.nitro && !car.prevNitro) useNitro(car);
@@ -290,12 +298,14 @@
     const frontSlip = Math.atan2(frontSide * c - forward * s,
       Math.max(cfg.slipFloorSpeed, Math.abs(forward * c + frontSide * s)));
     car.rearSlip = Math.atan2(rearSide, Math.max(cfg.slipFloorSpeed, Math.abs(forward)));
-    const frontForce = -cfg.frontLimit * Math.tanh(frontSlip * cfg.frontStiffness / cfg.frontLimit);
+    const sliding = car.phase === 'entry' || car.phase === 'slide';
+    // A loaded front tire needs extra lateral grip to tighten the actual path at full drift lock.
+    const frontGrip = sliding ? 1 + cfg.driftFrontGripGain * driftAmount * Math.max(0, car.steer * car.driftSide) : 1;
+    const frontForce = -frontGrip * cfg.frontLimit * Math.tanh(frontSlip * cfg.frontStiffness / cfg.frontLimit);
     const rearForce = -cfg.rearLimit * car.grip * Math.tanh(car.rearSlip * cfg.rearStiffness / cfg.rearLimit);
     const frontLateral = frontForce * c;
     const cornerForce = frontLateral + rearForce;
     const tireLong = -frontForce * s;
-    const sliding = car.phase === 'entry' || car.phase === 'slide';
     // Integrate the decaying handbrake moment over this tick. A shorter time
     // delivers the same angular impulse earlier while yaw and the travel path stay continuous.
     const handbrakeImpulse = sliding ?
@@ -318,16 +328,14 @@
     car.boostKind = penalized ? '' : car.quizTimer > 0 ? 'quiz' : car.tankTimer > 0 ? 'tank' :
       car.launchTimer > 0 ? 'launch' : mini ? 'mini' : '';
     car.boosting = !!car.boostKind;
-    const cruisingSpeed = cfg.topSpeed * pace;
-    let speedLimit = (largeBoost ? Math.max(cfg.boostSpeed, cruisingSpeed + 5) :
-      cruisingSpeed + (mini ? cfg.miniSpeedGain : 0)) / 3.6;
+    let speedLimit = speedLimitFor(pace, car.boostKind);
     const brakingPenalty = penalized && car.penalty < cfg.penaltyTime - cfg.penaltyOnset;
     if (brakingPenalty) speedLimit = cfg.slowSpeed / 3.6;
     const bodySlip = Math.atan2(Math.abs(lateral), Math.max(1, Math.abs(forward)));
     const slideLoad = clamp((bodySlip - cfg.shallowSlide) / (cfg.deepSlide - cfg.shallowSlide), 0, 1);
     // Scrub approaches a fraction of this drift's entry speed. Unwinding early
     // preserves momentum; active boost still adds its usual extra headroom.
-    const boostHeadroom = car.boosting ? Math.max(0, speedLimit - cruisingSpeed / 3.6) : 0;
+    const boostHeadroom = car.boosting ? Math.max(0, speedLimit - speedLimitFor(pace, '')) : 0;
     const slideLimit = sliding ? car.driftEntrySpeed * (1 - cfg.deepSlideSpeedLoss * slideLoad) + boostHeadroom : Infinity;
     let thrust = 0;
     const drag = cfg.rollingDrag * Math.min(speed * 2, 1) + cfg.aeroDrag * speed * speed;
@@ -419,5 +427,5 @@
       view.updateProjectionMatrix();
     }
   }
-  window.ClassicDrive = {config, sliders, step, create, reset, recoveryPose, constrainToRoad, constrainToTrack, resolveWallContact, camera, useNitro, useMini, boost, launch, penalize};
+  window.ClassicDrive = {config, sliders, speedLimitFor, step, create, reset, recoveryPose, constrainToRoad, constrainToTrack, resolveWallContact, camera, useNitro, useMini, boost, launch, penalize};
 })();
