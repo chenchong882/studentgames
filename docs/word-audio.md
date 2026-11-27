@@ -24,7 +24,7 @@ python3 scripts/generate-example-audio.py --verify-only
 
 全部 380 個內建主題單字的印度口音女聲使用 ElevenLabs 的 The Mumbai Storyteller，男聲使用 Cartesia 的 Rahul（Calm Office Guy）。來源標示收錄於各 MP3 的標題。選擇口音或男女聲後，點單字即可用所選聲音朗讀。口音按鈕的國旗圖檔來自 [Flagpedia](https://flagpedia.net/download/images)。
 
-首頁「原始單字」的 30 句例句也提供這兩個聲線。各聲線的例句音檔存於 `assets/example-audio/profiles/`，以 `data/example-audio-profiles.js` 登錄。選了印度口音但當前例句還沒有對應錄音時，按鈕會顯示「聽美式例句」。
+首頁 380 句內建主題例句都已提供 Rahul 男聲，其中 114 句也提供 The Mumbai Storyteller 女聲。各聲線的例句音檔存於 `assets/example-audio/profiles/`，以 `data/example-audio-profiles.js` 登錄。選了印度口音但當前例句還沒有對應錄音時，按鈕會顯示「聽美式例句」。
 
 產檔在老師的電腦上執行，完成品質核對與發布後才供學生播放。匯入題庫本身不會呼叫 OpenAI API；API key 不可放進網頁或 Git。
 
